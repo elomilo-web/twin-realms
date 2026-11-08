@@ -6,3 +6,5 @@ obj/
 export/
 screenshots/*.png
 .DS_Store
+bot_out/
+bot_log.txt
