@@ -71,12 +71,25 @@ public partial class Player : CharacterBody3D, IDamageable
         _hand = new Node3D { Position = new Vector3(0.5f, 1.1f, -0.1f) }; _model.AddChild(_hand);
         _shield = new Node3D { Position = new Vector3(-0.5f, 1.1f, -0.15f) }; _model.AddChild(_shield);
         _weaponRoot = new Node3D(); _hand.AddChild(_weaponRoot);
+        // arms: static upper arms from the shoulders, forearms ride on the weapon hand and the shield
+        Limb(_model, new Vector3(0.42f, 1.5f, 0), new Vector3(0.5f, 1.1f, -0.1f), 0.1f, body);
+        Limb(_model, new Vector3(-0.42f, 1.5f, 0), new Vector3(-0.5f, 1.1f, -0.15f), 0.1f, body);
+        Limb(_hand, new Vector3(0, 0, 0.05f), new Vector3(0, 0, -0.38f), 0.085f, skin);
+        Limb(_shield, new Vector3(0.1f, 0, 0.3f), new Vector3(0.1f, 0, -0.05f), 0.085f, skin);
+        _hand.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = 0.1f, Height = 0.2f }, MaterialOverride = skin, Position = new Vector3(0, 0, -0.38f) });
 
         _horse = new Node3D { Visible = false }; AddChild(_horse);
         var hm = new StandardMaterial3D { AlbedoColor = new Color(0.4f, 0.26f, 0.16f) };
         _horse.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(0.7f, 0.8f, 2.0f) }, MaterialOverride = hm, Position = new Vector3(0, 1.0f, 0) });
         _horse.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(0.35f, 0.7f, 0.9f) }, MaterialOverride = hm, Position = new Vector3(0, 1.5f, -1.2f), Rotation = new Vector3(-0.5f, 0, 0) });
         for (int i = 0; i < 4; i++) _horse.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(0.18f, 0.9f, 0.18f) }, MaterialOverride = hm, Position = new Vector3(i % 2 == 0 ? 0.25f : -0.25f, 0.45f, i < 2 ? -0.8f : 0.8f) });
+    }
+
+    static void Limb(Node3D parent, Vector3 a, Vector3 b, float r, Material mat)
+    {
+        var dir = (b - a).Normalized(); var up = Mathf.Abs(dir.Y) > 0.95f ? Vector3.Right : Vector3.Up;
+        var n = new Node3D { Transform = new Transform3D(Basis.LookingAt(dir, up), (a + b) / 2) }; parent.AddChild(n);
+        n.AddChild(new MeshInstance3D { Mesh = new CapsuleMesh { Radius = r, Height = (b - a).Length() + r * 2 }, MaterialOverride = mat, Rotation = new Vector3(Mathf.Pi / 2, 0, 0) });
     }
 
     void RefreshWeapon()
