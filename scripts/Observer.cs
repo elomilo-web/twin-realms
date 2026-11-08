@@ -142,6 +142,13 @@ public partial class Observer : Node
             var bp = World.GetPoi("barrow")!; await Scene("w08_dungeon_mouth", bp.Door.X, bp.Door.Z, new Vector3(-8, 4, -2), 4, 0.4f);
             await Scene("w09_shadow_village", 0, 14, new Vector3(0, 6, 22), 3, 0.4f, 1);
             await Scene("w10_shadow_wilds", -60, 40, new Vector3(0, 10, 35), 6, 0.5f, 1);
+            // gatherables: frame the berry bush nearest the village plus whatever grows around it
+            Node3D? gb = null; float gbd = 1e9f;
+            foreach (var n in GetTree().GetNodesInGroup("gather")) if (n is Gatherable g && g.Def.Shape == "berry") { float d = g.GlobalPosition.Length(); if (d < gbd) { gbd = d; gb = g; } }
+            if (gb != null) { var gp = gb.GlobalPosition; await Scene("w11_gatherables", gp.X, gp.Z, new Vector3(3.5f, 2.2f, 4.5f), 0.6f, 0.4f); }
+            Node3D? ore = null; float od = 1e9f;
+            foreach (var n in GetTree().GetNodesInGroup("gather")) if (n is Gatherable g && (g.Def.Shape == "ore" || g.Def.Shape == "crystal")) { float d = g.GlobalPosition.Length(); if (d < od) { od = d; ore = g; } }
+            if (ore != null) { var op = ore.GlobalPosition; await Scene("w12_ore", op.X, op.Z, new Vector3(3f, 2.2f, 3.5f), 0.6f, 0.4f); }
             Sky(0.4f, 0);
         });
         await Safe("dungeon", async () =>

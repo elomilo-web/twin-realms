@@ -124,6 +124,19 @@ public partial class Bot : Node
             Check("loot collected without freezing", true, $"gold {gold0} -> {Game.D.Gold}, pack {Game.D.Inv.Count}");
         });
 
+        await Step("gathering", async () =>
+        {
+            Gatherable? g = null; float bd = 1e9f;
+            foreach (var n in GetTree().GetNodesInGroup("gather")) if (n is Gatherable x && x.CanInteract) { float d = x.GlobalPosition.DistanceTo(P.GlobalPosition); if (d < bd) { bd = d; g = x; } }
+            Check("world has gatherables", g != null, $"{GetTree().GetNodesInGroup("gather").Count} nodes");
+            if (g == null) return;
+            int before = 0; foreach (var v in Game.D.Mats.Values) before += v;
+            P.Teleport(g.GlobalPosition + new Vector3(1.2f, 0.5f, 0), 0f); await Wait(0.4f); g.Interact(); await Wait(0.4f);
+            int after = 0; foreach (var v in Game.D.Mats.Values) after += v;
+            Check("gathering adds materials", after > before, $"{g.Prompt}: {before} -> {after}");
+            Check("gathered node waits to regrow", !g.CanInteract);
+        });
+
         await Step("spells and potions", async () =>
         {
             var e = Nearest(); if (e != null) { P.Teleport(e.GlobalPosition + new Vector3(0, 0.5f, 8f), 0f); Face(e.GlobalPosition); }

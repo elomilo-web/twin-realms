@@ -40,12 +40,13 @@ Format: `- [ ] (impact H/M/L, effort S/M/L) title: why / how`. Mark `[x]` when d
 - [ ] (M,M) Weather: rain and fog banks that change with time; puddle shine.
 - [ ] (M,S) Color grading per realm and time of day; vignette when hurt.
 ## World life
-- [ ] (H,M) Gatherables: herbs, mushrooms, berry bushes, ore and crystal veins; materials bag; sell to the merchant.
+- [x] (H,M) Gatherables: herbs, mushrooms, berry bushes, ore and crystal veins; materials bag; sell to the merchant.
 - [ ] (H,M) Wildlife: deer and rabbits that flee, boars that fight back; hides and meat drops.
 - [ ] (H,M) NPC daily routines: walk between home, market and forge; sleep at night; idle animations.
 - [ ] (M,S) Birds, butterflies by day, fireflies at night; footstep dust and sound by surface.
 - [ ] (M,M) Roaming animals (deer, rabbits) that flee.
 ## Systems
+- [ ] (H,M) Use materials: brew potions from herbs at a cauldron, smith upgrades cost ore and crystals.
 - [ ] (H,M) Crafting and enchanting at the smith: break items into materials, add affixes.
 - [ ] (M,M) Bounty board with repeatable kill, fetch and explore jobs.
 - [ ] (M,M) Achievements and a statistics page.

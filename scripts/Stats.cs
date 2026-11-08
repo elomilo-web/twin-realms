@@ -20,6 +20,7 @@ public class PlayerStats
     public List<int> Tree = new();
     public Dictionary<string, QuestState> Quests = new();
     public List<string> Disc = new() { "village" };
+    public Dictionary<string, int> Mats = new();   // gathered materials by id (data/gather.json); older saves load with an empty bag
 
     // ---- derived stats (methods so they are not serialised)
     static TreeStats TS => Game.TS;

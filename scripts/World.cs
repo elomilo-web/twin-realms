@@ -125,7 +125,7 @@ public partial class World : Node3D
     {
         I = this; LoadData();
         Over = new Node3D { Name = "Overworld" }; AddChild(Over);
-        BuildEnvironment(); BuildTerrain(); BuildWater(); BuildBounds(); BuildVegetation(); Flora.Build(Over);
+        BuildEnvironment(); BuildTerrain(); BuildWater(); BuildBounds(); BuildVegetation(); Flora.Build(Over); GatherDb.Spawn(Over);
         Builder.BuildAll(Over);
         Sfx.I?.SetRealmMix(0);
         TimeOfDay = Game.D.Time;

@@ -166,6 +166,14 @@ public partial class Ui : CanvasLayer
         else
         {
             if (d.Inv.Count == 0) Row(list, "Your pack is empty.");
+            // gathered materials sell by the stack
+            int matGold = 0; foreach (var kv in d.Mats) matGold += kv.Value * GatherDb.Mat(kv.Key).Value;
+            if (matGold > 0) list.AddChild(Btn($"Sell all materials ({matGold}g)", () => { d.Gold += matGold; d.Mats.Clear(); Sfx.Play("coin"); Game.Notify(); OpenShop(tab); }, true));
+            foreach (var kv in new List<KeyValuePair<string, int>>(d.Mats))
+            {
+                if (kv.Value <= 0) continue; var m = GatherDb.Mat(kv.Key); string id = kv.Key; int n = kv.Value;
+                AddRow(list, $"{m.Name}  x{n}", m.Col.Lightened(0.25f), $"Sell {n * m.Value}g", () => { d.Gold += n * m.Value; d.Mats.Remove(id); Sfx.Play("coin"); Game.Notify(); OpenShop(tab); });
+            }
             list.AddChild(Btn("Sell all Common", () => { int g = 0; d.Inv.RemoveAll(it => { if (it.Rar == 0) { g += it.Value; return true; } return false; }); d.Gold += g; if (g > 0) Sfx.Play("coin"); OpenShop(tab); }, true));
             for (int i = 0; i < d.Inv.Count; i++) { int k = i; var it = d.Inv[i]; AddRow(list, it.Describe(), it.Color, "Sell " + it.Value + "g", () => { d.Gold += it.Value; d.Inv.RemoveAt(k); Sfx.Play("coin"); OpenShop(tab); }); }
         }
@@ -206,6 +214,10 @@ public partial class Ui : CanvasLayer
             if (it != null) h.AddChild(Btn("Remove", () => { if (d.Inv.Count >= 28) { Note("Pack is full", new Color(1, .5f, .5f)); return; } d.Eq[slot] = null; d.Inv.Add(it); Game.Notify(); OpenPack(); }, true));
         }
         Row(left, $"\nDamage {d.WpnDmg():0}   Defense {d.Defense()}   Crit {d.CritChance() * 100:0}%", Colors.White);
+        Row(left, "Materials", Gold, 20);
+        var ms = Scroll(left, 150); var ml = Inner(ms); int kinds = 0;
+        foreach (var kv in d.Mats) if (kv.Value > 0) { var m = GatherDb.Mat(kv.Key); Row(ml, $"{m.Name}   x{kv.Value}", m.Col.Lightened(0.25f), 15); kinds++; }
+        if (kinds == 0) Row(ml, "Nothing gathered yet. Press E near herbs, mushrooms, berries, ore, crystals and fallen logs.", Dim, 14);
         var right = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ExpandFill }; cols.AddChild(right); Row(right, "Items", Gold, 20);
         var sc = Scroll(right, 440); var list = Inner(sc);
         if (d.Inv.Count == 0) Row(list, "Empty. Go and slay something.", Dim);
