@@ -50,3 +50,9 @@ Menus in a Sword Art Online / isekai "system window" style (translucent deep blu
 - Evidence: m_pack, m_pause, m_npc_quest (before: flat dark purple boxes with gold text; after: blue glass windows with cyan frame and glow). Observer ui_issues 0 -> 0. hud fps 144 -> 145. Bot 42/42.
 - Scores: Inventory and menus 4 -> 5 (style is there; layout is still a list, not a grid).
 - Next candidates: (1) wind-swept grass, ferns, bushes (world look 4), (2) gatherable herbs, mushrooms, berries, ore (world life 2), (3) wildlife that flees or fights (world life 2).
+
+## Iteration 5 (2026-11-08): wind-swept ground cover
+- Changed: new `scripts/Flora.cs` + `data/flora.json`. The island is split into 32 m chunks; each chunk scatters grass clumps (9 blades, 5 greens), ferns (forests only, same noise as the trees), bushes (cast shadows) and pebbles, skipping roads, cliffs, the plaza and the arena floor. Each layer is one MultiMesh per chunk with a draw distance (grass 56 m, ferns 85, bushes 160) and fade. Grass, ferns and bushes share a sway shader (gusting wind, stronger at the tips, backlit); in Shadow they turn violet with glowing teal tips. Scenery only, no collisions.
+- Evidence: w06_forest before (bare green ground) vs after (meadow with tufts, ferns, bushes, pebbles); w01_village_day shows ferns and grass around the houses; w10_shadow_wilds shows teal-tipped grass and glowing bushes. fps 125-144 before, 126-144 after; draw calls about +100 (1787 -> 1898 in w01). Bot 42/42.
+- Scores: World look 4 -> 5.
+- Next candidates: (1) gatherable herbs, mushrooms, berries, ore, crystals with a materials bag (world life 2, systems 5), (2) wildlife that flees or fights (world life 2), (3) HUD restyle to match the menus.

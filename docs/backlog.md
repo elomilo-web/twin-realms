@@ -35,7 +35,7 @@ Format: `- [ ] (impact H/M/L, effort S/M/L) title: why / how`. Mark `[x]` when d
 - [ ] (M,S) Floating damage numbers by type (crit big and gold, heal green, taken red); buff and debuff icons with timers.
 - [ ] (M,M) Quest markers on the compass and minimap.
 ## World look
-- [ ] (H,M) Ground cover: wind-swept grass clumps, ferns in forests, bushes, pebbles (chunked, distance-culled).
+- [x] (H,M) Ground cover: wind-swept grass clumps, ferns in forests, bushes, pebbles (chunked, distance-culled).
 - [ ] (H,M) Grass and tree sway shader, clouds with moving shadows, god rays at dusk, better water with foam.
 - [ ] (M,M) Weather: rain and fog banks that change with time; puddle shine.
 - [ ] (M,S) Color grading per realm and time of day; vignette when hurt.

@@ -125,7 +125,7 @@ public partial class World : Node3D
     {
         I = this; LoadData();
         Over = new Node3D { Name = "Overworld" }; AddChild(Over);
-        BuildEnvironment(); BuildTerrain(); BuildWater(); BuildBounds(); BuildVegetation();
+        BuildEnvironment(); BuildTerrain(); BuildWater(); BuildBounds(); BuildVegetation(); Flora.Build(Over);
         Builder.BuildAll(Over);
         Sfx.I?.SetRealmMix(0);
         TimeOfDay = Game.D.Time;
@@ -352,6 +352,7 @@ void fragment(){
         if (force || Mathf.Abs(RealmT - _lastRealmT) > 0.001f)
         {
             _lastRealmT = RealmT; _terrMat.SetShaderParameter("realm_t", RealmT);
+            foreach (var fm in Flora.Materials) fm.SetShaderParameter("realm_t", RealmT);
             foreach (var (m, l, d) in Mats) m.AlbedoColor = l.Lerp(d, RealmT);
         }
         if (force || Mathf.Abs(Night - _lastNight) > 0.002f)
