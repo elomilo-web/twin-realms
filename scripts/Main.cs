@@ -18,6 +18,23 @@ public partial class Main : Node3D
         AddChild(player);
         AddChild(rig);
         rig.ExcludeFromCollision(player);
+        AddChild(new Hud { Name = "Hud" });
+        SpawnEnemies();
+    }
+
+    void SpawnEnemies()
+    {
+        // type, x, z, level
+        (string, float, float, int)[] list =
+        {
+            ("wolf", 14, 18, 1), ("wolf", 18, 16, 1),
+            ("bandit", -16, -14, 1), ("bandit", -20, -18, 2),
+            ("goblin", 6, -22, 1), ("goblin", 9, -25, 1), ("goblin", 3, -26, 1),
+            ("skeleton", -24, 14, 2),
+            ("brute", 0, -38, 3),
+        };
+        foreach (var (type, x, z, lvl) in list)
+            AddChild(new Enemy { Type = type, Level = lvl, Position = new Vector3(x, 0.1f, z) });
     }
 
     void BuildEnvironment()

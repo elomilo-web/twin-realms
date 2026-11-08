@@ -14,6 +14,9 @@ public partial class CameraRig : Node3D
     SpringArm3D _arm = null!;
     Camera3D _cam = null!;
     float _pitch = -0.25f;
+    float _shake;
+
+    public void Shake(float amount) => _shake = Mathf.Max(_shake, amount);
 
     public Camera3D Camera => _cam;
     /// <summary>Horizontal facing of the camera in radians (rig yaw).</summary>
@@ -62,5 +65,8 @@ public partial class CameraRig : Node3D
             GlobalPosition = GlobalPosition.Lerp(goal, 1f - Mathf.Exp(-14f * (float)delta));
         }
         _arm.SpringLength = Mathf.Lerp(_arm.SpringLength, Distance, 1f - Mathf.Exp(-10f * (float)delta));
+        _shake = Mathf.Max(0, _shake - (float)delta * 1.2f);
+        _cam.HOffset = (float)GD.RandRange(-1.0, 1.0) * _shake * 0.3f;
+        _cam.VOffset = (float)GD.RandRange(-1.0, 1.0) * _shake * 0.3f;
     }
 }
