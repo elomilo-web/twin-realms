@@ -10,6 +10,7 @@ Format: `- [ ] (impact H/M/L, effort S/M/L) title: why / how`. Mark `[x]` when d
 - [ ] (M,M) Named sword skills with a short chain (SAO): e.g. 3 skills unlocked via the skill tree, each with a distinct move.
 - [ ] (M,S) Perfect dodge: roll just before a hit gives slow motion and a free counter.
 ## Hit boxes
+- [ ] (M,S) Quad hurtboxes: capsule along the body (or two spheres) so long animals are hit where they look; observer flags wolf, hound, boar, deer.
 - [ ] (H,M) Replace point/distance melee checks with a swept arc or capsule that follows the weapon; debug draw toggle (F3).
 - [ ] (M,S) Align every enemy hurtbox with its visual using the hitboxes section of observe_out/metrics.json.
 ## Spells and skills
@@ -41,7 +42,7 @@ Format: `- [ ] (impact H/M/L, effort S/M/L) title: why / how`. Mark `[x]` when d
 - [ ] (M,S) Color grading per realm and time of day; vignette when hurt.
 ## World life
 - [x] (H,M) Gatherables: herbs, mushrooms, berry bushes, ore and crystal veins; materials bag; sell to the merchant.
-- [ ] (H,M) Wildlife: deer and rabbits that flee, boars that fight back; hides and meat drops.
+- [x] (H,M) Wildlife: deer and rabbits that flee, boars that fight back; hides and meat drops.
 - [ ] (H,M) NPC daily routines: walk between home, market and forge; sleep at night; idle animations.
 - [ ] (M,S) Birds, butterflies by day, fireflies at night; footstep dust and sound by surface.
 - [ ] (M,M) Roaming animals (deer, rabbits) that flee.

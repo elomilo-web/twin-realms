@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Godot;
 
 namespace TwinRealms;
@@ -6,7 +6,7 @@ namespace TwinRealms;
 /// <summary>Data-driven enemy. Melee, ranged, summoning bosses and the dragon. Stats come from data/enemies.json.</summary>
 public partial class Enemy : CharacterBody3D, IDamageable
 {
-    enum State { Sleep, Idle, Chase, Wind, Recover, Stagger, Return, Breath, Dead }
+    enum State { Sleep, Idle, Chase, Wind, Recover, Stagger, Return, Breath, Dead, Flee }
     public static Enemy? CurrentBoss;
 
     public string Type = "wolf";
@@ -23,6 +23,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
     State _state = State.Idle;
     float _timer, _stun, _flash, _gravity, _yaw, _deadT, _burnT, _burnDps, _slow, _summonT, _breathT, _breathCd = 6f, _tick;
     Vector3 _kb, _home, _recoilDir = Vector3.Back; float _recoilT, _recoilK;
+    readonly List<Node3D> _legs = new(); float _legPh, _grazeT; Vector3 _grazeTo;
     Node3D _body = null!;
     readonly List<StandardMaterial3D> _mats = new();
     readonly List<Color> _baseCols = new();
@@ -31,7 +32,8 @@ public partial class Enemy : CharacterBody3D, IDamageable
     bool _meleeSwing; int _summoned;
 
     public float ScaleF() => _scale;
-    public float HeightM() => Def.Kind == "quad" ? Def.R * 2.4f : Def.Kind == "dragon" ? 5f : 1.9f * _scale;
+    public float HeightM() => Def.Kind == "quad" ? Def.R * (2.4f + 0.75f * (LegK() - 1f)) : Def.Kind == "dragon" ? 5f : 1.9f * _scale;
+    float LegK() => Def.Look == "deer" ? 1.8f : Def.Look == "rabbit" ? 0.55f : Def.Look == "boar" ? 0.75f : 1f; // leg length relative to a wolf
 
     StandardMaterial3D Mat(Color c, float emission = 0f)
     {
@@ -53,19 +55,14 @@ public partial class Enemy : CharacterBody3D, IDamageable
         _scale = Def.Scale <= 0 ? 1f : Def.Scale;
         float r = Def.R, s = _scale;
         bool quad = Def.Kind == "quad", dragon = Def.Kind == "dragon", wraith = Def.Kind == "wraith";
-        float h = quad ? r * 2.4f : dragon ? 5f : 1.8f * s;
+        float h = quad ? HeightM() : dragon ? 5f : 1.8f * s;
         AddChild(new CollisionShape3D { Shape = new CapsuleShape3D { Radius = Mathf.Min(r, h / 2 - 0.01f), Height = h }, Position = new Vector3(0, h / 2, 0) });
 
         Color col = Def.Color != 0x888888 ? JsonUtil.Hex(Def.Color) : DefaultColor(Type);
         if (Realm_() == 1 && Def.Color == 0x888888) col = col.Lerp(new Color(0.5f, 0.35f, 0.75f), 0.4f);
         _body = new Node3D { Name = "Body" }; AddChild(_body);
-        var main = Mat(col); var dark = Mat(col.Darkened(0.5f)); var glow = Mat(wraith ? new Color(0.7f, 0.4f, 1f) : new Color(1f, 0.3f, 0.2f), 2f);
-        if (quad)
-        {
-            Add(new BoxMesh { Size = new Vector3(r * 1.3f, r * 1.4f, r * 3.2f) }, main, new Vector3(0, r * 1.1f, 0));
-            Add(new BoxMesh { Size = new Vector3(r * 0.9f, r * 0.9f, r * 1.1f) }, main, new Vector3(0, r * 1.5f, -r * 1.9f));
-            Add(new BoxMesh { Size = new Vector3(r * 0.25f, r * 0.25f, r * 0.1f) }, glow, new Vector3(r * 0.25f, r * 1.6f, -r * 2.5f)); Add(new BoxMesh { Size = new Vector3(r * 0.25f, r * 0.25f, r * 0.1f) }, glow, new Vector3(-r * 0.25f, r * 1.6f, -r * 2.5f));
-        }
+        var main = Mat(col); var dark = Mat(col.Darkened(0.5f)); var glow = Mat(wraith || Def.Emissive ? new Color(0.7f, 0.4f, 1f) : new Color(1f, 0.3f, 0.2f), 2f);
+        if (quad) BuildQuad(r, main, dark, glow, col);
         else if (dragon)
         {
             Add(new CapsuleMesh { Radius = 1.6f, Height = 5.5f }, main, new Vector3(0, 2.2f, 0.4f), new Vector3(Mathf.Pi / 2, 0, 0));
@@ -92,6 +89,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
             if (Def.Slam || Def.Boss) Add(new BoxMesh { Size = new Vector3(0.6f * s, 0.25f * s, 0.6f * s) }, dark, new Vector3(0.45f * s, 1.1f * s, -wl));
             Add(new BoxMesh { Size = new Vector3(0.2f * s, 0.06f * s, 0.06f * s) }, glow, new Vector3(0, 1.75f * s, -0.2f * s));
         }
+        BakeParts();
         float labelY = quad ? r * 2.6f : dragon ? 6.2f : 2.2f * s;
         _label = new Label3D
         {
@@ -105,11 +103,64 @@ public partial class Enemy : CharacterBody3D, IDamageable
         _summonT = (float)GD.RandRange(5, 9);
     }
 
-    void Add(Mesh m, Material mat, Vector3 pos, Vector3? rot = null)
+    // body parts are collected and merged per (parent, material) after building: one draw call per material instead of one per box.
+    // Flash and wind-up tint still work because they change the shared materials.
+    readonly List<(Node3D parent, Mesh m, Material mat, Transform3D t)> _parts = new();
+    void Add(Mesh m, Material mat, Vector3 pos, Vector3? rot = null, Node3D? parent = null)
+        => _parts.Add((parent ?? _body, m, mat, new Transform3D(Basis.FromEuler(rot ?? Vector3.Zero), pos)));
+    void BakeParts()
     {
-        var mi = new MeshInstance3D { Mesh = m, MaterialOverride = mat, Position = pos };
-        if (rot.HasValue) mi.Rotation = rot.Value;
-        _body.AddChild(mi);
+        var groups = new Dictionary<(Node3D, Material), SurfaceTool>();
+        foreach (var (p, m, mat, t) in _parts) { if (!groups.TryGetValue((p, mat), out var st)) groups[(p, mat)] = st = new SurfaceTool(); st.AppendFrom(m, 0, t); }
+        foreach (var kv in groups) kv.Key.Item1.AddChild(new MeshInstance3D { Mesh = kv.Value.Commit(), MaterialOverride = kv.Key.Item2 });
+        _parts.Clear();
+    }
+
+    /// <summary>Four-legged body: torso, head, eyes, four swinging legs, plus deer antlers, rabbit ears or boar tusks.</summary>
+    void BuildQuad(float r, StandardMaterial3D main, StandardMaterial3D dark, StandardMaterial3D glow, Color col)
+    {
+        string look = Def.Look; bool wild = look != "";
+        float legK = LegK();
+        float hipY = r * 0.75f * legK, dy = hipY - r * 0.75f;                                       // lift the body to sit on the legs
+        if (Def.Emissive) { main.EmissionEnabled = true; main.Emission = col; main.EmissionEnergyMultiplier = 0.6f; }
+        var eye = wild && !Def.Emissive ? Mat(new Color(0.05f, 0.04f, 0.04f)) : glow;
+        float bodyL = look == "rabbit" ? 2.2f : look == "boar" ? 2.8f : 3.2f, bodyH = look == "boar" ? 1.7f : 1.4f;
+        Add(new BoxMesh { Size = new Vector3(r * 1.3f, r * bodyH, r * bodyL) }, main, new Vector3(0, r * 1.1f + dy, 0));
+        float headY = r * 1.5f + dy + (look == "deer" ? r * 0.9f : 0), headZ = -r * (bodyL * 0.5f + 0.3f);
+        if (look == "deer") Add(new BoxMesh { Size = new Vector3(r * 0.5f, r * 1.4f, r * 0.5f) }, main, new Vector3(0, r * 1.7f + dy, headZ + r * 0.35f), new Vector3(-0.45f, 0, 0)); // neck, leaning forward
+        Add(new BoxMesh { Size = new Vector3(r * 0.9f, r * 0.9f, r * 1.1f) }, main, new Vector3(0, headY, headZ));
+        Add(new BoxMesh { Size = new Vector3(r * 0.25f, r * 0.25f, r * 0.1f) }, eye, new Vector3(r * 0.3f, headY + r * 0.1f, headZ - r * 0.56f)); Add(new BoxMesh { Size = new Vector3(r * 0.25f, r * 0.25f, r * 0.1f) }, eye, new Vector3(-r * 0.3f, headY + r * 0.1f, headZ - r * 0.56f));
+        // legs on hip pivots (front-left/back-right swing together)
+        float lw = r * (look == "deer" ? 0.2f : 0.3f), ll = hipY;
+        foreach (var (x, z) in new[] { (-1f, -1f), (1f, -1f), (-1f, 1f), (1f, 1f) })
+        {
+            var hip = new Node3D { Position = new Vector3(x * r * 0.42f, hipY, z * r * bodyL * 0.36f) }; _body.AddChild(hip); _legs.Add(hip);
+            Add(new BoxMesh { Size = new Vector3(lw, ll, lw) }, dark, new Vector3(0, -ll / 2, 0), null, hip);
+        }
+        var light = Mat(col.Lightened(0.55f));
+        switch (look)
+        {
+            case "deer":
+                foreach (float s in new[] { -1f, 1f })
+                {
+                    var bone = Def.Emissive ? glow : Mat(new Color(0.85f, 0.78f, 0.62f));
+                    Add(new BoxMesh { Size = new Vector3(r * .08f, r * 1.1f, r * .08f) }, bone, new Vector3(s * r * .28f, headY + r * .95f, headZ + r * .1f), new Vector3(0.2f, 0, s * 0.35f));
+                    Add(new BoxMesh { Size = new Vector3(r * .07f, r * .6f, r * .07f) }, bone, new Vector3(s * r * .5f, headY + r * 1.15f, headZ - r * .1f), new Vector3(-0.5f, 0, s * 0.9f));
+                    Add(new BoxMesh { Size = new Vector3(r * .07f, r * .55f, r * .07f) }, bone, new Vector3(s * r * .35f, headY + r * 1.45f, headZ + r * .25f), new Vector3(0.6f, 0, s * 0.2f));
+                }
+                Add(new BoxMesh { Size = new Vector3(r * .3f, r * .35f, r * .2f) }, light, new Vector3(0, r * 1.45f + dy, r * bodyL * .5f));   // white tail
+                break;
+            case "rabbit":
+                foreach (float s in new[] { -1f, 1f }) Add(new BoxMesh { Size = new Vector3(r * .25f, r * 1.3f, r * .12f) }, main, new Vector3(s * r * .22f, headY + r * 1.0f, headZ + r * .2f), new Vector3(0.25f, 0, s * 0.15f));
+                Add(new SphereMesh { Radius = r * .3f, Height = r * .6f, RadialSegments = 6, Rings = 3 }, light, new Vector3(0, r * 1.3f + dy, r * bodyL * .5f));
+                break;
+            case "boar":
+                var tusk = Mat(new Color(0.95f, 0.92f, 0.82f));
+                foreach (float s in new[] { -1f, 1f }) Add(new CylinderMesh { TopRadius = 0, BottomRadius = r * .07f, Height = r * .55f, RadialSegments = 5 }, tusk, new Vector3(s * r * .35f, headY - r * .15f, headZ - r * .55f), new Vector3(-0.5f, 0, s * 0.4f));
+                Add(new BoxMesh { Size = new Vector3(r * .3f, r * .35f, r * bodyL * .8f) }, dark, new Vector3(0, r * 1.1f + dy + r * bodyH * .5f, 0));  // bristle ridge
+                Add(new BoxMesh { Size = new Vector3(r * .5f, r * .4f, r * .2f) }, dark, new Vector3(0, headY - r * .15f, headZ - r * .6f));            // snout
+                break;
+        }
     }
 
     int Realm_() => Def.Realm;
@@ -125,7 +176,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
     public void Stun(float t) { if (Dead) return; _stun = Mathf.Max(_stun, t); if (_state != State.Sleep) _state = State.Stagger; }
     public void Ignite(float t, float dps) { _burnT = t; _burnDps = Mathf.Max(_burnDps, dps); }
     public void Slow(float t) { _slow = t; }
-    public void Wake() { if (_state == State.Sleep || _state == State.Idle || _state == State.Return) { _state = State.Chase; if (_state == State.Chase && Def.Kind == "dragon") Sfx.Play("roar"); } }
+    public void Wake() { if (Def.Flee && !Dead) { _state = State.Flee; return; } if (_state == State.Sleep || _state == State.Idle || _state == State.Return) { _state = State.Chase; if (_state == State.Chase && Def.Kind == "dragon") Sfx.Play("roar"); } }
 
     public void TakeHit(HitInfo h)
     {
@@ -158,7 +209,9 @@ public partial class Enemy : CharacterBody3D, IDamageable
         if (DefOverride != null) xp = 0;
         if (xp > 0 && p != null) p.AddXp(xp, GlobalPosition);
         Fx.Burst(GlobalPosition + Vector3.Up, Def.Kind == "wraith" ? new Color(0.7f, 0.4f, 1f) : new Color(0.8f, 0.2f, 0.2f), 16, 5f, 0.6f);
-        if (!Summoned && DefOverride == null)
+        if (Def.Drops != null && !Summoned)
+            foreach (var kv in Def.Drops) { int lo = kv.Value.Length > 0 ? kv.Value[0] : 1, hi = kv.Value.Length > 1 ? kv.Value[1] : lo; GatherDb.Give(kv.Key, GD.RandRange(lo, hi), GlobalPosition); }
+        if (!Summoned && DefOverride == null && !Def.NoLoot)
         {
             int gold = GD.RandRange(2 + Level, 6 + Level * 2) * (Def.Boss ? 12 : 1);
             float chance = Def.Boss ? 1f : Arena ? .12f : .2f + (Def.Realm == 1 ? .06f : 0f), bonus = (Def.Boss ? 2 : 0) + (Def.Realm == 1 ? 1 : 0);
@@ -187,7 +240,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         if (!Active) return;
         var pl = Player.Instance;
         float distP = pl == null ? 999f : (pl.GlobalPosition - GlobalPosition).Length();
-        if (distP > 150f && !Arena && !Dead) { Visible = false; return; }
+        if (distP > (Def.Look != "" ? 100f : 150f) && !Arena && !Dead) { Visible = false; return; } // small wildlife is not worth drawing far away
         if (!Visible && Active) Visible = true;
 
         var v = Velocity;
@@ -231,8 +284,25 @@ public partial class Enemy : CharacterBody3D, IDamageable
                 if (dist < 30f) Wake();
                 break;
             case State.Idle:
-                if (dist < Def.Aggro && plOk) { Wake(); }
+                if (dist < Def.Aggro && plOk) { Wake(); break; }
+                if (Def.Look != "")
+                {
+                    // wildlife grazes: amble to a nearby spot, pause, pick another
+                    _grazeT -= dt;
+                    if (_grazeT <= 0) { _grazeT = (float)GD.RandRange(3.0, 7.0); float a = (float)GD.RandRange(0, Mathf.Tau), d = (float)GD.RandRange(2.0, 8.0); _grazeTo = _home + new Vector3(Mathf.Cos(a) * d, 0, Mathf.Sin(a) * d); }
+                    var g = _grazeTo - GlobalPosition; g.Y = 0;
+                    if (g.Length() > 0.6f && _grazeT < 4.5f) { move = g.Normalized() * Def.Spd * 0.18f; _yaw = Mathf.LerpAngle(_yaw, Util.YawTo(g.X, g.Z), 1f - Mathf.Exp(-4f * dt)); }
+                }
                 break;
+            case State.Flee:
+            {
+                if (!plOk || dist > Def.Aggro * 2.4f) { _state = State.Return; break; }
+                var away = -toP; if ((GlobalPosition - _home).Length() > 70f) away = away.Normalized() + (_home - GlobalPosition).Normalized() * 0.8f; // do not run off forever
+                away.Y = 0; if (away.LengthSquared() < 0.01f) away = Vector3.Forward;
+                _yaw = Mathf.LerpAngle(_yaw, Util.YawTo(away.X, away.Z), 1f - Mathf.Exp(-9f * dt));
+                move = new Vector3(-Mathf.Sin(_yaw), 0, -Mathf.Cos(_yaw)) * Def.Spd;
+                break;
+            }
             case State.Chase:
                 if (!plOk || (!NoLeash && !Arena && !Summoned && !FromDungeon && (dist > Def.Aggro * 2.5f || (GlobalPosition - _home).Length() > 90f))) { _state = State.Return; break; }
                 if (Def.Boss && CurrentBoss != this) CurrentBoss = this;
@@ -280,7 +350,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
                 _timer -= dt; if (_timer <= 0) { _state = State.Chase; _timer = Def.Cd * 0.4f; }
                 break;
             case State.Stagger:
-                _stun -= dt; if (_stun <= 0) { _state = State.Chase; _timer = 0.3f; }
+                _stun -= dt; if (_stun <= 0) { _state = Def.Flee ? State.Flee : State.Chase; _timer = 0.3f; }
                 break;
             case State.Return:
             {
@@ -289,7 +359,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
                 Hp = Mathf.Min(MaxHp, Hp + MaxHp * 0.1f * dt);
                 _yaw = Mathf.LerpAngle(_yaw, Util.YawTo(back.X, back.Z), 1f - Mathf.Exp(-8f * dt));
                 move = back.Normalized() * Def.Spd * 1.2f;
-                if (plOk && dist < Def.Aggro * 0.6f) _state = State.Chase;
+                if (plOk && dist < Def.Aggro * 0.6f) _state = Def.Flee ? State.Flee : State.Chase;
                 break;
             }
             case State.Breath:
@@ -321,6 +391,13 @@ public partial class Enemy : CharacterBody3D, IDamageable
         Velocity = v;
         MoveAndSlide();
         Rotation = new Vector3(0, _yaw, 0);
+        if (_legs.Count > 0)
+        {
+            // gait: diagonal pairs swing together, stride speed follows ground speed
+            float hs = new Vector2(Velocity.X, Velocity.Z).Length(), amt = Mathf.Clamp(hs / Mathf.Max(1f, Def.Spd * 0.6f), 0, 1);
+            _legPh = Mathf.Wrap(_legPh + hs * dt * 2.2f / Mathf.Max(0.25f, Def.R), 0, Mathf.Tau);
+            for (int i = 0; i < _legs.Count; i++) { float ph = _legPh + ((i == 0 || i == 3) ? 0 : Mathf.Pi); _legs[i].Rotation = new Vector3(Mathf.Sin(ph) * 0.65f * amt, 0, 0); }
+        }
     }
 
     void SummonAdds()

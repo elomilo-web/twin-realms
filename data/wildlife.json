@@ -1,0 +1,10 @@
+{
+ "_comment": "Wildlife herds placed over the island. groups = number of herds, size = animals per herd [min, max]. where: meadow or forest. Stats live in enemies.json.",
+ "seed": 5511,
+ "herds": [
+  { "type": "deer",      "groups": 14, "size": [2, 4], "where": "meadow", "minH": 2, "maxH": 24 },
+  { "type": "rabbit",    "groups": 22, "size": [1, 3], "where": "meadow", "minH": 2, "maxH": 20 },
+  { "type": "boar",      "groups": 10, "size": [1, 2], "where": "forest", "minH": 2, "maxH": 28 },
+  { "type": "shadeStag", "groups": 9,  "size": [1, 3], "where": "meadow", "minH": 2, "maxH": 30 }
+ ]
+}

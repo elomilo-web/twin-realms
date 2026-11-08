@@ -28,6 +28,12 @@ public class EnemyDef
     public float Keep { get; set; } = 0f;
     public string? Summon { get; set; }
     public bool Breath { get; set; }
+    // wildlife
+    public string Look { get; set; } = "";        // extra body parts for quads: deer, rabbit, boar
+    public bool Flee { get; set; }                // runs from the player instead of fighting
+    public bool NoLoot { get; set; }              // no gold or gear, only Drops
+    public bool Emissive { get; set; }            // glowing body (shadow creatures); "glow" is already a colour field on some enemies
+    public Dictionary<string, int[]>? Drops { get; set; }   // materials given on death: id -> [min, max]
 }
 
 /// <summary>Loads res://data/enemies.json (extracted from the prototype). Stats are never hard-coded in C#.</summary>

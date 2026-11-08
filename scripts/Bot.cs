@@ -137,6 +137,20 @@ public partial class Bot : Node
             Check("gathered node waits to regrow", !g.CanInteract);
         });
 
+        await Step("wildlife", async () =>
+        {
+            var deer = Nearest(e => e.Def.Flee && e.Active && !e.Dead);
+            Check("world has wildlife", deer != null);
+            if (deer == null) return;
+            var dp = deer.GlobalPosition; P.Teleport(World.OnGround(dp.X + 5f, dp.Z, 0.5f), 0f); await Wait(1.5f);
+            float d1 = GodotObject.IsInstanceValid(deer) ? deer.GlobalPosition.DistanceTo(P.GlobalPosition) : 0f;
+            Check("wildlife flees from the player", d1 > 7f, $"{deer.Def.N}: {d1:0.0} m away after 1.5 s");
+            int m0 = 0; foreach (var v in Game.D.Mats.Values) m0 += v;
+            deer.TakeHit(new HitInfo { Damage = 9999, From = P.GlobalPosition, IsPlayer = true, Attacker = P }); await Wait(0.3f);
+            int m1 = 0; foreach (var v in Game.D.Mats.Values) m1 += v;
+            Check("hunting gives hides or meat", m1 > m0, $"materials {m0} -> {m1}");
+        });
+
         await Step("spells and potions", async () =>
         {
             var e = Nearest(); if (e != null) { P.Teleport(e.GlobalPosition + new Vector3(0, 0.5f, 8f), 0f); Face(e.GlobalPosition); }
