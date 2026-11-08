@@ -49,15 +49,32 @@ public partial class Bot : Node
         if (P.Rig != null) P.Rig.Rotation = new Vector3(P.Rig.Rotation.X, yaw, 0);
     }
 
+    /// <summary>A spot near the enemy with clear line of sight to it, so the bot is not dropped behind a wall (dungeons).</summary>
+    Vector3 ClearSpotNear(Enemy e, Vector3 at)
+    {
+        var space = P.GetWorld3D().DirectSpaceState; var up = new Vector3(0, 1f, 0);
+        foreach (float dist in new[] { 6f, 3.5f, 2f })
+            foreach (var dir in new[] { Vector3.Back, Vector3.Forward, Vector3.Right, Vector3.Left })
+            {
+                var spot = at + dir * dist;
+                var q = PhysicsRayQueryParameters3D.Create(at + up, spot + up, 1);
+                q.Exclude = new Godot.Collections.Array<Rid> { e.GetRid(), P.GetRid() };
+                if (space.IntersectRay(q).Count == 0) return spot + new Vector3(0, 0.5f, 0);
+            }
+        return at + new Vector3(0, 0.5f, 1.5f);
+    }
+
     /// <summary>Teleports next to the enemy and fights it until dead or timeout. Returns true if it died.</summary>
     async Task<bool> Fight(Enemy e, float timeout = 25f)
     {
         float t = 0; var start = e.GlobalPosition;
-        P.Teleport(start + new Vector3(0, 0.5f, 6f), 0f);
+        P.Teleport(ClearSpotNear(e, start), 0f);
         while (t < timeout && GodotObject.IsInstanceValid(e) && !e.Dead)
         {
             Heal(); Face(e.GlobalPosition); float dist = e.GlobalPosition.DistanceTo(P.GlobalPosition);
-            Press(Inputs.Forward, dist > 2.2f); Mouse(MouseButton.Left, dist < 3.2f);
+            Press(Inputs.Forward, dist > 2.2f);
+            // Attacks fire on mouse release (tap = light attack), so click rather than hold.
+            if (dist < 3.2f) { Mouse(MouseButton.Left, true); await Wait(0.08f); Mouse(MouseButton.Left, false); t += 0.08f; }
             await Wait(0.1f); t += 0.1f;
         }
         Press(Inputs.Forward, false); Mouse(MouseButton.Left, false);
@@ -147,7 +164,7 @@ public partial class Bot : Node
                 int mobs = 0; bool boss = false; foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Enemy e && e.FromDungeon) { mobs++; if (e.Def.Boss) boss = true; }
                 Check($"dungeon {key} spawns mobs", mobs > 0, mobs + " mobs"); Check($"dungeon {key} has a boss", boss);
                 await Shot("15_dungeon_" + key);
-                if (key == "barrow") { var m = Nearest(x => x.FromDungeon && !x.Def.Boss); if (m != null) { bool d = await Fight(m); Check("dungeon mob can be killed", d); } }
+                if (key == "barrow") { var m = Nearest(x => x.FromDungeon && !x.Def.Boss); if (m != null) { string mt = m.Type; bool d = await Fight(m); if (!d) await Shot("fail_dungeon_mob"); Check("dungeon mob can be killed", d, d ? "" : $"{mt}, hp {(GodotObject.IsInstanceValid(m) ? m.Hp : 0):0}, dist {(GodotObject.IsInstanceValid(m) ? m.GlobalPosition.DistanceTo(P.GlobalPosition) : 0):0.0} m"); } }
                 Dungeon.Leave(false); await Wait(1.0f); Check($"left dungeon {key}", !Dungeon.Active);
             }
         });
@@ -183,7 +200,11 @@ public partial class Bot : Node
     void Finish()
     {
         Say($"=== {_pass} passed, {_fail} failed");
-        Godot.FileAccess.Open(_dir + "report.txt", Godot.FileAccess.ModeFlags.Write)?.StoreString(_log.ToString());
+        using (var f = Godot.FileAccess.Open(_dir + "report.txt", Godot.FileAccess.ModeFlags.Write)) f?.StoreString(_log.ToString());
+        Input.ActionRelease(Inputs.Forward); Mouse(MouseButton.Left, false);
+        // Drain .NET finalizers while the engine is still alive; otherwise the GC can free engine refs
+        // during engine teardown and crash the process (Godot .NET shutdown race).
+        GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
         GetTree().Quit(_fail > 0 ? 1 : 0);
     }
 }

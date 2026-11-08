@@ -67,7 +67,7 @@ public partial class HudCanvas : Control
         // crosshair
         DrawCircle(sz / 2, 3f, new Color(1, 1, 1, .75f));
         // prompt
-        if (p.Prompt != "" && !Ui.AnyOpen) Txt(new Vector2(sz.X / 2, sz.Y * .62f), "[E]  " + p.Prompt, fs(1.4f), Colors.White, HorizontalAlignment.Center, u * 40);
+        if (p.Prompt != "" && !Ui.AnyOpen) Txt(new Vector2(sz.X / 2, sz.Y * .62f), p.Prompt, fs(1.4f), Colors.White, HorizontalAlignment.Center, u * 40);
         // bottom bars: HP | MP | ST, xp under
         float bw = u * 38, bx = (sz.X - bw) / 2, by = sz.Y - pad - Mathf.Max(9, u * 1.1f), bh = Mathf.Max(9, u * 1.1f), gap = u * .8f;
         float unit = (bw - gap * 2) / 3.8f; float wH = unit, wM = unit * 1.8f, wS = unit;
