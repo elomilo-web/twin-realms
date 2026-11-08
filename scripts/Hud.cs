@@ -45,16 +45,23 @@ public partial class HudCanvas : Control
         if (Arenas.Active) Txt(new Vector2(pad, pad + fs(1.3f) * 3.8f), Arenas.Status, fs(1.15f), Gold);
         // quest tracker, top right
         var aq = Quests.Active();
-        if (aq.Count > 0) { var q = aq[0]; var s = Game.Q(q.Id); Txt(new Vector2(sz.X - pad, pad + fs(1.5f)), q.Name, fs(1.5f), Gold, HorizontalAlignment.Right); Txt(new Vector2(sz.X - pad, pad + fs(1.5f) * 2.1f), s.S == 2 ? "Return to " + Quests.GiverName(q.Giver) : q.Goal + (q.Need > 1 ? $" ({s.N}/{q.Need})" : ""), fs(1.05f), Colors.White, HorizontalAlignment.Right, u * 30); }
+        if (aq.Count > 0)
+        {
+            // right-aligned text needs a box: draw from (right edge - width) with that width
+            var q = aq[0]; var s = Game.Q(q.Id); float qw = u * 30, qx = sz.X - pad - qw;
+            Txt(new Vector2(qx, pad + fs(1.5f)), q.Name, fs(1.5f), Gold, HorizontalAlignment.Right, qw);
+            Txt(new Vector2(qx, pad + fs(1.5f) * 2.1f), s.S == 2 ? "Return to " + Quests.GiverName(q.Giver) : q.Goal + (q.Need > 1 ? $" ({s.N}/{q.Need})" : ""), fs(1.05f), Colors.White, HorizontalAlignment.Right, qw);
+        }
         // compass
         float yaw = p.Rig?.Yaw ?? 0f; float cw = u * 34, cx = sz.X / 2, cy = pad + fs(1.2f);
         DrawRect(new Rect2(cx - cw / 2, cy - fs(1.2f), cw, fs(1.7f)), new Color(0, 0, 0, .35f));
         for (int k = 0; k < 16; k++)
         {
-            float a = k * Mathf.Tau / 16f; float rel = Mathf.Wrap(-a - yaw, -Mathf.Pi, Mathf.Pi); // heading of dir relative to camera forward
+            // a = compass heading clockwise from north (-Z); the camera faces heading -yaw, so +rel is to the right
+            float a = k * Mathf.Tau / 16f; float rel = Mathf.Wrap(a + yaw, -Mathf.Pi, Mathf.Pi);
             float xx = cx + rel / (Mathf.Pi / 2) * (cw / 2); if (Mathf.Abs(xx - cx) > cw / 2) continue;
             string[] nm = { "N", "", "NE", "", "E", "", "SE", "", "S", "", "SW", "", "W", "", "NW", "" };
-            if (nm[k] != "") Txt(new Vector2(xx - 10, cy), nm[k], fs(1.1f), k % 4 == 0 ? Gold : Colors.White, HorizontalAlignment.Center, 20); else DrawLine(new Vector2(xx, cy - fs(0.9f)), new Vector2(xx, cy - fs(0.4f)), new Color(1, 1, 1, .5f), 1f);
+            if (nm[k] != "") Txt(new Vector2(xx - 20, cy), nm[k], fs(1.1f), k % 4 == 0 ? Gold : Colors.White, HorizontalAlignment.Center, 40); else DrawLine(new Vector2(xx, cy - fs(0.9f)), new Vector2(xx, cy - fs(0.4f)), new Color(1, 1, 1, .5f), 1f);
         }
         DrawLine(new Vector2(cx, cy - fs(1.2f)), new Vector2(cx, cy + fs(.5f)), Gold, 2f);
         // target bar
@@ -86,12 +93,24 @@ public partial class HudCanvas : Control
             else { bool hp = i == 4; name = hp ? "Health" : "Mana"; key = hp ? "H" : "G"; cnt = (hp ? d.HpPot : d.MpPot).ToString(); dim = (hp ? d.HpPot : d.MpPot) <= 0; }
             if (dim) DrawRect(r, new Color(0, 0, 0, .4f));
             if (cd > 0) { float h = ss * Mathf.Clamp(cd / cdMax, 0, 1); DrawRect(new Rect2(r.Position.X, r.End.Y - h, ss, h), new Color(0, 0, 0, .65f)); }
-            Txt(r.Position + new Vector2(ss / 2, ss / 2 + 4), name, fs(.8f), i == 4 ? new Color("ff8f86") : i == 5 ? new Color("8fb8ff") : Colors.White, HorizontalAlignment.Center, ss);
+            SlotName(r, name, fs(.8f), i == 4 ? new Color("ff8f86") : i == 5 ? new Color("8fb8ff") : Colors.White);
             Txt(r.Position + new Vector2(3, fs(.95f)), key, fs(.95f), Gold); Txt(r.Position + new Vector2(ss - 3, ss - 3), cnt, fs(.9f), Colors.White, HorizontalAlignment.Right, 0);
         }
         // minimap bottom-right
         if (!Dungeon.Active) DrawMini(p, new Vector2(sz.X - pad - u * 7, sz.Y - pad - u * 7), u * 7);
         if (p.Dead) Txt(new Vector2(sz.X / 2, sz.Y / 2), "YOU DIED", fs(5f), new Color("ff7b6f"), HorizontalAlignment.Center, sz.X);
+    }
+
+    /// <summary>Slot label that always fits its box: one line if it fits, else two lines split at a space, shrinking the font as a last resort.</summary>
+    void SlotName(Rect2 r, string name, int size, Color col)
+    {
+        if (name == "") return;
+        float w = r.Size.X - 6; float W(string s, int fsz) => F.GetStringSize(s, HorizontalAlignment.Left, -1, fsz).X;
+        string[] lines = { name };
+        if (W(name, size) > w && name.Contains(' ')) { int sp = name.IndexOf(' '); lines = new[] { name[..sp], name[(sp + 1)..] }; }
+        int fsz = size; while (fsz > 8 && System.Array.Exists(lines, l => W(l, fsz) > w)) fsz--;
+        float y0 = r.Position.Y + r.Size.Y / 2 + fsz * 0.35f - (lines.Length - 1) * fsz * 0.5f;
+        for (int j = 0; j < lines.Length; j++) Txt(new Vector2(r.Position.X + 3, y0 + j * fsz), lines[j], fsz, col, HorizontalAlignment.Center, w);
     }
 
     void DrawMini(Player p, Vector2 c, float rad)

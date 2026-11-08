@@ -81,7 +81,8 @@ public partial class Ui : CanvasLayer
         var root = new Control { MouseFilter = Control.MouseFilterEnum.Stop, Theme = MakeTheme() }; root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         root.AddChild(new ColorRect { Color = new Color(.027f, .02f, .047f, name == "title" ? 0.9f : 0.55f), MouseFilter = Control.MouseFilterEnum.Ignore, AnchorRight = 1, AnchorBottom = 1 });
         var pc = new PanelContainer(); pc.AddThemeStyleboxOverride("panel", new StyleBoxFlat { BgColor = PanelBg, BorderColor = Line, BorderWidthBottom = 1, BorderWidthLeft = 1, BorderWidthRight = 1, BorderWidthTop = 1, CornerRadiusBottomLeft = 6, CornerRadiusBottomRight = 6, CornerRadiusTopLeft = 6, CornerRadiusTopRight = 6, ContentMarginLeft = 18, ContentMarginRight = 18, ContentMarginTop = 14, ContentMarginBottom = 14 });
-        pc.CustomMinimumSize = size; pc.SetAnchorsPreset(Control.LayoutPreset.Center); pc.GrowHorizontal = Control.GrowDirection.Both; pc.GrowVertical = Control.GrowDirection.Both; root.AddChild(pc);
+        var vp = GetViewport().GetVisibleRect().Size; // never ask for more than the window has
+        pc.CustomMinimumSize = new Vector2(Mathf.Min(size.X, vp.X - 24), Mathf.Min(size.Y, vp.Y - 24)); pc.SetAnchorsPreset(Control.LayoutPreset.Center); pc.GrowHorizontal = Control.GrowDirection.Both; pc.GrowVertical = Control.GrowDirection.Both; root.AddChild(pc);
         var v = new VBoxContainer(); v.AddThemeConstantOverride("separation", 8); pc.AddChild(v);
         var hb = new HBoxContainer(); v.AddChild(hb); var t = Lbl(title, 26, Gold, hb); t.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         if (name != "title") hb.AddChild(Btn("Close", Close));
@@ -239,16 +240,20 @@ public partial class Ui : CanvasLayer
     {
         TreeDb.Load(); var v = Frame("tree", "Skill Tree", new Vector2(1000, 680), OpenTree);
         Row(v, $"Skill points: {Game.D.SkillPts}      Left click: allocate      Right click: remove      Mouse wheel: zoom      Drag: pan", Gold, 15);
-        var tv = new TreeView { CustomMinimumSize = new Vector2(960, 560), SizeFlagsVertical = Control.SizeFlags.ExpandFill }; v.AddChild(tv);
-        var tip = Row(v, " ", Colors.White, 15); tv.Tip = tip; tv.Changed = () => { Game.RecalcTree(); Game.Notify(); };
+        // tree canvas takes what is left of the window after title, help row and a 3-line tip (fits 648 px tall windows)
+        var vp = GetViewport().GetVisibleRect().Size;
+        var tv = new TreeView { CustomMinimumSize = new Vector2(Mathf.Min(960, vp.X - 64), Mathf.Clamp(vp.Y - 250, 240, 560)), SizeFlagsVertical = Control.SizeFlags.ExpandFill }; v.AddChild(tv);
+        var tip = Row(v, " ", Colors.White, 14); tip.CustomMinimumSize = new Vector2(0, 60); tip.ClipContents = true; tv.Tip = tip; tv.Changed = () => { Game.RecalcTree(); Game.Notify(); };
     }
 
     // ---------------------------------------------------------------- map and fast travel
     public void OpenMap()
     {
-        var v = Frame("map", "Map", new Vector2(760, 780), OpenMap); var d = Game.D;
+        // the map is square; size it to the window height left after the title and hint rows
+        var vp = GetViewport().GetVisibleRect().Size; float side = Mathf.Clamp(vp.Y - 150, 240, 680);
+        var v = Frame("map", "Map", new Vector2(side + 40, side + 110), OpenMap); var d = Game.D;
         Row(v, "Click a discovered place to fast travel (not inside dungeons or the arena).", Dim, 15);
-        var mv = new MapView { CustomMinimumSize = new Vector2(720, 680) }; v.AddChild(mv);
+        var mv = new MapView { CustomMinimumSize = new Vector2(side, side), SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter }; v.AddChild(mv);
         mv.Travel = poi => { if (Dungeon.Active || Arenas.Active) { Note("You cannot travel from here", new Color(1, .6f, .5f)); return; } Close(); World.ForceRealm(0); Player.Instance?.Teleport(World.OnGround(poi.X, poi.Z + (poi.Id == "village" ? 9 : 6), 0.6f), 0f); Ui.Flash(Colors.White); Ui.Note("Travelled to " + poi.Name, Gold); };
     }
 
@@ -294,7 +299,8 @@ public partial class TreeView : Control
     {
         ClipContents = true; MouseFilter = MouseFilterEnum.Stop; TreeDb.Load();
         float minx = 1e9f, maxx = -1e9f, miny = 1e9f, maxy = -1e9f; foreach (var n in TreeDb.Nodes) { minx = Mathf.Min(minx, n.X); maxx = Mathf.Max(maxx, n.X); miny = Mathf.Min(miny, n.Y); maxy = Mathf.Max(maxy, n.Y); }
-        _scale = Mathf.Min(930f / (maxx - minx + 60), 540f / (maxy - miny + 60)); _pan = -new Vector2((minx + maxx) / 2, (miny + maxy) / 2) * _scale;
+        var box = CustomMinimumSize == Vector2.Zero ? new Vector2(960, 560) : CustomMinimumSize; // fit the whole tree in the canvas
+        _scale = Mathf.Min((box.X - 30) / (maxx - minx + 60), (box.Y - 20) / (maxy - miny + 60)); _pan = -new Vector2((minx + maxx) / 2, (miny + maxy) / 2) * _scale;
     }
     float Rad(TreeNode n) => (n.Type == "hub" ? 16f : n.Type == "key" ? 14f : n.Type == "notable" ? 10f : 6f) * Mathf.Clamp(_zoom, 0.8f, 1.5f);
     public override void _Draw()

@@ -76,7 +76,7 @@ public partial class Observer : Node
                 if (c is Control ctl && ctl.IsVisibleInTree())
                 {
                     var r = ctl.GetGlobalRect();
-                    if (r.Size.X > 1 && (r.Position.X < -1 || r.Position.Y < -1 || r.End.X > vp.Size.X + 1 || r.End.Y > vp.Size.Y + 1) && !(ctl.GetParent() is ScrollContainer) && !(ctl.GetParent()?.GetParent() is ScrollContainer))
+                    if (r.Size.X > 1 && (r.Position.X < -1 || r.Position.Y < -1 || r.End.X > vp.Size.X + 1 || r.End.Y > vp.Size.Y + 1) && !InScroll(ctl))
                         issues.Add($"{menu}: {ctl.GetType().Name} '{(ctl is Label l0 ? l0.Text : ctl.Name)}' leaves the screen {r}");
                     if (ctl is Label l && l.Text.Length > 0 && l.AutowrapMode == TextServer.AutowrapMode.Off && l.GetMinimumSize().X > l.Size.X + 2 && l.Size.X > 0 && l.ClipText == false && l.GetMinimumSize().X > 0 && l.Size.X < l.GetMinimumSize().X - 2)
                         issues.Add($"{menu}: label text is wider than its box: '{l.Text}'");
@@ -85,6 +85,8 @@ public partial class Observer : Node
                 Walk(c);
             }
         }
+        // rows inside a ScrollContainer are clipped by it, so being past the window edge is fine there
+        static bool InScroll(Node n) { for (var p = n.GetParent(); p != null; p = p.GetParent()) if (p is ScrollContainer) return true; return false; }
         Walk(Ui.I);
         if (small > 0) issues.Add($"{menu}: {small} labels use a font smaller than 13px");
     }

@@ -1,4 +1,4 @@
-# Backlog (ideas, highest value first)
+﻿# Backlog (ideas, highest value first)
 
 Format: `- [ ] (impact H/M/L, effort S/M/L) title: why / how`. Mark `[x]` when done and `[!]` if tried and failed (with the reason in the log). /improve adds new items it discovers.
 
@@ -25,6 +25,9 @@ Format: `- [ ] (impact H/M/L, effort S/M/L) title: why / how`. Mark `[x]` when d
 - [ ] (M,M) Character sheet with stat bars and a rotating 3D preview of the hero.
 - [ ] (M,S) Quest log tabs (active, done) with tracked-quest toggle and map markers.
 ## HUD
+- [x] (H,S) Layout bugs: quest tracker drawn off-screen (right-aligned with no width), compass mirrored and "NW" clipped, hotbar names offset by half a slot, skill tree and map panels taller than a 648 px window.
+- [ ] (L,S) Dungeon title banner lingers faintly in the sky after leaving (w09_shadow_village shows "Hollow Barrow").
+- [ ] (M,S) Camera can sit behind lamp posts and hide the hero (h01_hud): fade or ignore thin props in the spring arm.
 - [ ] (M,S) Floating damage numbers by type (crit big and gold, heal green, taken red); buff and debuff icons with timers.
 - [ ] (M,M) Quest markers on the compass and minimap.
 ## World look
