@@ -29,3 +29,9 @@ Bot 42/42 pass. Observer at 1152x648.
 - Evidence: observer ui_issues 33 -> 0. h01_hud now shows "Wolves at the Gate" with its goal top-right, compass W NW N NE in order, all six hotbar names inside their slots. m_tree and m_map show title and Close button inside the window. hud fps 144 -> 144, draw calls 1394 -> 1398. Bot 42/42.
 - Scores: HUD 3 -> 5, Inventory and menus 3 -> 4.
 - Next candidates: (1) hit-stop plus enemy hit flash and recoil (combat feel 3), (2) procedural walk cycle with leg and arm swing (animation 2), (3) vector icons for hotbar spells and potions (icons 1).
+
+## Iteration 2 (2026-11-08): hit-stop and enemy recoil
+- Changed: new `scripts/Feel.cs` + `data/feel.json`. Hits the player lands freeze the game briefly (light 35 ms, combo 55, power 85, spells 25; +30 for a crit, +30 for a kill; capped at 120 ms; time scale 0.05). Taking a hit freezes 50 ms. Enemies now jolt away from the blow and squash (scaled by knockback; bosses and the dragon at 40%), then spring back over 0.2 s. `HitInfo.Kind` tells light/combo/power apart. Ui (always processing) ends the freeze in real time so it can never get stuck. Observer gained an `anim_hit_enemy` strip (power attack on a stunned brute).
+- Evidence: anim_hit_enemy frames 13-14 show the brute white, squashed flat and wide, then knocked back with the number; before this change there was only a 0.12 s flash. The strip is captured in game time, so the freeze itself does not add frames. Bot 42/42 (arena waves and duel still finish, so time scale always recovers). fps 126-144 unchanged; draw calls unchanged in the world shots.
+- Scores: Combat feel 3 -> 4.
+- Next candidates: (1) procedural walk cycle with leg and arm swing (animation 2), (2) vector icons for hotbar spells and potions (icons 1), (3) death dissolve and stagger pose for enemies (combat feel).

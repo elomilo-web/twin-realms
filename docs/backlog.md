@@ -3,9 +3,9 @@
 Format: `- [ ] (impact H/M/L, effort S/M/L) title: why / how`. Mark `[x]` when done and `[!]` if tried and failed (with the reason in the log). /improve adds new items it discovers.
 
 ## Combat feel
-- [ ] (H,S) Hit-stop and camera shake on hit: freeze 40-80 ms on impact, bigger for crits and power attacks.
+- [x] (H,S) Hit-stop and camera shake on hit: freeze 40-80 ms on impact, bigger for crits and power attacks.
 - [ ] (H,M) Impact sparks and slash trails: a glowing arc mesh that follows the sword during swings (SAO-like skill trails).
-- [ ] (H,M) Enemy telegraphs and hit reactions: wind-up flash, recoil, stagger pose, death dissolve instead of vanishing.
+- [ ] (H,M) Enemy telegraphs and hit reactions: wind-up flash, recoil, stagger pose, death dissolve instead of vanishing. (recoil and squash done in iter 2; stagger pose and death dissolve still open)
 - [ ] (H,M) Target lock-on (Zelda style): a key to lock the nearest enemy, camera and strafing follow, target ring.
 - [ ] (M,M) Named sword skills with a short chain (SAO): e.g. 3 skills unlocked via the skill tree, each with a distinct move.
 - [ ] (M,S) Perfect dodge: roll just before a hit gives slow motion and a free counter.

@@ -1,0 +1,50 @@
+using Godot;
+
+namespace TwinRealms;
+
+/// <summary>Game feel: hit-stop (a tiny freeze on impact) and enemy recoil settings. Tuning lives in data/feel.json.</summary>
+public static class Feel
+{
+    public static float Light = .035f, Combo = .055f, Power = .085f, Spell = .025f, CritBonus = .03f, KillBonus = .03f, Taken = .05f, MaxStop = .12f, StopScale = .05f;
+    public static float RecoilTime = .2f, RecoilPush = .22f, RecoilSquash = .16f, RecoilBossMul = .4f;
+    static bool _loaded, _on;
+    static ulong _until;
+
+    public static void Load()
+    {
+        if (_loaded) return; _loaded = true;
+        using var doc = JsonUtil.Load("res://data/feel.json"); var r = doc.RootElement;
+        if (r.TryGetProperty("hitstop", out var h))
+        {
+            Light = JsonUtil.F(h, "light", Light); Combo = JsonUtil.F(h, "combo", Combo); Power = JsonUtil.F(h, "power", Power); Spell = JsonUtil.F(h, "spell", Spell);
+            CritBonus = JsonUtil.F(h, "critBonus", CritBonus); KillBonus = JsonUtil.F(h, "killBonus", KillBonus); Taken = JsonUtil.F(h, "taken", Taken);
+            MaxStop = JsonUtil.F(h, "max", MaxStop); StopScale = JsonUtil.F(h, "timeScale", StopScale);
+        }
+        if (r.TryGetProperty("recoil", out var c))
+        {
+            RecoilTime = JsonUtil.F(c, "time", RecoilTime); RecoilPush = JsonUtil.F(c, "push", RecoilPush); RecoilSquash = JsonUtil.F(c, "squash", RecoilSquash); RecoilBossMul = JsonUtil.F(c, "bossMul", RecoilBossMul);
+        }
+    }
+
+    /// <summary>Hit-stop length for a hit the player landed.</summary>
+    public static float ForHit(HitInfo h, bool killed)
+    {
+        Load();
+        float t = h.Kind switch { "light" => Light, "combo" => Combo, "power" => Power, _ => Spell };
+        if (h.Crit) t += CritBonus; if (killed) t += KillBonus;
+        return t;
+    }
+
+    /// <summary>Freeze the game for a few hundredths of a second. Overlapping calls extend to the latest end, never stack.</summary>
+    public static void HitStop(float seconds)
+    {
+        Load(); seconds = Mathf.Min(seconds, MaxStop); if (seconds <= 0) return;
+        if (!_on && !Mathf.IsEqualApprox((float)Engine.TimeScale, 1f)) return; // someone else owns time scale
+        ulong end = Time.GetTicksMsec() + (ulong)(seconds * 1000f);
+        if (end > _until) _until = end;
+        _on = true; Engine.TimeScale = StopScale;
+    }
+
+    /// <summary>Called every frame (real time) to end the freeze.</summary>
+    public static void Tick() { if (_on && Time.GetTicksMsec() >= _until) { _on = false; Engine.TimeScale = 1.0; } }
+}

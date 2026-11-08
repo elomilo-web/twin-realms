@@ -176,7 +176,7 @@ public partial class Player : CharacterBody3D, IDamageable
             te.TakeHit(new HitInfo { Damage = h.Damage * TS["thorns"] / 100f, From = GlobalPosition, IsPlayer = true, Attacker = this });
         int final = Mathf.Max(1, Mathf.RoundToInt(dmg));
         Hp -= final; _inv = 0.2f;
-        Rig?.Shake(0.18f);
+        Rig?.Shake(0.18f); Feel.HitStop(Feel.Taken);
         FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.1f, 0), "-" + final, new Color(1, 0.4f, 0.35f));
         if (Hp <= 0)
         {
@@ -274,7 +274,7 @@ public partial class Player : CharacterBody3D, IDamageable
             if (Mathf.Abs(e.GlobalPosition.Y - GlobalPosition.Y) > 3.5f + e.Def.R) continue;
             bool crit = GD.Randf() < D.CritChance();
             float dmg = D.WpnDmg() * (float)GD.RandRange(0.9, 1.1) * (_atkPower ? 2.2f : comboHit ? 1.35f : 1f) * (crit ? D.CritMult() : 1f);
-            e.TakeHit(new HitInfo { Damage = dmg, From = GlobalPosition, Knock = _atkPower ? 9f : comboHit ? 5f : 2.5f, Stun = _atkPower ? 0.6f : 0f, Crit = crit, Attacker = this, IsPlayer = true });
+            e.TakeHit(new HitInfo { Damage = dmg, From = GlobalPosition, Knock = _atkPower ? 9f : comboHit ? 5f : 2.5f, Stun = _atkPower ? 0.6f : 0f, Crit = crit, Attacker = this, IsPlayer = true, Kind = _atkPower ? "power" : comboHit ? "combo" : "light" });
             hits++;
         }
         if (hits > 0) { Rig?.Shake(_atkPower ? 0.25f : 0.08f); Sfx.Play("hit"); }

@@ -41,6 +41,8 @@ public partial class Ui : CanvasLayer
         Game.Changed += () => { if (_rebuild != null && _panel != null) _rebuild(); };
     }
 
+    public override void _Process(double delta) => Feel.Tick(); // Ui always processes, so hit-stop always ends
+
     Label Lbl(string t, int size, Color? c = null, Node? parent = null)
     {
         var l = new Label { Text = t, MouseFilter = Control.MouseFilterEnum.Ignore };

@@ -184,6 +184,14 @@ public partial class Observer : Node
             await Strip("roll", async () => { Press(Inputs.Forward, true); Press(Inputs.Roll, true); await Wait(0.1f); Press(Inputs.Roll, false); await Wait(0.45f); Press(Inputs.Forward, false); });
             await Strip("walk_sprint", async () => { Press(Inputs.Forward, true); Press(Inputs.Sprint, true); await Wait(0.6f); Press(Inputs.Forward, false); Press(Inputs.Sprint, false); }, 8, 0.1f);
             await Strip("idle", async () => { await Wait(0.8f); }, 8, 0.1f);
+            // impact read: a power attack landing on a brute standing in front of the hero (hit-stop, flash, recoil, sparks)
+            {
+                P.Teleport(World.OnGround(0, 18, 0.5f), 0f); var tp = P.GlobalPosition + new Vector3(0, 0, -2.4f);
+                var dummy = new Enemy { Type = "brute", Level = 1, AnyRealm = true, NoLeash = true, Position = World.OnGround(tp.X, tp.Z, 0.2f) }; Game.Root!.AddChild(dummy); await Wait(0.3f); dummy.Stun(4f); // a stunned target stands still for the shot
+                // power hold 0.4 s, then the blow lands ~0.4 s after release; 16 frames x 0.06 s covers wind-up, impact and recovery
+                await Strip("hit_enemy", async () => { Mouse(MouseButton.Left, true); await Wait(0.4f); Mouse(MouseButton.Left, false); await Wait(0.6f); }, 16, 0.06f);
+                dummy.QueueFree(); P.Hp = Game.D.MaxHp(); await Wait(0.3f);
+            }
             P.Mp = Game.D.MaxMp();
             await Strip("spell_fire", async () => { Press("spell1", true); await Wait(0.05f); Press("spell1", false); await Wait(0.5f); });
             await Strip("spell_nova", async () => { P.Mp = Game.D.MaxMp(); Press("spell2", true); await Wait(0.05f); Press("spell2", false); await Wait(0.6f); });

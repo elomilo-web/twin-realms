@@ -22,7 +22,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
 
     State _state = State.Idle;
     float _timer, _stun, _flash, _gravity, _yaw, _deadT, _burnT, _burnDps, _slow, _summonT, _breathT, _breathCd = 6f, _tick;
-    Vector3 _kb, _home;
+    Vector3 _kb, _home, _recoilDir = Vector3.Back; float _recoilT, _recoilK;
     Node3D _body = null!;
     readonly List<StandardMaterial3D> _mats = new();
     readonly List<Color> _baseCols = new();
@@ -139,6 +139,11 @@ public partial class Enemy : CharacterBody3D, IDamageable
         if (h.Stun > 0 && !Def.Boss && Def.Kind != "dragon") Stun(h.Stun * 1f);
         else if (_state == State.Idle || _state == State.Sleep || _state == State.Return) Wake();
         Fx.Burst(GlobalPosition + new Vector3(0, HeightM() * 0.6f, 0), h.Crit ? new Color(1, 0.8f, 0.2f) : new Color(1, 0.3f, 0.2f), h.Crit ? 12 : 6, 4f, 0.35f, 0.08f);
+        // recoil: the body jolts away from the hit and squashes, then springs back (local space, since the enemy node is yawed)
+        Feel.Load();
+        if (away.LengthSquared() > 0.001f) _recoilDir = Basis.Inverse() * away.Normalized();
+        _recoilK = Mathf.Clamp(h.Knock / 5f, 0.4f, 1.5f) * (Def.Boss || Def.Kind == "dragon" ? Feel.RecoilBossMul : 1f) * (h.Crit ? 1.3f : 1f); _recoilT = Feel.RecoilTime;
+        if (h.IsPlayer && h.Attacker is Player) Feel.HitStop(Feel.ForHit(h, Hp <= 0));
         if (Hp <= 0) Die(h);
     }
 
@@ -188,6 +193,12 @@ public partial class Enemy : CharacterBody3D, IDamageable
         var v = Velocity;
         if (!IsOnFloor()) v.Y -= _gravity * dt; else v.Y = 0;
 
+        if (_recoilT > 0 || _body.Position != Vector3.Zero)
+        {
+            _recoilT = Mathf.Max(0, _recoilT - dt); float f = _recoilT / Mathf.Max(0.01f, Feel.RecoilTime); f *= f; // snap out, ease back
+            float k = f * _recoilK; _body.Position = _recoilDir * Feel.RecoilPush * k;
+            _body.Scale = new Vector3(1 + Feel.RecoilSquash * k * 0.5f, 1 - Feel.RecoilSquash * k, 1 + Feel.RecoilSquash * k * 0.5f);
+        }
         if (_flash > 0) { _flash -= dt; foreach (var m in _mats) m.AlbedoColor = Colors.White; }
         else for (int i = 0; i < _mats.Count; i++) _mats[i].AlbedoColor = _state == State.Wind ? _baseCols[i].Lerp(new Color(1, 0.2f, 0.1f), 1f - Mathf.Clamp(_timer / Mathf.Max(0.01f, Def.Wind), 0, 1)) : _baseCols[i];
 

@@ -11,6 +11,7 @@ public class HitInfo
     public bool Crit;
     public Node3D? Attacker;
     public bool IsPlayer, IsProjectile, NoBlock, Fire;
+    public string Kind = "";   // melee kind for game feel: light, combo, power ("" = spell or arrow)
 }
 
 public interface IDamageable
