@@ -10,6 +10,7 @@ public class HitInfo
     public float Stun;
     public bool Crit;
     public Node3D? Attacker;
+    public bool IsPlayer, IsProjectile, NoBlock, Fire;
 }
 
 public interface IDamageable

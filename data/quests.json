@@ -7,7 +7,6 @@
    "req": null,
    "kind": "kill",
    "need": 5,
-   "test": "[fn] i => i.id === 'wolf'",
    "goal": "Slay 5 wolves on the road west of Oakhaven",
    "offer": "Wolves have been taking our sheep, and last week one bit a child. A pack hunts west along the barrow road. Cull five of them and the village will sleep easier.",
    "done": "You have the look of a proper hunter. Take this, with my thanks.",
@@ -15,7 +14,8 @@
     "xp": 110,
     "gold": 60,
     "bonus": 0
-   }
+   },
+   "matchType": "wolf"
   },
   {
    "id": "rift",
@@ -24,7 +24,6 @@
    "req": "wolves",
    "kind": "kill",
    "need": 6,
-   "test": "[fn] i => i.realm === 1",
    "goal": "Cross into the Shadow (R) at the Whispering Stones and slay 6 creatures",
    "offer": "The old stones northwest of here hum at night. My grandmother called them the Rift: a door to the Shadow realm. Something is leaking through. Stand among the stones, press R to cross over, and cut down what lives there.",
    "done": "So the Shadow is real, and it is hungry. You have bought us time.",
@@ -32,7 +31,8 @@
     "xp": 240,
     "gold": 120,
     "bonus": 1
-   }
+   },
+   "matchRealm": 1
   },
   {
    "id": "barrow",
@@ -41,7 +41,6 @@
    "req": "rift",
    "kind": "kill",
    "need": 1,
-   "test": "[fn] i => i.id === 'barrowKing'",
    "goal": "Descend into the Hollow Barrow and defeat the Barrow King",
    "lvl": 3,
    "offer": "The dead walk because a king will not stay buried. His barrow lies west, beyond the wolves. End him, and bring back proof that he is quiet at last.",
@@ -50,7 +49,8 @@
     "xp": 420,
     "gold": 220,
     "bonus": 2
-   }
+   },
+   "matchType": "barrowKing"
   },
   {
    "id": "warrens",
@@ -59,7 +59,6 @@
    "req": null,
    "kind": "kill",
    "need": 1,
-   "test": "[fn] i => i.id === 'warchief'",
    "goal": "Slay Warchief Grukk in the Goblin Warrens",
    "lvl": 5,
    "offer": "Goblin raiders keep hitting our carts. They come from the Warrens to the south, and a warchief named Grukk leads them. Kill him and the raids stop.",
@@ -68,7 +67,8 @@
     "xp": 520,
     "gold": 260,
     "bonus": 2
-   }
+   },
+   "matchType": "warchief"
   },
   {
    "id": "depths",
@@ -77,7 +77,6 @@
    "req": "barrow",
    "kind": "kill",
    "need": 1,
-   "test": "[fn] i => i.id === 'golem'",
    "goal": "Destroy the Obsidian Golem deep in the Ashen Depths",
    "lvl": 8,
    "offer": "There is a fire under the island, and something old tends it. The Ashen Depths lie far to the southwest. Smash the Obsidian Golem that guards it.",
@@ -86,7 +85,8 @@
     "xp": 900,
     "gold": 420,
     "bonus": 3
-   }
+   },
+   "matchType": "golem"
   },
   {
    "id": "drake",
@@ -95,7 +95,6 @@
    "req": "barrow",
    "kind": "kill",
    "need": 1,
-   "test": "[fn] i => i.id === 'dragon'",
    "goal": "Slay Vorthrax the Ashen atop Drakespire",
    "lvl": 10,
    "offer": "Smoke has hung over Drakespire since the rift opened. Vorthrax sleeps there, and sleeping things wake. Take every potion you own. Then end the dragon.",
@@ -104,7 +103,8 @@
     "xp": 2400,
     "gold": 1200,
     "bonus": 4
-   }
+   },
+   "matchType": "dragon"
   },
   {
    "id": "arena1",
@@ -113,7 +113,6 @@
    "req": null,
    "kind": "wave",
    "need": 1,
-   "test": "[fn] i => i.wave >= 5",
    "goal": "Clear wave 5 in the Crimson Arena Wave Survival",
    "offer": "Anyone can swing a sword at a wolf. The crowd wants to see you survive five waves. Do it and you earn a purse, plus a name worth shouting.",
    "done": "The crowd chants your name. Take your winnings.",
@@ -121,7 +120,8 @@
     "xp": 220,
     "gold": 150,
     "bonus": 1
-   }
+   },
+   "minWave": 5
   },
   {
    "id": "duel1",
@@ -130,7 +130,6 @@
    "req": "arena1",
    "kind": "duel",
    "need": 1,
-   "test": "[fn] i => i.streak >= 1",
    "goal": "Win a Shadow Duel against your own double",
    "offer": "My pit mages can call your shadow out of the Rift: your gear, your moves, your habits. Beat yourself and I will make you famous.",
    "done": "You beat yourself. That is the hardest duel there is.",
@@ -138,7 +137,8 @@
     "xp": 360,
     "gold": 240,
     "bonus": 2
-   }
+   },
+   "minStreak": 1
   },
   {
    "id": "duel3",
@@ -147,7 +147,6 @@
    "req": "duel1",
    "kind": "duel",
    "need": 1,
-   "test": "[fn] i => i.streak >= 3",
    "goal": "Win 3 Shadow Duels in a row",
    "offer": "One win is luck. Three in a row, each shadow stronger than the last, is a champion. Prove it.",
    "done": "Champion. There is no other word for it.",
@@ -155,7 +154,8 @@
     "xp": 800,
     "gold": 500,
     "bonus": 3
-   }
+   },
+   "minStreak": 3
   }
  ],
  "npcs": [

@@ -23,6 +23,11 @@ public class EnemyDef
     public bool Boss { get; set; }
     public bool Slam { get; set; }
     public int Realm { get; set; }
+    public string? Ranged { get; set; }
+    public float Range { get; set; } = 0f;
+    public float Keep { get; set; } = 0f;
+    public string? Summon { get; set; }
+    public bool Breath { get; set; }
 }
 
 /// <summary>Loads res://data/enemies.json (extracted from the prototype). Stats are never hard-coded in C#.</summary>

@@ -6,7 +6,7 @@ namespace TwinRealms;
 public partial class CameraRig : Node3D
 {
     public Node3D? Target;
-    public float Sensitivity = 0.0025f;
+    public float Sensitivity => 0.0025f * Game.Set.Sens;
     public float MinPitch = -1.2f, MaxPitch = 0.9f;
     public float Distance = 5.0f;
 
@@ -41,18 +41,14 @@ public partial class CameraRig : Node3D
         if (e is InputEventMouseMotion m && Input.MouseMode == Input.MouseModeEnum.Captured)
         {
             RotateY(-m.Relative.X * Sensitivity);
-            _pitch = Mathf.Clamp(_pitch - m.Relative.Y * Sensitivity, MinPitch, MaxPitch);
+            _pitch = Mathf.Clamp(_pitch - m.Relative.Y * Sensitivity * (Game.Set.InvertY ? -1f : 1f), MinPitch, MaxPitch);
             _pivot.Rotation = new Vector3(_pitch, 0, 0);
         }
         else if (e is InputEventMouseButton b && b.Pressed)
         {
             if (b.ButtonIndex == MouseButton.WheelUp) Distance = Mathf.Clamp(Distance - 0.5f, 2f, 12f);
             else if (b.ButtonIndex == MouseButton.WheelDown) Distance = Mathf.Clamp(Distance + 0.5f, 2f, 12f);
-            else if (Input.MouseMode != Input.MouseModeEnum.Captured) Input.MouseMode = Input.MouseModeEnum.Captured;
-        }
-        else if (e.IsActionPressed(Inputs.Release))
-        {
-            Input.MouseMode = Input.MouseModeEnum.Visible;
+            else if (Input.MouseMode != Input.MouseModeEnum.Captured && !Ui.AnyOpen) Input.MouseMode = Input.MouseModeEnum.Captured;
         }
     }
 
