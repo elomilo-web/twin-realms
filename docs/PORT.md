@@ -1,11 +1,11 @@
 # Port status (browser prototype to Godot C#)
 
 ## Current focus
-Step 0: project setup and a walking character on flat ground.
+Step 0 written but UNTESTED (written without Godot available). Next: run it, fix any build/runtime errors, then step 1.
 
 ## Checklist
-- [ ] 0. Godot project created, repo builds, `tools/smoke_test.sh` exits 0
-- [ ] 1. Player controller, free third-person camera, jump, roll, sprint
+- [~] 0. Project builds and `tools/smoke_test.sh` exits 0. Code written (Main, Player, CameraRig, Inputs); not yet compiled or run
+- [~] 1. Player controller, free third-person camera, jump, roll, sprint (basic version in step 0 code; needs animation, stamina, tuning)
 - [ ] 2. Combat: sword combo, block, bow, wand, staff, spells, stamina and mana
 - [ ] 3. Enemy scene and AI (idle, aggro, attack, ranged, flee, leash), enemy table loaded from `data/enemies.json`
 - [ ] 4. Loot, inventory, equipment, shops, blacksmith (`data/items.json`)
@@ -30,3 +30,4 @@ Step 0: project setup and a walking character on flat ground.
 ## Session log
 (add a dated line at the end of each session: what was done, what was verified, what is next)
 - 2026-11-08: Claude (cloud chat) connection test, push works.
+- 2026-11-08: Wrote Main/Player/CameraRig/Inputs for step 0 from the cloud chat. NOT compiled or run. Controls: WASD, Space jump, Shift sprint, C roll, mouse look, wheel zoom, Esc frees mouse.
