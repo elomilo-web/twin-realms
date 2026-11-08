@@ -1,0 +1,75 @@
+{
+ "classes": {
+  "warrior": {
+   "n": "Warrior",
+   "d": "Sword and shield",
+   "a": {
+    "str": 3,
+    "vit": 2
+   }
+  },
+  "rogue": {
+   "n": "Ranger",
+   "d": "Shortbow, quick feet",
+   "a": {
+    "dex": 4,
+    "str": 1
+   },
+   "w": {
+    "name": "Hunter's Shortbow",
+    "wt": "bow",
+    "two": true,
+    "dmg": 4
+   },
+   "noShield": true
+  },
+  "mage": {
+   "n": "Mage",
+   "d": "Wand and spells",
+   "a": {
+    "mag": 5
+   },
+   "w": {
+    "name": "Apprentice Wand",
+    "wt": "wand",
+    "dmg": 2,
+    "sp": 0.1
+   },
+   "noShield": true
+  }
+ },
+ "spells": [
+  {
+   "id": "fire",
+   "n": "Firebolt",
+   "k": "1",
+   "mp": 14,
+   "cd": 0.7,
+   "cast": 0.3
+  },
+  {
+   "id": "nova",
+   "n": "Frost Nova",
+   "k": "2",
+   "mp": 28,
+   "cd": 7,
+   "cast": 0.4
+  },
+  {
+   "id": "heal",
+   "n": "Healing Light",
+   "k": "3",
+   "mp": 30,
+   "cd": 9,
+   "cast": 0.45
+  },
+  {
+   "id": "zap",
+   "n": "Chain Lightning",
+   "k": "4",
+   "mp": 22,
+   "cd": 2.6,
+   "cast": 0.35
+  }
+ ]
+}

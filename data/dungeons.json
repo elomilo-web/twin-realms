@@ -1,0 +1,54 @@
+{
+ "themes": {
+  "barrow": {
+   "name": "Hollow Barrow",
+   "mobs": [
+    "skeleton",
+    "skeleton",
+    "wraith",
+    "hound",
+    "skeleton"
+   ],
+   "boss": "barrowKing",
+   "wall": 4870496,
+   "floor": 3290687,
+   "torch": 8376575,
+   "flame": 8376575
+  },
+  "warrens": {
+   "name": "Goblin Warrens",
+   "mobs": [
+    "goblin",
+    "goblin",
+    "goblin",
+    "wolf",
+    "archer",
+    "brute"
+   ],
+   "boss": "warchief",
+   "wall": 6966836,
+   "floor": 4075040,
+   "torch": 16754768,
+   "flame": 16753208
+  },
+  "depths": {
+   "name": "Ashen Depths",
+   "mobs": [
+    "revenant",
+    "skeleton",
+    "hound",
+    "wraith",
+    "hound"
+   ],
+   "boss": "golem",
+   "wall": 3941412,
+   "floor": 2364952,
+   "torch": 16734762,
+   "flame": 16738864
+  }
+ },
+ "tile": 4,
+ "wallHeight": 6,
+ "gridW": 40,
+ "gridH": 40
+}

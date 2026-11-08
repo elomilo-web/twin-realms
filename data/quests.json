@@ -1,0 +1,272 @@
+{
+ "quests": [
+  {
+   "id": "wolves",
+   "name": "Wolves at the Gate",
+   "giver": "maren",
+   "req": null,
+   "kind": "kill",
+   "need": 5,
+   "test": "[fn] i => i.id === 'wolf'",
+   "goal": "Slay 5 wolves on the road west of Oakhaven",
+   "offer": "Wolves have been taking our sheep, and last week one bit a child. A pack hunts west along the barrow road. Cull five of them and the village will sleep easier.",
+   "done": "You have the look of a proper hunter. Take this, with my thanks.",
+   "rw": {
+    "xp": 110,
+    "gold": 60,
+    "bonus": 0
+   }
+  },
+  {
+   "id": "rift",
+   "name": "The Rift Stones",
+   "giver": "maren",
+   "req": "wolves",
+   "kind": "kill",
+   "need": 6,
+   "test": "[fn] i => i.realm === 1",
+   "goal": "Cross into the Shadow (R) at the Whispering Stones and slay 6 creatures",
+   "offer": "The old stones northwest of here hum at night. My grandmother called them the Rift: a door to the Shadow realm. Something is leaking through. Stand among the stones, press R to cross over, and cut down what lives there.",
+   "done": "So the Shadow is real, and it is hungry. You have bought us time.",
+   "rw": {
+    "xp": 240,
+    "gold": 120,
+    "bonus": 1
+   }
+  },
+  {
+   "id": "barrow",
+   "name": "The Barrow King",
+   "giver": "maren",
+   "req": "rift",
+   "kind": "kill",
+   "need": 1,
+   "test": "[fn] i => i.id === 'barrowKing'",
+   "goal": "Descend into the Hollow Barrow and defeat the Barrow King",
+   "lvl": 3,
+   "offer": "The dead walk because a king will not stay buried. His barrow lies west, beyond the wolves. End him, and bring back proof that he is quiet at last.",
+   "done": "The dead lie still. Oakhaven owes you more than we can repay.",
+   "rw": {
+    "xp": 420,
+    "gold": 220,
+    "bonus": 2
+   }
+  },
+  {
+   "id": "warrens",
+   "name": "Warchief Grukk",
+   "giver": "tomas",
+   "req": null,
+   "kind": "kill",
+   "need": 1,
+   "test": "[fn] i => i.id === 'warchief'",
+   "goal": "Slay Warchief Grukk in the Goblin Warrens",
+   "lvl": 5,
+   "offer": "Goblin raiders keep hitting our carts. They come from the Warrens to the south, and a warchief named Grukk leads them. Kill him and the raids stop.",
+   "done": "Grukk dead? Gods. Here, this was our watch fund. You earned it.",
+   "rw": {
+    "xp": 520,
+    "gold": 260,
+    "bonus": 2
+   }
+  },
+  {
+   "id": "depths",
+   "name": "Heart of Ashes",
+   "giver": "maren",
+   "req": "barrow",
+   "kind": "kill",
+   "need": 1,
+   "test": "[fn] i => i.id === 'golem'",
+   "goal": "Destroy the Obsidian Golem deep in the Ashen Depths",
+   "lvl": 8,
+   "offer": "There is a fire under the island, and something old tends it. The Ashen Depths lie far to the southwest. Smash the Obsidian Golem that guards it.",
+   "done": "The tremors have stopped. I did not think you would come back.",
+   "rw": {
+    "xp": 900,
+    "gold": 420,
+    "bonus": 3
+   }
+  },
+  {
+   "id": "drake",
+   "name": "Ashen Wings",
+   "giver": "maren",
+   "req": "barrow",
+   "kind": "kill",
+   "need": 1,
+   "test": "[fn] i => i.id === 'dragon'",
+   "goal": "Slay Vorthrax the Ashen atop Drakespire",
+   "lvl": 10,
+   "offer": "Smoke has hung over Drakespire since the rift opened. Vorthrax sleeps there, and sleeping things wake. Take every potion you own. Then end the dragon.",
+   "done": "Then the age of the Ashen Drake is over. You are the legend now.",
+   "rw": {
+    "xp": 2400,
+    "gold": 1200,
+    "bonus": 4
+   }
+  },
+  {
+   "id": "arena1",
+   "name": "Blood and Sand",
+   "giver": "kael",
+   "req": null,
+   "kind": "wave",
+   "need": 1,
+   "test": "[fn] i => i.wave >= 5",
+   "goal": "Clear wave 5 in the Crimson Arena Wave Survival",
+   "offer": "Anyone can swing a sword at a wolf. The crowd wants to see you survive five waves. Do it and you earn a purse, plus a name worth shouting.",
+   "done": "The crowd chants your name. Take your winnings.",
+   "rw": {
+    "xp": 220,
+    "gold": 150,
+    "bonus": 1
+   }
+  },
+  {
+   "id": "duel1",
+   "name": "Face Your Shadow",
+   "giver": "kael",
+   "req": "arena1",
+   "kind": "duel",
+   "need": 1,
+   "test": "[fn] i => i.streak >= 1",
+   "goal": "Win a Shadow Duel against your own double",
+   "offer": "My pit mages can call your shadow out of the Rift: your gear, your moves, your habits. Beat yourself and I will make you famous.",
+   "done": "You beat yourself. That is the hardest duel there is.",
+   "rw": {
+    "xp": 360,
+    "gold": 240,
+    "bonus": 2
+   }
+  },
+  {
+   "id": "duel3",
+   "name": "Shadow Champion",
+   "giver": "kael",
+   "req": "duel1",
+   "kind": "duel",
+   "need": 1,
+   "test": "[fn] i => i.streak >= 3",
+   "goal": "Win 3 Shadow Duels in a row",
+   "offer": "One win is luck. Three in a row, each shadow stronger than the last, is a champion. Prove it.",
+   "done": "Champion. There is no other word for it.",
+   "rw": {
+    "xp": 800,
+    "gold": 500,
+    "bonus": 3
+   }
+  }
+ ],
+ "npcs": [
+  {
+   "id": "maren",
+   "name": "Elder Maren",
+   "outfit": "elder",
+   "x": -4.2,
+   "z": 4.2,
+   "role": "quest",
+   "quests": [
+    "wolves",
+    "rift",
+    "barrow",
+    "drake",
+    "depths"
+   ],
+   "lines": [
+    "The Shadow is not evil, child. It is only hungry. Remember that when you cross over.",
+    "Press R at the standing stones, and the world turns. I have seen it twice in my life."
+   ]
+  },
+  {
+   "id": "brynn",
+   "name": "Brynn the Merchant",
+   "outfit": "merchant",
+   "x": -9,
+   "z": 6.1,
+   "role": "shop",
+   "lines": [
+    "Coin for goods, goods for coin. I do not ask where you found it."
+   ]
+  },
+  {
+   "id": "tomas",
+   "name": "Guard Tomas",
+   "outfit": "guard",
+   "x": 12.5,
+   "z": 12.5,
+   "role": "quest",
+   "quests": [
+    "warrens"
+   ],
+   "lines": [
+    "Keep your blade sharp and your back to a wall. That is all the advice I have.",
+    "Dungeon mouths glow blue at the roadsides. Do not go in under-levelled. The depth is no joke."
+   ]
+  },
+  {
+   "id": "dorrin",
+   "name": "Dorrin the Smith",
+   "outfit": "villager2",
+   "x": 24.2,
+   "z": 5.6,
+   "role": "smith",
+   "lines": [
+    "A good edge is worth more than a good story."
+   ]
+  },
+  {
+   "id": "kael",
+   "name": "Kael, Arena Master",
+   "outfit": "arenaMaster",
+   "x": 44,
+   "z": 26,
+   "role": "arena",
+   "quests": [
+    "arena1",
+    "duel1",
+    "duel3"
+   ],
+   "lines": [
+    "Blood, sand and applause. What more could a hero want?"
+   ]
+  },
+  {
+   "id": "v1",
+   "name": "Villager",
+   "outfit": "villager",
+   "x": 6,
+   "z": -8,
+   "role": "talk",
+   "lines": [
+    "Strange lights at the old stones lately.",
+    "My cousin saw a wolf as big as a calf.",
+    "Welcome to Oakhaven, stranger."
+   ]
+  },
+  {
+   "id": "v2",
+   "name": "Villager",
+   "outfit": "villager2",
+   "x": -14,
+   "z": -3.5,
+   "role": "talk",
+   "lines": [
+    "The arena folk are loud but they pay well.",
+    "Brynn sells a horse, if you can afford one. A horse makes the island feel small."
+   ]
+  },
+  {
+   "id": "v3",
+   "name": "Farmhand",
+   "outfit": "villager",
+   "x": -20,
+   "z": 12,
+   "role": "talk",
+   "lines": [
+    "Moon looks wrong some nights. Violet.",
+    "The Barrow King used to be a good man, they say."
+   ]
+  }
+ ]
+}
