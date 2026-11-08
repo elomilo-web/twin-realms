@@ -8,7 +8,11 @@ The whole browser game has been ported to Godot C# in one pass. It builds cleanl
 - Rare crash on exit (Godot .NET GC finalizers racing engine teardown). The bot now runs GC and drains finalizers before `Quit`.
 - HUD showed "[E] [E] ..." because both `Player.Prompt` and `Hud` added the key prefix. Removed the one in `Hud`.
 
-Cosmetic issues seen in bot screenshots, not yet fixed: hotbar spell names overflow their slots; the compass strip shows "N" twice and a stray "W" at the top-right screen edge.
+**/improve run 1 (2026-11-08), iterations 1-3** (details in `docs/improvement_log.md`):
+1. HUD and menu layout fixed: quest tracker was drawn off-screen (that was the stray "W"), compass was mirrored, hotbar names overflowed, skill tree and map were taller than the window.
+2. Hit-stop and enemy recoil/squash (`scripts/Feel.cs`, `data/feel.json`).
+3. Procedural walk/run cycle for the player (legs, arm swing, bob, lean, breathing).
+Note: git push from Claude Code's shell has no GitHub login on this PC; push from GitHub Desktop.
 
 Note: Windows has no bash here; the bot steps were run directly in PowerShell with the Godot console exe.
 

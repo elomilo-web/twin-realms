@@ -7,6 +7,7 @@ public static class Feel
 {
     public static float Light = .035f, Combo = .055f, Power = .085f, Spell = .025f, CritBonus = .03f, KillBonus = .03f, Taken = .05f, MaxStop = .12f, StopScale = .05f;
     public static float RecoilTime = .2f, RecoilPush = .22f, RecoilSquash = .16f, RecoilBossMul = .4f;
+    public static float Stride = 1.9f, LegSwing = .7f, ArmSwing = .2f, Bob = .07f, Lean = .16f, Breath = .012f;
     static bool _loaded, _on;
     static ulong _until;
 
@@ -23,6 +24,11 @@ public static class Feel
         if (r.TryGetProperty("recoil", out var c))
         {
             RecoilTime = JsonUtil.F(c, "time", RecoilTime); RecoilPush = JsonUtil.F(c, "push", RecoilPush); RecoilSquash = JsonUtil.F(c, "squash", RecoilSquash); RecoilBossMul = JsonUtil.F(c, "bossMul", RecoilBossMul);
+        }
+        if (r.TryGetProperty("walk", out var w))
+        {
+            Stride = JsonUtil.F(w, "stride", Stride); LegSwing = JsonUtil.F(w, "legSwing", LegSwing); ArmSwing = JsonUtil.F(w, "armSwing", ArmSwing);
+            Bob = JsonUtil.F(w, "bob", Bob); Lean = JsonUtil.F(w, "lean", Lean); Breath = JsonUtil.F(w, "breath", Breath);
         }
     }
 

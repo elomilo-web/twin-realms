@@ -16,5 +16,14 @@
   "push": 0.22,
   "squash": 0.16,
   "bossMul": 0.4
+ },
+ "walk": {
+  "_comment": "Player procedural walk. stride = radians of leg cycle per metre; swings in radians (legs) and metres (arms, bob, breath); lean in radians at full sprint.",
+  "stride": 1.9,
+  "legSwing": 0.7,
+  "armSwing": 0.2,
+  "bob": 0.07,
+  "lean": 0.16,
+  "breath": 0.012
  }
 }

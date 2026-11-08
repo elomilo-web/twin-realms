@@ -35,3 +35,9 @@ Bot 42/42 pass. Observer at 1152x648.
 - Evidence: anim_hit_enemy frames 13-14 show the brute white, squashed flat and wide, then knocked back with the number; before this change there was only a 0.12 s flash. The strip is captured in game time, so the freeze itself does not add frames. Bot 42/42 (arena waves and duel still finish, so time scale always recovers). fps 126-144 unchanged; draw calls unchanged in the world shots.
 - Scores: Combat feel 3 -> 4.
 - Next candidates: (1) procedural walk cycle with leg and arm swing (animation 2), (2) vector icons for hotbar spells and potions (icons 1), (3) death dissolve and stagger pose for enemies (combat feel).
+
+## Iteration 3 (2026-11-08): procedural walk and run cycle
+- Changed: `Player.cs` legs now hang from hip pivots and swing with a stride phase driven by ground speed (so feet keep pace with distance); arms swing against the legs when the hands are free; body bobs twice per stride and leans forward with speed; idle breathing lifts body and hands; jump tucks one knee; mounted legs sit astride. Upper arms are re-aimed every frame from shoulder to hand/shield (`AimLimb`), which also fixes the upper arm staying behind when the shield is raised to block. Tuning in `data/feel.json` "walk".
+- Evidence: anim_walk_sprint before vs after (zoomed comparison): before, legs locked together and the body glides; after, wide stride in frame 1, knee driving through in frame 3, forward lean while sprinting. anim_block shows the arm following the raised shield. anim_idle unchanged in pose (breathing is 1 cm, by design). fps 125-145 unchanged. Bot 42/42.
+- Scores: Animation 2 -> 4.
+- Next candidates: (1) vector icons for hotbar spells and potions (icons 1), (2) death dissolve and stagger pose for enemies (combat feel 4), (3) enemy humanoids reuse the hip-pivot legs (animation 4).

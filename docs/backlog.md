@@ -16,7 +16,9 @@ Format: `- [ ] (impact H/M/L, effort S/M/L) title: why / how`. Mark `[x]` when d
 - [ ] (H,M) Distinct spell VFX: fire trail and explosion, ice shards and frost ring, healing pillar, chain lightning arcs; cast poses.
 - [ ] (M,M) Spell upgrades/runes and a fifth and sixth spell slot (data-driven in classes.json).
 ## Animation
-- [ ] (H,M) Procedural walk/run cycle: swinging legs and arms, torso lean, bobbing; idle breathing; landing squash; head turns toward targets.
+- [ ] (M,S) Head turns toward the nearest enemy or NPC; landing squash after a jump.
+- [ ] (M,S) Enemy humanoids reuse the hip-pivot legs so they walk instead of glide.
+- [x] (H,M) Procedural walk/run cycle: swinging legs and arms, torso lean, bobbing; idle breathing; landing squash; head turns toward targets. (iter 3: legs, arm swing, bob, lean, breathing, jump pose; head turns still open)
 - [ ] (M,M) Enemy walk and attack animations per kind (quad, humanoid, wraith float, dragon wings).
 ## Icons
 - [ ] (H,M) Vector icon library drawn in code: sword, bow, wand, staff, shield, armor, trinket, potions, and one per spell; rarity frames with glow.

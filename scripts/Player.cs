@@ -23,7 +23,9 @@ public partial class Player : CharacterBody3D, IDamageable
     const float Accel = 40f, AirAccel = 10f;
     const float JumpVelocity = 6.0f, RollSpeed = 11f, RollTime = 0.45f;
 
-    Node3D _model = null!, _hand = null!, _shield = null!, _horse = null!, _weaponRoot = null!;
+    Node3D _model = null!, _hand = null!, _shield = null!, _horse = null!, _weaponRoot = null!, _legR = null!, _legL = null!, _upR = null!, _upL = null!;
+    static readonly Vector3 ShoulderR = new(0.42f, 1.5f, 0), ShoulderL = new(-0.42f, 1.5f, 0), HandRest = new(0.5f, 1.1f, -0.1f), ShieldRest = new(-0.5f, 1.1f, -0.15f);
+    float _walkPh, _walkAmt, _idleT;
     float _gravity, _modelYaw, _rollT, _rollCd, _stLockT, _inv, _stagger, _deadT;
     Vector3 _rollDir, _kb;
     bool _lmbPrev; float _lmbHold;
@@ -64,16 +66,19 @@ public partial class Player : CharacterBody3D, IDamageable
         var skin = new StandardMaterial3D { AlbedoColor = new Color(0.85f, 0.7f, 0.55f) };
         var cloth = new StandardMaterial3D { AlbedoColor = new Color(0.25f, 0.2f, 0.18f) };
         _model.AddChild(new MeshInstance3D { Mesh = new CapsuleMesh { Radius = 0.32f, Height = 1.2f }, MaterialOverride = body, Position = new Vector3(0, 1.15f, 0) });
-        _model.AddChild(new MeshInstance3D { Mesh = new CapsuleMesh { Radius = 0.16f, Height = 0.9f }, MaterialOverride = cloth, Position = new Vector3(0.14f, 0.45f, 0) });
-        _model.AddChild(new MeshInstance3D { Mesh = new CapsuleMesh { Radius = 0.16f, Height = 0.9f }, MaterialOverride = cloth, Position = new Vector3(-0.14f, 0.45f, 0) });
+        // legs hang from hip pivots so they can swing
+        _legR = new Node3D { Position = new Vector3(0.14f, 0.9f, 0) }; _model.AddChild(_legR);
+        _legL = new Node3D { Position = new Vector3(-0.14f, 0.9f, 0) }; _model.AddChild(_legL);
+        _legR.AddChild(new MeshInstance3D { Mesh = new CapsuleMesh { Radius = 0.16f, Height = 0.9f }, MaterialOverride = cloth, Position = new Vector3(0, -0.45f, 0) });
+        _legL.AddChild(new MeshInstance3D { Mesh = new CapsuleMesh { Radius = 0.16f, Height = 0.9f }, MaterialOverride = cloth, Position = new Vector3(0, -0.45f, 0) });
         _model.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = 0.2f, Height = 0.4f }, MaterialOverride = skin, Position = new Vector3(0, 1.8f, 0) });
         _model.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(0.1f, 0.1f, 0.2f) }, MaterialOverride = skin, Position = new Vector3(0, 1.78f, -0.2f) });
         _hand = new Node3D { Position = new Vector3(0.5f, 1.1f, -0.1f) }; _model.AddChild(_hand);
         _shield = new Node3D { Position = new Vector3(-0.5f, 1.1f, -0.15f) }; _model.AddChild(_shield);
         _weaponRoot = new Node3D(); _hand.AddChild(_weaponRoot);
-        // arms: static upper arms from the shoulders, forearms ride on the weapon hand and the shield
-        Limb(_model, new Vector3(0.42f, 1.5f, 0), new Vector3(0.5f, 1.1f, -0.1f), 0.1f, body);
-        Limb(_model, new Vector3(-0.42f, 1.5f, 0), new Vector3(-0.5f, 1.1f, -0.15f), 0.1f, body);
+        // arms: upper arms run from the shoulders to the weapon hand and the shield and are re-aimed every frame; forearms ride on them
+        _upR = Limb(_model, ShoulderR, HandRest, 0.1f, body);
+        _upL = Limb(_model, ShoulderL, ShieldRest, 0.1f, body);
         Limb(_hand, new Vector3(0, 0, 0.05f), new Vector3(0, 0, -0.38f), 0.085f, skin);
         Limb(_shield, new Vector3(0.1f, 0, 0.3f), new Vector3(0.1f, 0, -0.05f), 0.085f, skin);
         _hand.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = 0.1f, Height = 0.2f }, MaterialOverride = skin, Position = new Vector3(0, 0, -0.38f) });
@@ -85,11 +90,18 @@ public partial class Player : CharacterBody3D, IDamageable
         for (int i = 0; i < 4; i++) _horse.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(0.18f, 0.9f, 0.18f) }, MaterialOverride = hm, Position = new Vector3(i % 2 == 0 ? 0.25f : -0.25f, 0.45f, i < 2 ? -0.8f : 0.8f) });
     }
 
-    static void Limb(Node3D parent, Vector3 a, Vector3 b, float r, Material mat)
+    static Node3D Limb(Node3D parent, Vector3 a, Vector3 b, float r, Material mat)
     {
-        var dir = (b - a).Normalized(); var up = Mathf.Abs(dir.Y) > 0.95f ? Vector3.Right : Vector3.Up;
-        var n = new Node3D { Transform = new Transform3D(Basis.LookingAt(dir, up), (a + b) / 2) }; parent.AddChild(n);
+        var n = new Node3D(); parent.AddChild(n); n.SetMeta("len", (b - a).Length());
         n.AddChild(new MeshInstance3D { Mesh = new CapsuleMesh { Radius = r, Height = (b - a).Length() + r * 2 }, MaterialOverride = mat, Rotation = new Vector3(Mathf.Pi / 2, 0, 0) });
+        AimLimb(n, a, b); return n;
+    }
+    /// <summary>Point a limb from a to b, stretching it along its length to fit.</summary>
+    static void AimLimb(Node3D n, Vector3 a, Vector3 b)
+    {
+        var d = b - a; float len = d.Length(); if (len < 0.01f) return; var dir = d / len; var up = Mathf.Abs(dir.Y) > 0.95f ? Vector3.Right : Vector3.Up;
+        float baseLen = (float)n.GetMeta("len");
+        n.Transform = new Transform3D(Basis.LookingAt(dir, up).Scaled(new Vector3(1, 1, len / baseLen)), (a + b) / 2);
     }
 
     void RefreshWeapon()
@@ -509,9 +521,26 @@ public partial class Player : CharacterBody3D, IDamageable
     // ------------------------------------------------------------------ placeholder animation
     void Animate(float dt)
     {
+        Feel.Load();
+        // ---- locomotion: stride phase advances with ground speed, so feet roughly match the distance covered
+        float hv = new Vector2(Velocity.X, Velocity.Z).Length(); bool floor = IsOnFloor();
+        float moveAmt = floor && !Mounted && _rollT <= 0 ? Mathf.Clamp(hv / 8.4f, 0, 1) : 0f;
+        _walkAmt = Mathf.Lerp(_walkAmt, moveAmt, 1f - Mathf.Exp(-10f * dt));
+        _walkPh = Mathf.Wrap(_walkPh + hv * Feel.Stride * dt, 0, Mathf.Tau); _idleT += dt;
+        float s = Mathf.Sin(_walkPh), amt = _walkAmt;
+        float legR = s * Feel.LegSwing * amt, legL = -legR;
+        if (Mounted) { legR = legL = 1.25f; }                               // seated
+        else if (!floor && _rollT <= 0) { legR = 0.55f; legL = -0.25f; }    // jump: one knee up
+        float lk = 1f - Mathf.Exp(-20f * dt);
+        _legR.Rotation = new Vector3(Mathf.Lerp(_legR.Rotation.X, legR, lk), 0, Mounted ? 0.35f : 0);
+        _legL.Rotation = new Vector3(Mathf.Lerp(_legL.Rotation.X, legL, lk), 0, Mounted ? -0.35f : 0);
+        float bob = Mathf.Abs(Mathf.Cos(_walkPh)) * Feel.Bob * amt - Feel.Bob * 0.5f * amt;     // two bounces per stride
+        float breath = Mathf.Sin(_idleT * 2.2f) * Feel.Breath * (1f - amt);                      // idle breathing
+        float lean = -Feel.Lean * amt * amt;                                                      // forward lean grows with speed
+
         float roll = _rollT > 0 ? (1f - _rollT / RollTime) * Mathf.Tau : 0f;
-        _model.Rotation = new Vector3(roll, _modelYaw, 0);
-        _model.Position = new Vector3(0, Mounted ? 0.9f : 0f, 0);
+        _model.Rotation = new Vector3(roll + lean, _modelYaw, 0);
+        _model.Position = new Vector3(0, (Mounted ? 0.9f : 0f) + bob + breath, 0);
         _horse.Rotation = new Vector3(0, _modelYaw, 0);
 
         string wt = Game.D.WType();
@@ -530,8 +559,13 @@ public partial class Player : CharacterBody3D, IDamageable
         }
         else if (_blocking) target = new Vector3(0.9f, 0.3f, 0);
         _hand.Rotation = _hand.Rotation.Lerp(target, k);
-        var shieldPos = _blocking ? new Vector3(-0.15f, 1.15f, -0.65f) : new Vector3(-0.5f, 1.1f, -0.15f);
+        // arms swing against the legs while the hands are free; a little breathing lift at rest
+        bool free = _atkT <= 0 && _castT <= 0 && !_blocking && !Mounted;
+        float arm = free ? s * Feel.ArmSwing * amt : 0f; var lift = new Vector3(0, breath * 0.6f, 0);
+        _hand.Position = _hand.Position.Lerp(HandRest + new Vector3(0, 0, arm) + lift, 1f - Mathf.Exp(-16f * dt));
+        var shieldPos = _blocking ? new Vector3(-0.15f, 1.15f, -0.65f) : ShieldRest + new Vector3(0, 0, -arm) + lift;
         _shield.Position = _shield.Position.Lerp(shieldPos, 1f - Mathf.Exp(-16f * dt));
         _shield.Rotation = new Vector3(0, _blocking ? Mathf.Pi / 2 : 0, 0);
+        AimLimb(_upR, ShoulderR, _hand.Position); AimLimb(_upL, ShoulderL, _shield.Position);
     }
 }
