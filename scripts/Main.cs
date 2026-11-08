@@ -15,6 +15,7 @@ public partial class Main : Node3D
         var ui = new Ui { Name = "Ui" }; AddChild(ui);
         Ui.OnNew = (cls, name) => { Game.NewGame(cls, name); Game.D.PosX = 0; Game.D.PosZ = 9; Begin(); };
         Ui.OnContinue = () => { if (!Game.Load()) Game.NewGame("warrior", "Hero"); Begin(); };
+        if (Observer.Wanted()) { Game.NewGame("warrior", "Observer"); Begin(); AddChild(new Observer { Name = "Observer" }); return; }
         if (Bot.Wanted()) { Game.NewGame("warrior", "Bot"); Begin(); AddChild(new Bot { Name = "Bot" }); return; }
         ui.ShowTitle();
         // a calm backdrop behind the title screen

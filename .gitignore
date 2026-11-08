@@ -8,3 +8,5 @@ screenshots/*.png
 .DS_Store
 bot_out/
 bot_log.txt
+observe_out/
+observe_log.txt
