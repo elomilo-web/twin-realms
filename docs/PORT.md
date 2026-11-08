@@ -29,3 +29,4 @@ Step 0: project setup and a walking character on flat ground.
 
 ## Session log
 (add a dated line at the end of each session: what was done, what was verified, what is next)
+- 2026-11-08: Claude (cloud chat) connection test, push works.
