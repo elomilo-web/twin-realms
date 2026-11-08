@@ -1,0 +1,20 @@
+{
+ "_comment": "Menu look: translucent 'system window' glass in deep blue with cyan light edges. Colors are #RRGGBB or #RRGGBBAA.",
+ "panel": "#071a33dd",
+ "panelHeader": "#0c2b52ee",
+ "button": "#0b2a4ccc",
+ "buttonHover": "#1a5a8ccc",
+ "buttonPressed": "#5fe1ffff",
+ "accent": "#45d6ff",
+ "accentSoft": "#45d6ff66",
+ "glow": "#2fb8ff55",
+ "title": "#bff4ff",
+ "text": "#e6f5ff",
+ "dim": "#7fa6c8",
+ "highlight": "#ffd36a",
+ "backdrop": "#020812a0",
+ "grid": "#45d6ff10",
+ "corner": 3,
+ "glowSize": 14,
+ "openTime": 0.16
+}

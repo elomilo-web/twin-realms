@@ -14,15 +14,23 @@ public partial class Ui : CanvasLayer
 
     VBoxContainer _notes = null!; Label _banner = null!, _bannerSub = null!; ColorRect _flash = null!;
     Control? _panel; string _panelName = ""; Action? _rebuild;
-    public static readonly Color Gold = new Color("e3b04b"), Dim = new Color("a095bd"), PanelBg = new Color("15111f"), Line = new Color("3a2f57"), Panel2 = new Color("1f1830"), Fg = new Color("ece6f8");
+    // "Gold" is the menu highlight colour (now the system-window cyan); names kept so existing call sites read the same
+    public static readonly Color Gold = UiTheme.Accent, Dim = UiTheme.Dim, PanelBg = UiTheme.Panel, Line = UiTheme.AccentSoft, Panel2 = UiTheme.Button, Fg = UiTheme.Text;
     static Theme? _theme;
     static Theme MakeTheme()
     {
         if (_theme != null) return _theme; var t = new Theme();
-        StyleBoxFlat Sb(Color bg, Color bd, int pad = 8) => new StyleBoxFlat { BgColor = bg, BorderColor = bd, BorderWidthBottom = 1, BorderWidthLeft = 1, BorderWidthRight = 1, BorderWidthTop = 1, CornerRadiusBottomLeft = 4, CornerRadiusBottomRight = 4, CornerRadiusTopLeft = 4, CornerRadiusTopRight = 4, ContentMarginLeft = 14, ContentMarginRight = 14, ContentMarginTop = pad - 2, ContentMarginBottom = pad - 2 };
-        t.SetStylebox("normal", "Button", Sb(Panel2, Line)); t.SetStylebox("hover", "Button", Sb(Panel2, Gold)); t.SetStylebox("pressed", "Button", Sb(Gold, Gold)); t.SetStylebox("focus", "Button", Sb(Panel2, Gold));
-        t.SetColor("font_color", "Button", Fg); t.SetColor("font_hover_color", "Button", Colors.White); t.SetColor("font_pressed_color", "Button", new Color("1a1205")); t.SetColor("font_color", "Label", Fg);
-        t.SetStylebox("normal", "LineEdit", Sb(new Color("0b0910"), Line)); t.SetColor("font_color", "LineEdit", Fg);
+        var B = UiTheme.Box;
+        t.SetStylebox("normal", "Button", B(UiTheme.Button, UiTheme.AccentSoft, 1, 14, 5, 0)); t.SetStylebox("hover", "Button", B(UiTheme.ButtonHover, UiTheme.Accent, 1, 14, 5, 6));
+        t.SetStylebox("pressed", "Button", B(UiTheme.ButtonPressed, UiTheme.ButtonPressed, 1, 14, 5, 8)); t.SetStylebox("focus", "Button", new StyleBoxEmpty());
+        t.SetStylebox("disabled", "Button", B(UiTheme.Button with { A = .4f }, UiTheme.AccentSoft with { A = .2f }, 1, 14, 5, 0));
+        t.SetColor("font_color", "Button", UiTheme.Text); t.SetColor("font_hover_color", "Button", Colors.White); t.SetColor("font_pressed_color", "Button", new Color("04111f")); t.SetColor("font_color", "Label", UiTheme.Text);
+        t.SetStylebox("normal", "LineEdit", B(new Color(0.01f, 0.05f, 0.1f, 0.85f), UiTheme.AccentSoft, 1, 10, 4, 0)); t.SetStylebox("focus", "LineEdit", B(new Color(0.01f, 0.05f, 0.1f, 0.85f), UiTheme.Accent, 1, 10, 4, 6)); t.SetColor("font_color", "LineEdit", UiTheme.Text);
+        // thin cyan scrollbars and sliders
+        t.SetStylebox("scroll", "VScrollBar", B(new Color(0, 0, 0, .25f), new Color(0, 0, 0, 0), 0, 3, 0, 0)); t.SetStylebox("grabber", "VScrollBar", B(UiTheme.AccentSoft, UiTheme.AccentSoft, 0, 3, 0, 0));
+        t.SetStylebox("grabber_highlight", "VScrollBar", B(UiTheme.Accent, UiTheme.Accent, 0, 3, 0, 0)); t.SetStylebox("grabber_pressed", "VScrollBar", B(UiTheme.Accent, UiTheme.Accent, 0, 3, 0, 0));
+        t.SetStylebox("slider", "HSlider", B(new Color(0, 0, 0, .4f), UiTheme.AccentSoft, 1, 0, 2, 0)); t.SetStylebox("grabber_area", "HSlider", B(UiTheme.AccentSoft, UiTheme.AccentSoft, 0, 0, 2, 0)); t.SetStylebox("grabber_area_highlight", "HSlider", B(UiTheme.Accent, UiTheme.Accent, 0, 0, 2, 0));
+        t.SetColor("font_color", "CheckBox", UiTheme.Text); t.SetColor("font_hover_color", "CheckBox", Colors.White);
         t.SetFontSize("font_size", "Button", 16); t.SetFontSize("font_size", "Label", 16); _theme = t; return t;
     }
 
@@ -35,8 +43,8 @@ public partial class Ui : CanvasLayer
     {
         I = this; Layer = 20; ProcessMode = ProcessModeEnum.Always;
         _notes = new VBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore }; _notes.Position = new Vector2(22, 120); _notes.CustomMinimumSize = new Vector2(420, 0); _notes.AddThemeConstantOverride("separation", 3); AddChild(_notes);
-        _banner = Lbl("", 52, new Color("f4e7c5")); _banner.HorizontalAlignment = HorizontalAlignment.Center; _banner.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.CenterTop); _banner.OffsetTop = 130; _banner.OffsetLeft = -400; _banner.OffsetRight = 400; _banner.Modulate = new Color(1, 1, 1, 0);
-        _bannerSub = Lbl("", 20, new Color("e3b04b")); _bannerSub.HorizontalAlignment = HorizontalAlignment.Center; _bannerSub.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.CenterTop); _bannerSub.OffsetTop = 200; _bannerSub.OffsetLeft = -400; _bannerSub.OffsetRight = 400; _bannerSub.Modulate = new Color(1, 1, 1, 0);
+        _banner = Lbl("", 52, UiTheme.Title); _banner.AddThemeColorOverride("font_outline_color", new Color(0.02f, 0.1f, 0.2f)); _banner.AddThemeConstantOverride("outline_size", 10); _banner.HorizontalAlignment = HorizontalAlignment.Center; _banner.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.CenterTop); _banner.OffsetTop = 130; _banner.OffsetLeft = -400; _banner.OffsetRight = 400; _banner.Modulate = new Color(1, 1, 1, 0);
+        _bannerSub = Lbl("", 20, UiTheme.Accent); _bannerSub.HorizontalAlignment = HorizontalAlignment.Center; _bannerSub.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.CenterTop); _bannerSub.OffsetTop = 200; _bannerSub.OffsetLeft = -400; _bannerSub.OffsetRight = 400; _bannerSub.Modulate = new Color(1, 1, 1, 0);
         _flash = new ColorRect { Color = new Color(1, 1, 1, 0), MouseFilter = Control.MouseFilterEnum.Ignore }; _flash.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); AddChild(_flash);
         Game.Changed += () => { if (_rebuild != null && _panel != null) _rebuild(); };
     }
@@ -53,7 +61,7 @@ public partial class Ui : CanvasLayer
     void AddNote(string t, Color c)
     {
         var pc = new PanelContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
-        pc.AddThemeStyleboxOverride("panel", new StyleBoxFlat { BgColor = new Color(.03f, .024f, .055f, .62f), BorderColor = new Color("e3b04b"), BorderWidthLeft = 3, ContentMarginLeft = 10, ContentMarginRight = 10, ContentMarginTop = 2, ContentMarginBottom = 2 });
+        pc.AddThemeStyleboxOverride("panel", new StyleBoxFlat { BgColor = UiTheme.Panel with { A = .7f }, BorderColor = UiTheme.Accent, BorderWidthLeft = 3, ContentMarginLeft = 10, ContentMarginRight = 10, ContentMarginTop = 2, ContentMarginBottom = 2 });
         var l = Lbl(t, 16, c, pc); l.AutowrapMode = TextServer.AutowrapMode.WordSmart; l.CustomMinimumSize = new Vector2(300, 0);
         while (_notes.GetChildCount() >= 6) { var old = _notes.GetChild(0); _notes.RemoveChild(old); old.QueueFree(); }
         _notes.AddChild(pc);
@@ -81,15 +89,21 @@ public partial class Ui : CanvasLayer
     {
         CloseNoUnpause(); _panelName = name; _rebuild = rebuild;
         var root = new Control { MouseFilter = Control.MouseFilterEnum.Stop, Theme = MakeTheme() }; root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        root.AddChild(new ColorRect { Color = new Color(.027f, .02f, .047f, name == "title" ? 0.9f : 0.55f), MouseFilter = Control.MouseFilterEnum.Ignore, AnchorRight = 1, AnchorBottom = 1 });
-        var pc = new PanelContainer(); pc.AddThemeStyleboxOverride("panel", new StyleBoxFlat { BgColor = PanelBg, BorderColor = Line, BorderWidthBottom = 1, BorderWidthLeft = 1, BorderWidthRight = 1, BorderWidthTop = 1, CornerRadiusBottomLeft = 6, CornerRadiusBottomRight = 6, CornerRadiusTopLeft = 6, CornerRadiusTopRight = 6, ContentMarginLeft = 18, ContentMarginRight = 18, ContentMarginTop = 14, ContentMarginBottom = 14 });
+        if (name == "title") root.AddChild(new ColorRect { Color = new Color(.005f, .02f, .05f, 0.85f), MouseFilter = Control.MouseFilterEnum.Ignore, AnchorRight = 1, AnchorBottom = 1 });
+        var bd = new TechBackdrop(); bd.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); root.AddChild(bd);
+        var pc = new TechPanel(); var ps = UiTheme.Box(UiTheme.Panel, UiTheme.AccentSoft, 1, 22, 14, UiTheme.GlowSize); pc.AddThemeStyleboxOverride("panel", ps);
         var vp = GetViewport().GetVisibleRect().Size; // never ask for more than the window has
         pc.CustomMinimumSize = new Vector2(Mathf.Min(size.X, vp.X - 24), Mathf.Min(size.Y, vp.Y - 24)); pc.SetAnchorsPreset(Control.LayoutPreset.Center); pc.GrowHorizontal = Control.GrowDirection.Both; pc.GrowVertical = Control.GrowDirection.Both; root.AddChild(pc);
         var v = new VBoxContainer(); v.AddThemeConstantOverride("separation", 8); pc.AddChild(v);
-        var hb = new HBoxContainer(); v.AddChild(hb); var t = Lbl(title, 26, Gold, hb); t.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        if (name != "title") hb.AddChild(Btn("Close", Close));
+        var hb = new HBoxContainer(); v.AddChild(hb); var t = Lbl(title.ToUpper(), 24, UiTheme.Title, hb); t.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        t.AddThemeColorOverride("font_outline_color", new Color(0.02f, 0.12f, 0.25f)); t.AddThemeConstantOverride("outline_size", 6);
+        if (name != "title") { var cb = Btn("X", Close); cb.CustomMinimumSize = new Vector2(38, 34); hb.AddChild(cb); }
+        // decoration overlay sized to the panel; the header rule sits just under the title row
+        pc.Resized += () => { pc.HeaderY = 14 + hb.Size.Y + 5; pc.PivotOffset = pc.Size / 2; pc.QueueRedraw(); };
         AddChild(root); _panel = root;
-        if (name != "title") { GetTree().Paused = true; Input.MouseMode = Input.MouseModeEnum.Visible; }
+        // system-window pop: fade in and grow from the centre
+        root.Modulate = new Color(1, 1, 1, 0); pc.PivotOffset = pc.Size / 2; pc.Scale = new Vector2(1f, 0.92f);
+        var tw = root.CreateTween().SetParallel(); tw.TweenProperty(root, "modulate:a", 1f, UiTheme.OpenTime); tw.TweenProperty(pc, "scale", Vector2.One, UiTheme.OpenTime).SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);        if (name != "title") { GetTree().Paused = true; Input.MouseMode = Input.MouseModeEnum.Visible; }
         return v;
     }
     public void Close() { CloseNoUnpause(); if (InGame) { GetTree().Paused = false; Input.MouseMode = Input.MouseModeEnum.Captured; } }

@@ -23,6 +23,8 @@ Format: `- [ ] (impact H/M/L, effort S/M/L) title: why / how`. Mark `[x]` when d
 ## Icons
 - [ ] (H,M) Vector icon library drawn in code: sword, bow, wand, staff, shield, armor, trinket, potions, and one per spell; rarity frames with glow.
 ## Inventory and menus
+- [x] (H,M) SAO/isekai system-window style for all menus: translucent blue glass, cyan glow, corner brackets, pop-in (iter 4).
+- [ ] (M,S) HUD restyle to match the menus (cyan bars, angled frames, glass hotbar).
 - [ ] (H,L) Grid inventory with drag and drop, paper-doll equipment slots, hover tooltip with stat comparison arrows (green up, red down), sort and filter, item lock.
 - [ ] (M,M) Character sheet with stat bars and a rotating 3D preview of the hero.
 - [ ] (M,S) Quest log tabs (active, done) with tracked-quest toggle and map markers.
@@ -33,10 +35,13 @@ Format: `- [ ] (impact H/M/L, effort S/M/L) title: why / how`. Mark `[x]` when d
 - [ ] (M,S) Floating damage numbers by type (crit big and gold, heal green, taken red); buff and debuff icons with timers.
 - [ ] (M,M) Quest markers on the compass and minimap.
 ## World look
+- [ ] (H,M) Ground cover: wind-swept grass clumps, ferns in forests, bushes, pebbles (chunked, distance-culled).
 - [ ] (H,M) Grass and tree sway shader, clouds with moving shadows, god rays at dusk, better water with foam.
 - [ ] (M,M) Weather: rain and fog banks that change with time; puddle shine.
 - [ ] (M,S) Color grading per realm and time of day; vignette when hurt.
 ## World life
+- [ ] (H,M) Gatherables: herbs, mushrooms, berry bushes, ore and crystal veins; materials bag; sell to the merchant.
+- [ ] (H,M) Wildlife: deer and rabbits that flee, boars that fight back; hides and meat drops.
 - [ ] (H,M) NPC daily routines: walk between home, market and forge; sleep at night; idle animations.
 - [ ] (M,S) Birds, butterflies by day, fireflies at night; footstep dust and sound by surface.
 - [ ] (M,M) Roaming animals (deer, rabbits) that flee.

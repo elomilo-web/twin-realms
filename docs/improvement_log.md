@@ -41,3 +41,12 @@ Bot 42/42 pass. Observer at 1152x648.
 - Evidence: anim_walk_sprint before vs after (zoomed comparison): before, legs locked together and the body glides; after, wide stride in frame 1, knee driving through in frame 3, forward lean while sprinting. anim_block shows the arm following the raised shield. anim_idle unchanged in pose (breathing is 1 cm, by design). fps 125-145 unchanged. Bot 42/42.
 - Scores: Animation 2 -> 4.
 - Next candidates: (1) vector icons for hotbar spells and potions (icons 1), (2) death dissolve and stagger pose for enemies (combat feel 4), (3) enemy humanoids reuse the hip-pivot legs (animation 4).
+
+## Run 2 focus (user request, 2026-11-08)
+Menus in a Sword Art Online / isekai "system window" style (translucent deep blue, cyan, techy sci-fi). Furnish the land: plants and wildlife, and most things interactable (collect, kill, loot, gather); small grass can be scenery only.
+
+## Iteration 4 (2026-11-08): SAO-style system-window menus
+- Changed: new `data/ui_theme.json` and `scripts/UiTheme.cs`. Every menu panel is now translucent deep-blue glass with a cyan glow edge, bright corner brackets, a header band with a fading cyan rule and a diamond marker, tick marks, uppercase titles, an "X" close button, and a 0.16 s pop-in. Behind menus, a faint cyan grid over the dimmed game. Buttons, line edits, scrollbars and sliders are restyled to match (cyan hover glow, bright pressed state). Notes and banners use the same palette.
+- Evidence: m_pack, m_pause, m_npc_quest (before: flat dark purple boxes with gold text; after: blue glass windows with cyan frame and glow). Observer ui_issues 0 -> 0. hud fps 144 -> 145. Bot 42/42.
+- Scores: Inventory and menus 4 -> 5 (style is there; layout is still a list, not a grid).
+- Next candidates: (1) wind-swept grass, ferns, bushes (world look 4), (2) gatherable herbs, mushrooms, berries, ore (world life 2), (3) wildlife that flees or fights (world life 2).
