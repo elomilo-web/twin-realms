@@ -1,4 +1,4 @@
-# Port status
+﻿# Port status
 
 The whole browser game has been ported to Godot C# in one pass. It builds cleanly and runs on Godot 4.7.2 .NET (Windows).
 
@@ -12,6 +12,7 @@ The whole browser game has been ported to Godot C# in one pass. It builds cleanl
 1. HUD and menu layout fixed: quest tracker was drawn off-screen (that was the stray "W"), compass was mirrored, hotbar names overflowed, skill tree and map were taller than the window.
 2. Hit-stop and enemy recoil/squash (`scripts/Feel.cs`, `data/feel.json`).
 3. Procedural walk/run cycle for the player (legs, arm swing, bob, lean, breathing).
+**/improve run 2 (2026-11-08), iterations 4-8:** SAO-style menus and HUD (data/ui_theme.json), wind-swept ground cover (data/flora.json), 315 gatherables and a materials bag (data/gather.json), wildlife herds with legs, fleeing and drops (data/wildlife.json, new enemies.json fields). Bot now 48 checks.
 Note: git push from Claude Code's shell has no GitHub login on this PC; push from GitHub Desktop.
 
 Note: Windows has no bash here; the bot steps were run directly in PowerShell with the Godot console exe.

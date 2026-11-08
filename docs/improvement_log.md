@@ -69,3 +69,28 @@ Menus in a Sword Art Online / isekai "system window" style (translucent deep blu
 - Evidence: bot 45 -> 48 checks, all pass ("wildlife flees from the player (Rabbit: 17.4 m away after 1.5 s)", "hunting gives hides or meat"). w13_deer shows a grazing herd; w14_animals a lineup (rabbit, deer, boar, legged wolf, Shade Stag). Draw calls w01 1970 -> 2093 (+6%; an unmerged first try was 2487 and was fixed); fps 123-144.
 - Scores: World life 3 -> 5, Animation 4 -> 5 (quads walk).
 - Next candidates: (1) HUD restyle to match the menus (HUD 5), (2) crafting: potions from herbs, smith upgrades costing ore and crystals (systems 6), (3) quad hurtboxes as a capsule along the body (hit boxes; wolf, hound, boar, deer flagged as narrower than the visual).
+
+## Iteration 8 (2026-11-08): HUD in the system-window style
+- Changed: `Hud.cs`. A glass status window top-left (name, level, slanted segmented HP bar that turns green > yellow > red, HP numbers, MP and stamina bars, XP line along the bottom edge), corner brackets like the menus. Realm, clock, place and gold moved under the compass; arena status under that. Compass in glass with cyan rules, gold N and a cyan pointer. Quest tracker with a diamond marker. Target bar slanted (green for wildlife, red for foes). Interaction prompt is a glass pill with a cyan [E] key chip. Hotbar slots in glass; the mana-cost numbers now sit inside the slot (they straddled the edge). Minimap ring cyan with side arcs.
+- Investigated: moving the notes column (Ui `_notes.Position`) to (16,150) made every bot run print "RID allocations ... leaked at exit" (4 of 4 runs); with it left at (22,120) runs are clean (4 of 4), and the committed iteration 7 was clean (2 of 2). Bisected by swapping files. Cause not understood (an exit-time teardown race, see PORT.md); the notes stay at (22,120), which already sits below the new status window. Added to the backlog.
+- Evidence: h01_hud before (white text, plain red/blue/green bars at the bottom) vs after (glass status window, info line under the compass, cyan hotbar, minimap ring); bot_out/16_arena_waves shows the arena counter in place. Observer ui_issues 0. hud fps 144, draw calls 1680 (1680 before the HUD change). Bot 48/48 twice, no engine errors.
+- Scores: HUD 5 -> 7.
+
+## Re-score (every 5th iteration; due at iteration 5 and missed then, done now)
+| # | Area | Score | Evidence |
+|---|------|------:|----------|
+| 1 | Combat feel | 4 | Hit-stop, recoil and squash (iter 2), shake, numbers. Still no swing trails, stagger pose or death dissolve. |
+| 2 | Hit boxes | 5 | Humanoids match. Quads (wolf, hound, boar, deer) flagged: round capsule narrower than the long body. |
+| 3 | Spells and skills | 3 | Unchanged: small fireball, faint rings. |
+| 4 | Animation | 5 | Player walk cycle (iter 3); all quads walk on legs (iter 7). Humanoid enemies still glide. |
+| 5 | Icons | 1 | Still text only. |
+| 6 | Inventory and menus | 5 | SAO system-window look everywhere (iter 4), materials list; still a text list, not a grid with tooltips. |
+| 7 | HUD | 7 | Status window, slanted HP bar, glass hotbar, prompt pill (iter 8). |
+| 8 | World look | 5 | Ground cover with wind (iter 5), glowing Shadow flora. Flat sky, no clouds, plain water. |
+| 9 | World life | 5 | 315 gatherables, herds that graze and flee, boars that fight. No birds, insects, NPC routines. |
+| 10 | Game systems | 6 | Materials economy (gather, hunt, sell). No crafting yet. |
+| 11 | Performance | 9 | 123-144 fps everywhere; draw calls 1787 -> 2041 in w01 across 5 iterations. |
+| 12 | Stability | 9 | Bot 48/48. One unexplained exit-time leak found and avoided (see iteration 8). |
+
+Fresh ideas (added to the backlog): (1) crafting bench: potions from Sunleaf/Moonpetal, smith upgrades that cost Iron Ore and Rift Crystal; (2) birds that lift off when you approach and butterflies/fireflies over meadows (scenery); (3) hunting quests and a bounty board using the new animals and materials; (4) a Codex/collection tab in the journal that fills as you gather and hunt each kind; (5) cooking meat and berries at campfires for a short regen buff; (6) SAO-style grid inventory with item icons drawn in code.
+- Next candidates: (1) crafting bench using materials (systems 6), (2) vector icons for items, materials and spells (icons 1), (3) grid inventory with tooltips (menus 5).

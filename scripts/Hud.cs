@@ -38,67 +38,106 @@ public partial class HudCanvas : Control
     {
         var p = Player.Instance; if (p == null) return; var d = Game.D; var sz = Size; float u = sz.X / 100f; int fs(float k) => Mathf.Max(11, (int)(u * k));
         var pad = u * 1.4f;
-        // top left
+        // ---- status window, top left: name and level, slanted segmented HP bar (green > yellow > red), MP and stamina, XP line, place
         string realm = World.Realm == 1 ? "SHADOW" : "LIGHT"; float hrs = World.TimeOfDay * 24f;
-        Txt(new Vector2(pad, pad + fs(1.3f)), $"{d.Name}   Lv {d.Level}   {d.Gold} gold", fs(1.25f), Colors.White);
-        Txt(new Vector2(pad, pad + fs(1.3f) * 2.4f), Dungeon.Active ? $"Depth {Dungeon.Depth}" : $"{realm}   {(int)hrs:00}:{(int)((hrs - (int)hrs) * 60):00}   {PlaceName(p.GlobalPosition)}", fs(1.05f), World.Realm == 1 ? new Color(.75f, .6f, 1f) : Mute);
-        if (Arenas.Active) Txt(new Vector2(pad, pad + fs(1.3f) * 3.8f), Arenas.Status, fs(1.15f), Gold);
+        float pw = Mathf.Max(300, u * 28), ph = fs(1.2f) + 76, px = pad, py = pad;
+        Glass(new Rect2(px, py, pw, ph));
+        Txt(new Vector2(px + 12, py + fs(1.2f) + 6), d.Name.ToUpper(), fs(1.2f), UiTheme.Title);
+        Txt(new Vector2(px + 12, py + fs(1.2f) + 6), $"Lv {d.Level}", fs(1.1f), UiTheme.Accent, HorizontalAlignment.Right, pw - 24);
+        float hpF = Mathf.Clamp(p.Hp / d.MaxHp(), 0, 1); var hpCol = hpF > .5f ? new Color("5be37d") : hpF > .25f ? new Color("f2d14b") : new Color("ff5a4f");
+        float bx0 = px + 12, bw0 = pw - 24, by0 = py + fs(1.2f) + 14;
+        SlantBar(new Rect2(bx0, by0, bw0, 14), hpF, hpCol, 10, 10);
+        Txt(new Vector2(bx0, by0 + 30), "HP", fs(.85f), UiTheme.Dim);
+        Txt(new Vector2(bx0, by0 + 30), $"{Mathf.CeilToInt(p.Hp)} / {d.MaxHp()}", fs(.95f), Colors.White, HorizontalAlignment.Right, bw0 - 8);
+        SlantBar(new Rect2(bx0 + 28, by0 + 36, bw0 * .62f, 7), p.Mp / d.MaxMp(), new Color("4fb6ff"), 5, 0);
+        SlantBar(new Rect2(bx0 + 28, by0 + 47, bw0 * .62f, 5), p.St / d.MaxSt(), new Color("9ef0b8"), 4, 0);
+        Txt(new Vector2(bx0, by0 + 44), "MP", fs(.75f), UiTheme.Dim);
+        DrawRect(new Rect2(px + 1, py + ph - 4, pw - 2, 2), new Color(0, 0, 0, .4f)); DrawRect(new Rect2(px + 1, py + ph - 4, (pw - 2) * Mathf.Clamp((float)d.Xp / d.XpNeed(), 0, 1), 2), UiTheme.Highlight);
+        // realm, clock, place and gold sit under the compass (the notes column starts just below the status window)
+        float infoY = pad + fs(1.2f) + fs(.5f) + fs(1f) + 12;
+        Txt(new Vector2(sz.X / 2 - u * 20, infoY), Dungeon.Active ? $"DEPTH {Dungeon.Depth}" : $"{realm}   {(int)hrs:00}:{(int)((hrs - (int)hrs) * 60):00}   {PlaceName(p.GlobalPosition)}   {d.Gold} G", fs(.95f), World.Realm == 1 ? new Color(.78f, .62f, 1f) : UiTheme.Dim.Lightened(.2f), HorizontalAlignment.Center, u * 40);
+        if (Arenas.Active) Txt(new Vector2(sz.X / 2 - u * 20, infoY + fs(1.2f) + 4), Arenas.Status, fs(1.15f), UiTheme.Highlight, HorizontalAlignment.Center, u * 40);
         // quest tracker, top right
         var aq = Quests.Active();
         if (aq.Count > 0)
         {
             // right-aligned text needs a box: draw from (right edge - width) with that width
             var q = aq[0]; var s = Game.Q(q.Id); float qw = u * 30, qx = sz.X - pad - qw;
-            Txt(new Vector2(qx, pad + fs(1.5f)), q.Name, fs(1.5f), Gold, HorizontalAlignment.Right, qw);
+            float tw0 = F.GetStringSize(q.Name, HorizontalAlignment.Left, -1, fs(1.5f)).X; var dm = new Vector2(sz.X - pad - tw0 - 12, pad + fs(1.5f) * .62f);
+            DrawColoredPolygon(new[] { dm + new Vector2(0, -5), dm + new Vector2(4, 0), dm + new Vector2(0, 5), dm + new Vector2(-4, 0) }, UiTheme.Accent);
+            Txt(new Vector2(qx, pad + fs(1.5f)), q.Name, fs(1.5f), UiTheme.Title, HorizontalAlignment.Right, qw);
             Txt(new Vector2(qx, pad + fs(1.5f) * 2.1f), s.S == 2 ? "Return to " + Quests.GiverName(q.Giver) : q.Goal + (q.Need > 1 ? $" ({s.N}/{q.Need})" : ""), fs(1.05f), Colors.White, HorizontalAlignment.Right, qw);
         }
         // compass
         float yaw = p.Rig?.Yaw ?? 0f; float cw = u * 34, cx = sz.X / 2, cy = pad + fs(1.2f);
-        DrawRect(new Rect2(cx - cw / 2, cy - fs(1.2f), cw, fs(1.7f)), new Color(0, 0, 0, .35f));
+        var cr = new Rect2(cx - cw / 2, cy - fs(1.2f), cw, fs(1.7f)); DrawRect(cr, UiTheme.Panel with { A = .45f });
+        DrawLine(cr.Position, cr.Position + new Vector2(cw, 0), UiTheme.AccentSoft, 1f); DrawLine(cr.Position + new Vector2(0, cr.Size.Y), cr.End, UiTheme.AccentSoft, 1f);
         for (int k = 0; k < 16; k++)
         {
             // a = compass heading clockwise from north (-Z); the camera faces heading -yaw, so +rel is to the right
             float a = k * Mathf.Tau / 16f; float rel = Mathf.Wrap(a + yaw, -Mathf.Pi, Mathf.Pi);
             float xx = cx + rel / (Mathf.Pi / 2) * (cw / 2); if (Mathf.Abs(xx - cx) > cw / 2) continue;
             string[] nm = { "N", "", "NE", "", "E", "", "SE", "", "S", "", "SW", "", "W", "", "NW", "" };
-            if (nm[k] != "") Txt(new Vector2(xx - 20, cy), nm[k], fs(1.1f), k % 4 == 0 ? Gold : Colors.White, HorizontalAlignment.Center, 40); else DrawLine(new Vector2(xx, cy - fs(0.9f)), new Vector2(xx, cy - fs(0.4f)), new Color(1, 1, 1, .5f), 1f);
+            if (nm[k] != "") Txt(new Vector2(xx - 20, cy), nm[k], fs(1.1f), k == 0 ? UiTheme.Highlight : k % 4 == 0 ? UiTheme.Title : UiTheme.Dim, HorizontalAlignment.Center, 40); else DrawLine(new Vector2(xx, cy - fs(0.9f)), new Vector2(xx, cy - fs(0.4f)), UiTheme.AccentSoft, 1f);
         }
-        DrawLine(new Vector2(cx, cy - fs(1.2f)), new Vector2(cx, cy + fs(.5f)), Gold, 2f);
+        DrawColoredPolygon(new[] { new Vector2(cx - 5, cr.End.Y + 6), new Vector2(cx + 5, cr.End.Y + 6), new Vector2(cx, cr.End.Y) }, UiTheme.Accent);
         // target bar
         Enemy? tgt = Enemy.CurrentBoss != null && GodotObject.IsInstanceValid(Enemy.CurrentBoss) && !Enemy.CurrentBoss.Dead && Enemy.CurrentBoss.Active ? Enemy.CurrentBoss : p.Dead ? null : p.AimPoint(40f).enemy;
         if (tgt != null && !tgt.Dead)
         {
-            float tw = u * 24, ty = u * 6.2f; Txt(new Vector2(sz.X / 2, ty), $"{tgt.Def.N}  Lv {tgt.Level}", fs(1.2f), tgt.Def.Boss ? Gold : Colors.White, HorizontalAlignment.Center, tw);
-            Bar(new Rect2(sz.X / 2 - tw / 2, ty + 6, tw, Mathf.Max(6, u * .7f)), tgt.Hp / tgt.MaxHp, new Color("b8362d"), new Color("8e241d"));
+            float tw = u * 24, ty = u * 7.6f; Txt(new Vector2(sz.X / 2 - tw / 2, ty), $"{tgt.Def.N}  Lv {tgt.Level}", fs(1.2f), tgt.Def.Boss ? UiTheme.Highlight : Colors.White, HorizontalAlignment.Center, tw);
+            SlantBar(new Rect2(sz.X / 2 - tw / 2, ty + 6, tw, Mathf.Max(7, u * .75f)), tgt.Hp / tgt.MaxHp, tgt.Def.Flee ? new Color("9ad06a") : new Color("ff5a4f"), 6, 10);
         }
         // crosshair
         DrawCircle(sz / 2, 3f, new Color(1, 1, 1, .75f));
         // prompt
-        if (p.Prompt != "" && !Ui.AnyOpen) Txt(new Vector2(sz.X / 2, sz.Y * .62f), p.Prompt, fs(1.4f), Colors.White, HorizontalAlignment.Center, u * 40);
-        // bottom bars: HP | MP | ST, xp under
-        float bw = u * 38, bx = (sz.X - bw) / 2, by = sz.Y - pad - Mathf.Max(9, u * 1.1f), bh = Mathf.Max(9, u * 1.1f), gap = u * .8f;
-        float unit = (bw - gap * 2) / 3.8f; float wH = unit, wM = unit * 1.8f, wS = unit;
-        Bar(new Rect2(bx, by, wH, bh), p.Hp / d.MaxHp(), new Color("d4483f"), new Color("8e241d")); Txt(new Vector2(bx, by - 4), $"{Mathf.CeilToInt(p.Hp)}", fs(.95f), Colors.White);
-        Bar(new Rect2(bx + wH + gap, by, wM, bh), p.Mp / d.MaxMp(), new Color("5b9be0"), new Color("2b5a96"), true); Txt(new Vector2(bx + wH + gap, by - 4), $"{Mathf.CeilToInt(p.Mp)}", fs(.95f), Colors.White);
-        Bar(new Rect2(bx + wH + wM + gap * 2, by, wS, bh), p.St / d.MaxSt(), new Color("6ec283"), new Color("2f7345"));
-        DrawRect(new Rect2(bx, by + bh + 3, bw, 3), new Color(0, 0, 0, .5f)); DrawRect(new Rect2(bx, by + bh + 3, bw * Mathf.Clamp((float)d.Xp / d.XpNeed(), 0, 1), 3), Gold);
-        if (d.AttrPts + d.SkillPts > 0) Txt(new Vector2(sz.X / 2, by - bh - 18), $"Unspent points: {d.AttrPts} attribute (Esc > Character), {d.SkillPts} skill (K)", fs(1f), Gold, HorizontalAlignment.Center, bw);
+        if (p.Prompt != "" && !Ui.AnyOpen)
+        {
+            // interaction prompt in a glass pill: [E] key chip + action
+            string act = p.Prompt.StartsWith("[E] ") ? p.Prompt[4..] : p.Prompt; int pf = fs(1.25f);
+            float aw = F.GetStringSize(act, HorizontalAlignment.Left, -1, pf).X, kw = pf * 1.6f, tot = kw + 10 + aw + 24, x0 = sz.X / 2 - tot / 2, y0 = sz.Y * .62f - pf;
+            Glass(new Rect2(x0, y0, tot, pf * 1.7f));
+            DrawRect(new Rect2(x0 + 6, y0 + 5, kw, pf * 1.7f - 10), UiTheme.Accent with { A = .85f });
+            Txt(new Vector2(x0 + 6, y0 + pf * 1.2f), "E", pf, new Color("04111f"), HorizontalAlignment.Center, kw);
+            Txt(new Vector2(x0 + kw + 16, y0 + pf * 1.2f), act, pf, Colors.White);
+        }
+        if (d.AttrPts + d.SkillPts > 0) Txt(new Vector2(sz.X / 2 - u * 20, sz.Y - pad - 4), $"Unspent points: {d.AttrPts} attribute (Esc > Character), {d.SkillPts} skill (K)", fs(1f), UiTheme.Highlight, HorizontalAlignment.Center, u * 40);
         // hotbar bottom-left: 4 spells + 2 potions
         float ss = Mathf.Max(36, u * 4.4f), hx = pad, hy = sz.Y - pad - ss;
         for (int i = 0; i < 6; i++)
         {
-            var r = new Rect2(hx + i * (ss + u * .5f), hy, ss, ss); DrawRect(r, new Color(.03f, .02f, .055f, .75f)); DrawRect(r, new Color(1, 1, 1, .35f), false, 1f);
+            var r = new Rect2(hx + i * (ss + u * .5f), hy, ss, ss); Glass(r, false);
             string name, key; float cd = 0, cdMax = 1; bool dim = false; string cnt = "";
             if (i < 4) { var sp = i < Player.Spells.Count ? Player.Spells[i] : null; name = sp?.Name ?? ""; key = (i + 1).ToString(); if (sp != null) { cd = p.SpellCd[i]; cdMax = Mathf.Max(0.01f, sp.Cd); dim = p.Mp < sp.Mp; cnt = $"{sp.Mp:0}"; } }
             else { bool hp = i == 4; name = hp ? "Health" : "Mana"; key = hp ? "H" : "G"; cnt = (hp ? d.HpPot : d.MpPot).ToString(); dim = (hp ? d.HpPot : d.MpPot) <= 0; }
             if (dim) DrawRect(r, new Color(0, 0, 0, .4f));
             if (cd > 0) { float h = ss * Mathf.Clamp(cd / cdMax, 0, 1); DrawRect(new Rect2(r.Position.X, r.End.Y - h, ss, h), new Color(0, 0, 0, .65f)); }
             SlotName(r, name, fs(.8f), i == 4 ? new Color("ff8f86") : i == 5 ? new Color("8fb8ff") : Colors.White);
-            Txt(r.Position + new Vector2(3, fs(.95f)), key, fs(.95f), Gold); Txt(r.Position + new Vector2(ss - 3, ss - 3), cnt, fs(.9f), Colors.White, HorizontalAlignment.Right, 0);
+            Txt(r.Position + new Vector2(4, fs(.95f) + 1), key, fs(.95f), UiTheme.Accent); Txt(r.Position + new Vector2(0, ss - 4), cnt, fs(.85f), UiTheme.Dim.Lightened(.3f), HorizontalAlignment.Right, ss - 4);
         }
         // minimap bottom-right
         if (!Dungeon.Active) DrawMini(p, new Vector2(sz.X - pad - u * 7, sz.Y - pad - u * 7), u * 7);
         if (p.Dead) Txt(new Vector2(sz.X / 2, sz.Y / 2), "YOU DIED", fs(5f), new Color("ff7b6f"), HorizontalAlignment.Center, sz.X);
+    }
+
+    /// <summary>Glass box like the menus: translucent navy, cyan edge, bright corner ticks.</summary>
+    void Glass(Rect2 r, bool corners = true)
+    {
+        DrawRect(r, UiTheme.Panel with { A = .62f }); DrawRect(r, UiTheme.AccentSoft, false, 1f);
+        if (!corners) return; float L = Mathf.Min(12, r.Size.X * .2f); var a = UiTheme.Accent;
+        foreach (var (c, dx, dy) in new[] { (r.Position, 1f, 1f), (new Vector2(r.End.X, r.Position.Y), -1f, 1f), (new Vector2(r.Position.X, r.End.Y), 1f, -1f), (r.End, -1f, -1f) })
+        { DrawLine(c, c + new Vector2(dx * L, 0), a, 2f); DrawLine(c, c + new Vector2(0, dy * L), a, 2f); }
+    }
+
+    /// <summary>Slanted bar with segment ticks: track, fill and outline are parallelograms leaning right.</summary>
+    void SlantBar(Rect2 r, float frac, Color col, float skew, int segs)
+    {
+        frac = Mathf.Clamp(frac, 0, 1); float x = r.Position.X, y = r.Position.Y, w = r.Size.X, h = r.Size.Y;
+        Vector2[] Para(float x0, float x1) => new[] { new Vector2(x0 + skew, y), new Vector2(x1 + skew, y), new Vector2(x1, y + h), new Vector2(x0, y + h) };
+        DrawColoredPolygon(Para(x, x + w - skew), new Color(0, 0, 0, .55f));
+        if (frac > 0.001f) { DrawColoredPolygon(Para(x, x + (w - skew) * frac), col); DrawColoredPolygon(new[] { new Vector2(x + skew, y), new Vector2(x + skew + (w - skew) * frac, y), new Vector2(x + skew * .55f + (w - skew) * frac, y + h * .45f), new Vector2(x + skew * .55f, y + h * .45f) }, new Color(1, 1, 1, .18f)); }
+        for (int i = 1; i < segs; i++) { float sx = x + (w - skew) * i / segs; DrawLine(new Vector2(sx + skew, y), new Vector2(sx, y + h), new Color(0, 0, 0, .45f), 1f); }
+        var o = Para(x, x + w - skew); DrawPolyline(new[] { o[0], o[1], o[2], o[3], o[0] }, UiTheme.AccentSoft, 1f);
     }
 
     /// <summary>Slot label that always fits its box: one line if it fits, else two lines split at a space, shrinking the font as a last resort.</summary>
@@ -115,7 +154,7 @@ public partial class HudCanvas : Control
 
     void DrawMini(Player p, Vector2 c, float rad)
     {
-        DrawCircle(c, rad + 3, new Color("e3b04b") with { A = .75f }); DrawCircle(c, rad, new Color("07060b"));
+        DrawCircle(c, rad + 4, UiTheme.Glow); DrawCircle(c, rad, new Color("040b16"));
         const float span = 150f; int n = 28; float step = rad * 2 / n;
         if (World.MapTex != null)
         {
@@ -136,7 +175,7 @@ public partial class HudCanvas : Control
             }
         }
         DrawColoredPolygon(new[] { c + new Vector2(0, -8), c + new Vector2(-5, 5), c + new Vector2(5, 5) }, new Color("ff4a3a"));
-        DrawArc(c, rad, 0, Mathf.Tau, 48, new Color("e3b04b"), 2f);
+        DrawArc(c, rad, 0, Mathf.Tau, 48, UiTheme.Accent, 2f); DrawArc(c, rad + 5, -0.5f, 0.5f, 12, UiTheme.Accent, 2f); DrawArc(c, rad + 5, Mathf.Pi - 0.5f, Mathf.Pi + 0.5f, 12, UiTheme.Accent, 2f);
     }
 
     static string PlaceName(Vector3 p) { Poi? best = null; float bd = 1e9f; foreach (var poi in World.Pois) { float dd = new Vector2(poi.X - p.X, poi.Z - p.Z).Length(); if (dd < poi.R && dd < bd) { bd = dd; best = poi; } } return best?.Name ?? "The Wilds"; }
