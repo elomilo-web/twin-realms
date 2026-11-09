@@ -17,7 +17,7 @@ The user's complaint about earlier runs: too slow, one tiny change at a time, on
 
 ## Start of the run
 1. Read `CLAUDE.md`, `docs/IMPROVE_RUBRIC.md`, `docs/backlog.md`, and the last 3 entries of `docs/improvement_log.md`.
-2. Run `tools/bot.sh` (must pass; if not, fix first) and `tools/observe.sh`.
+2. Run `tools/bot.sh` (must pass; if not, fix first) and `tools/observe.sh`. On Windows without bash use `powershell -File tools/run.ps1 bot` and `powershell -File tools/run.ps1 observe`. If `git` is not on PATH, GitHub Desktop's copy is at `%LOCALAPPDATA%\GitHubDesktop\app-*\resources\app\git\cmd\git.exe`; pushing may need the user (GitHub Desktop "Push origin") because the terminal cannot prompt for a login.
 3. Read `observe_out/metrics.json` and **look at every image** in `observe_out/` with the Read tool: all `w*` world shots, `d*`, `h01_hud`, all `m_*` menus, all `anim_*` strips (frames run left to right, top to bottom).
 
 ## Critique every image (the key step)
@@ -41,7 +41,9 @@ Godot gives a lot of AAA look for free. Use it:
 - **Animation**: procedural animation (sine-driven limbs, spring bones, lean, bob, breathing, landing squash, anticipation and follow-through), tweens.
 - **UI**: code-drawn vector icons (`_Draw`), 9-slice-style panels, gradients, shadows, tooltips, drag and drop, animated bars, SAO-style segmented bars.
 - **Systems**: crafting, enchanting, bounties, achievements, shrines, weather, NPC routines, companions, mini-games, anything that makes the world feel alive.
-- Reuse code: put shared builders in new helper files (for example `scripts/Gfx.cs`, `scripts/Icons.cs`, `scripts/Vfx.cs`) so later rounds build on them.
+- Reuse code: shared builders live in `scripts/Gfx.cs` (procedural textures `Gfx.Tex`, `GableRoof`, `Lumpy`, `Boulder`, `Pine`, `Blade`, `ExtrudeX`, `MergeChildren`), `scripts/Icons.cs` (vector icons, rarity frames), `scripts/Vfx.cs` (sparks, explosions, frost nova, heal pillar, lightning, sword trail). Extend them instead of starting new ones.
+- Watch for washed-out effects: additive or translucent full-screen-sized meshes (columns, discs) easily tint the whole frame. Check the strips after any VFX change.
+- Merge static body parts per material (`Gfx.MergeChildren` on each pivot) so characters stay cheap.
 
 ## Each round
 1. **Critique** (above) and update the backlog. Also add ideas nobody asked for.

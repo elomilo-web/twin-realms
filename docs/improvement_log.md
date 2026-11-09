@@ -125,3 +125,35 @@ Fresh ideas (added to the backlog): (1) crafting bench: potions from Sunleaf/Moo
 - Mistakes caught: first frost disc and heal column were too opaque and washed out the screen (heal turned the hero and walls green); thinned to a faint shell plus a narrow core. First wolf fur ridge was spikes that looked like a dinosaur; changed to rounded tufts. The portal stayed black because an opaque backing box sat in front of it from the camera side; removed.
 - Scores: Combat feel 4 -> 5 (trails), Spells and skills 3 -> 6, Animation 5 -> 6 (humanoid foes walk), World look 7 -> 7.
 - Next candidates: (1) grid inventory with icons, rarity frames and tooltip comparisons (menus 5); (2) merge hero/NPC parts per material to win back draw calls; (3) death dissolve and stagger pose for enemies; (4) birds, butterflies, fireflies; (5) journal and character sheet redesign.
+
+## Iteration 11 (2026-11-08, run 3 round 3): grid pack, tooltips, death dissolve, ambient life, hurt vignette, cheaper characters
+- Changed (8 things, 6 areas):
+  - Inventory (Ui.OpenPack, new scripts/ItemSlot.cs): SAO-style grid pack. Four equipment slots with icon, name, main stat and level; a 7x4 item grid with vector icons in rarity frames (epic and legendary shimmer), item level and +upgrade; a stat block; materials as icon tiles with counts; a Sort button (rarity, then slot). Click equips, right-click drops, click a worn slot to take it off.
+  - Tooltips (ItemTip): name in rarity colour, rarity/type/level, every stat with green up or red down arrows against the worn item, sell value; clamped on screen.
+  - Combat feel (Enemy.cs): death dissolve. After the fall, foes release motes of light (violet for Shadow foes, warm for animals, gold for others), then sink, shrink and fade out; non-respawning foes are freed at 2.8 s instead of 8 s. Respawn restores the body.
+  - World life (new scripts/Ambient.cs + data/ambient.json): butterflies flap over meadows by day, fireflies drift around you at night, violet spores float in the Shadow realm, and three bird flocks circle high overhead by day.
+  - HUD: hurt vignette. The screen edges flash red when you take a hit and pulse below 35% health.
+  - Performance: hero, villager, weapon and shield parts are merged per material (Gfx.MergeChildren on each pivot).
+  - Polish: lamp posts and lanterns fade with alpha instead of a visible dither checkerboard; steep slopes slightly darker and the noon sun slightly lower (sunlit hillsides washed out to white in w27).
+  - Loop: tools/run.ps1 (PowerShell bot/observer runner for Windows without bash); improve.md notes it, GitHub Desktop's git, the helper libraries and two new lessons. Observer: m_pack_tooltip, h02_low_hp, anim_death_dissolve, w26_meadow_night, w27_meadow_day.
+- Evidence: m_pack before (text list with Equip/Drop buttons) vs m_pack_tooltip (icon grid, paper doll, tooltip). anim_death_dissolve: fall, motes, sink and fade over 3 s. w26 fireflies; w01 birds top right; w27 butterflies. h02_low_hp red edges. Draw calls w01 2787 -> 2660, hud 2226 -> 2117 (merge). Fps 113-144. Bot 48/48 (also through tools/run.ps1).
+- Mistake caught: the first vignette gradient was too faint (barely pink at 6/157 HP); radius and ramp fixed.
+
+## Re-score (run 3, after iteration 11)
+| # | Area | Score | Evidence |
+|---|------|------:|----------|
+| 1 | Combat feel | 6 | Hit-stop, recoil, coloured sword trails, death dissolve with motes, hurt vignette. No stagger pose, lock-on or perfect dodge. |
+| 2 | Hit boxes | 5 | Unchanged: quads still flagged narrower than the visual in metrics. |
+| 3 | Spells and skills | 6 | Fire explosion, frost shard ring, heal beam, chain lightning bolts (anim_spell_*). Cast poses are still just the hand raised. |
+| 4 | Animation | 6 | Hero walk and cape, villagers breathe and sway, humanoid foes and quads walk. No head turn, attack wind-up pose for foes, landing squash. |
+| 5 | Icons | 6 | Hotbar, pack, slots and materials all use vector icons with rarity frames. No buff/status icons yet. |
+| 6 | Inventory and menus | 6 | Grid pack with tooltips and comparisons. Character sheet and journal are still plain text lists. |
+| 7 | HUD | 8 | Status window, icon hotbar with radial cooldowns, vignette. Minimap is a coarse pixel blob. |
+| 8 | World look | 7 | Sky with clouds/stars/dusk, grading, SSAO, textured buildings, gable roofs, water with foam, faceted trees and rocks. Shadow realm ground still flat indigo; no cloud shadows or god rays. |
+| 9 | World life | 7 | Villagers with faces and gear, herds, butterflies, fireflies, birds, spores. NPCs do not walk routines yet. |
+| 10 | Game systems | 6 | Unchanged this run: no crafting, bounties or achievements. |
+| 11 | Performance | 8 | 113-145 fps; draw calls rose from about 2000 to 2660 in w01 (textures and more detailed bodies). |
+| 12 | Stability | 9 | Bot 48/48 on every run this session; no engine errors. |
+
+Fresh ideas (8, added to the backlog): (1) crafting bench: potions from herbs, smith upgrades costing ore and crystals, using the new icons; (2) enemy attack wind-up poses (raise weapon, crouch) matched to the existing red wind-up flash; (3) Zelda-style lock-on with a target ring; (4) NPC daily routines: walk to the well, market and forge, go indoors at night; (5) cloud shadows on the ground and god rays at dusk; (6) Shadow realm ground: glowing vein shader, purple mist banks; (7) character sheet with a rotating hero preview and stat bars; (8) buff and debuff icons with timers above the hotbar (burn, slow, regen).
+- Next candidates: (1) crafting bench (systems 6); (2) enemy wind-up poses and stagger (combat 6, animation 6); (3) Shadow realm ground and mist (world look 7); (4) character sheet and journal redesign (menus 6); (5) lock-on.

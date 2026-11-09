@@ -110,7 +110,7 @@ public partial class Ui : CanvasLayer
         return v;
     }
     public void Close() { CloseNoUnpause(); if (InGame) { GetTree().Paused = false; Input.MouseMode = Input.MouseModeEnum.Captured; } }
-    void CloseNoUnpause() { if (_panel != null) { _panel.QueueFree(); _panel = null; _panelName = ""; _rebuild = null; } }
+    void CloseNoUnpause() { HideTip(); if (_panel != null) { _panel.QueueFree(); _panel = null; _panelName = ""; _rebuild = null; } }
 
     static Button Btn(string t, Action a, bool small = false)
     {
@@ -204,32 +204,59 @@ public partial class Ui : CanvasLayer
     }
 
     // ---------------------------------------------------------------- pack
+    // grid pack: paper-doll slots on the left, a 7x4 icon grid on the right, a hover tooltip with comparison arrows.
+    // Click an item to equip it, right-click to drop it; click an equipped slot to take it off.
+    ItemTip? _tip;
     public void OpenPack()
     {
-        var d = Game.D; var v = Frame("pack", "Pack and Equipment", new Vector2(860, 620), OpenPack);
-        Row(v, $"{d.Gold} gold    HP potions {d.HpPot} (H)    MP potions {d.MpPot} (G)    Pack {d.Inv.Count}/28", Gold);
-        var cols = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; cols.AddThemeConstantOverride("separation", 20); v.AddChild(cols);
-        var left = new VBoxContainer { CustomMinimumSize = new Vector2(330, 0) }; cols.AddChild(left); Row(left, "Equipped", Gold, 20);
+        var d = Game.D; var v = Frame("pack", "Pack and Equipment", new Vector2(900, 620), OpenPack);
+        var top = new HBoxContainer(); v.AddChild(top); top.AddThemeConstantOverride("separation", 22);
+        Lbl($"{d.Gold} G", 18, Gold, top); Lbl($"Health potions {d.HpPot} (H)", 16, new Color("ff8f86"), top); Lbl($"Mana potions {d.MpPot} (G)", 16, new Color("8fb8ff"), top);
+        var cap = Lbl($"Pack {d.Inv.Count}/28", 16, d.Inv.Count >= 26 ? new Color(1, .6f, .5f) : Dim, top); cap.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; cap.HorizontalAlignment = HorizontalAlignment.Right;
+        var cols = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; cols.AddThemeConstantOverride("separation", 22); v.AddChild(cols);
+        // ---- left: equipment slots around a silhouette, stats, materials
+        var left = new VBoxContainer { CustomMinimumSize = new Vector2(300, 0) }; left.AddThemeConstantOverride("separation", 6); cols.AddChild(left);
+        Lbl("EQUIPPED", 15, UiTheme.Accent, left);
+        var doll = new GridContainer { Columns = 2 }; doll.AddThemeConstantOverride("h_separation", 8); doll.AddThemeConstantOverride("v_separation", 8); left.AddChild(doll);
         foreach (var slot in new[] { "weapon", "shield", "armor", "trinket" })
         {
-            var it = d.Eq.GetValueOrDefault(slot);
-            var h = new HBoxContainer(); left.AddChild(h); var l = Lbl(Cap(slot) + ": " + (it?.Describe() ?? "-"), 15, it?.Color ?? Dim, h); l.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; l.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-            if (it != null) h.AddChild(Btn("Remove", () => { if (d.Inv.Count >= 28) { Note("Pack is full", new Color(1, .5f, .5f)); return; } d.Eq[slot] = null; d.Inv.Add(it); Game.Notify(); OpenPack(); }, true));
+            var it = d.Eq.GetValueOrDefault(slot); string sl = slot;
+            var cell = new ItemSlot { Item = it, Empty = slot, Wide = true, CustomMinimumSize = new Vector2(144, 64) }; doll.AddChild(cell);
+            cell.Hover += on => ShowTip(on ? it : null, cell, null);
+            cell.Clicked += right => { if (it == null) return; if (d.Inv.Count >= 28) { Note("Pack is full", new Color(1, .5f, .5f)); return; } d.Eq[sl] = null; d.Inv.Add(it); Sfx.Play("click"); Game.Notify(); OpenPack(); };
         }
-        Row(left, $"\nDamage {d.WpnDmg():0}   Defense {d.Defense()}   Crit {d.CritChance() * 100:0}%", Colors.White);
-        Row(left, "Materials", Gold, 20);
-        var ms = Scroll(left, 150); var ml = Inner(ms); int kinds = 0;
-        foreach (var kv in d.Mats) if (kv.Value > 0) { var m = GatherDb.Mat(kv.Key); Row(ml, $"{m.Name}   x{kv.Value}", m.Col.Lightened(0.25f), 15); kinds++; }
-        if (kinds == 0) Row(ml, "Nothing gathered yet. Press E near herbs, mushrooms, berries, ore, crystals and fallen logs.", Dim, 14);
-        var right = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ExpandFill }; cols.AddChild(right); Row(right, "Items", Gold, 20);
-        var sc = Scroll(right, 440); var list = Inner(sc);
-        if (d.Inv.Count == 0) Row(list, "Empty. Go and slay something.", Dim);
-        for (int i = 0; i < d.Inv.Count; i++)
+        var stats = new GridContainer { Columns = 2 }; stats.AddThemeConstantOverride("h_separation", 18); left.AddChild(stats);
+        foreach (var (k, val) in new[] { ("Damage", $"{d.WpnDmg():0}"), ("Defense", $"{d.Defense()}"), ("Crit", $"{d.CritChance() * 100:0}%"), ("Spell power", $"x{d.SpellPow():0.00}"), ("Health", $"{d.MaxHp()}"), ("Mana", $"{d.MaxMp()}") })
+        { var row = new HBoxContainer { CustomMinimumSize = new Vector2(138, 0) }; stats.AddChild(row); var a = Lbl(k, 14, Dim, row); a.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; Lbl(val, 14, Colors.White, row); }
+        Lbl("MATERIALS", 15, UiTheme.Accent, left);
+        var mg = new GridContainer { Columns = 5 }; mg.AddThemeConstantOverride("h_separation", 6); mg.AddThemeConstantOverride("v_separation", 6); left.AddChild(mg); int kinds = 0;
+        foreach (var kv in d.Mats) if (kv.Value > 0)
         {
-            int k = i; var it = d.Inv[i]; var h = new HBoxContainer(); list.AddChild(h); var l = Lbl(it.Describe(), 15, it.Color, h); l.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; l.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-            h.AddChild(Btn("Equip", () => Equip(k), true)); h.AddChild(Btn("Drop", () => { d.Inv.RemoveAt(k); OpenPack(); }, true));
+            var m = GatherDb.Mat(kv.Key); var cell = new ItemSlot { IconId = m.Name, Count = kv.Value, Tint = m.Col, CustomMinimumSize = new Vector2(52, 52), TooltipText = $"{m.Name} x{kv.Value}  ({m.Value}g each)" }; mg.AddChild(cell); kinds++;
         }
+        if (kinds == 0) { var l = Row(left, "Nothing gathered yet. Press E near herbs, mushrooms, berries, ore, crystals and fallen logs.", Dim, 13); l.CustomMinimumSize = new Vector2(290, 0); }
+        // ---- right: 7 x 4 item grid
+        var right = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; right.AddThemeConstantOverride("separation", 6); cols.AddChild(right);
+        var hdr = new HBoxContainer(); right.AddChild(hdr); var il = Lbl("ITEMS", 15, UiTheme.Accent, hdr); il.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        hdr.AddChild(Btn("Sort", () => { d.Inv.Sort((a, b) => b.Rar != a.Rar ? b.Rar.CompareTo(a.Rar) : string.Compare(a.Slot, b.Slot, StringComparison.Ordinal)); Sfx.Play("click"); OpenPack(); }, true));
+        var grid = new GridContainer { Columns = 7 }; grid.AddThemeConstantOverride("h_separation", 6); grid.AddThemeConstantOverride("v_separation", 6); right.AddChild(grid);
+        for (int i = 0; i < 28; i++)
+        {
+            int k = i; var it = i < d.Inv.Count ? d.Inv[i] : null;
+            var cell = new ItemSlot { Item = it, CustomMinimumSize = new Vector2(66, 66) }; grid.AddChild(cell);
+            if (it == null) continue;
+            cell.Hover += on => ShowTip(on ? it : null, cell, d.Eq.GetValueOrDefault(it.Slot));
+            cell.Clicked += rightBtn => { HideTip(); if (rightBtn) { d.Inv.RemoveAt(k); Sfx.Play("click"); OpenPack(); } else Equip(k); };
+        }
+        Lbl("Click: equip     Right-click: drop     Hover: compare with what you wear", 13, Dim, right);
     }
+    void ShowTip(Item? it, Control anchor, Item? worn)
+    {
+        if (it == null) { HideTip(); return; }
+        if (_tip == null || !IsInstanceValid(_tip)) { _tip = new ItemTip(); AddChild(_tip); }
+        _tip.Show(it, worn, anchor.GetGlobalRect(), GetViewport().GetVisibleRect().Size);
+    }
+    void HideTip() { if (_tip != null && IsInstanceValid(_tip)) _tip.Visible = false; }
     static string Cap(string s) => char.ToUpper(s[0]) + s.Substring(1);
     void Equip(int idx)
     {

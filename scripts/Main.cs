@@ -34,6 +34,7 @@ public partial class Main : Node3D
         var rig = new CameraRig { Name = "CameraRig", Target = player, Position = pos + new Vector3(0, 1.6f, 0) };
         player.Rig = rig; AddChild(player); AddChild(rig); rig.ExcludeFromCollision(player);
         AddChild(new Hud { Name = "Hud" });
+        AddChild(new Ambient { Name = "Ambient" });
         Ui.InGame = true; Input.MouseMode = Input.MouseModeEnum.Captured;
         Ui.Banner(World.GetPoi("village")?.Name ?? "Oakhaven", "Press I for your pack, K for the skill tree, J for quests");
         Game.Save();

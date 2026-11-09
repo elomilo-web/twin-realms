@@ -269,6 +269,24 @@ public static class Gfx
         return st.Commit();
     }
 
+    /// <summary>
+    /// Merges the direct MeshInstance3D children of a node into one mesh per material (fewer draw calls). Children that
+    /// are other nodes (pivots, lights) are left alone, so animated limbs keep working: call it on each pivot separately.
+    /// </summary>
+    public static void MergeChildren(Node3D parent)
+    {
+        var groups = new Dictionary<Material, SurfaceTool>(); var drop = new List<MeshInstance3D>();
+        foreach (var c in parent.GetChildren())
+        {
+            if (c is not MeshInstance3D mi || mi.Mesh == null || mi.MaterialOverride == null || mi.Mesh.GetSurfaceCount() != 1) continue;
+            if (!groups.TryGetValue(mi.MaterialOverride, out var st)) { groups[mi.MaterialOverride] = st = new SurfaceTool(); }
+            st.AppendFrom(mi.Mesh, 0, mi.Transform); drop.Add(mi);
+        }
+        if (drop.Count < 2) return;
+        foreach (var mi in drop) { parent.RemoveChild(mi); mi.QueueFree(); }
+        foreach (var kv in groups) parent.AddChild(new MeshInstance3D { Mesh = kv.Value.Commit(), MaterialOverride = kv.Key });
+    }
+
     static readonly Dictionary<int, ArrayMesh> _boulders = new();
     /// <summary>Faceted noise boulder of radius ~1 (a few cached variants).</summary>
     public static ArrayMesh Boulder(int variant)

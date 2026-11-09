@@ -117,6 +117,8 @@ public partial class Player : CharacterBody3D, IDamageable
         Limb(_shield, new Vector3(0.1f, 0, 0.3f), new Vector3(0.1f, 0, -0.05f), 0.085f, skin);
         _hand.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = 0.1f, Height = 0.2f }, MaterialOverride = leather, Position = new Vector3(0, 0, -0.38f) });
         _trail = new SwordTrail(); AddChild(_trail);
+        // one draw call per material for each rigid part of the body
+        Gfx.MergeChildren(_model); Gfx.MergeChildren(head); Gfx.MergeChildren(_legR); Gfx.MergeChildren(_legL);
 
         _horse = new Node3D { Visible = false }; AddChild(_horse);
         var hm = new StandardMaterial3D { AlbedoColor = new Color(0.4f, 0.26f, 0.16f) };
@@ -184,6 +186,7 @@ public partial class Player : CharacterBody3D, IDamageable
         _shield.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(.09f, .58f, .05f) }, MaterialOverride = trim, Position = new Vector3(0, -.01f, 0) });
         _shield.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(.09f, .05f, .42f) }, MaterialOverride = trim, Position = new Vector3(0, .12f, 0) });
         _shield.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = .07f, Height = .1f, RadialSegments = 10, Rings = 4, IsHemisphere = true }, MaterialOverride = rim, Position = new Vector3(-.045f, .1f, 0), Rotation = new Vector3(0, 0, Mathf.Pi / 2) });
+        Gfx.MergeChildren(_weaponRoot); Gfx.MergeChildren(_shield);
         UpdateShieldVisible();
     }
     bool HasShield => Game.D.Eq.GetValueOrDefault("shield") != null && !(Game.D.Weapon?.Two ?? false);

@@ -154,6 +154,7 @@ public partial class Npc : Node3D, IInteractable
                 Part(_armR, new CylinderMesh { TopRadius = 0f, BottomRadius = .05f, Height = .25f, RadialSegments = 6 }, steel, new Vector3(0, .72f, -.05f)); break;
             case "quest": Part(_armR, new CylinderMesh { TopRadius = .025f, BottomRadius = .03f, Height = 1.7f }, wood, new Vector3(0, -.15f, -.12f), new Vector3(.08f, 0, 0)); break;
         }
+        foreach (var n in new[] { this, _upper, head, _armL, _armR }) Gfx.MergeChildren(n);
     }
 
     public override void _Process(double delta)

@@ -18,6 +18,17 @@ public partial class Hud : CanvasLayer
 public partial class HudCanvas : Control
 {
     static readonly Color Gold = new Color("e3b04b"), Mute = new Color("a095bd");
+    float _hurt, _lastHp = -1;
+    static GradientTexture2D? _vig;
+    static GradientTexture2D Vignette
+    {
+        get
+        {
+            if (_vig != null) return _vig;
+            var g = new Gradient(); g.SetColor(0, new Color(1, 1, 1, 0)); g.SetOffset(0, .45f); g.SetColor(1, new Color(1, 1, 1, 1)); g.SetOffset(1, 1.05f); g.AddPoint(.78f, new Color(1, 1, 1, .45f));
+            return _vig = new GradientTexture2D { Gradient = g, Fill = GradientTexture2D.FillEnum.Radial, FillFrom = new Vector2(.5f, .5f), FillTo = new Vector2(1f, .5f), Width = 256, Height = 256 };
+        }
+    }
     Image? _img;
     Font F => ThemeDB.FallbackFont;
     public override void _Process(double delta) { QueueRedraw(); }
@@ -38,6 +49,10 @@ public partial class HudCanvas : Control
     {
         var p = Player.Instance; if (p == null) return; var d = Game.D; var sz = Size; float u = sz.X / 100f; int fs(float k) => Mathf.Max(11, (int)(u * k));
         var pad = u * 1.4f;
+        // hurt vignette: red edges flash when hit and pulse slowly below 35% health
+        float dtv = (float)GetProcessDeltaTime(); if (p.Hp < _lastHp - .5f) _hurt = Mathf.Min(1f, _hurt + .35f + (_lastHp - p.Hp) / d.MaxHp() * 3f); _lastHp = p.Hp; _hurt = Mathf.Max(0, _hurt - dtv * 1.6f);
+        float hpF0 = p.Hp / d.MaxHp(), low = p.Dead ? 0 : Mathf.Clamp((.35f - hpF0) / .35f, 0, 1) * (.55f + .25f * Mathf.Sin((float)Time.GetTicksMsec() / 260f));
+        float vig = Mathf.Max(_hurt, low); if (vig > .01f) DrawTextureRect(Vignette, new Rect2(Vector2.Zero, sz), false, new Color(.85f, .05f, .05f, vig * .85f));
         // ---- status window, top left: name and level, slanted segmented HP bar (green > yellow > red), MP and stamina, XP line, place
         string realm = World.Realm == 1 ? "SHADOW" : "LIGHT"; float hrs = World.TimeOfDay * 24f;
         float pw = Mathf.Max(300, u * 28), ph = fs(1.2f) + 76, px = pad, py = pad;

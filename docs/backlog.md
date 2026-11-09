@@ -5,7 +5,7 @@ Format: `- [ ] (impact H/M/L, effort S/M/L) title: why / how`. Mark `[x]` when d
 ## Combat feel
 - [x] (H,S) Hit-stop and camera shake on hit: freeze 40-80 ms on impact, bigger for crits and power attacks.
 - [x] (H,M) Impact sparks and slash trails (iter 10: SwordTrail): a glowing arc mesh that follows the sword during swings (SAO-like skill trails).
-- [ ] (H,M) Enemy telegraphs and hit reactions: wind-up flash, recoil, stagger pose, death dissolve instead of vanishing. (recoil and squash done in iter 2; stagger pose and death dissolve still open)
+- [~] (H,M) Enemy telegraphs and hit reactions (recoil iter 2, death dissolve iter 11; stagger and wind-up poses open)
 - [ ] (H,M) Target lock-on (Zelda style): a key to lock the nearest enemy, camera and strafing follow, target ring.
 - [ ] (M,M) Named sword skills with a short chain (SAO): e.g. 3 skills unlocked via the skill tree, each with a distinct move.
 - [ ] (M,S) Perfect dodge: roll just before a hit gives slow motion and a free counter.
@@ -26,7 +26,7 @@ Format: `- [ ] (impact H/M/L, effort S/M/L) title: why / how`. Mark `[x]` when d
 ## Inventory and menus
 - [x] (H,M) SAO/isekai system-window style for all menus: translucent blue glass, cyan glow, corner brackets, pop-in (iter 4).
 - [x] (M,S) HUD restyle to match the menus (cyan bars, angled frames, glass hotbar).
-- [ ] (H,L) Grid inventory with drag and drop, paper-doll equipment slots, hover tooltip with stat comparison arrows (green up, red down), sort and filter, item lock.
+- [x] (H,L) Grid inventory (iter 11; click to equip, right-click to drop; no drag and drop or item lock yet) with drag and drop, paper-doll equipment slots, hover tooltip with stat comparison arrows (green up, red down), sort and filter, item lock.
 - [ ] (M,M) Character sheet with stat bars and a rotating 3D preview of the hero.
 - [ ] (M,S) Quest log tabs (active, done) with tracked-quest toggle and map markers.
 ## HUD
@@ -41,13 +41,13 @@ Format: `- [ ] (impact H/M/L, effort S/M/L) title: why / how`. Mark `[x]` when d
 - [ ] (M,M) Weather: rain and fog banks that change with time; puddle shine.
 - [~] (M,S) Color grading per realm and time of day; vignette when hurt. (iter 9: grading and realm saturation done; hurt vignette open)
 ## World life
-- [ ] (M,S) Birds that lift off when you approach; butterflies by day and fireflies at night over meadows (scenery).
+- [x] (M,S) Butterflies by day and fireflies at night (iter 11). Birds circle overhead; lifting off on approach still open.
 - [ ] (M,S) Cooking: meat and berries at a campfire give a short regen buff.
 - [x] (H,M) Gatherables: herbs, mushrooms, berry bushes, ore and crystal veins; materials bag; sell to the merchant.
 - [x] (H,M) Wildlife: deer and rabbits that flee, boars that fight back; hides and meat drops.
 - [ ] (H,M) NPC daily routines: walk between home, market and forge; sleep at night; idle animations.
-- [ ] (M,S) Birds, butterflies by day, fireflies at night; footstep dust and sound by surface.
-- [ ] (M,M) Roaming animals (deer, rabbits) that flee.
+- [~] (M,S) Birds, butterflies by day, fireflies at night (iter 11 done); footstep dust and sound by surface (open).
+- [x] (M,M) Roaming animals (deer, rabbits) that flee. (iter 7)
 ## Systems
 - [ ] (M,M) Hunting and gathering quests on a bounty board; a Codex tab that fills as you find each plant and animal.
 - [ ] (M,S) Stability: find why moving Ui notes to (16,150) makes the bot print RID leaks at exit (see log, iteration 8).
@@ -69,4 +69,13 @@ Format: `- [ ] (impact H/M/L, effort S/M/L) title: why / how`. Mark `[x]` when d
 - [ ] (M,M) Character sheet is half empty (m_character): add a hero preview, stat bars and equipped icons.
 - [ ] (M,S) Journal is a few lines in a big box: tabs, quest cards, progress bars.
 - [ ] (M,M) Minimap is a coarse pixel blob: draw roads, POI icons, quest marker, smoother terrain.
-- [ ] (M,S) Hero and NPCs are about 25-40 draw calls each: merge parts per material like enemies.
+- [x] (M,S) Hero and NPCs are about 25-40 draw calls each (iter 11 merged): merge parts per material like enemies.
+## Run 3 re-score brainstorm (2026-11-08)
+- [ ] (H,M) Crafting bench: potions from herbs, smith upgrades costing ore and crystals (icons ready in Icons.cs).
+- [ ] (H,S) Enemy attack wind-up poses (raise weapon, crouch) matched to the red wind-up flash; stagger pose.
+- [ ] (M,M) Cloud shadows on the ground and god rays at dusk.
+- [ ] (M,S) Shadow realm ground: glowing vein shader, purple mist banks (w09, w16 still flat indigo).
+- [ ] (M,M) Character sheet with a rotating hero preview and stat bars; journal with quest cards and tabs.
+- [ ] (M,S) Buff and debuff icons with timers above the hotbar (burn, slow, regen).
+- [ ] (M,M) Minimap: smooth terrain texture, roads, POI icons, quest marker.
+- [ ] (L,S) Tooltip covers the neighbouring grid cells; place it beside the grid instead.

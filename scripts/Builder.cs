@@ -27,7 +27,7 @@ public static class Builder
         Gfx.Tex(Roof, "shingle", 2.4f, false, 1.4f); Gfx.Tex(RoofB, "shingle", 2.4f, false, 1.4f); Gfx.Tex(Rock, "rock", 4f, true, 1.2f); Gfx.Tex(Sand, "noise", 3f);
         Gfx.Tex(Cloth, "cloth", .8f); Gfx.Tex(Hay, "grain", .8f); Gfx.Tex(Crim, "cloth", .8f);
         Post = World.Mat(new Color(.2f, .15f, .1f), new Color(.1f, .07f, .14f)); Gfx.Tex(Post, "grain", 1.2f);
-        Post.DistanceFadeMode = BaseMaterial3D.DistanceFadeModeEnum.PixelDither; Post.DistanceFadeMinDistance = 2f; Post.DistanceFadeMaxDistance = 6.5f;
+        Post.DistanceFadeMode = BaseMaterial3D.DistanceFadeModeEnum.PixelAlpha; Post.DistanceFadeMinDistance = 1.5f; Post.DistanceFadeMaxDistance = 4.5f;
         Village(over); Arena(over); foreach (var p in World.Pois) if (p.Dun != null) Entrance(over, p);
         Lair(over); Stones(over); Obelisks(over); Chests(over); Npcs(over); Spawns(over);
     }

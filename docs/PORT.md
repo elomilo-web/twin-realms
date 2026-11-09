@@ -22,3 +22,9 @@ Written: terrain (same noise as the browser version), day/night, Light/Shadow re
 Data lives in `data/*.json`. The browser version is in `docs/spec/` as the reference.
 
 Deferred: real art assets, real textures, audio polish.
+
+**/improve run 3 (2026-11-08), iterations 9-11** (details in `docs/improvement_log.md`):
+- New shared code: `scripts/Gfx.cs` (procedural textures, roofs, rocks, trees, blades, mesh merging), `scripts/Icons.cs` (vector icons), `scripts/Vfx.cs` (spell effects, sword trail), `scripts/ItemSlot.cs` (grid pack cells and tooltips), `scripts/Ambient.cs` (butterflies, fireflies, birds, spores). New data: `data/look.json` (sky, grading, fog), `data/ambient.json`.
+- Look: sky shader with clouds, stars and dusk; ACES, SSAO, grading; textured buildings with real gable roofs; water shader; faceted trees and rocks; villagers, hero and foes rebuilt with faces, gear and walking legs.
+- Play: sword trails, spell VFX, death dissolve, hurt vignette, grid pack with comparison tooltips, icon hotbar with radial cooldowns.
+- Windows note: no bash on this PC; `powershell -File tools/run.ps1 bot|observe` replaces `tools/bot.sh` and `tools/observe.sh`. Pushing from the terminal needs a GitHub login, so push with GitHub Desktop.

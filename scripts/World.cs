@@ -51,7 +51,7 @@ public partial class World : Node3D
     public static StandardMaterial3D WindowMat = new() { AlbedoColor = new Color(0.2f, 0.22f, 0.26f), EmissionEnabled = true, Emission = new Color(1, .75f, .4f), EmissionEnergyMultiplier = 0f };
     /// <summary>Lantern glass on lamp posts: lit like windows, but fades out when the camera is right next to it.</summary>
     public static StandardMaterial3D LampMat = new() { AlbedoColor = new Color(0.35f, 0.3f, 0.22f), EmissionEnabled = true, Emission = new Color(1, .75f, .4f), EmissionEnergyMultiplier = 0.2f,
-        DistanceFadeMode = BaseMaterial3D.DistanceFadeModeEnum.PixelDither, DistanceFadeMinDistance = 1.2f, DistanceFadeMaxDistance = 4.5f };
+        DistanceFadeMode = BaseMaterial3D.DistanceFadeModeEnum.PixelAlpha, DistanceFadeMinDistance = 1.5f, DistanceFadeMaxDistance = 4.5f };
     /// <summary>Shader materials that take a realm_t parameter (water, sky...).</summary>
     public static readonly List<ShaderMaterial> RealmShaders = new();
     public static OmniLight3D Lamp(Node parent, Vector3 pos, Color col, float range = 14f, float energy = 1.5f, int realmOnly = -1, bool nightOnly = true)
@@ -244,7 +244,7 @@ void sky(){
             float r = Mathf.Lerp(.27f, .37f, n1) + (n2 - .5f) * .05f, g = Mathf.Lerp(.47f, .56f, n1) + (n2 - .5f) * .06f, b = Mathf.Lerp(.16f, .21f, n1);
             float t = Smooth(8, 26, h) * .5f; r = Mathf.Lerp(r, .4f, t); g = Mathf.Lerp(g, .46f, t); b = Mathf.Lerp(b, .22f, t);
             t = 1 - Smooth(.5f, 1.9f, h); r = Mathf.Lerp(r, .79f, t); g = Mathf.Lerp(g, .72f, t); b = Mathf.Lerp(b, .52f, t);
-            t = Mathf.Max(Smooth(.84f, .64f, ny), Smooth(34, 46, h) * .8f); float rv = .46f + (n2 - .5f) * .1f; r = Mathf.Lerp(r, rv, t); g = Mathf.Lerp(g, rv * .97f, t); b = Mathf.Lerp(b, rv * .94f, t);
+            t = Mathf.Max(Smooth(.84f, .64f, ny), Smooth(34, 46, h) * .8f); float rv = .4f + (n2 - .5f) * .1f; r = Mathf.Lerp(r, rv, t); g = Mathf.Lerp(g, rv * .97f, t); b = Mathf.Lerp(b, rv * .94f, t);
             t = Smooth(52, 60, h) * Smooth(.5f, .78f, ny); r = Mathf.Lerp(r, .93f, t); g = Mathf.Lerp(g, .95f, t); b = Mathf.Lerp(b, .98f, t);
             t = 1 - Smooth(1.4f, 3.4f, rd); r = Mathf.Lerp(r, .47f, t * .9f); g = Mathf.Lerp(g, .38f, t * .9f); b = Mathf.Lerp(b, .25f, t * .9f);
             cols[i] = new Color(r, g, b);

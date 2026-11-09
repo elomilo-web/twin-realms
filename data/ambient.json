@@ -1,0 +1,7 @@
+{
+ "_help": "Ambient scenery life around the player (no gameplay). Read by scripts/Ambient.cs.",
+ "butterflies": { "count": 14, "radius": 22, "maxHeight": 14, "colors": ["ffb340", "ffffff", "8fd0ff", "ff7aa8", "fff07a"] },
+ "fireflies": { "amount": 90, "box": 22, "night": 0.45 },
+ "spores": { "amount": 70, "box": 24 },
+ "birds": { "flocks": 3, "perFlock": 6, "height": 34, "radius": 45, "speed": 0.12 }
+}

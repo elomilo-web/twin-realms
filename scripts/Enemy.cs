@@ -332,6 +332,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
     {
         Hp = MaxHp; GlobalPosition = _home; _state = Def.Kind == "dragon" ? State.Sleep : State.Idle; _deadT = 0; _stun = 0; _burnT = 0;
         CollisionLayer = 2; CollisionMask = 1 | 2; _label.Visible = true; _body.Rotation = Vector3.Zero; Velocity = Vector3.Zero;
+        _body.Position = Vector3.Zero; _body.Scale = Vector3.One; for (int i = 0; i < _mats.Count; i++) { _mats[i].Transparency = BaseMaterial3D.TransparencyEnum.Disabled; _mats[i].AlbedoColor = _baseCols[i]; }
     }
 
     // ------------------------------------------------------------------ AI
@@ -362,6 +363,23 @@ public partial class Enemy : CharacterBody3D, IDamageable
         {
             _deadT += dt;
             _body.Rotation = new Vector3(Mathf.Lerp(0, Mathf.Pi / 2, Mathf.Clamp(_deadT / 0.5f, 0, 1)), 0, 0);
+            // dissolve: after the fall the body releases motes of light, then sinks, shrinks and fades away
+            const float D0 = 1.4f, D1 = 2.8f;
+            if (_deadT - dt < D0 && _deadT >= D0 && Visible)
+            {
+                var sc = Def.Realm == 1 || Def.Kind == "wraith" ? new Color(.75f, .45f, 1f) : Def.Look != "" ? new Color(1f, .95f, .8f) : new Color(1f, .7f, .35f);
+                var g = new Gradient(); g.SetColor(0, new Color(1, 1, 1, .9f)); g.SetColor(1, new Color(sc, 0)); g.AddPoint(.3f, new Color(sc, .8f));
+                Vfx.Sparks(GlobalPosition + Vector3.Up * HeightM() * .3f, g, Def.Boss ? 60 : 22, 1.6f, 1.4f, .2f, 2.2f, true, 35f, Vector3.Up, HeightM() * .45f);
+                foreach (var m in _mats) m.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
+            }
+            if (_deadT >= D0)
+            {
+                float k = Mathf.Clamp((_deadT - D0) / (D1 - D0), 0, 1);
+                _body.Position = new Vector3(0, -k * HeightM() * .5f, 0); _body.Scale = Vector3.One * (1 - k * .35f);
+                for (int i = 0; i < _mats.Count; i++) _mats[i].AlbedoColor = _baseCols[i] with { A = 1 - k };
+                if (k >= 1 && RespawnTime <= 0) { QueueFree(); return; }
+                if (k >= 1) Visible = false;
+            }
             if (_deadT > 8f)
             {
                 if (RespawnTime > 0) { Visible = false; if (_deadT > RespawnTime && distP > 95f) Respawn(); }
