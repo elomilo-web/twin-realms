@@ -34,6 +34,12 @@ public class EnemyDef
     public bool NoLoot { get; set; }              // no gold or gear, only Drops
     public bool Emissive { get; set; }            // glowing body (shadow creatures); "glow" is already a colour field on some enemies
     public Dictionary<string, int[]>? Drops { get; set; }   // materials given on death: id -> [min, max]
+    // defenses (League of Legends style): armor reduces physical damage, mr (magic resist) reduces elemental damage, res adds per-type % resistance
+    public float Armor { get; set; } = 10;
+    public float Mr { get; set; } = 10;
+    public Dictionary<string, float>? Res { get; set; }
+    public string DmgType { get; set; } = "physical";
+    public Dictionary<string, float>? OnHit { get; set; }   // status id -> chance to apply when this enemy hits the player
 }
 
 /// <summary>Loads res://data/enemies.json (extracted from the prototype). Stats are never hard-coded in C#.</summary>

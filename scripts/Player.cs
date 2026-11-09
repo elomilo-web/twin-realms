@@ -19,6 +19,7 @@ public partial class Player : CharacterBody3D, IDamageable
     public string Prompt = "";
     public float[] SpellCd = new float[4];
     public float ShiftFlash;
+    public readonly StatusSet Statuses = new();   // statuses on the hero (enemy on-hit effects come in the next round)
 
     const float Accel = 40f, AirAccel = 10f;
     const float JumpVelocity = 6.0f, RollSpeed = 11f, RollTime = 0.45f;

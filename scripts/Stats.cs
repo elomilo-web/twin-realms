@@ -12,6 +12,10 @@ public class PlayerStats
     public string Name = "Hero", Class = "warrior", Race = "human";
     public static readonly string[] Slots = { "weapon", "shield", "head", "armor", "hands", "feet", "trinket" };
     public List<Item> Stash = new();                    // storage chest at home; older saves load with an empty chest
+    public Dictionary<string, SkillState> Skills = new(); // learned active skills with rank and socketed supports
+    public List<string> Supports = new();                 // unlocked support modifiers
+    public string[] Bar = new string[6];                  // hotbar keys 1-6
+    public int RankPts = 2;                               // skill rank points (1 per level)
     public int Level = 1, Xp = 0, Gold = 60, AttrPts = 0, SkillPts = 3, Kills = 0;
     public int Str = 5, Dex = 5, Vit = 5, Mag = 5;
     public int HpPot = 3, MpPot = 2, BestWave = 0, BestDuel = 0, Deepest = 0;
@@ -64,8 +68,8 @@ public class PlayerStats
     /// <summary>Adds XP, returns how many levels were gained.</summary>
     public int GainXp(int n)
     {
-        Xp += n; int up = 0;
-        while (Xp >= XpNeed()) { Xp -= XpNeed(); Level++; AttrPts += 2; SkillPts += 2; up++; }
+        Xp += (int)Math.Round(n * (1 + TS["xpP"] / 100f)); int up = 0;
+        while (Xp >= XpNeed()) { Xp -= XpNeed(); Level++; AttrPts += 2; SkillPts += 2; RankPts += 1; up++; }
         return up;
     }
 }

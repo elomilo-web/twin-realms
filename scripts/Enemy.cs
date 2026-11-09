@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Godot;
 
 namespace TwinRealms;
@@ -21,7 +21,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
     public Enemy? Owner_;
 
     State _state = State.Idle;
-    float _timer, _stun, _flash, _gravity, _yaw, _deadT, _burnT, _burnDps, _slow, _summonT, _breathT, _breathCd = 6f, _tick;
+    float _timer, _stun, _flash, _gravity, _yaw, _deadT, _summonT, _breathT, _breathCd = 6f, _tick;
     Vector3 _kb, _home, _recoilDir = Vector3.Back; float _recoilT, _recoilK;
     readonly List<Node3D> _legs = new(); float _legPh, _grazeT; Vector3 _grazeTo;
     Node3D _body = null!;
@@ -277,17 +277,51 @@ public partial class Enemy : CharacterBody3D, IDamageable
 
     // ------------------------------------------------------------------ public API
     public void Stun(float t) { if (Dead) return; _stun = Mathf.Max(_stun, t); if (_state != State.Sleep) _state = State.Stagger; }
-    public void Ignite(float t, float dps) { _burnT = t; _burnDps = Mathf.Max(_burnDps, dps); }
-    public void Slow(float t) { _slow = t; }
+    public void Ignite(float t, float dps) => Status.Add("burn", t / 3f, 1, dps);
+    public void Slow(float t) => Status.Add("chill", t / 3f, 0, 0);
     public void Wake() { if (Def.Flee && !Dead) { _state = State.Flee; return; } if (_state == State.Sleep || _state == State.Idle || _state == State.Return) { _state = State.Chase; if (_state == State.Chase && Def.Kind == "dragon") Sfx.Play("roar"); } }
+
+    // ------------------------------------------------------------------ defenses and statuses
+    public readonly StatusSet Status = new();
+    float LvlK => 1f + .04f * (Level - 1);
+    public float ArmorNow => Mathf.Max(-50, Def.Armor * LvlK - Status.Shred);
+    public float MrNow => Def.Mr * LvlK;
+    public float ResPct(string type) => Def.Res != null && Def.Res.TryGetValue(type, out var r) ? r : 0;
+    /// <summary>Final damage of a hit from the player: type bonus, the target's amplifiers, the player's weaken, execute, then armor/magic resist with penetration.</summary>
+    public float Incoming(HitInfo h)
+    {
+        float raw = h.Damage; var TS = Game.TS;
+        if (h.IsPlayer)
+        {
+            raw *= 1 + TS[h.Type + "P"] / 100f;
+            if (Player.Instance != null) raw *= Player.Instance.Statuses.DealtMul;
+            if (h.Execute > 0 && Hp < MaxHp * .35f) raw *= 1 + h.Execute / 100f;
+            if (TS["rage"] > 0 && Player.Instance != null) raw *= 1 + (1 - Player.Instance.Hp / Mathf.Max(1, Game.D.MaxHp())) * .5f * TS["rage"];
+        }
+        raw *= Status.TakenMul;
+        return h.IsPlayer ? Dmg.Mitigate(raw, h.Type, ArmorNow, MrNow, ResPct(h.Type), TS["armorPen"], TS["armorPenP"], TS["magicPen"], TS["magicPenP"]) : Dmg.Mitigate(raw, h.Type, ArmorNow, MrNow, ResPct(h.Type), 0, 0, 0, 0);
+    }
+    void ApplyStatuses(HitInfo h, float dealt)
+    {
+        var TS = Game.TS; float durMul = h.IsPlayer ? 1 + TS["statusP"] / 100f : 1;
+        void Try(string id, float chance, float dm, float pow)
+        {
+            if (Def.Boss && (id == "freeze" || id == "stun" || id == "root")) return;
+            if (GD.Randf() < chance) Status.Add(id, dm * durMul, pow * (h.IsPlayer ? 1 + TS[id + "P"] / 100f : 1), Mathf.Max(h.Damage, dealt));
+        }
+        if (h.Statuses != null) foreach (var (id, c, dm, pw) in h.Statuses) Try(id, c, dm, pw);
+        if (h.IsPlayer) foreach (var sd in Dmg.Statuses) { float c = TS[sd.Id + "Chance"] / 100f; if (c > 0) Try(sd.Id, c, 1, 0); }   // passives like "bleedChance"
+    }
 
     public void TakeHit(HitInfo h)
     {
         if (Dead) return;
-        int dmg = Mathf.Max(1, Mathf.RoundToInt(h.Damage));
+        float dealt = Incoming(h); int dmg = Mathf.Max(1, Mathf.RoundToInt(dealt));
         Hp -= dmg; _flash = 0.12f;
-        if (h.IsPlayer) { var D = Game.D; var p = Player.Instance; if (p != null) { p.Hp = Mathf.Min(D.MaxHp(), p.Hp + dmg * Game.TS["leech"] / 100f); p.Mp = Mathf.Min(D.MaxMp(), p.Mp + dmg * Game.TS["mleech"] / 100f); } }
-        FloatText.Spawn(this, GlobalPosition + new Vector3(0, HeightM() + 0.3f, 0), h.Crit ? dmg + "!" : dmg.ToString(), h.Crit ? new Color(1, 0.82f, 0.3f) : h.Fire ? new Color(1, 0.7f, 0.4f) : Colors.White);
+        if (h.IsPlayer) { var D = Game.D; var p = Player.Instance; if (p != null) { p.Hp = Mathf.Min(D.MaxHp(), p.Hp + dmg * (Game.TS["leech"] + h.Leech) / 100f); p.Mp = Mathf.Min(D.MaxMp(), p.Mp + dmg * Game.TS["mleech"] / 100f); } }
+        ApplyStatuses(h, dealt);
+        var tc = Dmg.TypeColor(h.Type);
+        if (!h.NoText) FloatText.Spawn(this, GlobalPosition + new Vector3(0, HeightM() + 0.3f, 0), h.Crit ? dmg + "!" : dmg.ToString(), h.Crit ? new Color(1, 0.82f, 0.3f) : h.Type != "physical" ? tc : h.Fire ? new Color(1, 0.7f, 0.4f) : Colors.White, h.Crit ? 1.25f : 1f);
         var away = GlobalPosition - h.From; away.Y = 0;
         if (away.LengthSquared() > 0.001f && !Def.Boss) _kb += away.Normalized() * h.Knock * 1.6f;
         if (h.Up > 0 && !Def.Boss && Def.Kind != "dragon") { _launch = h.Up; Stun(Mathf.Max(h.Stun, h.Up * .12f)); }
@@ -331,7 +365,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
 
     void Respawn()
     {
-        Hp = MaxHp; GlobalPosition = _home; _state = Def.Kind == "dragon" ? State.Sleep : State.Idle; _deadT = 0; _stun = 0; _burnT = 0;
+        Hp = MaxHp; GlobalPosition = _home; _state = Def.Kind == "dragon" ? State.Sleep : State.Idle; _deadT = 0; _stun = 0; Status.Clear();
         CollisionLayer = 2; CollisionMask = 1 | 2; _label.Visible = true; _body.Rotation = Vector3.Zero; Velocity = Vector3.Zero;
         _body.Position = Vector3.Zero; _body.Scale = Vector3.One; for (int i = 0; i < _mats.Count; i++) { _mats[i].Transparency = BaseMaterial3D.TransparencyEnum.Disabled; _mats[i].AlbedoColor = _baseCols[i]; }
     }
@@ -359,7 +393,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
             _body.Scale = new Vector3(1 + Feel.RecoilSquash * k * 0.5f, 1 - Feel.RecoilSquash * k, 1 + Feel.RecoilSquash * k * 0.5f);
         }
         if (_flash > 0) { _flash -= dt; foreach (var m in _mats) m.AlbedoColor = Colors.White; }
-        else for (int i = 0; i < _mats.Count; i++) _mats[i].AlbedoColor = _state == State.Wind ? _baseCols[i].Lerp(new Color(1, 0.2f, 0.1f), 1f - Mathf.Clamp(_timer / Mathf.Max(0.01f, Def.Wind), 0, 1)) : _baseCols[i];
+        else { var st = Status.Tint; for (int i = 0; i < _mats.Count; i++) _mats[i].AlbedoColor = (_state == State.Wind ? _baseCols[i].Lerp(new Color(1, 0.2f, 0.1f), 1f - Mathf.Clamp(_timer / Mathf.Max(0.01f, Def.Wind), 0, 1)) : _baseCols[i]).Lerp(new Color(st.R, st.G, st.B), st.A); }
 
         if (_state == State.Dead)
         {
@@ -392,8 +426,17 @@ public partial class Enemy : CharacterBody3D, IDamageable
         }
 
         // damage over time / slow
-        if (_burnT > 0) { _burnT -= dt; _tick += dt; if (_tick >= 0.5f) { _tick = 0; Hp -= _burnDps * 0.5f; FloatText.Spawn(this, GlobalPosition + new Vector3(0, HeightM() + 0.2f, 0), Mathf.Max(1, Mathf.RoundToInt(_burnDps * 0.5f)).ToString(), new Color(1, 0.5f, 0.2f), 0.7f); if (Hp <= 0) { Die(null); return; } } if (_burnT <= 0) _burnDps = 0; }
-        float spdMul = _slow > 0 ? 0.5f : 1f; if (_slow > 0) _slow -= dt;
+        // statuses: damage over time (mitigated by resistances only), freeze/stun, slows and roots
+        bool died = false;
+        Status.Tick(dt, (type, amount, col) =>
+        {
+            if (died) return; float d = type == "true" ? amount : amount * (1 - Mathf.Clamp(ResPct(type), -100, 90) / 100f) * Status.TakenMul;
+            int n = Mathf.Max(1, Mathf.RoundToInt(d)); Hp -= n; FloatText.Spawn(this, GlobalPosition + new Vector3(GD.Randf() - .5f, HeightM() + 0.1f, 0), n.ToString(), col, 0.7f);
+            if (Hp <= 0) { died = true; Die(null); }
+        });
+        if (died) return;
+        if (Status.Stunned && !Def.Boss && _state != State.Sleep) { _stun = Mathf.Max(_stun, .1f); _state = State.Stagger; }
+        float spdMul = Def.Boss ? Mathf.Max(.6f, Status.SpeedMul) : Status.SpeedMul;
 
         Vector3 move = Vector3.Zero, toP = Vector3.Zero; float dist = 999f; bool plOk = pl != null && !pl.Dead;
         if (plOk) { toP = pl!.GlobalPosition - GlobalPosition; toP.Y = 0; dist = toP.Length(); }

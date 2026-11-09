@@ -55,7 +55,7 @@ public static class Game
             if (f == null) return false;
             var d = JsonSerializer.Deserialize<PlayerStats>(f.GetAsText(), Opt);
             if (d == null) return false;
-            D = d; RecalcTree(); return true;
+            D = d; Skills.GrantStarting(D); RecalcTree(); return true;
         }
         catch (Exception e) { GD.PushError("load failed: " + e.Message); return false; }
     }

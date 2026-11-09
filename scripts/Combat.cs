@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Godot;
 
 namespace TwinRealms;
@@ -13,6 +14,12 @@ public class HitInfo
     public Node3D? Attacker;
     public bool IsPlayer, IsProjectile, NoBlock, Fire;
     public string Kind = "";   // melee kind for game feel: light, combo, power ("" = spell or arrow)
+    public string Type = "physical";   // damage type (Dmg.Types or "true")
+    public List<(string id, float chance, float durMul, float pow)>? Statuses;
+    public float Leech;        // % of damage returned as health (skill supports)
+    public float Execute;      // +% damage against targets below 35% health
+    public bool NoText;        // damage-over-time ticks use their own small numbers
+    public HitInfo With(string id, float chance, float durMul = 1, float pow = 0) { (Statuses ??= new()).Add((id, chance, durMul, pow)); return this; }
 }
 
 public interface IDamageable

@@ -1,0 +1,16 @@
+{
+ "_help": "Status effects. kind: dot (damage over time: pow = fraction of the triggering hit dealt per second, per stack), slow (pow = speed lost, 0-1), root (cannot move), stun, amp (pow = extra damage taken), weaken (pow = less damage dealt), shred (pow = armor removed per stack). dur = seconds (scaled by the source's statusP and the victim's tenacity). stacks = max stacks; at freezeAt stacks a chill becomes a freeze. type = damage type of a dot. Read by scripts/Status.cs.",
+ "statuses": {
+  "burn":   { "n": "Burning",    "kind": "dot",    "type": "fire",     "dur": 3,   "pow": 0.25, "stacks": 1,  "col": "ff8a2a", "d": "Takes fire damage every second." },
+  "poison": { "n": "Poisoned",   "kind": "dot",    "type": "poison",   "dur": 4,   "pow": 0.10, "stacks": 10, "col": "7ad84a", "d": "Takes poison damage every second; stacks up to 10 times." },
+  "bleed":  { "n": "Bleeding",   "kind": "dot",    "type": "true",     "dur": 4,   "pow": 0.15, "stacks": 5,  "col": "d0283a", "d": "Takes damage that ignores armor; stacks up to 5 times." },
+  "chill":  { "n": "Chilled",    "kind": "slow",   "dur": 3,   "pow": 0.3, "stacks": 3, "freezeAt": 3, "col": "8ad8ff", "d": "Moves 30% slower. Three chills freeze." },
+  "freeze": { "n": "Frozen",     "kind": "stun",   "dur": 1.4, "pow": 1,   "stacks": 1,  "col": "c8f0ff", "d": "Cannot move or act." },
+  "root":   { "n": "Rooted",     "kind": "root",   "dur": 2,   "pow": 1,   "stacks": 1,  "col": "5a8a2a", "d": "Cannot move." },
+  "shock":  { "n": "Shocked",    "kind": "amp",    "dur": 3,   "pow": 0.15, "stacks": 1, "col": "c8b8ff", "d": "Takes 15% more damage." },
+  "judged": { "n": "Judged",     "kind": "amp",    "dur": 4,   "pow": 0.12, "stacks": 1, "col": "ffe680", "d": "Takes 12% more damage." },
+  "weaken": { "n": "Weakened",   "kind": "weaken", "dur": 4,   "pow": 0.2, "stacks": 1,  "col": "9a6ad8", "d": "Deals 20% less damage." },
+  "shred":  { "n": "Sundered",   "kind": "shred",  "dur": 5,   "pow": 8,   "stacks": 5,  "col": "c8c8c8", "d": "Loses 8 armor per stack." },
+  "stun":   { "n": "Stunned",    "kind": "stun",   "dur": 0.6, "pow": 1,   "stacks": 1,  "col": "fff0a0", "d": "Cannot move or act." }
+ }
+}
