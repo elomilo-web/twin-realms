@@ -135,9 +135,10 @@ public partial class World : Node3D
     public override void _Ready()
     {
         I = this; LoadData();
+        Lamps.RemoveAll(l => !IsInstanceValid(l.lt));   // lamps of a world freed by "Quit to title" (the list is static)
         Over = new Node3D { Name = "Overworld" }; AddChild(Over);
         BuildEnvironment(); BuildTerrain(); BuildWater(); BuildBounds(); BuildVegetation(); Flora.Build(Over); GatherDb.Spawn(Over);
-        Builder.BuildAll(Over); Wildlife.Spawn(Over);
+        Builder.BuildAll(Over); Wildlife.Spawn(Over); IndexEnemies();
         Sfx.I?.SetRealmMix(0);
         TimeOfDay = Game.D.Time;
         UpdateVisuals(0, true);
@@ -509,16 +510,38 @@ void fragment(){
         if (Dungeon.Active || Arenas.Active) { Ui.Note("The Rift is sealed here", new Color(0.8f, 0.7f, 1f)); return; }
         if (Shifting) return;
         if (ShiftCd > 0) { Ui.Note("The rift is recovering (" + Mathf.CeilToInt(ShiftCd) + "s)", new Color(0.8f, 0.7f, 1f)); return; }
-        Realm ^= 1; ShiftCd = 5f; Sfx.Play("shift"); Ui.Flash(Realm == 1 ? new Color(.6f, .3f, 1f) : Colors.White);
+        if (Net.Active) { Net.I!.RequestShift(); return; }   // in multiplayer the whole world shifts together
+        ApplyShift(Realm ^ 1);
+    }
+    /// <summary>Shift to realm r with the flash, banner and quest hook.</summary>
+    public static void ApplyShift(int r)
+    {
+        if (r == Realm) return;
+        Realm = r; ShiftCd = 5f; Sfx.Play("shift"); Ui.Flash(Realm == 1 ? new Color(.6f, .3f, 1f) : Colors.White);
         Ui.Banner(Realm == 1 ? "The Shadow" : "The Light", Realm == 1 ? "the world turns violet" : "you return to the living world");
         Quests.OnRealmShift(Realm);
     }
     public static void ForceRealm(int r) { Realm = r; RealmT = r; I?.UpdateVisuals(0, true); Sfx.I?.SetRealmMix(r); }
 
-    /// <summary>Overworld on/off, used when entering dungeons.</summary>
+    /// <summary>Overworld enemies in build order: the same list on every machine, so a client's puppet and the host's enemy share an index.</summary>
+    public static List<Enemy> NetEnemies = new();
+    void IndexEnemies()
+    {
+        NetEnemies = new List<Enemy>();
+        foreach (var n in Over.FindChildren("*", "", true, false)) if (n is Enemy e) { e.NetIdx = NetEnemies.Count; e.Puppet = Net.IsClient; NetEnemies.Add(e); }
+        GD.Print($"[WORLD] {NetEnemies.Count} overworld enemies, fingerprint {Fingerprint()}");
+    }
+    /// <summary>Type and rounded position of every overworld enemy, hashed: host and friends must match or their enemies would not line up.</summary>
+    public static int Fingerprint()
+    {
+        // (string.GetHashCode differs between runs in .NET, so hash the characters ourselves)
+        unchecked { int h = 17; foreach (var e in NetEnemies) { var p = e.Position; foreach (char c in e.Type) h = h * 31 + c; h = h * 31 + Mathf.RoundToInt(p.X) * 7 + Mathf.RoundToInt(p.Z); } return h; }
+    }
+
+    /// <summary>Overworld on/off, used when entering dungeons. A host keeps it running (hidden) so friends outside still have a living world.</summary>
     public void SetOverworldActive(bool on)
     {
-        Over.Visible = on; Over.ProcessMode = on ? ProcessModeEnum.Inherit : ProcessModeEnum.Disabled;
+        Over.Visible = on; Over.ProcessMode = on || Net.IsHost ? ProcessModeEnum.Inherit : ProcessModeEnum.Disabled;
         Sun.Visible = on;
     }
     public void SetDungeonLook(bool on, Color? ambient = null)

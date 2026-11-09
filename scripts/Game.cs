@@ -22,7 +22,8 @@ public static class Game
     public static bool TreeRefunded;            // set when an old save had its skill tree points refunded
     public static event Action? Changed;        // fired when saved data changes (UI refresh)
 
-    const string SavePath = "user://save.json", SetPath = "user://settings.json";
+    public static string SavePath = "user://save.json";   // the self-test bots use their own files so they never touch your hero
+    const string SetPath = "user://settings.json";
     static readonly JsonSerializerOptions Opt = new() { IncludeFields = true, WriteIndented = false };
 
     /// <summary>All permanent modifiers: skill tree nodes + race bonuses + class passive. Everything reads them through Game.TS.</summary>

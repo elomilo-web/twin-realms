@@ -19,8 +19,11 @@ public partial class Projectile : Node3D
     public static Projectile Spawn(string kind, char own, Vector3 pos, Vector3 vel, float dmg, float life, bool crit = false, bool pierce = false, float aoe = 0f, bool big = false)
     {
         var p = new Projectile { Kind = kind, Own = own, Vel = vel, Dmg = dmg, Life = life, Crit = crit, Pierce = pierce, Aoe = aoe, Big = big };
-        Game.Root!.AddChild(p); p.GlobalPosition = pos; return p;
+        Game.Root!.AddChild(p); p.GlobalPosition = pos;
+        if (own != 'x' && Net.Active && Net.MyZone == 0 && (own == 'p' || Net.IsHost)) Net.I!.Shot(kind, pos, vel, life, big, aoe);   // everyone in the zone sees it fly
+        return p;
     }
+    public bool NoNet;   // Own 'x': a picture of someone else's shot; it hits nothing
 
     public override void _Ready()
     { AddToGroup("projectiles");
@@ -90,15 +93,16 @@ public partial class Projectile : Node3D
         }
         else if (!end && Own == 'e')
         {
-            var pl = Player.Instance;
-            if (pl != null && !pl.Dead)
+            // any hero can be struck: ours, or (on a host) a friend's, whose game then applies the hit
+            foreach (var hero in Heroes())
             {
-                var d = pl.GlobalPosition - to; float dy = to.Y - pl.GlobalPosition.Y;
-                if (new Vector2(d.X, d.Z).Length() < 0.75f && dy > -0.2f && dy < 2.1f) { var eh = new HitInfo { Damage = Dmg, From = to - Vel, Knock = 3f, IsProjectile = true }; if (Source != null && IsInstanceValid(Source)) Source.OnHit(eh); pl.TakeHit(eh); end = true; Fx.Burst(to, new Color(1, 0.5f, 0.2f), 8); }
+                var d = hero.GlobalPosition - to; float dy = to.Y - hero.GlobalPosition.Y;
+                if (new Vector2(d.X, d.Z).Length() < 0.75f && dy > -0.2f && dy < 2.1f) { var eh = new HitInfo { Damage = Dmg, From = to - Vel, Knock = 3f, IsProjectile = true }; if (Source != null && IsInstanceValid(Source)) Source.OnHit(eh); ((IDamageable)hero).TakeHit(eh); end = true; Fx.Burst(to, new Color(1, 0.5f, 0.2f), 8); break; }
             }
         }
 
         if (!end) return;
+        if (Own == 'x') { if (Aoe > 0) Vfx.Explosion(to, Aoe); else Fx.Burst(to, new Color(0.8f, 0.8f, 0.9f), 4, 2f, 0.25f, 0.06f); QueueFree(); return; }
         if (Own == 'p')
         {
             if (Aoe > 0)
@@ -136,9 +140,15 @@ public partial class Projectile : Node3D
         else if (Aoe > 0)
         {
             Fx.Burst(to, new Color(1, 0.4f, 0.1f), 24, 6f, 0.6f, 0.2f);
-            var pl = Player.Instance;
-            if (pl != null && !pl.Dead && pl.GlobalPosition.DistanceTo(to) < Aoe) pl.TakeHit(new HitInfo { Damage = Dmg, From = to, Knock = 5f, NoBlock = true });
+            foreach (var hero in Heroes()) if (hero.GlobalPosition.DistanceTo(to) < Aoe) ((IDamageable)hero).TakeHit(new HitInfo { Damage = Dmg, From = to, Knock = 5f, NoBlock = true });
         }
         QueueFree();
+    }
+    /// <summary>Heroes this enemy shot can strike: everyone out in the overworld for an overworld foe in a hosted world, otherwise our own hero.</summary>
+    IEnumerable<Node3D> Heroes()
+    {
+        bool overworldFoe = Source != null && IsInstanceValid(Source) ? !Source.FromDungeon && !Source.Arena : Net.MyZone == 0;
+        if (Net.Active && overworldFoe) { foreach (var h in Net.WorldHeroes()) yield return h; yield break; }
+        var pl = Player.Instance; if (pl != null && !pl.Dead) yield return pl;
     }
 }

@@ -17,6 +17,7 @@ public static class Builder
 
     public static void BuildAll(Node3D over)
     {
+        _rg = World.Rng(424242u);   // restart the seed: every build (and every machine in a multiplayer game) places the same world
         Wall = World.Mat(new Color(.79f, .71f, .56f), new Color(.29f, .26f, .35f)); Roof = World.Mat(new Color(.55f, .23f, .16f), new Color(.1f, .08f, .15f)); RoofB = World.Mat(new Color(.33f, .38f, .44f), new Color(.1f, .09f, .18f));
         Wood = World.Mat(new Color(.42f, .29f, .17f), new Color(.17f, .14f, .22f)); Stone = World.Mat(new Color(.55f, .54f, .52f), new Color(.23f, .2f, .31f), 1f);
         Dark = World.Mat(new Color(.23f, .16f, .1f), new Color(.1f, .07f, .14f)); Cloth = World.Mat(new Color(.69f, .23f, .23f), new Color(.29f, .11f, .36f)); Hay = World.Mat(new Color(.79f, .66f, .29f), new Color(.29f, .23f, .35f));
@@ -96,6 +97,7 @@ public static class Builder
         Campfire(over, 7, 5);
         // the hero's home: the cottage north of the plaza (at -7, 19, door facing the plaza); storage chest beside the door
         over.AddChild(new StashChest { Position = World.OnGround(-4.6f, 15.3f), Rotation = new Vector3(0, Mathf.Pi, 0) });
+        over.AddChild(new PartyChestNode { Position = World.OnGround(-2.1f, 15.1f), Rotation = new Vector3(0, Mathf.Pi, 0) });
         var st = Group(over, -9, 8); foreach (var s in new[] { (-1.8f, -1f), (1.8f, -1f), (-1.8f, 1f), (1.8f, 1f) }) Box(st, new Vector3(.2f, 2.8f, .2f), new Vector3(s.Item1, 1.4f, s.Item2), Wood);
         Box(st, new Vector3(4.4f, .15f, 3f), new Vector3(0, 2.85f, 0), Cloth); Solid(st, new Vector3(3.6f, .9f, .9f), new Vector3(0, .5f, .3f), Wood); Box(st, new Vector3(3.6f, .1f, .9f), new Vector3(0, .97f, .3f), Cloth);
         var fg = Group(over, 24, 2); Solid(fg, new Vector3(2.4f, 1.3f, 2f), new Vector3(0, .65f, 0), Stone); Box(fg, new Vector3(1.1f, .6f, .6f), new Vector3(2, .8f, 0), Metal); Box(fg, new Vector3(.5f, 3f, .5f), new Vector3(-.6f, 2.4f, -.5f), Stone); Fire(fg, new Vector3(.2f, 1.45f, 0), 1.4f, 16f);

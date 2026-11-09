@@ -146,7 +146,7 @@ public partial class Player : CharacterBody3D, IDamageable
         TriggerAuto("hit");
         Rig?.Shake(0.18f); Feel.HitStop(Feel.Taken);
         FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.1f, 0), "-" + final, h.Type is "physical" or "" ? new Color(1, 0.4f, 0.35f) : Dmg.TypeColor(h.Type).Lerp(new Color(1, .3f, .3f), .3f));
-        if (Hp <= 0)
+        if (Hp <= 0 && !DuelSave())
         {
             if (TS.Has("undying") && World.Clock > _undyReady)
             {
@@ -345,7 +345,7 @@ public partial class Player : CharacterBody3D, IDamageable
         {
             float d = type == "true" ? amount : amount * (1 - Mathf.Clamp(TS["res_" + type], -100, 75) / 100f);
             int n = Mathf.Max(1, Mathf.RoundToInt(d)); Hp -= n; FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.0f, 0), "-" + n, col, 0.7f);
-            if (Hp <= 0 && !Dead) Die();
+            if (Hp <= 0 && !Dead && !DuelSave()) Die();
         });
         if (Dead) return;
         if (Statuses.Stunned) _stagger = Mathf.Max(_stagger, .1f);
@@ -523,6 +523,7 @@ public partial class Player : CharacterBody3D, IDamageable
         _rig.SteadyLeft = HasShield || w.LeftHand;
         Vector3? look = Targeting.Current != null && IsInstanceValid(Targeting.Current) ? _rig.ToLocal(Targeting.Current.GlobalPosition + Vector3.Up * 1.2f) : null;
         _rig.Pose(dt, legs, twist, spineLean, r, l, look);
+        _nLegs = legs; _nTwist = twist; _nLean = spineLean; _nR = r; _nL = l;   // sent to friends in multiplayer
 
         // cape streams back with speed and flutters
         _capeX = Mathf.Lerp(_capeX, -(.05f + amt * .75f + Mathf.Sin(_idleT * 7f) * .05f * amt + (_rollT > 0 ? .4f : 0) + (!floor ? .5f : 0)), 1f - Mathf.Exp(-6f * dt));

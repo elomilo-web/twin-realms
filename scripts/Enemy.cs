@@ -19,6 +19,10 @@ public partial class Enemy : CharacterBody3D, IDamageable
     public bool Active { get; private set; } = true;
     public float RespawnTime;
     public Enemy? Owner_;
+    // ---- multiplayer: NetIdx = index in World.NetEnemies (overworld enemies, same order on every machine).
+    // A puppet mirrors the host's copy and forwards hits to it; a proxy is the invisible stand-in for a duel opponent.
+    public int NetIdx = -1; public bool Puppet, Proxy; public long DuelPeer;
+    long _lastPeer = -1; Vector3 _netPos; float _netYaw; bool _netHas; float _heroT; Node3D? _hero;
 
     State _state = State.Idle;
     float _timer, _stun, _flash, _gravity, _yaw, _deadT, _summonT, _breathT, _breathCd = 6f, _tick;
@@ -62,7 +66,8 @@ public partial class Enemy : CharacterBody3D, IDamageable
         if (Realm_() == 1 && Def.Color == 0x888888) col = col.Lerp(new Color(0.5f, 0.35f, 0.75f), 0.4f);
         _body = new Node3D { Name = "Body" }; AddChild(_body);
         var main = Mat(col); var dark = Mat(col.Darkened(0.5f)); var glow = Mat(wraith || Def.Emissive ? new Color(0.7f, 0.4f, 1f) : new Color(1f, 0.3f, 0.2f), 2f);
-        if (quad) BuildQuad(r, main, dark, glow, col);
+        if (Proxy) { }   // a duel stand-in has no body of its own: the remote hero is drawn instead
+        else if (quad) BuildQuad(r, main, dark, glow, col);
         else if (dragon)
         {
             Add(new CapsuleMesh { Radius = 1.6f, Height = 5.5f }, main, new Vector3(0, 2.2f, 0.4f), new Vector3(Mathf.Pi / 2, 0, 0));
@@ -89,7 +94,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
             Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, Position = new Vector3(0, labelY + 0.3f, 0), NoDepthTest = false,
             VisibilityRangeEnd = Def.Boss || dragon ? 90f : 26f, VisibilityRangeEndMargin = 5f, VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self,
         };
-        AddChild(_label);
+        AddChild(_label); if (Proxy) _label.Visible = false;
         _yaw = (float)GD.RandRange(0, Mathf.Tau);
         if (Def.Kind == "dragon") _state = State.Sleep;
         if (Arena || Summoned || FromDungeon) { _state = State.Chase; AnyRealm = true; }
@@ -276,7 +281,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
     };
 
     // ------------------------------------------------------------------ public API
-    public void Stun(float t) { if (Dead) return; _stun = Mathf.Max(_stun, t); if (_state != State.Sleep) _state = State.Stagger; }
+    public void Stun(float t) { if (Dead) return; if (Puppet) { if (DuelPeer == 0) Net.I?.SendEnemyStun(this, t); return; } _stun = Mathf.Max(_stun, t); if (_state != State.Sleep) _state = State.Stagger; }
     public void Ignite(float t, float dps) => Status.Add("burn", t / 3f, 1, dps);
     public void Slow(float t) => Status.Add("chill", t / 3f, 0, 0);
     public void Wake() { if (Def.Flee && !Dead) { _state = State.Flee; return; } if (_state == State.Sleep || _state == State.Idle || _state == State.Return) { _state = State.Chase; if (_state == State.Chase && Def.Kind == "dragon") Sfx.Play("roar"); } }
@@ -290,6 +295,13 @@ public partial class Enemy : CharacterBody3D, IDamageable
     /// <summary>Final damage of a hit from the player: type bonus, the target's amplifiers, the player's weaken, execute, then armor/magic resist with penetration.</summary>
     public float Incoming(HitInfo h)
     {
+        var TS = Game.TS; float raw = AttackerRaw(h) * Status.TakenMul;
+        if (h.Remote) return Dmg.Mitigate(raw, h.Type, ArmorNow, MrNow, ResPct(h.Type), h.APen, h.APenP, h.MPen, h.MPenP);   // a friend's hit: their penetration came with it
+        return h.IsPlayer ? Dmg.Mitigate(raw, h.Type, ArmorNow, MrNow, ResPct(h.Type), TS["armorPen"], TS["armorPenP"], TS["magicPen"], TS["magicPenP"]) : Dmg.Mitigate(raw, h.Type, ArmorNow, MrNow, ResPct(h.Type), 0, 0, 0, 0);
+    }
+    /// <summary>The attacker's side of the damage: our type bonus, weaken on us, execute and rage. The target's side (amplify, armour, resist) comes after.</summary>
+    float AttackerRaw(HitInfo h)
+    {
         float raw = h.Damage; var TS = Game.TS;
         if (h.IsPlayer)
         {
@@ -298,8 +310,15 @@ public partial class Enemy : CharacterBody3D, IDamageable
             if (h.Execute > 0 && Hp < MaxHp * .35f) raw *= 1 + h.Execute / 100f;
             if (TS["rage"] > 0 && Player.Instance != null) raw *= 1 + (1 - Player.Instance.Hp / Mathf.Max(1, Game.D.MaxHp())) * .5f * TS["rage"];
         }
-        raw *= Status.TakenMul;
-        return h.IsPlayer ? Dmg.Mitigate(raw, h.Type, ArmorNow, MrNow, ResPct(h.Type), TS["armorPen"], TS["armorPenP"], TS["magicPen"], TS["magicPenP"]) : Dmg.Mitigate(raw, h.Type, ArmorNow, MrNow, ResPct(h.Type), 0, 0, 0, 0);
+        return raw;
+    }
+    /// <summary>Every status this hit may cause, with our duration and strength bonuses already applied (sent with hits on puppets).</summary>
+    List<(string id, float chance, float durMul, float pow)> BakedStatuses(HitInfo h)
+    {
+        var TS = Game.TS; var l = new List<(string, float, float, float)>(); float durMul = 1 + TS["statusP"] / 100f;
+        if (h.Statuses != null) foreach (var (id, c, dm, pw) in h.Statuses) l.Add((id, c, dm * durMul, pw * (1 + TS[id + "P"] / 100f)));
+        foreach (var sd in Dmg.Statuses) { float c = TS[sd.Id + "Chance"] / 100f; if (c > 0) l.Add((sd.Id, c, durMul, TS[sd.Id + "P"] / 100f)); }
+        return l;
     }
     void ApplyStatuses(HitInfo h, float dealt)
     {
@@ -313,12 +332,32 @@ public partial class Enemy : CharacterBody3D, IDamageable
         if (h.IsPlayer) foreach (var sd in Dmg.Statuses) { float c = TS[sd.Id + "Chance"] / 100f; if (c > 0) Try(sd.Id, c, 1, 0); }   // passives like "bleedChance"
     }
 
+    /// <summary>
+    /// A hit on a puppet (a client's copy of a host enemy, or a duel stand-in): show the impact here at once,
+    /// then send our side of the damage to whoever owns the target.
+    /// </summary>
+    void PuppetHit(HitInfo h)
+    {
+        if (DuelPeer != 0 && !Net.InLiveDuel) return;
+        float est = Incoming(h); int dmg = Mathf.Max(1, Mathf.RoundToInt(est * (DuelPeer != 0 ? Net.PvpScale : 1f)));
+        if (h.IsPlayer) { var D = Game.D; var p = Player.Instance; if (p != null) { p.Hp = Mathf.Min(D.MaxHp(), p.Hp + dmg * (Game.TS["leech"] + h.Leech) / 100f); p.Mp = Mathf.Min(D.MaxMp(), p.Mp + dmg * Game.TS["mleech"] / 100f); } }
+        _flash = .12f;
+        if (!h.NoText) FloatText.Spawn(this, GlobalPosition + new Vector3(0, HeightM() + 0.3f, 0), h.Crit ? dmg + "!" : dmg.ToString(), h.Crit ? new Color(1, 0.82f, 0.3f) : h.Type != "physical" ? Dmg.TypeColor(h.Type) : Colors.White, h.Crit ? 1.25f : 1f);
+        Fx.Burst(GlobalPosition + new Vector3(0, HeightM() * 0.6f, 0), h.Crit ? new Color(1, 0.8f, 0.2f) : new Color(1, 0.3f, 0.2f), h.Crit ? 12 : 6, 4f, 0.35f, 0.08f);
+        var away = GlobalPosition - h.From; away.Y = 0; Feel.Load();
+        if (away.LengthSquared() > 0.001f) _recoilDir = Basis.Inverse() * away.Normalized();
+        _recoilK = Mathf.Clamp(h.Knock / 5f, 0.4f, 1.5f) * (h.Crit ? 1.3f : 1f); _recoilT = Feel.RecoilTime;
+        Net.I?.SendEnemyHit(this, h, h.IsPlayer ? AttackerRaw(h) : h.Damage, Net.PackStatuses(h.IsPlayer ? BakedStatuses(h) : h.Statuses));
+    }
+
     /// <summary>Stamps this enemy's damage type and on-hit statuses onto a hit against the player.</summary>
     public HitInfo OnHit(HitInfo h) { h.Type = Def.DmgType; h.Attacker ??= this; if (Def.OnHit != null) foreach (var kv in Def.OnHit) h.With(kv.Key, kv.Value); return h; }
 
     public void TakeHit(HitInfo h)
     {
         if (Dead) return;
+        if (Puppet) { PuppetHit(h); return; }
+        if (h.Remote) _lastPeer = h.Peer; else if (h.IsPlayer) _lastPeer = Net.MyId;
         float dealt = Incoming(h); int dmg = Mathf.Max(1, Mathf.RoundToInt(dealt));
         Hp -= dmg; _flash = 0.12f;
         if (h.IsPlayer) { var D = Game.D; var p = Player.Instance; if (p != null) { p.Hp = Mathf.Min(D.MaxHp(), p.Hp + dmg * (Game.TS["leech"] + h.Leech) / 100f); p.Mp = Mathf.Min(D.MaxMp(), p.Mp + dmg * Game.TS["mleech"] / 100f); } }
@@ -344,23 +383,40 @@ public partial class Enemy : CharacterBody3D, IDamageable
         _state = State.Dead; _deadT = 0; CollisionLayer = 0; CollisionMask = 1; _label.Visible = false;
         if (CurrentBoss == this) CurrentBoss = null;
         var D = Game.D; var p = Player.Instance;
-        D.Kills++;
+        // shared overworld kill in multiplayer: the host pays the killer and their party (experience, quests, materials, loot by party rules)
+        bool shared = Net.IsHost && NetIdx >= 0 && !Arena && !FromDungeon;
+        long killer = _lastPeer < 0 ? Net.MyId : _lastPeer;
         float lvlF = Level < D.Level - 4 ? 0.5f : 1f;
-        int xp = Mathf.RoundToInt(Def.Xp * (1 + 0.12f * (Level - 1)) * lvlF * (Summoned ? 0.3f : 1f));
+        int xp = Mathf.RoundToInt(Def.Xp * (1 + 0.12f * (Level - 1)) * (shared ? 1f : lvlF) * (Summoned ? 0.3f : 1f));
         if (DefOverride != null) xp = 0;
-        if (xp > 0 && p != null) p.AddXp(xp, GlobalPosition);
         Fx.Burst(GlobalPosition + Vector3.Up, Def.Kind == "wraith" ? new Color(0.7f, 0.4f, 1f) : new Color(0.8f, 0.2f, 0.2f), 16, 5f, 0.6f);
+        var mats = new System.Text.StringBuilder();
         if (Def.Drops != null && !Summoned)
-            foreach (var kv in Def.Drops) { int lo = kv.Value.Length > 0 ? kv.Value[0] : 1, hi = kv.Value.Length > 1 ? kv.Value[1] : lo; GatherDb.Give(kv.Key, GD.RandRange(lo, hi), GlobalPosition); }
+            foreach (var kv in Def.Drops)
+            {
+                int lo = kv.Value.Length > 0 ? kv.Value[0] : 1, hi = kv.Value.Length > 1 ? kv.Value[1] : lo, n = GD.RandRange(lo, hi);
+                if (shared) mats.Append(kv.Key).Append(':').Append(n).Append(';'); else GatherDb.Give(kv.Key, n, GlobalPosition);
+            }
+        if (shared) Net.I!.KillRewards(this, xp, killer, mats.ToString());
+        else { D.Kills++; if (xp > 0 && p != null) p.AddXp(xp, GlobalPosition); }
         if (!Summoned && DefOverride == null && !Def.NoLoot)
         {
             int gold = GD.RandRange(2 + Level, 6 + Level * 2) * (Def.Boss ? 12 : 1);
             float chance = Def.Boss ? 1f : Arena ? .12f : .2f + (Def.Realm == 1 ? .06f : 0f), bonus = (Def.Boss ? 2 : 0) + (Def.Realm == 1 ? 1 : 0);
-            Loot.DropFrom(GlobalPosition, Level, chance, bonus, gold, Def.Boss ? .6f : .07f);
-            if (Def.Boss) { Loot.DropFrom(GlobalPosition + new Vector3(1, 0, 1), Level, 1f, 3f, 0, 0f); Loot.DropFrom(GlobalPosition + new Vector3(-1, 0, -1), Level, .6f, 2f, 0, 0f); }
+            if (shared)
+            {
+                Net.I!.DropLoot(GlobalPosition, Level, chance, bonus, gold, Def.Boss ? .6f : .07f, killer);
+                if (Def.Boss) { Net.I.DropLoot(GlobalPosition, Level, 1f, 3f, 0, 0f, killer); Net.I.DropLoot(GlobalPosition, Level, .6f, 2f, 0, 0f, killer); }
+            }
+            else
+            {
+                Loot.DropFrom(GlobalPosition, Level, chance, bonus, gold, Def.Boss ? .6f : .07f);
+                if (Def.Boss) { Loot.DropFrom(GlobalPosition + new Vector3(1, 0, 1), Level, 1f, 3f, 0, 0f); Loot.DropFrom(GlobalPosition + new Vector3(-1, 0, -1), Level, .6f, 2f, 0, 0f); }
+            }
         }
+        _lastPeer = -1;
         if (Arena) Arenas.OnEnemyDown(this);
-        else Quests.OnKill(Type, Def.Realm, Def.Boss);
+        else if (!shared) Quests.OnKill(Type, Def.Realm, Def.Boss);
         if (Def.Boss) { Ui.Banner(Def.N, "has fallen"); Sfx.Play("level"); if (FromDungeon) Dungeon.OnBossDown(this); }
         if (!Arena && !Summoned && !FromDungeon && RespawnTime <= 0) RespawnTime = Def.Boss ? 600f : 260f;
         Game.Save();
@@ -380,7 +436,9 @@ public partial class Enemy : CharacterBody3D, IDamageable
         bool act = AnyRealm || Def.Realm == World.Realm;
         if (act != Active) { Active = act; Visible = act; if (!Dead) { CollisionLayer = act ? 2u : 0u; } }
         if (!Active) return;
-        var pl = Player.Instance;
+        // who to chase: our own hero, or in a hosted world the nearest living hero out in the overworld
+        _heroT -= dt; if (_heroT <= 0 || _hero == null || !IsInstanceValid(_hero)) { _heroT = .3f; _hero = PickHero(); }
+        var pl = _hero;
         float distP = pl == null ? 999f : (pl.GlobalPosition - GlobalPosition).Length();
         if (distP > (Def.Look != "" ? 100f : 150f) && !Arena && !Dead) { Visible = false; return; } // small wildlife is not worth drawing far away
         if (!Visible && Active) Visible = true;
@@ -421,12 +479,14 @@ public partial class Enemy : CharacterBody3D, IDamageable
             }
             if (_deadT > 8f)
             {
-                if (RespawnTime > 0) { Visible = false; if (_deadT > RespawnTime && distP > 95f) Respawn(); }
+                if (Puppet) Visible = false;   // the host decides when it comes back
+                else if (RespawnTime > 0) { Visible = false; if (_deadT > RespawnTime && distP > 95f) Respawn(); }
                 else QueueFree();
             }
             Velocity = new Vector3(0, v.Y, 0); MoveAndSlide();
             return;
         }
+        if (Puppet) { PuppetMove(dt); return; }
 
         // damage over time / slow
         // statuses: damage over time (mitigated by resistances only), freeze/stun, slows and roots
@@ -441,7 +501,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         if (Status.Stunned && !Def.Boss && _state != State.Sleep) { _stun = Mathf.Max(_stun, .1f); _state = State.Stagger; }
         float spdMul = Def.Boss ? Mathf.Max(.6f, Status.SpeedMul) : Status.SpeedMul;
 
-        Vector3 move = Vector3.Zero, toP = Vector3.Zero; float dist = 999f; bool plOk = pl != null && !pl.Dead;
+        Vector3 move = Vector3.Zero, toP = Vector3.Zero; float dist = 999f; bool plOk = pl is IDamageable pd && !pd.Dead;
         if (plOk) { toP = pl!.GlobalPosition - GlobalPosition; toP.Y = 0; dist = toP.Length(); }
         float yawToP = plOk ? Util.YawTo(toP.X, toP.Z) : _yaw;
         bool ranged = Def.Ranged != null;
@@ -508,8 +568,8 @@ public partial class Enemy : CharacterBody3D, IDamageable
                         }
                         else if (dist - 0.4f <= Def.Reach + 0.5f)
                         {
-                            if (Def.Slam) { Fx.Ring(GlobalPosition + Vector3.Up * 0.1f, Def.Reach + 0.8f, new Color(1, 0.5f, 0.2f)); Player.Instance?.Rig?.Shake(0.2f); }
-                            pl!.TakeHit(OnHit(new HitInfo { Damage = Damage, From = GlobalPosition, Knock = Def.Slam ? 9f : 4f, Attacker = this }));
+                            if (Def.Slam) { Fx.Ring(GlobalPosition + Vector3.Up * 0.1f, Def.Reach + 0.8f, new Color(1, 0.5f, 0.2f)); if (pl is Player) Player.Instance?.Rig?.Shake(0.2f); }
+                            ((IDamageable)pl!).TakeHit(OnHit(new HitInfo { Damage = Damage, From = GlobalPosition, Knock = Def.Slam ? 9f : 4f, Attacker = this }));
                         }
                     }
                     _state = State.Recover; _timer = Def.Cd * 0.6f;
@@ -546,7 +606,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
                     {
                         _tick = 0;
                         if (plOk && dist < 22f && Mathf.Abs(Util.AngDiff(_yaw, yawToP)) < 0.55f)
-                            pl!.TakeHit(OnHit(new HitInfo { Damage = Damage * 0.35f, From = GlobalPosition, Knock = 1f, NoBlock = true, IsProjectile = true, Attacker = this }));
+                            ((IDamageable)pl!).TakeHit(OnHit(new HitInfo { Damage = Damage * 0.35f, From = GlobalPosition, Knock = 1f, NoBlock = true, IsProjectile = true, Attacker = this }));
                     }
                     break;
                 }
@@ -564,6 +624,61 @@ public partial class Enemy : CharacterBody3D, IDamageable
         {
             // gait: diagonal pairs swing together, stride speed follows ground speed
             float hs = new Vector2(Velocity.X, Velocity.Z).Length(), amt = Mathf.Clamp(hs / Mathf.Max(1f, Def.Spd * 0.6f), 0, 1);
+            _legPh = Mathf.Wrap(_legPh + hs * dt * 2.2f / Mathf.Max(0.25f, Def.R), 0, Mathf.Tau);
+            for (int i = 0; i < _legs.Count; i++) { float ph = _legPh + ((i == 0 || i == 3) ? 0 : Mathf.Pi); _legs[i].Rotation = new Vector3(Mathf.Sin(ph) * 0.65f * amt, 0, 0); }
+        }
+    }
+
+    // ------------------------------------------------------------------ multiplayer
+    Node3D? PickHero()
+    {
+        var me = Player.Instance;
+        if (!Net.Active || Puppet || Arena || FromDungeon) return me;
+        Node3D? best = null; float bd = float.MaxValue;
+        foreach (var h in Net.WorldHeroes()) { float d = h.GlobalPosition.DistanceSquaredTo(GlobalPosition); if (d < bd) { bd = d; best = h; } }
+        return best ?? me;
+    }
+
+    public const int NetStride = 8;   // index + x, y, z, yaw, hp, state, wind-up progress
+    /// <summary>Host: this enemy's state for a snapshot.</summary>
+    public void NetWrite(List<float> b)
+    {
+        var p = GlobalPosition; b.Add(p.X); b.Add(p.Y); b.Add(p.Z); b.Add(_yaw); b.Add(Hp); b.Add((float)_state);
+        b.Add(_state == State.Wind ? Mathf.Clamp(_timer / Mathf.Max(.01f, Def.Wind), 0, 1) : 1f);
+    }
+    /// <summary>Client: apply a snapshot from the host.</summary>
+    public void NetRead(float[] f, int k)
+    {
+        _netPos = new Vector3(f[k], f[k + 1], f[k + 2]); _netYaw = f[k + 3]; Hp = f[k + 4]; var st = (State)(int)f[k + 5];
+        if (!_netHas) { _netHas = true; GlobalPosition = _netPos; _yaw = _netYaw; }
+        if (st == State.Dead) { if (!Dead) PuppetDie(); return; }
+        if (Dead) { Respawn(); GlobalPosition = _netPos; }
+        _state = st; if (st == State.Wind) _timer = f[k + 6] * Def.Wind;
+        if (st == State.Breath) _breathT = 1.2f;
+    }
+    void PuppetDie()
+    {
+        _state = State.Dead; _deadT = 0; CollisionLayer = 0; _label.Visible = false; Hp = 0;
+        if (CurrentBoss == this) CurrentBoss = null; RespawnTime = 1e9f;
+        Fx.Burst(GlobalPosition + Vector3.Up, Def.Kind == "wraith" ? new Color(0.7f, 0.4f, 1f) : new Color(0.8f, 0.2f, 0.2f), 16, 5f, 0.6f);
+    }
+    /// <summary>Client puppet: glide toward the host's position and heading; legs follow the actual speed.</summary>
+    void PuppetMove(float dt)
+    {
+        if (DuelPeer != 0)
+        {
+            var h = Net.I?.HeroOf(DuelPeer);
+            if (h != null) { GlobalPosition = h.GlobalPosition; Hp = h.Hp; MaxHp = Mathf.Max(1, h.MaxHp); Visible = true; }
+            return;
+        }
+        if (!_netHas) return;   // no word from the host yet (too far away): stay where the world placed us
+        var before = GlobalPosition;
+        GlobalPosition = before.DistanceTo(_netPos) > 8f ? _netPos : before.Lerp(_netPos, 1f - Mathf.Exp(-10f * dt));
+        _yaw = Mathf.LerpAngle(_yaw, _netYaw, 1f - Mathf.Exp(-10f * dt)); Rotation = new Vector3(0, _yaw, 0);
+        if (_state == State.Wind) _timer = Mathf.Max(0, _timer - dt);
+        if (_legs.Count > 0)
+        {
+            float hs = new Vector2(GlobalPosition.X - before.X, GlobalPosition.Z - before.Z).Length() / Mathf.Max(dt, .001f), amt = Mathf.Clamp(hs / Mathf.Max(1f, Def.Spd * 0.6f), 0, 1);
             _legPh = Mathf.Wrap(_legPh + hs * dt * 2.2f / Mathf.Max(0.25f, Def.R), 0, Mathf.Tau);
             for (int i = 0; i < _legs.Count; i++) { float ph = _legPh + ((i == 0 || i == 3) ? 0 : Mathf.Pi); _legs[i].Rotation = new Vector3(Mathf.Sin(ph) * 0.65f * amt, 0, 0); }
         }

@@ -6,7 +6,9 @@ namespace TwinRealms;
 public partial class Loot : Node3D
 {
     public int Gold; public Item? Item; public string? Pot;   // "hp" or "mp"
-    float _t;
+    // multiplayer: a drop the host keeps track of (NetId > 0). Owner 0 = anyone may take it.
+    public int NetId; public long Owner; public string OwnerName = "";
+    float _t, _claimT;
 
     public static void Drop(Vector3 pos, int gold = 0, Item? item = null, string? pot = null)
     {
@@ -30,6 +32,9 @@ public partial class Loot : Node3D
         Mesh mesh = Gold > 0 ? new SphereMesh { Radius = .15f, Height = .3f, RadialSegments = 8, Rings = 4 } : Pot != null ? new CylinderMesh { TopRadius = .1f, BottomRadius = .13f, Height = .3f } : new BoxMesh { Size = new Vector3(.3f, .3f, .3f) };
         AddChild(new MeshInstance3D { Mesh = mesh, MaterialOverride = mat });
         AddChild(new OmniLight3D { LightColor = c, OmniRange = 4f, LightEnergy = .6f });
+        // a drop reserved for someone else shows whose it is
+        if (NetId > 0 && Owner != 0 && Owner != Net.MyId)
+            AddChild(new Label3D { Text = OwnerName + "'s", FontSize = 26, OutlineSize = 7, PixelSize = .005f, Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, Position = new Vector3(0, .55f, 0), Modulate = new Color(.8f, .85f, 1f, .85f) });
     }
 
     public override void _PhysicsProcess(double delta)
@@ -46,6 +51,13 @@ public partial class Loot : Node3D
 
     void Collect(Player pl)
     {
+        if (NetId > 0)
+        {
+            // shared drop: ask the host (once a second while standing on it); it removes the drop for everyone and pays us
+            _claimT -= (float)GetPhysicsProcessDeltaTime(); if (_claimT > 0) return; _claimT = 1f;
+            if (Net.Active) Net.I!.Claim(this); else QueueFree();
+            return;
+        }
         var D = Game.D;
         if (Gold > 0) { D.Gold += Gold; Ui.Note("+" + Gold + " gold", new Color(1, .85f, .3f)); Sfx.Play("coin"); }
         else if (Pot != null) { if (Pot == "hp") D.HpPot++; else D.MpPot++; Ui.Note(Pot == "hp" ? "Health potion" : "Mana potion", Pot == "hp" ? new Color(1, .5f, .5f) : new Color(.5f, .7f, 1f)); Sfx.Play("pickup"); }

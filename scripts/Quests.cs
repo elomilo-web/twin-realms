@@ -61,7 +61,7 @@ public static class Respawner
     {
         var p = Player.Instance; if (p == null) return;
         if (Dungeon.Active) { Dungeon.Leave(true); Ui.Note("You were dragged out of the dungeon", new Color(1f, .6f, .5f)); return; }
-        World.ForceRealm(0);
+        if (!Net.Active) World.ForceRealm(0);   // in multiplayer the realm belongs to the whole lobby
         var pos = World.OnGround(Game.D.PosX, Game.D.PosZ, 0.5f); if (new Vector2(Game.D.PosX, Game.D.PosZ).Length() < 1f) pos = World.OnGround(0, 9, 0.5f);
         p.Revive(pos); p.Teleport(pos, 0f); Ui.Note("You wake at your last resting place", new Color(.8f, .8f, 1f));
     }

@@ -33,7 +33,9 @@ public partial class Bot : Node
     void Heal() { if (P != null) { P.Hp = Game.D.MaxHp(); P.Mp = Game.D.MaxMp(); P.St = Game.D.MaxSt(); } }
 
     static void Press(string action, bool on) { if (on) Input.ActionPress(action); else Input.ActionRelease(action); }
-    static void Mouse(MouseButton b, bool down) => Input.ParseInputEvent(new InputEventMouseButton { ButtonIndex = b, Pressed = down, Position = new Vector2(640, 360) });
+    // never click while a menu is open: a stray click at the centre could hit "Quit to title"
+    static void Mouse(MouseButton b, bool down) { if (down && Ui.AnyOpen) { GD.Print("[BOT] closing menu " + Ui.I!.PanelName + " before clicking"); Ui.I.Close(); } MouseRaw(b, down); }
+    static void MouseRaw(MouseButton b, bool down) => Input.ParseInputEvent(new InputEventMouseButton { ButtonIndex = b, Pressed = down, Position = new Vector2(640, 360) });
     static async Task<T> Safe<T>(Func<Task<T>> f, T dflt, Action<string> err) { try { return await f(); } catch (Exception e) { err(e.Message); return dflt; } }
 
     Enemy? Nearest(Func<Enemy, bool>? f = null)

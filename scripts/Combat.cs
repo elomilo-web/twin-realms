@@ -19,6 +19,8 @@ public class HitInfo
     public float Leech;        // % of damage returned as health (skill supports)
     public float Execute;      // +% damage against targets below 35% health
     public bool NoText;        // damage-over-time ticks use their own small numbers
+    // multiplayer: a friend's hit forwarded to the host (their bonuses already applied, their penetration carried along), or a duel hit
+    public bool Remote, Duel; public long Peer; public float APen, APenP, MPen, MPenP;
     public HitInfo With(string id, float chance, float durMul = 1, float pow = 0) { (Statuses ??= new()).Add((id, chance, durMul, pow)); return this; }
 }
 

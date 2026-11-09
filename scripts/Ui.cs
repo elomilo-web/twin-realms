@@ -9,6 +9,7 @@ public partial class Ui : CanvasLayer
 {
     public static Ui? I;
     public static bool AnyOpen => I != null && I._panel != null;
+    public string PanelName => _panelName;
     public static Action<string, string, string>? OnNew; public static Action? OnContinue;
     public static bool InGame;
 
@@ -46,8 +47,10 @@ public partial class Ui : CanvasLayer
         _banner = Lbl("", 52, UiTheme.Title); _banner.AddThemeColorOverride("font_outline_color", new Color(0.02f, 0.1f, 0.2f)); _banner.AddThemeConstantOverride("outline_size", 10); _banner.HorizontalAlignment = HorizontalAlignment.Center; _banner.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.CenterTop); _banner.OffsetTop = 130; _banner.OffsetLeft = -400; _banner.OffsetRight = 400; _banner.Modulate = new Color(1, 1, 1, 0);
         _bannerSub = Lbl("", 20, UiTheme.Accent); _bannerSub.HorizontalAlignment = HorizontalAlignment.Center; _bannerSub.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.CenterTop); _bannerSub.OffsetTop = 200; _bannerSub.OffsetLeft = -400; _bannerSub.OffsetRight = 400; _bannerSub.Modulate = new Color(1, 1, 1, 0);
         _flash = new ColorRect { Color = new Color(1, 1, 1, 0), MouseFilter = Control.MouseFilterEnum.Ignore }; _flash.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); AddChild(_flash);
-        Game.Changed += () => { if (_rebuild != null && _panel != null) _rebuild(); };
+        Game.Changed += OnChanged;
     }
+    void OnChanged() { if (_rebuild != null && _panel != null) _rebuild(); }
+    public override void _ExitTree() { Game.Changed -= OnChanged; if (I == this) I = null; }
 
     public override void _Process(double delta) => Feel.Tick(); // Ui always processes, so hit-stop always ends
 
@@ -107,7 +110,7 @@ public partial class Ui : CanvasLayer
         AddChild(root); _panel = root;
         // system-window pop: fade in and grow from the centre
         root.Modulate = new Color(1, 1, 1, 0); pc.PivotOffset = pc.Size / 2; pc.Scale = new Vector2(1f, 0.92f);
-        var tw = root.CreateTween().SetParallel(); tw.TweenProperty(root, "modulate:a", 1f, UiTheme.OpenTime); tw.TweenProperty(pc, "scale", Vector2.One, UiTheme.OpenTime).SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);        if (name != "title") { GetTree().Paused = true; Input.MouseMode = Input.MouseModeEnum.Visible; }
+        var tw = root.CreateTween().SetParallel(); tw.TweenProperty(root, "modulate:a", 1f, UiTheme.OpenTime); tw.TweenProperty(pc, "scale", Vector2.One, UiTheme.OpenTime).SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);        if (name != "title") { GetTree().Paused = !Net.Active; /* a shared world never pauses */ Input.MouseMode = Input.MouseModeEnum.Visible; }
         return v;
     }
     public void Close() { CloseNoUnpause(); if (InGame) { GetTree().Paused = false; Input.MouseMode = Input.MouseModeEnum.Captured; } }
@@ -346,9 +349,10 @@ public partial class Ui : CanvasLayer
     // ---------------------------------------------------------------- settings, pause
     public void OpenPause()
     {
-        var v = Frame("pause", "Paused", new Vector2(420, 360), OpenPause);
+        var v = Frame("pause", Net.Active ? "Menu" : "Paused", new Vector2(420, 400), OpenPause);
         v.AddChild(Btn("Resume", Close)); v.AddChild(Btn("Character (attributes)", OpenCharacterPanel)); v.AddChild(Btn("Save game", () => { Game.Save(); Note("Game saved", Gold); }));
-        v.AddChild(Btn("Settings", OpenSettings)); v.AddChild(Btn("Quit to title", () => { Game.Save(); GetTree().Paused = false; InGame = false; GetTree().ReloadCurrentScene(); }));
+        v.AddChild(Btn("Multiplayer" + (Net.Active ? $" ({Net.I!.Players.Count} online)" : ""), OpenMultiplayer));
+        v.AddChild(Btn("Settings", OpenSettings)); v.AddChild(Btn("Quit to title", () => { GD.Print("[UI] quit to title"); Game.Save(); Net.I?.Shutdown(); GetTree().Paused = false; InGame = false; GetTree().ReloadCurrentScene(); }));
         Row(v, "Controls: WASD move, Shift sprint, Space jump, C roll, LMB strike (hold for power), RMB guard, 1-6 skills, Tab lock on (again: next target), Q release, H/G potions, E interact, R shift realm, T horse, I pack, J journal, M map, K skill tree, L skills.", Dim, 14);
     }
     public void OpenSettings()
@@ -369,7 +373,9 @@ public partial class Ui : CanvasLayer
         var top = new HBoxContainer(); v.AddChild(top); top.AddThemeConstantOverride("separation", 12);
         Lbl("Two worlds. One hero. Press R to cross between Light and Shadow.", 16, Dim, top).SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         if (Game.HasSave()) top.AddChild(Btn("Continue saved game", () => { CloseNoUnpause(); OnContinue?.Invoke(); }));
+        top.AddChild(Btn("Multiplayer", OpenMultiplayer));
         top.AddChild(Btn("Settings", OpenSettings));
+        if (Net.LastNote != "") Row(v, Net.LastNote, new Color(1f, .7f, .5f), 15);
         var cols = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; cols.AddThemeConstantOverride("separation", 16); v.AddChild(cols);
         // ---- races
         var rc = new VBoxContainer { CustomMinimumSize = new Vector2(190, 0) }; cols.AddChild(rc); Lbl("RACE", 15, UiTheme.Accent, rc);
@@ -441,12 +447,19 @@ public partial class TreeView : Control
             DrawCircle(p, r, on ? n.Col : n.Col.Darkened(n.Type == "start" ? .3f : .65f));
             if (n.Type == "start" && n.Id == _start) DrawArc(p, r + 7, 0, Mathf.Tau, 32, UiTheme.Highlight, 2.5f);
             if (_hover == n.Id) DrawArc(p, r + 5, 0, Mathf.Tau, 24, Colors.White, 2f);
-            // labels: class starts always, keystones and notables when zoomed in
-            if (n.Type == "start" || (n.Type == "key" && _zoom > 1.6f) || (n.Type == "notable" && _zoom > 3.6f))
-            {
-                int fs = n.Type == "start" ? 15 : n.Type == "key" ? 13 : 12; var col = n.Type == "start" ? n.Col.Lightened(.3f) : n.Type == "key" ? new Color(1f, .85f, .5f) : new Color(.8f, .85f, .95f);
-                DrawStringOutline(F, p + new Vector2(-80, -r - 6), n.Name, HorizontalAlignment.Center, 160, fs, 4, new Color(0, 0, 0, .9f)); DrawString(F, p + new Vector2(-80, -r - 6), n.Name, HorizontalAlignment.Center, 160, fs, col);
-            }
+        }
+        // labels in a second pass so no circle is drawn over them: class starts always, keystones and notables when zoomed in.
+        // Each sits on a dark tag under its node and is kept inside the view.
+        foreach (var n in TreeDb.Nodes)
+        {
+            if (!(n.Type == "start" || (n.Type == "key" && _zoom > 1.6f) || (n.Type == "notable" && _zoom > 3.6f))) continue;
+            var p = ToScreen(n); if (p.X < -40 || p.Y < -40 || p.X > Size.X + 40 || p.Y > Size.Y + 40) continue;
+            float r = Rad(n); int fs = n.Type == "start" ? 15 : n.Type == "key" ? 13 : 12;
+            var col = n.Type == "start" ? n.Col.Lightened(.35f) : n.Type == "key" ? new Color(1f, .85f, .5f) : new Color(.8f, .85f, .95f);
+            float w = F.GetStringSize(n.Name, HorizontalAlignment.Left, -1, fs).X;
+            var tl = new Vector2(Mathf.Clamp(p.X - w / 2, 4, Mathf.Max(4, Size.X - w - 4)), Mathf.Clamp(p.Y + r + 6, 4, Size.Y - fs - 8));
+            DrawRect(new Rect2(tl - new Vector2(4, 1), new Vector2(w + 8, fs + 6)), new Color(0, 0, 0, .72f));
+            DrawString(F, tl + new Vector2(0, fs), n.Name, HorizontalAlignment.Left, -1, fs, col);
         }
     }
     int Pick(Vector2 pos) { int best = -1; float bd = 1e9f; foreach (var n in TreeDb.Nodes) { float d = ToScreen(n).DistanceTo(pos); if (d < Rad(n) + 6 && d < bd) { bd = d; best = n.Id; } } return best; }

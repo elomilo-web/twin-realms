@@ -20,6 +20,7 @@ public class PlayerStats
     public int Level = 1, Xp = 0, Gold = 60, AttrPts = 0, SkillPts = 3, Kills = 0;
     public int Str = 5, Dex = 5, Vit = 5, Mag = 5;
     public int HpPot = 3, MpPot = 2, BestWave = 0, BestDuel = 0, Deepest = 0;
+    public int DuelWins = 0;                              // duels won against friends
     public bool Horse = false;
     public float PosX = 0, PosZ = 6, Time = 0.33f;
     public Dictionary<string, Item?> Eq = new() { ["weapon"] = null, ["armor"] = null, ["shield"] = null, ["trinket"] = null };

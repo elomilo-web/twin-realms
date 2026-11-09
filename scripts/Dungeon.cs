@@ -26,7 +26,7 @@ public static class Dungeon
     {
         var w = World.I; if (w == null || Player.Instance == null) return;
         var poi = World.GetPoi(key);
-        if (!Active) { World.ForceRealm(0); if (Player.Instance.Mounted) Player.Instance.ToggleMount(true); if (poi != null) { var dir = new Vector2(-poi.Door.X, -poi.Door.Z).Normalized(); _ret = World.OnGround(poi.Door.X + dir.X * 7f, poi.Door.Z + dir.Y * 7f, 0.6f); } else _ret = new Vector3(0, 3, 9); }
+        if (!Active) { if (!Net.Active) World.ForceRealm(0); if (Player.Instance.Mounted) Player.Instance.ToggleMount(true); if (poi != null) { var dir = new Vector2(-poi.Door.X, -poi.Door.Z).Normalized(); _ret = World.OnGround(poi.Door.X + dir.X * 7f, poi.Door.Z + dir.Y * 7f, 0.6f); } else _ret = new Vector3(0, 3, 9); }
         else Teardown();
         Key = key; Depth = depth; Active = true;
         Generate(key, depth, poi?.Lvl ?? 3);
@@ -45,6 +45,7 @@ public static class Dungeon
         if (!Active) return;
         Teardown(); Active = false;
         var w = World.I; w?.SetDungeonLook(false); w?.SetOverworldActive(true);
+        if (Net.Active && World.Realm != Net.I!.Realm) World.ForceRealm(Net.I.Realm);   // the lobby may have shifted while we were below
         if (Player.Instance != null) { if (died) Player.Instance.Revive(_ret); else Player.Instance.Teleport(_ret, 0f); }
         if (!died) { Ui.Flash(Colors.White); Ui.Note("You emerge into daylight", new Color(.8f, .75f, .65f)); }
         Game.Save();

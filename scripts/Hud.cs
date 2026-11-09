@@ -105,6 +105,7 @@ public partial class HudCanvas : Control
             float tx = sz.X / 2 - tw / 2, ic = Mathf.Max(18, u * 1.6f);
             foreach (var s in tgt.Status.List) { StatusChip(new Vector2(tx, ty + 14 + Mathf.Max(7, u * .75f)), ic, s.Def.Col, s.Def.Name[..1], s.T, s.Stacks); tx += ic + 3; }
         }
+        if (Net.Active) DrawLobby(sz, u, pad, fs(1f));
         // crosshair
         DrawCircle(sz / 2, 3f, new Color(1, 1, 1, .75f));
         // prompt
@@ -163,6 +164,33 @@ public partial class HudCanvas : Control
     }
 
     /// <summary>Glass box like the menus: translucent navy, cyan edge, bright corner ticks.</summary>
+    /// <summary>Multiplayer: party member frames (or everyone online when not in a party) on the left, and the duel status.</summary>
+    void DrawLobby(Vector2 sz, float u, float pad, int f)
+    {
+        var net = Net.I!; var party = net.MyParty;
+        var ids = new System.Collections.Generic.List<long>(); if (party != null) ids.AddRange(party.Members); else ids.AddRange(net.Players.Keys);
+        ids.Remove(Net.MyId);
+        float w = Mathf.Max(200, u * 15), x = pad, y = sz.Y * .42f;
+        Txt(new Vector2(x, y), party != null ? "PARTY  ·  " + Net.LootModeName(party.Loot).Split(' ')[0].ToUpper() + " LOOT" : $"ONLINE {net.Players.Count}  ·  {(Net.IsHost ? "HOSTING" : "IN " + net.NameOf(1).ToUpper() + "'S WORLD")}", Mathf.Max(11, f - 2), UiTheme.Accent);
+        y += 8;
+        foreach (var id in ids)
+        {
+            if (!net.Players.TryGetValue(id, out var p)) continue;
+            Glass(new Rect2(x, y, w, f * 2.6f), false);
+            bool lead = party != null && party.Leader == id;
+            Txt(new Vector2(x + 8, y + f + 3), (lead ? "* " : "") + p.Name, f, party != null ? new Color(.6f, 1f, .65f) : Colors.White);
+            Txt(new Vector2(x + 8, y + f + 3), p.Zone == 1 ? "dungeon" : p.Zone == 2 ? "arena" : $"Lv {p.Level}", Mathf.Max(10, f - 3), UiTheme.Dim, HorizontalAlignment.Right, w - 16);
+            float hf = Mathf.Clamp(p.Hp / Mathf.Max(1, p.MaxHp), 0, 1);
+            SlantBar(new Rect2(x + 8, y + f + 9, w - 16, 6), hf, hf > .5f ? new Color("5be37d") : hf > .25f ? new Color("f2d14b") : new Color("ff5a4f"), 4, 0);
+            y += f * 2.6f + 5;
+        }
+        if (net.Duel is { } d && Net.InDuel)
+        {
+            string s = d.Live ? $"DUEL  vs  {net.NameOf(net.Opponent).ToUpper()}" : $"DUEL STARTS IN {Mathf.CeilToInt(d.Countdown)}";
+            Txt(new Vector2(sz.X / 2 - u * 15, sz.Y * .2f), s, Mathf.Max(14, (int)(f * 1.3f)), new Color(1f, .6f, .4f), HorizontalAlignment.Center, u * 30);
+        }
+    }
+
     void Glass(Rect2 r, bool corners = true)
     {
         DrawRect(r, UiTheme.Panel with { A = .62f }); DrawRect(r, UiTheme.AccentSoft, false, 1f);

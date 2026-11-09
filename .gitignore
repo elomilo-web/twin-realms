@@ -10,3 +10,5 @@ bot_out/
 bot_log.txt
 observe_out/
 observe_log.txt
+mp_*_log.txt
+mp_host_err.txt

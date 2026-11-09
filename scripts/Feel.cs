@@ -47,7 +47,7 @@ public static class Feel
     /// <summary>Freeze the game for a few hundredths of a second. Overlapping calls extend to the latest end, never stack.</summary>
     public static void HitStop(float seconds)
     {
-        Load(); seconds = Mathf.Min(seconds, MaxStop); if (seconds <= 0) return;
+        Load(); seconds = Mathf.Min(seconds, MaxStop); if (seconds <= 0 || Net.Active) return;   // never slow time in a shared world
         if (!_on && !Mathf.IsEqualApprox((float)Engine.TimeScale, 1f)) return; // someone else owns time scale
         ulong end = Time.GetTicksMsec() + (ulong)(seconds * 1000f);
         if (end > _until) _until = end;

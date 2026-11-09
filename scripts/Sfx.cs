@@ -21,6 +21,8 @@ public partial class Sfx : Node
         AddChild(_ambL); AddChild(_ambD); _ambL.Play(); _ambD.Play();
         ApplyVolumes();
     }
+    // "Quit to title" reloads the scene; forget the old players so nothing touches them after they are freed
+    public override void _ExitTree() { if (I == this) I = null; }
 
     static AudioStreamWav Make(float[] s, bool loop = false)
     {
