@@ -8,7 +8,7 @@ namespace TwinRealms;
 /// <summary>Builds the hand-placed overworld: Oakhaven, the arena, dungeon mouths, the dragon lair, standing stones, obelisks, chests, camps and NPCs.</summary>
 public static class Builder
 {
-    static StandardMaterial3D Wall = null!, Roof = null!, RoofB = null!, Wood = null!, Stone = null!, Dark = null!, Cloth = null!, Hay = null!, Sand = null!, Rock = null!, Metal = null!, Crim = null!, Gold = null!, Beam = null!;
+    static StandardMaterial3D Post = null!, Wall = null!, Roof = null!, RoofB = null!, Wood = null!, Stone = null!, Dark = null!, Cloth = null!, Hay = null!, Sand = null!, Rock = null!, Metal = null!, Crim = null!, Gold = null!, Beam = null!;
     static Func<float> _rg = World.Rng(424242u);
     static float R(float a, float b) => a + _rg() * (b - a);
     const float Tau = Mathf.Tau;
@@ -21,6 +21,12 @@ public static class Builder
         Dark = World.Mat(new Color(.23f, .16f, .1f), new Color(.1f, .07f, .14f)); Cloth = World.Mat(new Color(.69f, .23f, .23f), new Color(.29f, .11f, .36f)); Hay = World.Mat(new Color(.79f, .66f, .29f), new Color(.29f, .23f, .35f));
         Sand = World.Mat(new Color(.84f, .75f, .53f), new Color(.23f, .18f, .28f), 1f); Rock = World.Mat(new Color(.54f, .54f, .52f), new Color(.23f, .19f, .28f), 1f); Gold = World.Mat(new Color(.88f, .69f, .24f), new Color(.54f, .35f, .66f), .4f, .8f);
         Metal = World.Mat(new Color(.48f, .5f, .53f), new Color(.29f, .27f, .38f), .4f, .7f); Crim = World.Mat(new Color(.6f, .12f, .16f), new Color(.23f, .08f, .35f)); Beam = World.Mat(new Color(.29f, .21f, .14f), new Color(.1f, .08f, .13f));
+        // procedural surface detail (scripts/Gfx.cs): plaster, stone courses, planks, wood grain, shingles, rock, sand, cloth
+        Gfx.Tex(Wall, "plaster", 2.5f, true, .6f); Gfx.Tex(Stone, "stone", 2.6f); Gfx.Tex(Wood, "planks", 1.6f); Gfx.Tex(Beam, "grain", 1.2f); Gfx.Tex(Dark, "grain", 1.2f);
+        Gfx.Tex(Roof, "shingle", 2.4f, false, 1.4f); Gfx.Tex(RoofB, "shingle", 2.4f, false, 1.4f); Gfx.Tex(Rock, "rock", 4f, true, 1.2f); Gfx.Tex(Sand, "noise", 3f);
+        Gfx.Tex(Cloth, "cloth", .8f); Gfx.Tex(Hay, "grain", .8f); Gfx.Tex(Crim, "cloth", .8f);
+        Post = World.Mat(new Color(.2f, .15f, .1f), new Color(.1f, .07f, .14f)); Gfx.Tex(Post, "grain", 1.2f);
+        Post.DistanceFadeMode = BaseMaterial3D.DistanceFadeModeEnum.PixelDither; Post.DistanceFadeMinDistance = 2f; Post.DistanceFadeMaxDistance = 6.5f;
         Village(over); Arena(over); foreach (var p in World.Pois) if (p.Dun != null) Entrance(over, p);
         Lair(over); Stones(over); Obelisks(over); Chests(over); Npcs(over); Spawns(over);
     }
@@ -55,8 +61,12 @@ public static class Builder
         Box(g, new Vector3(w, h, d), new Vector3(0, h / 2 + .5f, 0), Wall);
         Box(g, new Vector3(w + .14f, .24f, d + .14f), new Vector3(0, top - .12f, 0), Beam); Box(g, new Vector3(w + .12f, .22f, d + .12f), new Vector3(0, 1.12f, 0), Beam);
         foreach (var cx in new[] { -1f, 1f }) foreach (var cz in new[] { -1f, 1f }) Box(g, new Vector3(.26f, h, .26f), new Vector3(cx * w / 2, h / 2 + .5f, cz * d / 2), Beam);
-        g.AddChild(new MeshInstance3D { Mesh = new PrismMesh { Size = new Vector3(w + 1.6f, rh, d + 1.4f) }, MaterialOverride = rf, Position = new Vector3(0, top + rh / 2 - .1f, 0) });
+        // gable roof with thickness, overhang, plaster gables and a ridge beam (the old one was a solid prism)
+        var roof = new MeshInstance3D { Mesh = Gfx.GableRoof(w, d, rh, .8f, .7f, .2f), Position = new Vector3(0, top - .02f, 0) };
+        roof.SetSurfaceOverrideMaterial(0, rf); roof.SetSurfaceOverrideMaterial(1, Wall); g.AddChild(roof);
+        Box(g, new Vector3(.28f, .26f, d + 1.55f), new Vector3(0, top + rh + .2f, 0), Beam);
         Box(g, new Vector3(.85f, rh + 1.9f, .85f), new Vector3(w / 4, top + (rh + 1.9f) / 2 - .4f, -d / 4), Stone);
+        Box(g, new Vector3(1.05f, .16f, 1.05f), new Vector3(w / 4, top + rh + 1.5f, -d / 4), Stone);
         float dz = d / 2 + .02f;
         Box(g, new Vector3(1.1f, 2.15f, .12f), new Vector3(0, 1.55f, dz), Wood); Box(g, new Vector3(1.4f, .22f, .2f), new Vector3(0, 2.7f, dz), Beam);
         Box(g, new Vector3(2.0f, .28f, 1.0f), new Vector3(0, .14f, d / 2 + .6f), Stone);
@@ -77,7 +87,7 @@ public static class Builder
         (float x, float z, float w, float d, float h, float r)[] hs = { (-15, -9, 7, 6, 3.2f, 0), (-18, 7, 6, 6, 3f, P / 2), (15, -10, 7, 6, 3.3f, 0), (18, 6, 6, 7, 3.1f, -P / 2), (-3, -21, 9, 6.5f, 4.2f, 0), (8, -20, 6, 6, 3f, 0), (-7, 19, 6.5f, 6, 3.1f, P), (9, 19, 7, 6, 3.2f, P) };
         foreach (var a in hs) House(over, a.x, a.z, a.w, a.d, a.h, a.r);
         // plaza cobbles
-        var cob = World.Mat(new Color(.5f, .48f, .45f), new Color(.2f, .17f, .25f), 1f);
+        var cob = World.Mat(new Color(.62f, .59f, .55f), new Color(.2f, .17f, .25f), 1f); Gfx.Tex(cob, "cobble", 3.2f, true, 1.6f);
         over.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 9f, BottomRadius = 9f, Height = .06f, RadialSegments = 32 }, MaterialOverride = cob, Position = World.OnGround(0, 0, .03f) });
         // well
         var well = Group(over, 0, 0); Cyl(well, 1.5f, .9f, new Vector3(0, .45f, 0), Stone, true); Cyl(well, 1.2f, .05f, new Vector3(0, .86f, 0), World.Mat(new Color(.04f, .1f, .16f)));
@@ -91,15 +101,19 @@ public static class Builder
         wm.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 0f, BottomRadius = 3.1f, Height = 3f, RadialSegments = 10 }, MaterialOverride = Roof, Position = new Vector3(0, 10.5f, 0) });
         var hub = new Spinner { Axis = Vector3.Forward, Speed = .45f, Position = new Vector3(0, 8f, 2.4f) }; wm.AddChild(hub);
         for (int i = 0; i < 4; i++) { var arm = new Node3D { Rotation = new Vector3(0, 0, i * P / 2) }; arm.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(.5f, 6f, .12f) }, MaterialOverride = Wood, Position = new Vector3(0, 3f, 0) }); hub.AddChild(arm); }
-        foreach (var p in new[] { (-11f, 0f), (11, 0), (0, -12), (0, 13), (-22, -2), (22, 12), (30, 10), (-30, 6) }) Lamp(over, p.Item1, p.Item2);
+        foreach (var p in new[] { (-11f, 0f), (11, 0), (0, -12), (3.5f, 13), (-22, -2), (22, 12), (30, 10), (-30, 6) }) Lamp(over, p.Item1, p.Item2);
         foreach (var p in new[] { (-20f, -14f), (21, -22), (-22, 16), (15, 25) }) { Crate(over, p.Item1, p.Item2, 1.1f); Crate(over, p.Item1 + 1.3f, p.Item2 + .4f, .8f); Barrel(over, p.Item1 - 1, p.Item2 + 1); }
         for (int i = 0; i < 4; i++) { var hb = Group(over, -24 + i * 1.8f, 20 + (i % 2) * .8f, 0, .4f); hb.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = .9f, BottomRadius = .9f, Height = .8f, RadialSegments = 8 }, MaterialOverride = Hay }); }
         for (int i = 0; i < 10; i++) foreach (var zz in new[] { -4.2f, 4.2f }) Box(over, new Vector3(.15f, 1.1f, .15f), World.OnGround(30 + i * 1.6f, 10 + zz, .5f), Wood);
     }
     static void Lamp(Node parent, float x, float z)
     {
-        var g = Group(parent, x, z); Box(g, new Vector3(.18f, 3.2f, .18f), new Vector3(0, 1.6f, 0), Dark); g.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = .28f, Height = .6f, RadialSegments = 8, Rings = 4 }, MaterialOverride = World.WindowMat, Position = new Vector3(0, 3.3f, 0) });
-        World.Lamp(g, new Vector3(0, 3.4f, 0), new Color(1f, .75f, .4f), 14f, 1.6f);
+        // post fades out (dithered) when the camera is right next to it, so lamps never hide the hero
+        var g = Group(parent, x, z); Box(g, new Vector3(.16f, 3.0f, .16f), new Vector3(0, 1.5f, 0), Post); Box(g, new Vector3(.34f, .3f, .34f), new Vector3(0, .15f, 0), Post);
+        Box(g, new Vector3(.5f, .07f, .07f), new Vector3(.18f, 2.95f, 0), Post);
+        g.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = .12f, BottomRadius = .2f, Height = .42f, RadialSegments = 6 }, MaterialOverride = World.LampMat, Position = new Vector3(.38f, 2.68f, 0) });
+        g.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = .02f, BottomRadius = .26f, Height = .18f, RadialSegments = 6 }, MaterialOverride = Post, Position = new Vector3(.38f, 2.97f, 0) });
+        World.Lamp(g, new Vector3(.38f, 2.6f, 0), new Color(1f, .75f, .4f), 14f, 1.6f);
     }
     static void Campfire(Node parent, float x, float z)
     {
@@ -161,7 +175,7 @@ public static class Builder
         for (int i = 0; i < 26; i++)
         {
             float a = (i / 26f - .5f) * Mathf.Pi * .95f, rad = 6 + rr(0, 3.4f), s = 2.2f + rr(0, 3.4f), hgt = rr(0, 1);
-            var m = new MeshInstance3D { Mesh = new SphereMesh { Radius = 1f, Height = 2f, RadialSegments = 7, Rings = 4 }, MaterialOverride = Rock, Position = new Vector3(Mathf.Sin(a) * rad * 1.25f, s * .45f + hgt * 3.2f, -3.2f - Mathf.Cos(a) * rad * .8f), Scale = new Vector3(s * (.8f + rr(0, .5f)), s * (.7f + hgt * 1.1f), s * (.8f + rr(0, .5f))), Rotation = new Vector3(rr(0, .5f), rr(0, Tau), rr(0, .5f)) };
+            var m = new MeshInstance3D { Mesh = Gfx.Boulder(i), MaterialOverride = Rock, Position = new Vector3(Mathf.Sin(a) * rad * 1.25f, s * .45f + hgt * 3.2f, -3.2f - Mathf.Cos(a) * rad * .8f), Scale = new Vector3(s * (.8f + rr(0, .5f)), s * (.7f + hgt * 1.1f), s * (.8f + rr(0, .5f))), Rotation = new Vector3(rr(0, .5f), rr(0, Tau), rr(0, .5f)) };
             g.AddChild(m);
         }
         var cliff = new StaticBody3D { CollisionLayer = 1 }; cliff.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(14, 10, 5) }, Position = new Vector3(0, 5, -6.5f) }); g.AddChild(cliff);
@@ -197,7 +211,16 @@ public static class Builder
     static void Stones(Node3D over)
     {
         var p = World.GetPoi("stones")!; var g = Group(over, p.X, p.Z);
-        for (int i = 0; i < 9; i++) { float a = i / 9f * Tau, rr = 6.2f, h = R(3.6f, 5.4f); var s = Solid(g, new Vector3(1.5f, h, .9f), new Vector3(Mathf.Cos(a) * rr, h / 2 - .2f, Mathf.Sin(a) * rr), Rock, -a + Mathf.Pi / 2); s.Rotation += new Vector3(0, 0, R(-.05f, .05f)); }
+        // weathered menhirs: noise-displaced, faceted, leaning, with a lintel across two of them
+        float lintelY = 99;
+        for (int i = 0; i < 9; i++)
+        {
+            float a = i / 9f * Tau, rr = 6.2f, h = R(3.6f, 5.4f); var s = Solid(g, new Vector3(1.5f, h, .9f), new Vector3(Mathf.Cos(a) * rr, h / 2 - .2f, Mathf.Sin(a) * rr), Rock, -a + Mathf.Pi / 2);
+            s.GetChild<MeshInstance3D>(0).Mesh = Gfx.Lumpy(new BoxMesh { Size = new Vector3(1.5f, h, .9f), SubdivideWidth = 2, SubdivideHeight = 5, SubdivideDepth = 1 }, .26f, .9f, (uint)i + 3);
+            if (i < 2) lintelY = Mathf.Min(lintelY, h - .2f); else s.Rotation += new Vector3(R(-.06f, .06f), 0, R(-.07f, .07f));
+        }
+        { float m = Tau / 18f; var mid = new Vector3(Mathf.Cos(m) * 6.2f * Mathf.Cos(m), lintelY + .3f, Mathf.Sin(m) * 6.2f * Mathf.Cos(m));
+          g.AddChild(new MeshInstance3D { Mesh = Gfx.Lumpy(new BoxMesh { Size = new Vector3(5.4f, .8f, 1f), SubdivideWidth = 4 }, .1f, 1.3f, 77), MaterialOverride = Rock, Position = mid, Rotation = new Vector3(0, -(m + Mathf.Pi / 2), 0) }); }
         Cyl(g, 1.8f, .5f, new Vector3(0, .2f, 0), Rock, true);
         var rg = new RealmGate { Only = 1 }; g.AddChild(rg);
         var orb = new Spinner { Axis = Vector3.Up, Speed = 1f, Position = new Vector3(0, 1.8f, 0) }; rg.AddChild(orb);
@@ -208,14 +231,16 @@ public static class Builder
     static void Obelisks(Node3D over)
     {
         var gate = new RealmGate { Only = 1 }; over.AddChild(gate);
-        var dark = World.Mat(new Color(.12f, .09f, .19f)); var glow = new StandardMaterial3D { AlbedoColor = new Color(.7f, .4f, 1f), EmissionEnabled = true, Emission = new Color(.7f, .4f, 1f), EmissionEnergyMultiplier = 2f };
+        var dark = Gfx.Tex(World.Mat(new Color(.2f, .15f, .3f)), "rock", 3f, true, 1.4f); var glow = new StandardMaterial3D { AlbedoColor = new Color(.7f, .4f, 1f), EmissionEnabled = true, Emission = new Color(.7f, .4f, 1f), EmissionEnergyMultiplier = 2f };
         int n = 0, tries = 0;
         while (n < 22 && tries++ < 3000)
         {
             float x = R(-World.Half + 20, World.Half - 20), z = R(-World.Half + 20, World.Half - 20); if (!World.FreeSpot(x, z, 6) || World.GroundAt(x, z) < 1.5f) continue;
             var ob = new Obelisk { Position = World.OnGround(x, z), Rotation = new Vector3(0, R(0, Tau), 0) }; gate.AddChild(ob);
             float h = R(4, 8);
-            var body = new StaticBody3D { CollisionLayer = 1 }; body.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(1.1f, h, 1.1f) }, MaterialOverride = dark, Position = new Vector3(0, h / 2, 0) }); body.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(1.1f, h, 1.1f) }, Position = new Vector3(0, h / 2, 0) }); ob.AddChild(body);
+            // faceted rift-stone with a glowing rune seam up one face
+            var body = new StaticBody3D { CollisionLayer = 1 }; body.AddChild(new MeshInstance3D { Mesh = Gfx.Lumpy(new BoxMesh { Size = new Vector3(1.1f, h, 1.1f), SubdivideHeight = 5, SubdivideWidth = 1, SubdivideDepth = 1 }, .12f, 1.4f, (uint)n + 40), MaterialOverride = dark, Position = new Vector3(0, h / 2, 0) });
+            body.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(.12f, h * .7f, .04f) }, MaterialOverride = glow, Position = new Vector3(0, h * .45f, -.58f) }); body.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(1.1f, h, 1.1f) }, Position = new Vector3(0, h / 2, 0) }); ob.AddChild(body);
             ob.AddChild(new MeshInstance3D { Mesh = new PrismMesh { Size = new Vector3(.9f, 1.4f, .9f) }, MaterialOverride = glow, Position = new Vector3(0, h + .9f, 0) });
             if (n % 3 == 0) { var l = new OmniLight3D { LightColor = new Color(.7f, .4f, 1f), OmniRange = 20, LightEnergy = 1.1f, Position = new Vector3(0, h + 1, 0) }; ob.AddChild(l); }
             n++;

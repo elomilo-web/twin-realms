@@ -1,4 +1,4 @@
-﻿# Backlog (ideas, highest value first)
+# Backlog (ideas, highest value first)
 
 Format: `- [ ] (impact H/M/L, effort S/M/L) title: why / how`. Mark `[x]` when done and `[!]` if tried and failed (with the reason in the log). /improve adds new items it discovers.
 
@@ -22,7 +22,7 @@ Format: `- [ ] (impact H/M/L, effort S/M/L) title: why / how`. Mark `[x]` when d
 - [x] (H,M) Procedural walk/run cycle: swinging legs and arms, torso lean, bobbing; idle breathing; landing squash; head turns toward targets. (iter 3: legs, arm swing, bob, lean, breathing, jump pose; head turns still open)
 - [ ] (M,M) Enemy walk and attack animations per kind (quad, humanoid, wraith float, dragon wings).
 ## Icons
-- [ ] (H,M) Vector icon library drawn in code: sword, bow, wand, staff, shield, armor, trinket, potions, and one per spell; rarity frames with glow.
+- [x] (H,M) Vector icon library drawn in code (iter 9: Icons.cs; hotbar uses it; pack still to do): sword, bow, wand, staff, shield, armor, trinket, potions, and one per spell; rarity frames with glow.
 ## Inventory and menus
 - [x] (H,M) SAO/isekai system-window style for all menus: translucent blue glass, cyan glow, corner brackets, pop-in (iter 4).
 - [x] (M,S) HUD restyle to match the menus (cyan bars, angled frames, glass hotbar).
@@ -31,15 +31,15 @@ Format: `- [ ] (impact H/M/L, effort S/M/L) title: why / how`. Mark `[x]` when d
 - [ ] (M,S) Quest log tabs (active, done) with tracked-quest toggle and map markers.
 ## HUD
 - [x] (H,S) Layout bugs: quest tracker drawn off-screen (right-aligned with no width), compass mirrored and "NW" clipped, hotbar names offset by half a slot, skill tree and map panels taller than a 648 px window.
-- [ ] (L,S) Dungeon title banner lingers faintly in the sky after leaving (w09_shadow_village shows "Hollow Barrow").
-- [ ] (M,S) Camera can sit behind lamp posts and hide the hero (h01_hud): fade or ignore thin props in the spring arm.
+- [x] (L,S) Dungeon title banner lingers faintly in the sky after leaving (w09_shadow_village shows "Hollow Barrow").
+- [x] (M,S) Camera can sit behind lamp posts (iter 9: posts dither out near the camera) and hide the hero (h01_hud): fade or ignore thin props in the spring arm.
 - [ ] (M,S) Floating damage numbers by type (crit big and gold, heal green, taken red); buff and debuff icons with timers.
 - [ ] (M,M) Quest markers on the compass and minimap.
 ## World look
 - [x] (H,M) Ground cover: wind-swept grass clumps, ferns in forests, bushes, pebbles (chunked, distance-culled).
-- [ ] (H,M) Grass and tree sway shader, clouds with moving shadows, god rays at dusk, better water with foam.
+- [~] (H,M) Grass and tree sway shader, clouds with moving shadows, god rays at dusk, better water with foam. (iter 9: sky clouds, water with foam done; tree sway, cloud shadows, god rays open)
 - [ ] (M,M) Weather: rain and fog banks that change with time; puddle shine.
-- [ ] (M,S) Color grading per realm and time of day; vignette when hurt.
+- [~] (M,S) Color grading per realm and time of day; vignette when hurt. (iter 9: grading and realm saturation done; hurt vignette open)
 ## World life
 - [ ] (M,S) Birds that lift off when you approach; butterflies by day and fireflies at night over meadows (scenery).
 - [ ] (M,S) Cooking: meat and berries at a campfire give a short regen buff.
@@ -59,3 +59,14 @@ Format: `- [ ] (impact H/M/L, effort S/M/L) title: why / how`. Mark `[x]` when d
 - [ ] (M,L) Companion or horse upgrades; mounted combat.
 ## Audio
 - [ ] (M,M) Footsteps by surface, combat music layer that fades in when enemies are near, per-spell sounds.
+
+## Found by run 3 critique (2026-11-08)
+- [ ] (H,M) Hero body: rounded torso, tapered limbs, face, hair; currently a red capsule with a ball head (w13, h01).
+- [ ] (H,M) Enemy bodies: wolves and hounds are piles of boxes (w14); humanoid foes are capsules with a stick sword. Tapered capsules, snouts, ears, tails, armour pieces.
+- [ ] (H,M) Sword swing trails (ribbon mesh following the blade) and stronger spell VFX.
+- [ ] (M,S) Dungeon door is a flat black plane: animated swirling portal shader.
+- [ ] (M,S) Shadow realm: ground is flat indigo, menhirs read as plain blocks; add emissive veins, fog colour and mist.
+- [ ] (M,M) Character sheet is half empty (m_character): add a hero preview, stat bars and equipped icons.
+- [ ] (M,S) Journal is a few lines in a big box: tabs, quest cards, progress bars.
+- [ ] (M,M) Minimap is a coarse pixel blob: draw roads, POI icons, quest marker, smoother terrain.
+- [ ] (L,S) NPCs are about 25 draw calls each: merge parts per material like enemies.

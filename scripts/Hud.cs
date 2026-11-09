@@ -107,13 +107,21 @@ public partial class HudCanvas : Control
         for (int i = 0; i < 6; i++)
         {
             var r = new Rect2(hx + i * (ss + u * .5f), hy, ss, ss); Glass(r, false);
-            string name, key; float cd = 0, cdMax = 1; bool dim = false; string cnt = "";
-            if (i < 4) { var sp = i < Player.Spells.Count ? Player.Spells[i] : null; name = sp?.Name ?? ""; key = (i + 1).ToString(); if (sp != null) { cd = p.SpellCd[i]; cdMax = Mathf.Max(0.01f, sp.Cd); dim = p.Mp < sp.Mp; cnt = $"{sp.Mp:0}"; } }
-            else { bool hp = i == 4; name = hp ? "Health" : "Mana"; key = hp ? "H" : "G"; cnt = (hp ? d.HpPot : d.MpPot).ToString(); dim = (hp ? d.HpPot : d.MpPot) <= 0; }
-            if (dim) DrawRect(r, new Color(0, 0, 0, .4f));
-            if (cd > 0) { float h = ss * Mathf.Clamp(cd / cdMax, 0, 1); DrawRect(new Rect2(r.Position.X, r.End.Y - h, ss, h), new Color(0, 0, 0, .65f)); }
-            SlotName(r, name, fs(.8f), i == 4 ? new Color("ff8f86") : i == 5 ? new Color("8fb8ff") : Colors.White);
-            Txt(r.Position + new Vector2(4, fs(.95f) + 1), key, fs(.95f), UiTheme.Accent); Txt(r.Position + new Vector2(0, ss - 4), cnt, fs(.85f), UiTheme.Dim.Lightened(.3f), HorizontalAlignment.Right, ss - 4);
+            string icon, key; float cd = 0, cdMax = 1; bool dim = false; string cnt = "";
+            if (i < 4) { var sp = i < Player.Spells.Count ? Player.Spells[i] : null; icon = sp?.Id ?? ""; key = (i + 1).ToString(); if (sp != null) { cd = p.SpellCd[i]; cdMax = Mathf.Max(0.01f, sp.Cd); dim = p.Mp < sp.Mp; cnt = $"{sp.Mp:0}"; } }
+            else { bool hp = i == 4; icon = hp ? "hp" : "mp"; key = hp ? "H" : "G"; cnt = (hp ? d.HpPot : d.MpPot).ToString(); dim = (hp ? d.HpPot : d.MpPot) <= 0; }
+            // vector icon (scripts/Icons.cs), dimmed when unaffordable; radial cooldown sweep with seconds left
+            if (icon != "") Icons.Draw(this, icon, r.GetCenter() + new Vector2(0, -ss * .02f), ss * .68f, dim ? .35f : 1f);
+            if (cd > 0)
+            {
+                float f = Mathf.Clamp(cd / cdMax, 0, 1); var cc = r.GetCenter(); var pts = new System.Collections.Generic.List<Vector2> { cc }; int segs = 24;
+                for (int k = 0; k <= segs; k++) { float a = -Mathf.Pi / 2 + Mathf.Tau * f * k / segs; pts.Add(cc + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * ss * .72f); }
+                var clip = pts.ConvertAll(v => new Vector2(Mathf.Clamp(v.X, r.Position.X, r.End.X), Mathf.Clamp(v.Y, r.Position.Y, r.End.Y)));
+                for (int k = 1; k + 1 < clip.Count; k++) { var a = clip[k] - cc; var b = clip[k + 1] - cc; if (Mathf.Abs(a.Cross(b)) > .5f) DrawPrimitive(new[] { cc, clip[k], clip[k + 1] }, new[] { new Color(0, 0, 0, .62f), new Color(0, 0, 0, .62f), new Color(0, 0, 0, .62f) }, null); }
+                Txt(r.Position + new Vector2(0, ss * .62f), cd >= 1 ? $"{Mathf.CeilToInt(cd)}" : $"{cd:0.0}", fs(1.05f), Colors.White, HorizontalAlignment.Center, ss);
+            }
+            else if (!dim && i < 4) DrawRect(r, UiTheme.Accent with { A = .35f }, false, 1f);
+            Txt(r.Position + new Vector2(4, fs(.95f) + 1), key, fs(.95f), UiTheme.Accent); Txt(r.Position + new Vector2(0, ss - 4), cnt, fs(.85f), i == 4 ? new Color("ff8f86") : i == 5 ? new Color("8fb8ff") : UiTheme.Dim.Lightened(.3f), HorizontalAlignment.Right, ss - 4);
         }
         // minimap bottom-right
         if (!Dungeon.Active) DrawMini(p, new Vector2(sz.X - pad - u * 7, sz.Y - pad - u * 7), u * 7);

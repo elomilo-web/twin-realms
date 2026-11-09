@@ -94,7 +94,9 @@ public partial class Enemy : CharacterBody3D, IDamageable
         _label = new Label3D
         {
             Text = Summoned ? "" : (Def.N + (DefOverride != null ? "" : $"  Lv{Level}")), FontSize = 36, OutlineSize = 8, PixelSize = 0.006f, Modulate = Def.Boss ? new Color(1, 0.5f, 0.4f) : new Color(1, 0.88f, 0.7f),
-            Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, Position = new Vector3(0, labelY + 0.3f, 0), NoDepthTest = true,
+            // depth-tested (no names through walls or hills) and only within a fair distance, fading out
+            Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, Position = new Vector3(0, labelY + 0.3f, 0), NoDepthTest = false,
+            VisibilityRangeEnd = Def.Boss || dragon ? 90f : 26f, VisibilityRangeEndMargin = 5f, VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self,
         };
         AddChild(_label);
         _yaw = (float)GD.RandRange(0, Mathf.Tau);

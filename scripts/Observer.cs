@@ -48,7 +48,7 @@ public partial class Observer : Node
     {
         Sky(tod, realm); var g = World.OnGround(x, z); P.Teleport(g + new Vector3(0, 0.5f, 0), 0f);
         var cp = g + off; cp.Y = Mathf.Max(cp.Y, World.GroundAt(cp.X, cp.Z) + 2f); CamAt(cp, g + new Vector3(0, lookUp, 0));
-        await Wait(0.8f); await Shot(name); Perf(name);
+        await Wait(0.8f); Ui.ClearBanner(); await Shot(name); Perf(name);
     }
 
     // ------------------------------------------------------------------ animation strips

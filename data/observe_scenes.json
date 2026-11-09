@@ -1,226 +1,264 @@
 {
- "_help": "Scene list for tools/observe.sh. Fields: name, x,z or poi/npc/enemy, off [x,y,z] camera offset, look height, tod (0-1 time of day), realm 0/1, fov. Add scenes to look at new places.",
- "scenes": [
-  {
-   "name": "w01_village_day",
-   "x": 0,
-   "z": 14,
-   "off": [
-    0,
-    6,
-    22
-   ],
-   "look": 3,
-   "tod": 0.4,
-   "realm": 0
-  },
-  {
-   "name": "w02_village_dusk",
-   "x": 0,
-   "z": 14,
-   "off": [
-    0,
-    6,
-    22
-   ],
-   "look": 3,
-   "tod": 0.76,
-   "realm": 0
-  },
-  {
-   "name": "w03_village_night",
-   "x": 0,
-   "z": 14,
-   "off": [
-    0,
-    6,
-    22
-   ],
-   "look": 3,
-   "tod": 0.95,
-   "realm": 0
-  },
-  {
-   "name": "w04_plaza_close",
-   "x": -4,
-   "z": 6,
-   "off": [
-    5,
-    2,
-    7
-   ],
-   "look": 1.5,
-   "tod": 0.45,
-   "realm": 0
-  },
-  {
-   "name": "w05_hills_vista",
-   "x": -60,
-   "z": 40,
-   "off": [
-    0,
-    10,
-    35
-   ],
-   "look": 6,
-   "tod": 0.4,
-   "realm": 0
-  },
-  {
-   "name": "w06_forest",
-   "x": -45,
-   "z": -40,
-   "off": [
-    5,
-    3,
-    12
-   ],
-   "look": 3,
-   "tod": 0.42,
-   "realm": 0
-  },
-  {
-   "name": "w09_shadow_village",
-   "x": 0,
-   "z": 14,
-   "off": [
-    0,
-    6,
-    22
-   ],
-   "look": 3,
-   "tod": 0.4,
-   "realm": 1
-  },
-  {
-   "name": "w10_shadow_wilds",
-   "x": -60,
-   "z": 40,
-   "off": [
-    0,
-    10,
-    35
-   ],
-   "look": 6,
-   "tod": 0.5,
-   "realm": 1
-  },
-  {
-   "name": "w07_arena_outside",
-   "poi": "arena",
-   "off": [
-    -55,
-    22,
-    0
-   ],
-   "look": 5,
-   "tod": 0.4
-  },
-  {
-   "name": "w08_dungeon_mouth",
-   "poi": "barrow",
-   "off": [
-    -8,
-    4,
-    -2
-   ],
-   "look": 4,
-   "tod": 0.4
-  },
-  {
-   "name": "w11_house_closeup",
-   "x": -15,
-   "z": -9,
-   "off": [
-    6,
-    2.5,
-    10
-   ],
-   "look": 3,
-   "tod": 0.45
-  },
-  {
-   "name": "w12_windmill",
-   "x": 26,
-   "z": -18,
-   "off": [
-    -12,
-    5,
-    14
-   ],
-   "look": 7,
-   "tod": 0.45
-  },
-  {
-   "name": "w13_npc_maren",
-   "npc": "maren",
-   "off": [
-    1.5,
-    1.6,
-    3
-   ],
-   "look": 1.5,
-   "tod": 0.45,
-   "fov": 50
-  },
-  {
-   "name": "w14_wolf_closeup",
-   "enemy": "wolf",
-   "off": [
-    2,
-    1.4,
-    4
-   ],
-   "look": 0.8,
-   "tod": 0.45,
-   "fov": 50
-  },
-  {
-   "name": "w15_dragon_lair",
-   "poi": "drake",
-   "off": [
-    0,
-    14,
-    40
-   ],
-   "look": 6,
-   "tod": 0.3
-  },
-  {
-   "name": "w16_standing_stones_shadow",
-   "poi": "stones",
-   "off": [
-    0,
-    6,
-    18
-   ],
-   "look": 3,
-   "tod": 0.5,
-   "realm": 1
-  },
-  {
-   "name": "w17_water_edge",
-   "x": 0,
-   "z": -110,
-   "off": [
-    0,
-    3,
-    10
-   ],
-   "look": 1,
-   "tod": 0.45
-  },
-  {
-   "name": "w18_mountain",
-   "x": 100,
-   "z": -100,
-   "off": [
-    0,
-    18,
-    60
-   ],
-   "look": 18,
-   "tod": 0.4
-  }
- ]
+    "_help":  "Scene list for tools/observe.sh. Fields: name, x,z or poi/npc/enemy, off [x,y,z] camera offset, look height, tod (0-1 time of day), realm 0/1, fov. Add scenes to look at new places.",
+    "scenes":  [
+                   {
+                       "name":  "w01_village_day",
+                       "x":  0,
+                       "z":  14,
+                       "off":  [
+                                   0,
+                                   6,
+                                   22
+                               ],
+                       "look":  3,
+                       "tod":  0.4,
+                       "realm":  0
+                   },
+                   {
+                       "name":  "w02_village_dusk",
+                       "x":  0,
+                       "z":  14,
+                       "off":  [
+                                   0,
+                                   6,
+                                   22
+                               ],
+                       "look":  3,
+                       "tod":  0.76,
+                       "realm":  0
+                   },
+                   {
+                       "name":  "w03_village_night",
+                       "x":  0,
+                       "z":  14,
+                       "off":  [
+                                   0,
+                                   6,
+                                   22
+                               ],
+                       "look":  3,
+                       "tod":  0.95,
+                       "realm":  0
+                   },
+                   {
+                       "name":  "w04_plaza_close",
+                       "x":  -4,
+                       "z":  6,
+                       "off":  [
+                                   5,
+                                   2,
+                                   7
+                               ],
+                       "look":  1.5,
+                       "tod":  0.45,
+                       "realm":  0
+                   },
+                   {
+                       "name":  "w05_hills_vista",
+                       "x":  -60,
+                       "z":  40,
+                       "off":  [
+                                   0,
+                                   10,
+                                   35
+                               ],
+                       "look":  6,
+                       "tod":  0.4,
+                       "realm":  0
+                   },
+                   {
+                       "name":  "w06_forest",
+                       "x":  -45,
+                       "z":  -40,
+                       "off":  [
+                                   5,
+                                   3,
+                                   12
+                               ],
+                       "look":  3,
+                       "tod":  0.42,
+                       "realm":  0
+                   },
+                   {
+                       "name":  "w09_shadow_village",
+                       "x":  0,
+                       "z":  14,
+                       "off":  [
+                                   0,
+                                   6,
+                                   22
+                               ],
+                       "look":  3,
+                       "tod":  0.4,
+                       "realm":  1
+                   },
+                   {
+                       "name":  "w10_shadow_wilds",
+                       "x":  -60,
+                       "z":  40,
+                       "off":  [
+                                   0,
+                                   10,
+                                   35
+                               ],
+                       "look":  6,
+                       "tod":  0.5,
+                       "realm":  1
+                   },
+                   {
+                       "name":  "w07_arena_outside",
+                       "poi":  "arena",
+                       "off":  [
+                                   -55,
+                                   22,
+                                   0
+                               ],
+                       "look":  5,
+                       "tod":  0.4
+                   },
+                   {
+                       "name":  "w08_dungeon_mouth",
+                       "poi":  "barrow",
+                       "off":  [
+                                   -8,
+                                   4,
+                                   -2
+                               ],
+                       "look":  4,
+                       "tod":  0.4
+                   },
+                   {
+                       "name":  "w11_house_closeup",
+                       "x":  -15,
+                       "z":  -9,
+                       "off":  [
+                                   6,
+                                   2.5,
+                                   10
+                               ],
+                       "look":  3,
+                       "tod":  0.45
+                   },
+                   {
+                       "name":  "w12_windmill",
+                       "x":  26,
+                       "z":  -18,
+                       "off":  [
+                                   10,
+                                   4,
+                                   18
+                               ],
+                       "look":  7,
+                       "tod":  0.45
+                   },
+                   {
+                       "name":  "w13_npc_maren",
+                       "npc":  "maren",
+                       "off":  [
+                                   1.5,
+                                   1.6,
+                                   3
+                               ],
+                       "look":  1.5,
+                       "tod":  0.45,
+                       "fov":  50
+                   },
+                   {
+                       "name":  "w14_wolf_closeup",
+                       "enemy":  "wolf",
+                       "off":  [
+                                   2,
+                                   1.4,
+                                   4
+                               ],
+                       "look":  0.8,
+                       "tod":  0.45,
+                       "fov":  50
+                   },
+                   {
+                       "name":  "w15_dragon_lair",
+                       "poi":  "drake",
+                       "off":  [
+                                   0,
+                                   14,
+                                   40
+                               ],
+                       "look":  6,
+                       "tod":  0.3
+                   },
+                   {
+                       "name":  "w16_standing_stones_shadow",
+                       "poi":  "stones",
+                       "off":  [
+                                   0,
+                                   6,
+                                   18
+                               ],
+                       "look":  3,
+                       "tod":  0.5,
+                       "realm":  1
+                   },
+                   {
+                       "name":  "w17_water_edge",
+                       "x":  0,
+                       "z":  -226,
+                       "off":  [
+                                   0,
+                                   10,
+                                   20
+                               ],
+                       "look":  0,
+                       "tod":  0.45
+                   },
+                   {
+                       "name":  "w18_mountain",
+                       "x":  100,
+                       "z":  -100,
+                       "off":  [
+                                   0,
+                                   18,
+                                   60
+                               ],
+                       "look":  18,
+                       "tod":  0.4
+                   },
+                   {
+                       "name":  "w19_sunset_hills",
+                       "x":  -60,
+                       "z":  40,
+                       "off":  [
+                                   0,
+                                   10,
+                                   35
+                               ],
+                       "look":  6,
+                       "tod":  0.735,
+                       "realm":  0
+                   },
+                   {
+                       "name":  "w20_npc_brynn",
+                       "npc":  "brynn",
+                       "off":  [
+                                   1.2,
+                                   1.4,
+                                   2.8
+                               ],
+                       "look":  1.3,
+                       "tod":  0.45,
+                       "fov":  50
+                   },
+                   {
+                       "name":  "w21_rooftops",
+                       "x":  -9,
+                       "z":  -14,
+                       "off":  [
+                                   -4,
+                                   9,
+                                   12
+                               ],
+                       "look":  3,
+                       "tod":  0.62,
+                       "realm":  0
+                   }
+               ]
 }
