@@ -259,6 +259,56 @@
                        "look":  3,
                        "tod":  0.62,
                        "realm":  0
+                   },
+                   {
+                       "name":  "w22_bandit_closeup",
+                       "enemy":  "bandit",
+                       "off":  [
+                                   2,
+                                   1.5,
+                                   3.5
+                               ],
+                       "look":  1.1,
+                       "tod":  0.45,
+                       "fov":  50
+                   },
+                   {
+                       "name":  "w23_goblin_closeup",
+                       "enemy":  "goblin",
+                       "off":  [
+                                   -2.5,
+                                   1.8,
+                                   2.5
+                               ],
+                       "look":  0.9,
+                       "tod":  0.45,
+                       "fov":  50
+                   },
+                   {
+                       "name":  "w24_skeleton_shadow",
+                       "enemy":  "skeleton",
+                       "off":  [
+                                   2,
+                                   1.5,
+                                   3.5
+                               ],
+                       "look":  1.1,
+                       "tod":  0.5,
+                       "realm":  1,
+                       "fov":  50
+                   },
+                   {
+                       "name":  "w25_hero_front",
+                       "x":  0,
+                       "z":  17,
+                       "off":  [
+                                   0.8,
+                                   1.7,
+                                   -3
+                               ],
+                       "look":  1.3,
+                       "tod":  0.45,
+                       "fov":  45
                    }
                ]
 }

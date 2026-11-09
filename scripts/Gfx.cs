@@ -237,6 +237,38 @@ public static class Gfx
         return st.Commit();
     }
 
+    /// <summary>Sword blade along -Z from the guard: diamond cross-section, fuller-less, tapering to a point.</summary>
+    public static ArrayMesh Blade(float len, float w, float t)
+    {
+        var st = new SurfaceTool(); st.Begin(Mesh.PrimitiveType.Triangles);
+        Vector3 E(int k, float z, float s) => k switch { 0 => new Vector3(-w / 2 * s, 0, z), 1 => new Vector3(0, t / 2 * s, z), 2 => new Vector3(w / 2 * s, 0, z), _ => new Vector3(0, -t / 2 * s, z) };
+        var tip = new Vector3(0, 0, -len - w * 1.3f);
+        for (int k = 0; k < 4; k++)
+        {
+            int k2 = (k + 1) % 4; Vector3 a0 = E(k, 0, 1), a1 = E(k2, 0, 1), b0 = E(k, -len, .82f), b1 = E(k2, -len, .82f);
+            var mid = (a0 + a1 + b0 + b1) / 4; var n = (a1 - a0).Cross(b0 - a0).Normalized(); if (n.Dot(new Vector3(mid.X, mid.Y, 0)) < 0) n = -n;
+            Quad(st, a0, a1, b1, b0, n, Vector2.Zero, Vector2.Zero, Vector2.Zero, Vector2.Zero);
+            var nt = (b1 - b0).Cross(tip - b0).Normalized(); var mt = (b0 + b1 + tip) / 3; if (nt.Dot(new Vector3(mt.X, mt.Y, 0)) < 0) nt = -nt;
+            Tri(st, b0, b1, tip, nt, Vector2.Zero, Vector2.Zero, Vector2.Zero);
+        }
+        return st.Commit();
+    }
+
+    /// <summary>Convex 2D outline (u = Z, v = Y) extruded along X by depth. Used for shields and plates.</summary>
+    public static ArrayMesh ExtrudeX(Vector2[] o, float depth)
+    {
+        var st = new SurfaceTool(); st.Begin(Mesh.PrimitiveType.Triangles); float h = depth / 2;
+        Vector3 V(Vector2 p, float x) => new(x, p.Y, p.X);
+        for (int i = 1; i + 1 < o.Length; i++) { Tri(st, V(o[0], -h), V(o[i], -h), V(o[i + 1], -h), Vector3.Left, Vector2.Zero, Vector2.Zero, Vector2.Zero); Tri(st, V(o[0], h), V(o[i], h), V(o[i + 1], h), Vector3.Right, Vector2.Zero, Vector2.Zero, Vector2.Zero); }
+        var c = Vector2.Zero; foreach (var p in o) c += p; c /= o.Length;
+        for (int i = 0; i < o.Length; i++)
+        {
+            var a = o[i]; var b = o[(i + 1) % o.Length]; var e = b - a; var n2 = new Vector2(e.Y, -e.X).Normalized(); if (n2.Dot((a + b) / 2 - c) < 0) n2 = -n2;
+            Quad(st, V(a, -h), V(b, -h), V(b, h), V(a, h), new Vector3(0, n2.Y, n2.X), Vector2.Zero, Vector2.Zero, Vector2.Zero, Vector2.Zero);
+        }
+        return st.Commit();
+    }
+
     static readonly Dictionary<int, ArrayMesh> _boulders = new();
     /// <summary>Faceted noise boulder of radius ~1 (a few cached variants).</summary>
     public static ArrayMesh Boulder(int variant)

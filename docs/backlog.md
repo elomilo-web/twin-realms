@@ -4,7 +4,7 @@ Format: `- [ ] (impact H/M/L, effort S/M/L) title: why / how`. Mark `[x]` when d
 
 ## Combat feel
 - [x] (H,S) Hit-stop and camera shake on hit: freeze 40-80 ms on impact, bigger for crits and power attacks.
-- [ ] (H,M) Impact sparks and slash trails: a glowing arc mesh that follows the sword during swings (SAO-like skill trails).
+- [x] (H,M) Impact sparks and slash trails (iter 10: SwordTrail): a glowing arc mesh that follows the sword during swings (SAO-like skill trails).
 - [ ] (H,M) Enemy telegraphs and hit reactions: wind-up flash, recoil, stagger pose, death dissolve instead of vanishing. (recoil and squash done in iter 2; stagger pose and death dissolve still open)
 - [ ] (H,M) Target lock-on (Zelda style): a key to lock the nearest enemy, camera and strafing follow, target ring.
 - [ ] (M,M) Named sword skills with a short chain (SAO): e.g. 3 skills unlocked via the skill tree, each with a distinct move.
@@ -14,11 +14,11 @@ Format: `- [ ] (impact H/M/L, effort S/M/L) title: why / how`. Mark `[x]` when d
 - [ ] (H,M) Replace point/distance melee checks with a swept arc or capsule that follows the weapon; debug draw toggle (F3).
 - [ ] (M,S) Align every enemy hurtbox with its visual using the hitboxes section of observe_out/metrics.json.
 ## Spells and skills
-- [ ] (H,M) Distinct spell VFX: fire trail and explosion, ice shards and frost ring, healing pillar, chain lightning arcs; cast poses.
+- [x] (H,M) Distinct spell VFX (iter 10: Vfx.cs; cast poses still basic): fire trail and explosion, ice shards and frost ring, healing pillar, chain lightning arcs; cast poses.
 - [ ] (M,M) Spell upgrades/runes and a fifth and sixth spell slot (data-driven in classes.json).
 ## Animation
 - [ ] (M,S) Head turns toward the nearest enemy or NPC; landing squash after a jump.
-- [ ] (M,S) Enemy humanoids reuse the hip-pivot legs so they walk instead of glide.
+- [x] (M,S) Enemy humanoids reuse the hip-pivot legs so they walk instead of glide.
 - [x] (H,M) Procedural walk/run cycle: swinging legs and arms, torso lean, bobbing; idle breathing; landing squash; head turns toward targets. (iter 3: legs, arm swing, bob, lean, breathing, jump pose; head turns still open)
 - [ ] (M,M) Enemy walk and attack animations per kind (quad, humanoid, wraith float, dragon wings).
 ## Icons
@@ -61,12 +61,12 @@ Format: `- [ ] (impact H/M/L, effort S/M/L) title: why / how`. Mark `[x]` when d
 - [ ] (M,M) Footsteps by surface, combat music layer that fades in when enemies are near, per-spell sounds.
 
 ## Found by run 3 critique (2026-11-08)
-- [ ] (H,M) Hero body: rounded torso, tapered limbs, face, hair; currently a red capsule with a ball head (w13, h01).
-- [ ] (H,M) Enemy bodies: wolves and hounds are piles of boxes (w14); humanoid foes are capsules with a stick sword. Tapered capsules, snouts, ears, tails, armour pieces.
-- [ ] (H,M) Sword swing trails (ribbon mesh following the blade) and stronger spell VFX.
-- [ ] (M,S) Dungeon door is a flat black plane: animated swirling portal shader.
+- [x] (H,M) Hero body: rounded torso, tapered limbs, face, hair; currently a red capsule with a ball head (w13, h01).
+- [x] (H,M) Enemy bodies: wolves and hounds are piles of boxes (w14); humanoid foes are capsules with a stick sword. Tapered capsules, snouts, ears, tails, armour pieces.
+- [x] (H,M) Sword swing trails (ribbon mesh following the blade) and stronger spell VFX.
+- [x] (M,S) Dungeon door is a flat black plane: animated swirling portal shader.
 - [ ] (M,S) Shadow realm: ground is flat indigo, menhirs read as plain blocks; add emissive veins, fog colour and mist.
 - [ ] (M,M) Character sheet is half empty (m_character): add a hero preview, stat bars and equipped icons.
 - [ ] (M,S) Journal is a few lines in a big box: tabs, quest cards, progress bars.
 - [ ] (M,M) Minimap is a coarse pixel blob: draw roads, POI icons, quest marker, smoother terrain.
-- [ ] (L,S) NPCs are about 25 draw calls each: merge parts per material like enemies.
+- [ ] (M,S) Hero and NPCs are about 25-40 draw calls each: merge parts per material like enemies.

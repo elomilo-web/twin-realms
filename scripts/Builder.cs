@@ -8,6 +8,7 @@ namespace TwinRealms;
 /// <summary>Builds the hand-placed overworld: Oakhaven, the arena, dungeon mouths, the dragon lair, standing stones, obelisks, chests, camps and NPCs.</summary>
 public static class Builder
 {
+    static Shader? PortalShader;
     static StandardMaterial3D Post = null!, Wall = null!, Roof = null!, RoofB = null!, Wood = null!, Stone = null!, Dark = null!, Cloth = null!, Hay = null!, Sand = null!, Rock = null!, Metal = null!, Crim = null!, Gold = null!, Beam = null!;
     static Func<float> _rg = World.Rng(424242u);
     static float R(float a, float b) => a + _rg() * (b - a);
@@ -186,9 +187,20 @@ public static class Builder
         }
         for (int k = 0; k < 7; k++) { float a = Mathf.Pi * (k + .5f) / 7f; var m = Box(g, new Vector3(1.2f, 1.0f, 1.9f), new Vector3(Mathf.Cos(a) * 2.6f, 6.5f + Mathf.Sin(a) * 1.9f, 0), Stone); m.Rotation = new Vector3(0, 0, a - Mathf.Pi / 2); }
         Box(g, new Vector3(.9f, 1.1f, 2.1f), new Vector3(0, 8.55f, 0), Stone);
-        var black = new StandardMaterial3D { AlbedoColor = new Color(.01f, .01f, .02f), ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded };
-        Box(g, new Vector3(4f, 6.6f, .4f), new Vector3(0, 3.3f, -.6f), black);
-        var portalMat = new StandardMaterial3D { AlbedoColor = new Color(.5f, .88f, 1f, .5f), Transparency = BaseMaterial3D.TransparencyEnum.Alpha, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, CullMode = BaseMaterial3D.CullModeEnum.Disabled };
+        var portalMat = new ShaderMaterial { Shader = PortalShader ??= new Shader { Code = @"
+shader_type spatial;
+render_mode unshaded, cull_disabled;
+uniform vec3 c1 : source_color = vec3(0.35, 0.85, 1.0);
+uniform vec3 c2 : source_color = vec3(0.02, 0.02, 0.08);
+void fragment(){
+  vec2 uv = UV * 2.0 - 1.0; uv.x *= 0.62; float r = length(uv); float a = atan(uv.y, uv.x);
+  float sw = sin(a * 3.0 + r * 11.0 - TIME * 2.2) * 0.5 + 0.5;
+  float sw2 = sin(a * 5.0 - r * 7.0 + TIME * 1.3) * 0.5 + 0.5;
+  float n = (sw * 0.7 + sw2 * 0.3) * smoothstep(1.05, 0.15, r);
+  vec3 col = mix(c2, c1, pow(n, 2.2) * 0.85 + smoothstep(0.45, 0.0, r) * 0.25);
+  col += c1 * smoothstep(0.75, 1.0, r) * 0.35 * (0.6 + 0.4 * sin(TIME * 3.0));
+  ALBEDO = col;
+}" } };
         g.AddChild(new MeshInstance3D { Mesh = new QuadMesh { Size = new Vector2(3.9f, 6.4f) }, MaterialOverride = portalMat, Position = new Vector3(0, 3.2f, -.3f) });
         for (int k = 0; k < 4; k++) Box(g, new Vector3(5.4f - k * .4f, .26f, 1.6f), new Vector3(0, .13f + k * .01f, 2.1f + (3 - k) * .55f), Stone);
         foreach (var xx in new[] { -3.9f, 3.9f }) { Cyl(g, .07f, 2.6f, new Vector3(xx, 1.3f, 1.5f), Dark); Fire(g, new Vector3(xx, 2.9f, 1.5f), 1.7f, 16f); }

@@ -23,12 +23,27 @@ public partial class Projectile : Node3D
     { AddToGroup("projectiles");
         Color c = Kind switch { "arrow" => new Color(0.85f, 0.8f, 0.6f), "fire" => new Color(1f, 0.55f, 0.15f), "ebolt" => new Color(0.8f, 0.3f, 1f), _ => new Color(0.55f, 0.75f, 1f) };
         var mat = new StandardMaterial3D { AlbedoColor = c, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded };
-        if (Kind == "arrow") AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(0.05f, 0.05f, 0.9f) }, MaterialOverride = mat });
+        if (Kind == "arrow")
+        {
+            // shaft, steel head and fletching (forward is -Z after LookAt)
+            AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = .018f, BottomRadius = .018f, Height = .85f, RadialSegments = 5 }, MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(.55f, .4f, .25f) }, Rotation = new Vector3(Mathf.Pi / 2, 0, 0) });
+            AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 0, BottomRadius = .045f, Height = .14f, RadialSegments = 4 }, MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(.75f, .78f, .82f), Metallic = .8f, Roughness = .3f }, Position = new Vector3(0, 0, -.48f), Rotation = new Vector3(-Mathf.Pi / 2, 0, 0) });
+            foreach (float a in new[] { 0f, 2.1f, 4.2f }) AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(.005f, .07f, .16f) }, MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(.9f, .9f, .85f) }, Position = new Vector3(0, 0, .36f), Rotation = new Vector3(0, 0, a) });
+            var tr = new CpuParticles3D { Amount = 14, Lifetime = .18f, LocalCoords = false, Gravity = Vector3.Zero, InitialVelocityMax = 0, Mesh = new QuadMesh { Size = new Vector2(.08f, .08f), Material = Vfx.SpriteMat() }, Color = new Color(1, 1, .9f, .35f), ScaleAmountCurve = null };
+            AddChild(tr);
+        }
         else
         {
-            float r = Big ? 0.32f : Kind == "fire" ? 0.28f : 0.16f;
-            AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = r, Height = r * 2, RadialSegments = 8, Rings = 4 }, MaterialOverride = mat });
-            AddChild(new OmniLight3D { LightColor = c, OmniRange = 6f, LightEnergy = 1.2f });
+            // hot core, soft glow shell and a particle trail that stays in the world
+            float r = Big ? 0.32f : Kind == "fire" ? 0.28f : 0.16f; bool fire = Kind == "fire" || Big;
+            var core = new StandardMaterial3D { AlbedoColor = c.Lerp(Colors.White, .55f), ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded };
+            AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = r * .6f, Height = r * 1.2f, RadialSegments = 10, Rings = 5 }, MaterialOverride = core, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
+            AddChild(new MeshInstance3D { Mesh = new QuadMesh { Size = new Vector2(r * 4.5f, r * 4.5f) }, MaterialOverride = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, BlendMode = BaseMaterial3D.BlendModeEnum.Add, BillboardMode = BaseMaterial3D.BillboardModeEnum.Enabled, AlbedoTexture = Vfx.Soft, AlbedoColor = new Color(c, .9f) }, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
+            var g = new Gradient(); g.SetColor(0, fire ? new Color(1, .9f, .5f, .9f) : new Color(c.Lerp(Colors.White, .4f), .8f)); g.SetColor(1, fire ? new Color(.5f, .08f, .02f, 0) : new Color(c, 0)); g.AddPoint(.4f, fire ? new Color(1, .45f, .1f, .7f) : new Color(c, .5f));
+            var sc = new Curve(); sc.AddPoint(new Vector2(0, 1)); sc.AddPoint(new Vector2(1, .1f));
+            AddChild(new CpuParticles3D { Amount = fire ? 48 : 26, Lifetime = fire ? .45f : .3f, LocalCoords = false, Gravity = new Vector3(0, fire ? 2.5f : 0f, 0), Spread = 180, InitialVelocityMin = .1f, InitialVelocityMax = fire ? 1.2f : .5f,
+                Mesh = new QuadMesh { Size = new Vector2(r * 2.4f, r * 2.4f), Material = Vfx.SpriteMat() }, ColorRamp = g, ScaleAmountCurve = sc, EmissionShape = CpuParticles3D.EmissionShapeEnum.Sphere, EmissionSphereRadius = r * .5f });
+            AddChild(new OmniLight3D { LightColor = c, OmniRange = fire ? 8f : 6f, LightEnergy = fire ? 2.2f : 1.2f });
         }
         if (Vel.LengthSquared() > 0.01f && Kind == "arrow") LookAt(GlobalPosition + Vel, Vector3.Up);
     }
@@ -47,7 +62,6 @@ public partial class Projectile : Node3D
         if (hit.Count > 0) { to = (Vector3)hit["position"]; end = true; }
         GlobalPosition = to;
         if (Kind == "arrow" && Vel.LengthSquared() > 0.01f) LookAt(to + Vel, Vector3.Up);
-        if (Kind == "fire" && GD.Randf() < 0.5f) Fx.Burst(to, new Color(1, 0.6f, 0.2f), 1, 0.5f, 0.3f, 0.12f, 0f);
 
         Enemy? hitE = null;
         if (!end && Own == 'p')
@@ -78,7 +92,7 @@ public partial class Projectile : Node3D
         {
             if (Aoe > 0)
             {
-                Fx.Burst(to, new Color(1, 0.55f, 0.15f), 30, 7f, 0.6f, 0.2f); Fx.Ring(to, Aoe * 0.9f, new Color(1, 0.6f, 0.2f)); Sfx.Play("hit"); Player.Instance?.Rig?.Shake(0.12f);
+                Vfx.Explosion(to, Aoe); Sfx.Play("hit"); Player.Instance?.Rig?.Shake(0.18f);
                 foreach (var n in GetTree().GetNodesInGroup("enemies"))
                 {
                     if (n is not Enemy e || e.Dead || !e.Active) continue;

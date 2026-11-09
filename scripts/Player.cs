@@ -23,6 +23,7 @@ public partial class Player : CharacterBody3D, IDamageable
     const float Accel = 40f, AirAccel = 10f;
     const float JumpVelocity = 6.0f, RollSpeed = 11f, RollTime = 0.45f;
 
+    Node3D _cape = null!; SwordTrail _trail = null!; Node3D? _bladeBase, _bladeTip;
     Node3D _model = null!, _hand = null!, _shield = null!, _horse = null!, _weaponRoot = null!, _legR = null!, _legL = null!, _upR = null!, _upL = null!;
     static readonly Vector3 ShoulderR = new(0.42f, 1.5f, 0), ShoulderL = new(-0.42f, 1.5f, 0), HandRest = new(0.5f, 1.1f, -0.1f), ShieldRest = new(-0.5f, 1.1f, -0.15f);
     float _walkPh, _walkAmt, _idleT;
@@ -62,17 +63,50 @@ public partial class Player : CharacterBody3D, IDamageable
     void BuildModel()
     {
         _model = new Node3D { Name = "Model" }; AddChild(_model);
-        var body = new StandardMaterial3D { AlbedoColor = new Color(0.55f, 0.18f, 0.18f), Roughness = 0.8f };
-        var skin = new StandardMaterial3D { AlbedoColor = new Color(0.85f, 0.7f, 0.55f) };
-        var cloth = new StandardMaterial3D { AlbedoColor = new Color(0.25f, 0.2f, 0.18f) };
-        _model.AddChild(new MeshInstance3D { Mesh = new CapsuleMesh { Radius = 0.32f, Height = 1.2f }, MaterialOverride = body, Position = new Vector3(0, 1.15f, 0) });
-        // legs hang from hip pivots so they can swing
+        var body = Gfx.Tex(new StandardMaterial3D { AlbedoColor = new Color(0.58f, 0.16f, 0.17f), Roughness = 0.8f }, "cloth", .5f);
+        var skin = new StandardMaterial3D { AlbedoColor = new Color(0.88f, 0.71f, 0.56f), Roughness = .7f };
+        var cloth = Gfx.Tex(new StandardMaterial3D { AlbedoColor = new Color(0.27f, 0.22f, 0.2f) }, "cloth", .5f);
+        var leather = Gfx.Tex(new StandardMaterial3D { AlbedoColor = new Color(0.36f, 0.24f, 0.14f), Roughness = .75f }, "grain", .5f, true, .6f);
+        var steel = new StandardMaterial3D { AlbedoColor = new Color(0.72f, 0.74f, 0.78f), Metallic = 0.85f, Roughness = 0.32f };
+        var gold = new StandardMaterial3D { AlbedoColor = new Color(0.9f, 0.72f, 0.32f), Metallic = 0.9f, Roughness = 0.3f };
+        var hair = new StandardMaterial3D { AlbedoColor = new Color(0.32f, 0.2f, 0.1f), Roughness = .9f };
+        MeshInstance3D P(Node3D par, Mesh m, Material mt, Vector3 pos, Vector3? rot = null) { var mi = new MeshInstance3D { Mesh = m, MaterialOverride = mt, Position = pos, Rotation = rot ?? Vector3.Zero }; par.AddChild(mi); return mi; }
+        // torso: tapered chest and hips, belt with buckle, tabard, pauldrons, cape
+        P(_model, new CylinderMesh { TopRadius = .31f, BottomRadius = .24f, Height = .55f, RadialSegments = 14 }, body, new Vector3(0, 1.3f, 0));
+        P(_model, new SphereMesh { Radius = .3f, Height = .26f, RadialSegments = 14, Rings = 5 }, body, new Vector3(0, 1.56f, 0));
+        P(_model, new CylinderMesh { TopRadius = .24f, BottomRadius = .27f, Height = .28f, RadialSegments = 14 }, cloth, new Vector3(0, .97f, 0));
+        P(_model, new CylinderMesh { TopRadius = .255f, BottomRadius = .265f, Height = .08f, RadialSegments = 14 }, leather, new Vector3(0, 1.07f, 0));
+        P(_model, new BoxMesh { Size = new Vector3(.1f, .08f, .03f) }, gold, new Vector3(0, 1.07f, -.265f));
+        P(_model, new BoxMesh { Size = new Vector3(.3f, .5f, .02f) }, body, new Vector3(0, .82f, -.24f), new Vector3(-.08f, 0, 0));
+        P(_model, new BoxMesh { Size = new Vector3(.3f, .04f, .025f) }, gold, new Vector3(0, .58f, -.22f), new Vector3(-.08f, 0, 0));
+        foreach (float sx in new[] { -1f, 1f }) { P(_model, new SphereMesh { Radius = .16f, Height = .2f, RadialSegments = 10, Rings = 4, IsHemisphere = true }, steel, new Vector3(sx * .36f, 1.5f, 0), new Vector3(0, 0, -sx * .35f)); P(_model, new TorusMesh { InnerRadius = .14f, OuterRadius = .165f, Rings = 12, RingSegments = 4 }, gold, new Vector3(sx * .36f, 1.5f, 0), new Vector3(0, 0, -sx * .35f)); }
+        _cape = new Node3D { Position = new Vector3(0, 1.58f, .2f) }; _model.AddChild(_cape);
+        P(_cape, new BoxMesh { Size = new Vector3(.58f, 1.15f, .03f) }, Gfx.Tex(new StandardMaterial3D { AlbedoColor = new Color(.18f, .22f, .4f), CullMode = BaseMaterial3D.CullModeEnum.Disabled }, "cloth", .4f), new Vector3(0, -.58f, .06f), new Vector3(-.1f, 0, 0));
+        // legs hang from hip pivots so they can swing: thigh, knee, shin, boot with cuff
         _legR = new Node3D { Position = new Vector3(0.14f, 0.9f, 0) }; _model.AddChild(_legR);
         _legL = new Node3D { Position = new Vector3(-0.14f, 0.9f, 0) }; _model.AddChild(_legL);
-        _legR.AddChild(new MeshInstance3D { Mesh = new CapsuleMesh { Radius = 0.16f, Height = 0.9f }, MaterialOverride = cloth, Position = new Vector3(0, -0.45f, 0) });
-        _legL.AddChild(new MeshInstance3D { Mesh = new CapsuleMesh { Radius = 0.16f, Height = 0.9f }, MaterialOverride = cloth, Position = new Vector3(0, -0.45f, 0) });
-        _model.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = 0.2f, Height = 0.4f }, MaterialOverride = skin, Position = new Vector3(0, 1.8f, 0) });
-        _model.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(0.1f, 0.1f, 0.2f) }, MaterialOverride = skin, Position = new Vector3(0, 1.78f, -0.2f) });
+        foreach (var leg in new[] { _legR, _legL })
+        {
+            P(leg, new CylinderMesh { TopRadius = .125f, BottomRadius = .1f, Height = .46f, RadialSegments = 10 }, cloth, new Vector3(0, -.23f, 0));
+            P(leg, new SphereMesh { Radius = .1f, Height = .2f, RadialSegments = 8, Rings = 4 }, cloth, new Vector3(0, -.47f, 0));
+            P(leg, new CylinderMesh { TopRadius = .1f, BottomRadius = .085f, Height = .36f, RadialSegments = 10 }, leather, new Vector3(0, -.66f, 0));
+            P(leg, new CylinderMesh { TopRadius = .115f, BottomRadius = .11f, Height = .08f, RadialSegments = 10 }, leather, new Vector3(0, -.5f, 0));
+            P(leg, new BoxMesh { Size = new Vector3(.15f, .12f, .28f) }, leather, new Vector3(0, -.85f, -.05f));
+        }
+        // head: neck, face, hair, eyes, brows, nose, ears
+        P(_model, new CylinderMesh { TopRadius = .07f, BottomRadius = .085f, Height = .14f, RadialSegments = 10 }, skin, new Vector3(0, 1.66f, 0));
+        var head = new Node3D { Position = new Vector3(0, 1.82f, 0) }; _model.AddChild(head);
+        P(head, new SphereMesh { Radius = .165f, Height = .36f, RadialSegments = 14, Rings = 7 }, skin, Vector3.Zero);
+        P(head, new SphereMesh { Radius = .178f, Height = .24f, RadialSegments = 14, Rings = 6, IsHemisphere = true }, hair, new Vector3(0, .03f, .025f), new Vector3(-.3f, 0, 0));
+        P(head, new BoxMesh { Size = new Vector3(.3f, .16f, .1f) }, hair, new Vector3(0, -.01f, .12f));
+        var eye = new StandardMaterial3D { AlbedoColor = new Color(.08f, .1f, .14f) };
+        foreach (float sx in new[] { -1f, 1f })
+        {
+            P(head, new SphereMesh { Radius = .022f, Height = .044f, RadialSegments = 6, Rings = 3 }, eye, new Vector3(sx * .06f, .02f, -.148f));
+            P(head, new BoxMesh { Size = new Vector3(.06f, .014f, .02f) }, hair, new Vector3(sx * .062f, .058f, -.15f), new Vector3(0, 0, sx * -.15f));
+            P(head, new SphereMesh { Radius = .035f, Height = .07f, RadialSegments = 6, Rings = 3 }, skin, new Vector3(sx * .165f, 0, 0));
+        }
+        P(head, new PrismMesh { Size = new Vector3(.045f, .07f, .055f) }, skin, new Vector3(0, -.025f, -.165f), new Vector3(-Mathf.Pi / 2, 0, 0));
         _hand = new Node3D { Position = new Vector3(0.5f, 1.1f, -0.1f) }; _model.AddChild(_hand);
         _shield = new Node3D { Position = new Vector3(-0.5f, 1.1f, -0.15f) }; _model.AddChild(_shield);
         _weaponRoot = new Node3D(); _hand.AddChild(_weaponRoot);
@@ -81,7 +115,8 @@ public partial class Player : CharacterBody3D, IDamageable
         _upL = Limb(_model, ShoulderL, ShieldRest, 0.1f, body);
         Limb(_hand, new Vector3(0, 0, 0.05f), new Vector3(0, 0, -0.38f), 0.085f, skin);
         Limb(_shield, new Vector3(0.1f, 0, 0.3f), new Vector3(0.1f, 0, -0.05f), 0.085f, skin);
-        _hand.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = 0.1f, Height = 0.2f }, MaterialOverride = skin, Position = new Vector3(0, 0, -0.38f) });
+        _hand.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = 0.1f, Height = 0.2f }, MaterialOverride = leather, Position = new Vector3(0, 0, -0.38f) });
+        _trail = new SwordTrail(); AddChild(_trail);
 
         _horse = new Node3D { Visible = false }; AddChild(_horse);
         var hm = new StandardMaterial3D { AlbedoColor = new Color(0.4f, 0.26f, 0.16f) };
@@ -124,12 +159,31 @@ public partial class Player : CharacterBody3D, IDamageable
         else if (wt == "staff") { A(new CylinderMesh { TopRadius = 0.03f, BottomRadius = 0.035f, Height = 2.0f }, wood, new Vector3(0, 0, -0.5f), new Vector3(Mathf.Pi / 2, 0, 0)); A(new SphereMesh { Radius = 0.11f, Height = 0.22f }, glow, new Vector3(0, 0, -1.55f)); }
         else
         {
-            A(new BoxMesh { Size = new Vector3(0.08f, 0.04f, 1.0f) }, steel, new Vector3(0, 0, -0.65f));
-            A(new BoxMesh { Size = new Vector3(0.3f, 0.06f, 0.08f) }, wood, new Vector3(0, 0, -0.12f));
-            A(new BoxMesh { Size = new Vector3(0.06f, 0.06f, 0.22f) }, wood, new Vector3(0, 0, 0.05f));
+            // diamond-section blade, curved crossguard, wrapped grip, pommel; markers at blade base and tip feed the swing trail
+            var gold = new StandardMaterial3D { AlbedoColor = new Color(0.85f, 0.68f, 0.3f), Metallic = 0.9f, Roughness = 0.3f };
+            var wrap = Gfx.Tex(new StandardMaterial3D { AlbedoColor = new Color(0.3f, 0.18f, 0.1f) }, "cloth", .15f);
+            A(Gfx.Blade(0.95f, 0.085f, 0.025f), steel, new Vector3(0, 0, -0.17f));
+            A(new CylinderMesh { TopRadius = .022f, BottomRadius = .022f, Height = .34f, RadialSegments = 6 }, gold, new Vector3(0, 0, -0.14f), new Vector3(0, 0, Mathf.Pi / 2));
+            foreach (float sx in new[] { -1f, 1f }) A(new SphereMesh { Radius = .035f, Height = .07f, RadialSegments = 6, Rings = 3 }, gold, new Vector3(sx * .17f, 0, -0.14f));
+            A(new CylinderMesh { TopRadius = .028f, BottomRadius = .032f, Height = .22f, RadialSegments = 8 }, wrap, new Vector3(0, 0, -0.02f), new Vector3(Mathf.Pi / 2, 0, 0));
+            A(new SphereMesh { Radius = .045f, Height = .09f, RadialSegments = 8, Rings = 4 }, gold, new Vector3(0, 0, 0.11f));
+            _bladeBase = new Node3D { Position = new Vector3(0, 0, -0.3f) }; _weaponRoot.AddChild(_bladeBase);
+            _bladeTip = new Node3D { Position = new Vector3(0, 0, -1.2f) }; _weaponRoot.AddChild(_bladeTip);
         }
+        if (wt != "sword") { _bladeBase = null; _bladeTip = null; }
+        _trail.Base = _bladeBase; _trail.Tip = _bladeTip;
         foreach (var c in _shield.GetChildren()) c.QueueFree();
-        _shield.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(0.08f, 0.65f, 0.5f) }, MaterialOverride = wood });
+        // heater shield: steel rim plate behind a painted wooden face, cross and boss
+        var sh = new[] { new Vector2(-.27f, .34f), new Vector2(.27f, .34f), new Vector2(.26f, -.05f), new Vector2(.15f, -.27f), new Vector2(0, -.37f), new Vector2(-.15f, -.27f), new Vector2(-.26f, -.05f) };
+        var shSmall = System.Array.ConvertAll(sh, v => v * .86f + new Vector2(0, .01f));
+        var rim = new StandardMaterial3D { AlbedoColor = new Color(0.6f, 0.62f, 0.66f), Metallic = 0.8f, Roughness = 0.35f };
+        var paint = Gfx.Tex(new StandardMaterial3D { AlbedoColor = new Color(0.2f, 0.32f, 0.6f) }, "planks", .5f);
+        _shield.AddChild(new MeshInstance3D { Mesh = Gfx.ExtrudeX(sh, .05f), MaterialOverride = rim });
+        _shield.AddChild(new MeshInstance3D { Mesh = Gfx.ExtrudeX(shSmall, .08f), MaterialOverride = paint });
+        var trim = new StandardMaterial3D { AlbedoColor = new Color(0.85f, 0.68f, 0.3f), Metallic = 0.9f, Roughness = 0.3f };
+        _shield.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(.09f, .58f, .05f) }, MaterialOverride = trim, Position = new Vector3(0, -.01f, 0) });
+        _shield.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(.09f, .05f, .42f) }, MaterialOverride = trim, Position = new Vector3(0, .12f, 0) });
+        _shield.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = .07f, Height = .1f, RadialSegments = 10, Rings = 4, IsHemisphere = true }, MaterialOverride = rim, Position = new Vector3(-.045f, .1f, 0), Rotation = new Vector3(0, 0, Mathf.Pi / 2) });
         UpdateShieldVisible();
     }
     bool HasShield => Game.D.Eq.GetValueOrDefault("shield") != null && !(Game.D.Weapon?.Two ?? false);
@@ -345,7 +399,7 @@ public partial class Player : CharacterBody3D, IDamageable
         else if (sp.Id == "nova")
         {
             float dmg = (14 + D.Level * 2.6f) * pow; Sfx.Play("ice");
-            Fx.Ring(GlobalPosition + Vector3.Up * 0.1f, 7.5f, new Color(0.55f, 0.85f, 1f), 0.5f); Fx.Burst(GlobalPosition + Vector3.Up, new Color(0.7f, 0.9f, 1f), 40, 9f, 0.7f);
+            Vfx.FrostNova(GlobalPosition, 7.5f); Rig?.Shake(0.15f);
             foreach (var n in GetTree().GetNodesInGroup("enemies"))
                 if (n is Enemy e && !e.Dead && e.Active && (e.GlobalPosition - GlobalPosition).Length() - e.Def.R < 7.5f)
                 { e.Slow(4f); e.TakeHit(new HitInfo { Damage = dmg, From = GlobalPosition, Knock = 4f, Stun = 0.3f, Attacker = this, IsPlayer = true }); }
@@ -353,7 +407,7 @@ public partial class Player : CharacterBody3D, IDamageable
         else if (sp.Id == "heal")
         {
             float amt = D.MaxHp() * 0.35f; Hp = Mathf.Min(D.MaxHp(), Hp + amt); Sfx.Play("heal");
-            Fx.Burst(GlobalPosition + Vector3.Up, new Color(0.5f, 1f, 0.6f), 30, 2.5f, 1f, 0.1f, 1f);
+            Vfx.HealPillar(this);
             FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.2f, 0), "+" + Mathf.RoundToInt(amt), new Color(0.5f, 1f, 0.6f));
         }
         else if (sp.Id == "zap")
@@ -370,12 +424,12 @@ public partial class Player : CharacterBody3D, IDamageable
                 }
             }
             Sfx.Play("zap");
-            if (cur == null) { Fx.Line(origin, t, new Color(0.7f, 0.8f, 1f)); return; }
+            if (cur == null) { Vfx.Lightning(origin, t, new Color(0.6f, 0.7f, 1f)); return; }
             var prev = origin; float dm = (24 + D.Level * 3) * pow; var seen = new HashSet<Enemy>();
             for (int j = 0; j < 4 + (int)Game.TS["chain"] && cur != null; j++)
             {
                 var pt = cur.GlobalPosition + new Vector3(0, cur.HeightM() * 0.55f, 0);
-                Fx.Line(prev, pt, new Color(0.75f, 0.85f, 1f), 0.2f); seen.Add(cur);
+                Vfx.Lightning(prev, pt, new Color(0.6f, 0.7f, 1f), 0.28f); seen.Add(cur);
                 cur.TakeHit(new HitInfo { Damage = dm, From = GlobalPosition, Knock = 1.5f, Stun = 0.25f, Attacker = this, IsPlayer = true });
                 dm *= 0.82f; prev = pt; Enemy? nx = null; float bd2 = 10f;
                 foreach (var n in GetTree().GetNodesInGroup("enemies"))
@@ -567,5 +621,15 @@ public partial class Player : CharacterBody3D, IDamageable
         _shield.Position = _shield.Position.Lerp(shieldPos, 1f - Mathf.Exp(-16f * dt));
         _shield.Rotation = new Vector3(0, _blocking ? Mathf.Pi / 2 : 0, 0);
         AimLimb(_upR, ShoulderR, _hand.Position); AimLimb(_upL, ShoulderL, _shield.Position);
+        // cape streams back with speed and flutters a little
+        float capeK = 1f - Mathf.Exp(-6f * dt);
+        _cape.Rotation = new Vector3(Mathf.Lerp(_cape.Rotation.X, -(.05f + amt * .75f + Mathf.Sin(_idleT * 7f) * .05f * amt + (_rollT > 0 ? .4f : 0)), capeK), 0, 0); // negative X tips the hem backward (+Z)
+        // swing trail during the cutting part of a sword attack: cyan for light hits, orange for the combo finisher, gold for power
+        if (_atkT > 0 && wt == "sword")
+        {
+            float p = 1f - _atkT / _atkDur; _trail.Emit = p > .3f && p < .9f;
+            _trail.Col = _atkPower ? new Color(1f, .8f, .35f) : _combo == 2 ? new Color(1f, .5f, .25f) : new Color(.45f, .85f, 1f);
+        }
+        else _trail.Emit = false;
     }
 }

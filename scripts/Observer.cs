@@ -198,6 +198,15 @@ public partial class Observer : Node
             P.Mp = Game.D.MaxMp();
             await Strip("spell_fire", async () => { Press("spell1", true); await Wait(0.05f); Press("spell1", false); await Wait(0.5f); });
             await Strip("spell_nova", async () => { P.Mp = Game.D.MaxMp(); Press("spell2", true); await Wait(0.05f); Press("spell2", false); await Wait(0.6f); });
+            await Strip("spell_heal", async () => { P.Mp = Game.D.MaxMp(); Press("spell3", true); await Wait(0.05f); Press("spell3", false); await Wait(0.6f); });
+            // chain lightning needs targets: two stunned goblins in front of the hero
+            {
+                var pp = P.GlobalPosition; var foes = new List<Enemy>();
+                foreach (var dx in new[] { -1.5f, 2f }) { var e = new Enemy { Type = "goblin", Level = 30, AnyRealm = true, NoLeash = true, Position = World.OnGround(pp.X + dx, pp.Z - 6f - Mathf.Abs(dx), 0.2f) }; Game.Root!.AddChild(e); foes.Add(e); }
+                await Wait(0.3f); foreach (var e in foes) e.Stun(5f);
+                await Strip("spell_zap", async () => { P.Mp = Game.D.MaxMp(); Press("spell4", true); await Wait(0.05f); Press("spell4", false); await Wait(0.5f); }, 8, 0.05f);
+                foreach (var e in foes) if (IsInstanceValid(e)) e.QueueFree();
+            }
         });
         CamBack(); SetHud(true);
 

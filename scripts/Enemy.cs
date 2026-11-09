@@ -79,16 +79,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
             Add(new SphereMesh { Radius = r * 0.6f, Height = r * 1.2f }, ghost, new Vector3(0, 2.3f, 0));
             Add(new BoxMesh { Size = new Vector3(0.12f, 0.1f, 0.1f) }, glow, new Vector3(0.15f, 2.35f, -r * 0.5f)); Add(new BoxMesh { Size = new Vector3(0.12f, 0.1f, 0.1f) }, glow, new Vector3(-0.15f, 2.35f, -r * 0.5f));
         }
-        else
-        {
-            Add(new CapsuleMesh { Radius = r, Height = 1.5f * s }, main, new Vector3(0, 0.85f * s, 0));
-            Add(new SphereMesh { Radius = 0.22f * s, Height = 0.44f * s }, Mat(new Color(0.85f, 0.7f, 0.55f).Lerp(col, Type == "skeleton" ? 0.8f : 0.1f)), new Vector3(0, 1.7f * s, 0));
-            var steel = Mat(Def.Boss ? new Color(0.65f, 0.7f, 0.8f) : new Color(0.6f, 0.6f, 0.65f));
-            float wl = Type == "brute" || Def.Boss ? 1.5f * s : 0.9f * s;
-            Add(new BoxMesh { Size = new Vector3(0.08f * s, 0.08f * s, wl) }, steel, new Vector3(0.45f * s, 1.1f * s, -wl / 2 - 0.1f));
-            if (Def.Slam || Def.Boss) Add(new BoxMesh { Size = new Vector3(0.6f * s, 0.25f * s, 0.6f * s) }, dark, new Vector3(0.45f * s, 1.1f * s, -wl));
-            Add(new BoxMesh { Size = new Vector3(0.2f * s, 0.06f * s, 0.06f * s) }, glow, new Vector3(0, 1.75f * s, -0.2f * s));
-        }
+        else BuildHumanoid(r, s, col, main, dark, glow);
         BakeParts();
         float labelY = quad ? r * 2.6f : dragon ? 6.2f : 2.2f * s;
         _label = new Label3D
@@ -108,8 +99,95 @@ public partial class Enemy : CharacterBody3D, IDamageable
     // body parts are collected and merged per (parent, material) after building: one draw call per material instead of one per box.
     // Flash and wind-up tint still work because they change the shared materials.
     readonly List<(Node3D parent, Mesh m, Material mat, Transform3D t)> _parts = new();
-    void Add(Mesh m, Material mat, Vector3 pos, Vector3? rot = null, Node3D? parent = null)
-        => _parts.Add((parent ?? _body, m, mat, new Transform3D(Basis.FromEuler(rot ?? Vector3.Zero), pos)));
+    void Add(Mesh m, Material mat, Vector3 pos, Vector3? rot = null, Node3D? parent = null, Vector3? scl = null)
+        => _parts.Add((parent ?? _body, m, mat, new Transform3D(Basis.FromEuler(rot ?? Vector3.Zero).Scaled(scl ?? Vector3.One), pos)));
+
+    /// <summary>
+    /// Two-legged foe: tapered torso and hips, walking legs on hip pivots, arms, head with glowing eyes, and gear by type
+    /// (goblin ears and nose, skeleton ribs and skull sockets, bandit hood and mask, archer bow and quiver, brute belly, horns and club, boss crown and cape).
+    /// </summary>
+    void BuildHumanoid(float r, float s, Color col, StandardMaterial3D main, StandardMaterial3D dark, StandardMaterial3D glow)
+    {
+        bool skel = Type == "skeleton", gob = Type == "goblin", brute = Type == "brute" || Type == "warchief" || Type == "golem", archer = Type == "archer", bandit = Type == "bandit";
+        float w = brute ? 1.35f : gob ? .9f : 1f;                                           // girth
+        var skinC = skel ? new Color(.86f, .83f, .72f) : gob || Type == "warchief" ? new Color(.42f, .62f, .28f) : brute ? new Color(.62f, .48f, .36f) : new Color(.84f, .66f, .52f);
+        var skin = Mat(skinC); var steel = Mat(Def.Boss ? new Color(.72f, .76f, .86f) : new Color(.6f, .62f, .66f)); var leather = Mat(new Color(.3f, .2f, .12f));
+        var cloth = skel ? Mat(new Color(.25f, .22f, .2f)) : main;
+        float hipY = .9f * s;
+        // legs
+        foreach (float sx in new[] { -1f, 1f })
+        {
+            var hip = new Node3D { Position = new Vector3(sx * .15f * s * w, hipY, 0) }; _body.AddChild(hip); _legs.Add(hip);
+            Add(new CylinderMesh { TopRadius = (skel ? .06f : .12f) * s * w, BottomRadius = (skel ? .05f : .09f) * s * w, Height = .5f * s, RadialSegments = 8 }, skel ? skin : dark, new Vector3(0, -.25f * s, 0), null, hip);
+            Add(new CylinderMesh { TopRadius = (skel ? .05f : .09f) * s * w, BottomRadius = (skel ? .045f : .08f) * s * w, Height = .38f * s, RadialSegments = 8 }, skel ? skin : leather, new Vector3(0, -.66f * s, 0), null, hip);
+            Add(new BoxMesh { Size = new Vector3(.15f, .1f, .26f) * s * w }, leather, new Vector3(0, -.85f * s, -.05f * s), null, hip);
+        }
+        // torso
+        if (skel)
+        {
+            Add(new CylinderMesh { TopRadius = .05f * s, BottomRadius = .05f * s, Height = .6f * s, RadialSegments = 6 }, skin, new Vector3(0, 1.2f * s, .05f * s));
+            for (int i = 0; i < 4; i++) Add(new TorusMesh { InnerRadius = .17f * s - i * .012f * s, OuterRadius = .2f * s - i * .012f * s, Rings = 12, RingSegments = 4 }, skin, new Vector3(0, (1.42f - i * .1f) * s, 0), null, null, new Vector3(1, 1, .8f));
+            Add(new CylinderMesh { TopRadius = .2f * s, BottomRadius = .16f * s, Height = .14f * s, RadialSegments = 8 }, skin, new Vector3(0, .98f * s, 0));
+        }
+        else
+        {
+            Add(new CylinderMesh { TopRadius = .3f * s * w, BottomRadius = .23f * s * w, Height = .55f * s, RadialSegments = 12 }, cloth, new Vector3(0, 1.3f * s, 0));
+            Add(new SphereMesh { Radius = .29f * s * w, Height = .24f * s, RadialSegments = 12, Rings = 4 }, cloth, new Vector3(0, 1.56f * s, 0));
+            Add(new CylinderMesh { TopRadius = .23f * s * w, BottomRadius = .26f * s * w, Height = .28f * s, RadialSegments = 12 }, dark, new Vector3(0, .98f * s, 0));
+            Add(new CylinderMesh { TopRadius = .245f * s * w, BottomRadius = .255f * s * w, Height = .07f * s, RadialSegments = 12 }, leather, new Vector3(0, 1.08f * s, 0));
+            if (brute) Add(new SphereMesh { Radius = .3f * s, Height = .55f * s, RadialSegments = 12, Rings = 6 }, Mat(skinC.Darkened(.05f)), new Vector3(0, 1.2f * s, -.14f * s));
+            foreach (float sx in new[] { -1f, 1f }) if (!gob) Add(new SphereMesh { Radius = .15f * s * w, Height = .18f * s, RadialSegments = 8, Rings = 3, IsHemisphere = true }, Def.Boss || bandit ? steel : leather, new Vector3(sx * .33f * s * w, 1.5f * s, 0), new Vector3(0, 0, -sx * .4f));
+        }
+        // arms (right arm forward holding the weapon, left arm hanging)
+        foreach (float sx in new[] { -1f, 1f })
+        {
+            var sh = new Vector3(sx * .36f * s * w, 1.48f * s, 0); var hand = sx > 0 ? new Vector3(.45f * s * w, 1.1f * s, -.25f * s) : new Vector3(-.42f * s * w, .98f * s, .05f * s);
+            var d = hand - sh; var mid = (sh + hand) / 2; var basis = Basis.LookingAt(d.Normalized(), Mathf.Abs(d.Normalized().Y) > .95f ? Vector3.Right : Vector3.Up);
+            _parts.Add((_body, new CapsuleMesh { Radius = (skel ? .045f : .08f) * s * w, Height = d.Length() + .1f * s, RadialSegments = 8, Rings = 2 }, skel ? skin : cloth, new Transform3D(basis * Basis.FromEuler(new Vector3(Mathf.Pi / 2, 0, 0)), mid)));
+            Add(new SphereMesh { Radius = .075f * s * w, Height = .15f * s * w, RadialSegments = 8, Rings = 4 }, skel ? skin : leather, hand);
+        }
+        // head
+        var hp = new Vector3(0, 1.8f * s, 0); float hr = (gob ? .2f : .18f) * s * (brute ? 1.1f : 1f);
+        Add(new CylinderMesh { TopRadius = .07f * s, BottomRadius = .09f * s, Height = .14f * s, RadialSegments = 8 }, skin, new Vector3(0, 1.64f * s, 0));
+        Add(new SphereMesh { Radius = hr, Height = hr * (skel ? 2.1f : 2f), RadialSegments = 12, Rings = 6 }, skin, hp);
+        foreach (float sx in new[] { -1f, 1f })
+        {
+            if (skel) Add(new SphereMesh { Radius = hr * .28f, Height = hr * .5f, RadialSegments = 8, Rings = 4 }, Mat(new Color(.05f, .04f, .04f)), hp + new Vector3(sx * hr * .38f, hr * .1f, -hr * .8f));
+            Add(new SphereMesh { Radius = hr * .13f, Height = hr * .26f, RadialSegments = 6, Rings = 3 }, glow, hp + new Vector3(sx * hr * .38f, hr * .1f, -hr * .88f));
+            if (gob) Add(new CylinderMesh { TopRadius = 0, BottomRadius = hr * .3f, Height = hr * 1.5f, RadialSegments = 6 }, skin, hp + new Vector3(sx * hr * 1.2f, hr * .25f, 0), new Vector3(0, 0, -sx * 1.25f));
+            if (brute || Type == "warchief") Add(new CylinderMesh { TopRadius = 0, BottomRadius = hr * .22f, Height = hr * 1.1f, RadialSegments = 6 }, Mat(new Color(.9f, .86f, .75f)), hp + new Vector3(sx * hr * .7f, hr * .75f, -hr * .1f), new Vector3(-.3f, 0, -sx * .6f));
+        }
+        if (gob) Add(new CylinderMesh { TopRadius = hr * .05f, BottomRadius = hr * .2f, Height = hr * .7f, RadialSegments = 6 }, skin, hp + new Vector3(0, -hr * .15f, -hr * 1.05f), new Vector3(-Mathf.Pi / 2.2f, 0, 0));
+        if (bandit || archer)
+        {
+            var hood = Mat(archer ? new Color(.22f, .32f, .18f) : new Color(.25f, .2f, .17f));
+            Add(new SphereMesh { Radius = hr * 1.18f, Height = hr * 1.5f, RadialSegments = 12, Rings = 5, IsHemisphere = true }, hood, hp + new Vector3(0, hr * .05f, hr * .1f), new Vector3(-.35f, 0, 0));
+            Add(new CylinderMesh { TopRadius = 0, BottomRadius = hr * .55f, Height = hr * 1.2f, RadialSegments = 8 }, hood, hp + new Vector3(0, hr * .25f, hr * .9f), new Vector3(1.2f, 0, 0));
+            if (bandit) Add(new BoxMesh { Size = new Vector3(hr * 1.7f, hr * .55f, hr * .3f) }, Mat(new Color(.12f, .1f, .1f)), hp + new Vector3(0, -hr * .35f, -hr * .78f));
+        }
+        if (Def.Boss) for (int k = 0; k < 6; k++) { float a = k / 6f * Mathf.Tau; Add(new CylinderMesh { TopRadius = 0, BottomRadius = hr * .16f, Height = hr * .7f, RadialSegments = 5 }, Mat(new Color(.9f, .72f, .3f), .4f), hp + new Vector3(Mathf.Cos(a) * hr * .75f, hr * .9f, Mathf.Sin(a) * hr * .75f)); }
+        if (Def.Boss || Type == "revenant") Add(new BoxMesh { Size = new Vector3(.62f * s * w, 1.1f * s, .04f) }, Mat(col.Darkened(.6f)), new Vector3(0, 1.0f * s, .3f * s), new Vector3(-.12f, 0, 0));
+        // weapon in the right hand
+        var rh = new Vector3(.45f * s * w, 1.1f * s, -.25f * s);
+        if (archer)
+        {
+            var wood = Mat(new Color(.45f, .3f, .16f));
+            Add(new TorusMesh { InnerRadius = .5f * s, OuterRadius = .54f * s, Rings = 16, RingSegments = 4 }, wood, rh + new Vector3(0, 0, .25f * s), new Vector3(0, 0, Mathf.Pi / 2), null, new Vector3(1, 1, .45f));
+            Add(new CylinderMesh { TopRadius = .09f * s, BottomRadius = .08f * s, Height = .55f * s, RadialSegments = 8 }, leather, new Vector3(.12f * s, 1.35f * s, .27f * s), new Vector3(.35f, 0, -.3f));
+        }
+        else if (brute || Def.Slam)
+        {
+            float cl = 1.3f * s; var wood = Mat(new Color(.4f, .27f, .15f));
+            Add(new CylinderMesh { TopRadius = .14f * s, BottomRadius = .05f * s, Height = cl, RadialSegments = 8 }, wood, rh + new Vector3(0, 0, -cl / 2), new Vector3(-Mathf.Pi / 2, 0, 0));
+            for (int k = 0; k < 4; k++) Add(new CylinderMesh { TopRadius = 0, BottomRadius = .04f * s, Height = .12f * s, RadialSegments = 4 }, steel, rh + new Vector3(Mathf.Cos(k * 1.57f) * .13f * s, Mathf.Sin(k * 1.57f) * .13f * s, -cl * .85f), new Vector3(0, 0, k * 1.57f - Mathf.Pi / 2));
+        }
+        else
+        {
+            float wl = (Def.Boss ? 1.3f : .85f) * s;
+            Add(Gfx.Blade(wl, .08f * s, .025f * s), steel, rh + new Vector3(0, 0, -.12f * s));
+            Add(new BoxMesh { Size = new Vector3(.28f, .05f, .05f) * s }, leather, rh + new Vector3(0, 0, -.08f * s));
+        }
+    }
     void BakeParts()
     {
         var groups = new Dictionary<(Node3D, Material), SurfaceTool>();
@@ -127,17 +205,40 @@ public partial class Enemy : CharacterBody3D, IDamageable
         if (Def.Emissive) { main.EmissionEnabled = true; main.Emission = col; main.EmissionEnergyMultiplier = 0.6f; }
         var eye = wild && !Def.Emissive ? Mat(new Color(0.05f, 0.04f, 0.04f)) : glow;
         float bodyL = look == "rabbit" ? 2.2f : look == "boar" ? 2.8f : 3.2f, bodyH = look == "boar" ? 1.7f : 1.4f;
-        Add(new BoxMesh { Size = new Vector3(r * 1.3f, r * bodyH, r * bodyL) }, main, new Vector3(0, r * 1.1f + dy, 0));
-        float headY = r * 1.5f + dy + (look == "deer" ? r * 0.9f : 0), headZ = -r * (bodyL * 0.5f + 0.3f);
-        if (look == "deer") Add(new BoxMesh { Size = new Vector3(r * 0.5f, r * 1.4f, r * 0.5f) }, main, new Vector3(0, r * 1.7f + dy, headZ + r * 0.35f), new Vector3(-0.45f, 0, 0)); // neck, leaning forward
-        Add(new BoxMesh { Size = new Vector3(r * 0.9f, r * 0.9f, r * 1.1f) }, main, new Vector3(0, headY, headZ));
-        Add(new BoxMesh { Size = new Vector3(r * 0.25f, r * 0.25f, r * 0.1f) }, eye, new Vector3(r * 0.3f, headY + r * 0.1f, headZ - r * 0.56f)); Add(new BoxMesh { Size = new Vector3(r * 0.25f, r * 0.25f, r * 0.1f) }, eye, new Vector3(-r * 0.3f, headY + r * 0.1f, headZ - r * 0.56f));
-        // legs on hip pivots (front-left/back-right swing together)
+        // rounded body: a horizontal capsule torso with a deeper chest, neck, skull, tapered snout and nose, ears, tail
+        bool canine = look == "" ; float by = r * 1.1f + dy, bw = r * .68f * (bodyH / 1.4f);
+        Add(new CapsuleMesh { Radius = bw, Height = r * bodyL, RadialSegments = 12, Rings = 4 }, main, new Vector3(0, by, 0), new Vector3(Mathf.Pi / 2, 0, 0), null, new Vector3(.95f, 1f, 1.05f));
+        Add(new SphereMesh { Radius = bw * 1.08f, Height = bw * 2.3f, RadialSegments = 12, Rings = 6 }, main, new Vector3(0, by + r * .05f, -r * bodyL * .28f));
+        float headY = r * 1.55f + dy + (look == "deer" ? r * 0.9f : 0), headZ = -r * (bodyL * 0.5f + 0.25f);
+        var neckFrom = new Vector3(0, by + r * .15f, -r * bodyL * .38f); var neckTo = new Vector3(0, headY - r * .1f, headZ + r * .15f); var nd = neckTo - neckFrom;
+        _parts.Add((_body, new CylinderMesh { TopRadius = r * .28f, BottomRadius = r * .42f, Height = nd.Length() + r * .2f, RadialSegments = 10 }, main,
+            new Transform3D(Basis.LookingAt(nd.Normalized(), Vector3.Right) * Basis.FromEuler(new Vector3(-Mathf.Pi / 2, 0, 0)), (neckFrom + neckTo) / 2)));
+        Add(new SphereMesh { Radius = r * .42f, Height = r * .84f, RadialSegments = 12, Rings = 6 }, main, new Vector3(0, headY, headZ), null, null, new Vector3(1f, .9f, 1.1f));
+        float snL = r * (look == "rabbit" ? .25f : look == "boar" ? .5f : look == "deer" ? .55f : .7f);
+        Add(new CylinderMesh { TopRadius = r * .12f, BottomRadius = r * .26f, Height = snL, RadialSegments = 10 }, canine ? dark : main, new Vector3(0, headY - r * .12f, headZ - r * .35f - snL / 2), new Vector3(-Mathf.Pi / 2, 0, 0));
+        Add(new SphereMesh { Radius = r * .11f, Height = r * .18f, RadialSegments = 8, Rings = 4 }, Mat(new Color(.08f, .06f, .06f)), new Vector3(0, headY - r * .06f, headZ - r * .35f - snL));
+        foreach (float sx in new[] { -1f, 1f })
+        {
+            Add(new SphereMesh { Radius = r * .09f, Height = r * .18f, RadialSegments = 6, Rings = 3 }, eye, new Vector3(sx * r * .25f, headY + r * .1f, headZ - r * .36f));
+            if (canine) Add(new CylinderMesh { TopRadius = 0, BottomRadius = r * .17f, Height = r * .5f, RadialSegments = 4 }, dark, new Vector3(sx * r * .24f, headY + r * .45f, headZ + r * .08f), new Vector3(.15f, 0, -sx * .25f));
+            if (look == "deer") Add(new SphereMesh { Radius = r * .16f, Height = r * .5f, RadialSegments = 6, Rings = 3 }, main, new Vector3(sx * r * .38f, headY + r * .3f, headZ + r * .12f), new Vector3(0, 0, -sx * 1.1f));
+        }
+        if (canine)
+        {
+            // bushy tail and a dark ruff of fur along the spine
+            Add(new SphereMesh { Radius = r * .22f, Height = r * 1.3f, RadialSegments = 8, Rings = 4 }, main, new Vector3(0, by + r * .2f, r * bodyL * .62f), new Vector3(-1.0f, 0, 0));
+            for (int k = 0; k < 4; k++) Add(new SphereMesh { Radius = r * .22f, Height = r * .3f, RadialSegments = 8, Rings = 3 }, dark, new Vector3(0, by + bw * .8f, -r * bodyL * .32f + k * r * bodyL * .12f), new Vector3(.3f, 0, 0), null, new Vector3(.8f, .6f, 1.4f));
+        }
+        else if (look == "boar") Add(new CylinderMesh { TopRadius = r * .02f, BottomRadius = r * .06f, Height = r * .5f, RadialSegments = 4 }, dark, new Vector3(0, by + r * .2f, r * bodyL * .55f), new Vector3(-.9f, 0, 0));
+        // legs on hip pivots (front-left/back-right swing together): thigh, shin, paw
         float lw = r * (look == "deer" ? 0.2f : 0.3f), ll = hipY;
         foreach (var (x, z) in new[] { (-1f, -1f), (1f, -1f), (-1f, 1f), (1f, 1f) })
         {
             var hip = new Node3D { Position = new Vector3(x * r * 0.42f, hipY, z * r * bodyL * 0.36f) }; _body.AddChild(hip); _legs.Add(hip);
-            Add(new BoxMesh { Size = new Vector3(lw, ll, lw) }, dark, new Vector3(0, -ll / 2, 0), null, hip);
+            bool hind = z > 0;
+            Add(new CylinderMesh { TopRadius = lw * (hind ? .85f : .7f), BottomRadius = lw * .4f, Height = ll * .55f, RadialSegments = 8 }, main, new Vector3(0, -ll * .25f, hind ? lw * .2f : 0), new Vector3(hind ? .25f : 0, 0, 0), hip);
+            Add(new CylinderMesh { TopRadius = lw * .4f, BottomRadius = lw * .32f, Height = ll * .55f, RadialSegments = 6 }, dark, new Vector3(0, -ll * .72f, 0), null, hip);
+            Add(new SphereMesh { Radius = lw * .45f, Height = lw * .6f, RadialSegments = 6, Rings = 3 }, dark, new Vector3(0, -ll + lw * .2f, -lw * .15f), null, hip);
         }
         var light = Mat(col.Lightened(0.55f));
         switch (look)
