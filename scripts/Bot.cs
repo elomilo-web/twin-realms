@@ -163,6 +163,43 @@ public partial class Bot : Node
             Check("every class and race starts with valid stats", bad2.Count == 0, bad2.Count > 0 ? string.Join(",", bad2) : $"{Classes.Order.Count} classes x {Races.Order.Count} races");
         });
 
+        await Step("damage types, statuses and skills", async () =>
+        {
+            // mitigation curve: 100 armor halves damage; 50% penetration -> 50 effective armor; negative armor amplifies
+            float m1 = Dmg.Mitigate(100, "physical", 100, 0, 0, 0, 0, 0, 0), m2 = Dmg.Mitigate(100, "physical", 100, 0, 0, 0, 50, 0, 0), m3 = Dmg.Mitigate(100, "fire", 0, 50, 50, 0, 0, 0, 0), m4 = Dmg.Mitigate(100, "physical", -50, 0, 0, 0, 0, 0, 0);
+            Check("armor, magic resist, penetration and resistances calculate", Mathf.Abs(m1 - 50) < .1f && Mathf.Abs(m2 - 66.67f) < .1f && Mathf.Abs(m3 - 33.33f) < .1f && Mathf.Abs(m4 - 133.33f) < .1f, $"{m1:0.0} {m2:0.0} {m3:0.0} {m4:0.0}");
+            var spot = World.OnGround(-70, -95, .5f); P.Teleport(spot, 0f); await Wait(0.2f);
+            Enemy Dummy(float dz = -4f) { var g = new Enemy { Type = "brute", Level = 40, AnyRealm = true, NoLeash = true, Position = P.GlobalPosition + new Vector3(0, 0, dz) }; Game.Root!.AddChild(g); return g; }
+            var t0 = Dummy(); await Wait(0.3f); t0.Stun(30f);
+            for (int i = 0; i < 4; i++) t0.TakeHit(new HitInfo { Damage = 1, From = P.GlobalPosition, IsPlayer = true, Type = "poison" }.With("poison", 1));
+            float hpA = t0.Hp; await Wait(1.2f);
+            Check("statuses stack and tick", t0.Status.Has("poison", 4) && t0.Hp < hpA, $"poison x{t0.Status.List.Find(s => s.Def.Id == "poison")?.Stacks ?? 0}, hp {hpA:0} -> {t0.Hp:0}");
+            t0.QueueFree();
+            // supports change the computed skill
+            Game.D.Skills["fire"] = new SkillState { Rank = 4 }; foreach (var s in new[] { "multi", "wide", "seek" }) if (!Game.D.Supports.Contains(s)) Game.D.Supports.Add(s);
+            var before = Skills.Compute("fire"); Skills.Socket("fire", 0, "multi"); Skills.Socket("fire", 1, "wide"); Skills.Socket("fire", 2, "seek"); var after = Skills.Compute("fire");
+            Check("supports modify skills", after.Count == before.Count + 2 && after.Radius > before.Radius && after.Homing && after.Dmg < before.Dmg, $"count {before.Count}->{after.Count}, area {before.Radius:0.0}->{after.Radius:0.0}, dmg {before.Dmg:0}->{after.Dmg:0}");
+            // every skill fires and does its job
+            var keepBar = (string[])Game.D.Bar.Clone(); var keepW = Game.D.Eq["weapon"]; var bad = new List<string>(); int ok = 0;
+            foreach (var k in Skills.All)
+            {
+                Game.D.Skills[k.Id] = Game.D.Skills.GetValueOrDefault(k.Id) ?? new SkillState(); Game.D.Bar[0] = k.Id;
+                Game.D.Eq["weapon"] = k.Tags.Contains("bow") ? new Item { Name = "Bot bow", Slot = "weapon", Wt = "bow", Dmg = 10, Two = true } : new Item { Name = "Bot sword", Slot = "weapon", Wt = "sword", Dmg = 10 };
+                Game.Notify(); P.Teleport(spot, 0f); Heal(); await Wait(0.15f);
+                var e = Dummy(-3.2f); await Wait(0.25f); e.Stun(30f); Targeting.Set(e); Face(e.GlobalPosition); await Wait(0.1f);
+                float hp0 = e.Hp; if (k.Kind == "heal") P.Hp = Game.D.MaxHp() * .3f; float php = P.Hp;
+                Press("spell1", true); await Wait(0.05f); Press("spell1", false);
+                await Wait(Skills.Compute(k.Id).Cast + k.Delay + Mathf.Max(.6f, k.Kind == "zone" ? 1.2f : 0) + (k.Kind == "spin" ? 1.3f : 0));
+                bool good = k.Kind switch { "heal" => P.Hp > php + 1, "buff" => P.Buffs.Exists(b => b.id == k.Id) || (GodotObject.IsInstanceValid(e) && e.Status.List.Count > 0), _ => !GodotObject.IsInstanceValid(e) || e.Hp < hp0 };
+                if (good) ok++; else bad.Add(k.Id);
+                Targeting.Clear(); if (GodotObject.IsInstanceValid(e)) e.QueueFree();
+                foreach (var z in GetTree().GetNodesInGroup("projectiles")) z.QueueFree();
+                await Wait(0.1f);
+            }
+            Game.D.Bar = keepBar; Game.D.Eq["weapon"] = keepW; Game.Notify(); Heal();
+            Check("every skill fires and takes effect", bad.Count == 0, $"{ok}/{ok + bad.Count}" + (bad.Count > 0 ? " failed: " + string.Join(",", bad) : ""));
+        });
+
         await Step("gathering", async () =>
         {
             Gatherable? g = null; float bd = 1e9f;

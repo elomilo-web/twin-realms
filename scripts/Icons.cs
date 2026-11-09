@@ -71,6 +71,16 @@ public static class Icons
                 ci.DrawLine(c + new Vector2(-.32f, .32f) * s, c + new Vector2(-.62f, .62f) * s, A(new Color(.45f, .28f, .15f)), Mathf.Max(2f, s * .12f), true);
                 ci.DrawCircle(c + new Vector2(-.68f, .68f) * s, s * .09f, A(new Color(.85f, .65f, .25f)));
                 break;
+            case "shadow":
+                Glow(ci, c, s * .85f, A(new Color(.6f, .3f, 1f)));
+                ci.DrawCircle(c, s * .5f, A(new Color(.25f, .1f, .4f))); ci.DrawArc(c, s * .5f, 0, Mathf.Tau, 24, A(new Color(.8f, .5f, 1f)), Mathf.Max(1.5f, s * .08f), true);
+                ci.DrawArc(c + new Vector2(.12f, -.05f) * s, s * .28f, -.5f, 3.6f, 14, A(new Color(.95f, .8f, 1f)), Mathf.Max(1.5f, s * .07f), true);
+                break;
+            case "poison":
+                Glow(ci, c + new Vector2(0, .15f) * s, s * .7f, A(new Color(.4f, .9f, .3f)));
+                Poly(ci, P(c, s, 0, -.85f, .45f, .05f, .5f, .35f, .3f, .7f, 0, .82f, -.3f, .7f, -.5f, .35f, -.45f, .05f), A(new Color(.45f, .85f, .3f)), ol);
+                ci.DrawCircle(c + new Vector2(-.15f, .3f) * s, s * .1f, A(new Color(.85f, 1f, .75f)));
+                break;
             case "greatsword":
                 Poly(ci, P(c, s, .72f, -.88f, .88f, -.72f, -.15f, .42f, -.42f, .15f), A(new Color(.85f, .9f, .98f)), ol);
                 ci.DrawLine(c + new Vector2(-.55f, .05f) * s, c + new Vector2(-.05f, .55f) * s, A(new Color(.85f, .65f, .25f)), Mathf.Max(2.5f, s * .16f), true);
@@ -182,6 +192,14 @@ public static class Icons
                 break;
         }
     }
+
+    /// <summary>Icon for a skill: its own drawing if there is one, otherwise one for its damage type or kind.</summary>
+    public static string ForSkill(SkillDef s) => s.Id switch
+    {
+        "fire" or "nova" or "heal" or "zap" => s.Id, "meteor" => "fire", "icelance" => "nova", "volley" or "rain" => "bow", "fan" => "dagger", "shieldbash" => "shield", "lunge" => "spear", "leap" or "groundslam" => "mace",
+        "cleave" or "whirlwind" => "axe", "arcanestrike" => "zap", "smite" or "consecrate" => "heal", "warcry" => "head", "shadowstep" or "poisonblade" => "dagger",
+        _ => s.Type switch { "shadow" => "shadow", "poison" => "poison", "holy" => "heal", "frost" => "nova", "lightning" => "zap", "fire" => "fire", _ => "sword" },
+    };
 
     /// <summary>Gear slot/weapon type to icon id.</summary>
     public static string ForItem(string slot, string wt) => slot switch

@@ -102,6 +102,8 @@ public partial class HudCanvas : Control
         {
             float tw = u * 24, ty = u * 7.6f; Txt(new Vector2(sz.X / 2 - tw / 2, ty), $"{tgt.Def.N}  Lv {tgt.Level}", fs(1.2f), tgt.Def.Boss ? UiTheme.Highlight : Colors.White, HorizontalAlignment.Center, tw);
             SlantBar(new Rect2(sz.X / 2 - tw / 2, ty + 6, tw, Mathf.Max(7, u * .75f)), tgt.Hp / tgt.MaxHp, tgt.Def.Flee ? new Color("9ad06a") : new Color("ff5a4f"), 6, 10);
+            float tx = sz.X / 2 - tw / 2, ic = Mathf.Max(18, u * 1.6f);
+            foreach (var s in tgt.Status.List) { StatusChip(new Vector2(tx, ty + 14 + Mathf.Max(7, u * .75f)), ic, s.Def.Col, s.Def.Name[..1], s.T, s.Stacks); tx += ic + 3; }
         }
         // crosshair
         DrawCircle(sz / 2, 3f, new Color(1, 1, 1, .75f));
@@ -117,14 +119,18 @@ public partial class HudCanvas : Control
             Txt(new Vector2(x0 + kw + 16, y0 + pf * 1.2f), act, pf, Colors.White);
         }
         if (d.AttrPts + d.SkillPts > 0) Txt(new Vector2(sz.X / 2 - u * 20, sz.Y - pad - 4), $"Unspent points: {d.AttrPts} attribute (Esc > Character), {d.SkillPts} skill (K)", fs(1f), UiTheme.Highlight, HorizontalAlignment.Center, u * 40);
-        // hotbar bottom-left: 4 spells + 2 potions
+        // hotbar bottom-left: 6 skills (keys 1-6, set in the Skills menu, L) + 2 potions
         float ss = Mathf.Max(36, u * 4.4f), hx = pad, hy = sz.Y - pad - ss;
-        for (int i = 0; i < 6; i++)
+        for (int i = 0; i < 8; i++)
         {
             var r = new Rect2(hx + i * (ss + u * .5f), hy, ss, ss); Glass(r, false);
             string icon, key; float cd = 0, cdMax = 1; bool dim = false; string cnt = "";
-            if (i < 4) { var sp = i < Player.Spells.Count ? Player.Spells[i] : null; icon = sp?.Id ?? ""; key = (i + 1).ToString(); if (sp != null) { cd = p.SpellCd[i]; cdMax = Mathf.Max(0.01f, sp.Cd); dim = p.Mp < sp.Mp; cnt = $"{sp.Mp:0}"; } }
-            else { bool hp = i == 4; icon = hp ? "hp" : "mp"; key = hp ? "H" : "G"; cnt = (hp ? d.HpPot : d.MpPot).ToString(); dim = (hp ? d.HpPot : d.MpPot) <= 0; }
+            if (i < 6)
+            {
+                var id = i < d.Bar.Length ? d.Bar[i] : null; var sk = string.IsNullOrEmpty(id) ? null : Skills.Get(id!); icon = sk != null ? Icons.ForSkill(sk) : ""; key = (i + 1).ToString();
+                if (sk != null) { var sc = Skills.Compute(id!); cd = p.CdOf(id); cdMax = p.CdMaxOf(id); dim = p.Mp < sc.Mp || p.St < sc.St; cnt = sc.Mp > 0 ? $"{sc.Mp:0}" : $"{sc.St:0}"; }
+            }
+            else { bool hp = i == 6; icon = hp ? "hp" : "mp"; key = hp ? "H" : "G"; cnt = (hp ? d.HpPot : d.MpPot).ToString(); dim = (hp ? d.HpPot : d.MpPot) <= 0; }
             // vector icon (scripts/Icons.cs), dimmed when unaffordable; radial cooldown sweep with seconds left
             if (icon != "") Icons.Draw(this, icon, r.GetCenter() + new Vector2(0, -ss * .02f), ss * .68f, dim ? .35f : 1f);
             if (cd > 0)
@@ -135,12 +141,25 @@ public partial class HudCanvas : Control
                 for (int k = 1; k + 1 < clip.Count; k++) { var a = clip[k] - cc; var b = clip[k + 1] - cc; if (Mathf.Abs(a.Cross(b)) > .5f) DrawPrimitive(new[] { cc, clip[k], clip[k + 1] }, new[] { new Color(0, 0, 0, .62f), new Color(0, 0, 0, .62f), new Color(0, 0, 0, .62f) }, null); }
                 Txt(r.Position + new Vector2(0, ss * .62f), cd >= 1 ? $"{Mathf.CeilToInt(cd)}" : $"{cd:0.0}", fs(1.05f), Colors.White, HorizontalAlignment.Center, ss);
             }
-            else if (!dim && i < 4) DrawRect(r, UiTheme.Accent with { A = .35f }, false, 1f);
-            Txt(r.Position + new Vector2(4, fs(.95f) + 1), key, fs(.95f), UiTheme.Accent); Txt(r.Position + new Vector2(0, ss - 4), cnt, fs(.85f), i == 4 ? new Color("ff8f86") : i == 5 ? new Color("8fb8ff") : UiTheme.Dim.Lightened(.3f), HorizontalAlignment.Right, ss - 4);
+            else if (!dim && i < 6 && icon != "") DrawRect(r, UiTheme.Accent with { A = .35f }, false, 1f);
+            Txt(r.Position + new Vector2(4, fs(.95f) + 1), key, fs(.95f), UiTheme.Accent); Txt(r.Position + new Vector2(0, ss - 4), cnt, fs(.85f), i == 6 ? new Color("ff8f86") : i == 7 ? new Color("8fb8ff") : UiTheme.Dim.Lightened(.3f), HorizontalAlignment.Right, ss - 4);
         }
+        // hero statuses and skill buffs: icons with seconds left, just above the hotbar
+        float sx0 = hx; float isz = Mathf.Max(22, u * 2.1f);
+        foreach (var b in p.Buffs) { StatusChip(new Vector2(sx0, hy - isz - 8), isz, new Color(1f, .82f, .4f), Skills.Get(b.id)?.Name[..1] ?? "+", b.t, 0); sx0 += isz + 4; }
+        foreach (var s in p.Statuses.List) { StatusChip(new Vector2(sx0, hy - isz - 8), isz, s.Def.Col, s.Def.Name[..1], s.T, s.Stacks); sx0 += isz + 4; }
         // minimap bottom-right
         if (!Dungeon.Active) DrawMini(p, new Vector2(sz.X - pad - u * 7, sz.Y - pad - u * 7), u * 7);
         if (p.Dead) Txt(new Vector2(sz.X / 2, sz.Y / 2), "YOU DIED", fs(5f), new Color("ff7b6f"), HorizontalAlignment.Center, sz.X);
+    }
+
+    /// <summary>Status chip: tinted square, the status initial, stacks in the corner and a draining bar for time left.</summary>
+    void StatusChip(Vector2 at, float s, Color c, string letter, float t, int stacks)
+    {
+        var r = new Rect2(at, new Vector2(s, s)); DrawRect(r, new Color(.02f, .05f, .1f, .8f)); DrawRect(r.Grow(-2), c with { A = .45f }); DrawRect(r, c, false, 1.5f);
+        Txt(at + new Vector2(0, s * .72f), letter, (int)(s * .6f), Colors.White, HorizontalAlignment.Center, s);
+        if (stacks > 1) Txt(at + new Vector2(0, s - 2), stacks.ToString(), (int)(s * .38f), Colors.White, HorizontalAlignment.Right, s - 2);
+        DrawRect(new Rect2(at + new Vector2(0, s + 1), new Vector2(s * Mathf.Clamp(t / 10f, 0, 1), 2)), c);
     }
 
     /// <summary>Glass box like the menus: translucent navy, cyan edge, bright corner ticks.</summary>

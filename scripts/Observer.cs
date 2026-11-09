@@ -173,7 +173,7 @@ public partial class Observer : Node
         await Safe("menus", async () =>
         {
             for (int i = 0; i < 20; i++) Game.D.Inv.Add(Items.Roll(1 + i / 3, i / 6f));
-            var menus = new (string, Action)[] { ("pack", () => Ui.I!.OpenPack()), ("character", () => Ui.I!.OpenCharacter()), ("journal", () => Ui.I!.OpenJournal()), ("tree", () => Ui.I!.OpenTree()), ("map", () => Ui.I!.OpenMap()), ("pause", () => Ui.I!.OpenPause()), ("settings", () => Ui.I!.OpenSettings()) };
+            var menus = new (string, Action)[] { ("pack", () => Ui.I!.OpenPack()), ("character", () => Ui.I!.OpenCharacter()), ("journal", () => Ui.I!.OpenJournal()), ("tree", () => Ui.I!.OpenTree()), ("map", () => Ui.I!.OpenMap()), ("pause", () => Ui.I!.OpenPause()), ("settings", () => Ui.I!.OpenSettings()), ("skills", () => { LearnAll(); Ui.I!.OpenSkills(); }) };
             foreach (var (name, open) in menus) { open(); await Wait(0.4f); await Shot("m_" + name); AuditUi(name, ui); Ui.I!.Close(); await Wait(0.1f); }
             // pack with the tooltip open on an item of the same slot as something worn (shows comparison arrows)
             Ui.I!.OpenPack(); await Wait(0.4f);
@@ -212,6 +212,7 @@ public partial class Observer : Node
                 await Strip("death_dissolve", async () => { dummy.TakeHit(new HitInfo { Damage = 99999, From = P.GlobalPosition, Knock = 2f, IsPlayer = true, Attacker = P }); await Wait(3f); }, 12, 0.25f);
                 if (IsInstanceValid(dummy)) dummy.QueueFree(); await Wait(0.3f);
             }
+            LearnAll(); Game.D.Bar = new[] { "fire", "nova", "heal", "zap", "meteor", "whirlwind" }; Game.Notify();
             P.Mp = Game.D.MaxMp();
             await Strip("spell_fire", async () => { Press("spell1", true); await Wait(0.05f); Press("spell1", false); await Wait(0.5f); });
             await Strip("spell_nova", async () => { P.Mp = Game.D.MaxMp(); Press("spell2", true); await Wait(0.05f); Press("spell2", false); await Wait(0.6f); });
@@ -234,6 +235,17 @@ public partial class Observer : Node
                 foreach (var dx in new[] { -1.5f, 2f }) { var e = new Enemy { Type = "goblin", Level = 30, AnyRealm = true, NoLeash = true, Position = World.OnGround(pp.X + dx, pp.Z - 6f - Mathf.Abs(dx), 0.2f) }; Game.Root!.AddChild(e); foes.Add(e); }
                 await Wait(0.3f); foreach (var e in foes) e.Stun(5f);
                 await Strip("spell_zap", async () => { P.Mp = Game.D.MaxMp(); Press("spell4", true); await Wait(0.05f); Press("spell4", false); await Wait(0.5f); }, 8, 0.05f);
+                foreach (var e in foes) if (IsInstanceValid(e)) { e.Stun(20f); }
+                await Strip("skill_meteor", async () => { P.Mp = Game.D.MaxMp(); Targeting.Set(foes[0]); Press("spell5", true); await Wait(0.05f); Press("spell5", false); await Wait(1.6f); Targeting.Clear(); }, 12, 0.14f);
+                foreach (var (id, key) in new[] { ("hex", "spell5"), ("smite", "spell5"), ("thornvolley", "spell5"), ("leap", "spell5") })
+                {
+                    foreach (var e in foes) if (IsInstanceValid(e)) { e.Hp = e.MaxHp; e.Stun(20f); }
+                    P.Teleport(World.OnGround(pp.X, pp.Z, 0.5f), 0f); Game.D.Bar[4] = id; await Wait(0.3f);
+                    var tgt = foes.Find(e => IsInstanceValid(e) && !e.Dead);
+                    await Strip("skill_" + id, async () => { P.Mp = Game.D.MaxMp(); P.St = Game.D.MaxSt(); if (tgt != null) Targeting.Set(tgt); Press(key, true); await Wait(0.05f); Press(key, false); await Wait(1.3f); Targeting.Clear(); }, 8, 0.15f);
+                }
+                P.Teleport(World.OnGround(pp.X, pp.Z, 0.5f), 0f); await Wait(0.3f);
+                await Strip("skill_whirlwind", async () => { P.St = Game.D.MaxSt(); Press("spell6", true); await Wait(0.05f); Press("spell6", false); await Wait(1.3f); }, 8, 0.15f);
                 foreach (var e in foes) if (IsInstanceValid(e)) e.QueueFree();
             }
         });
@@ -269,6 +281,14 @@ public partial class Observer : Node
         await Safe("hitboxes", HitboxAudit);
         _m["errors"] = errors;
         Finish("ok");
+    }
+
+    /// <summary>Learns every skill and support so menus and strips can show them.</summary>
+    static void LearnAll()
+    {
+        foreach (var k in Skills.All) if (!Game.D.Skills.ContainsKey(k.Id)) Game.D.Skills[k.Id] = new SkillState { Rank = 3 };
+        foreach (var s in Skills.AllSupports) if (!Game.D.Supports.Contains(s.Id)) Game.D.Supports.Add(s.Id);
+        Game.D.Skills["fire"].Rank = 4; Skills.Socket("fire", 0, "multi"); Skills.Socket("fire", 1, "seek"); Game.D.RankPts = 5;
     }
 
     void Finish(string status)

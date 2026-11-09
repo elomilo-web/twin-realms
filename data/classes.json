@@ -15,7 +15,7 @@
   "lancer":     { "n": "Lancer",      "d": "Spear and reach. Charges, sweeps and launches foes.",           "a": { "str": 2, "dex": 3 }, "w": { "name": "Ash Spear", "wt": "spear", "dmg": 5 }, "mods": { "reach": 10, "knockP": 15 }, "skills": ["lunge", "leap", "cleave", "heal"], "tunic": "2a4a6a", "cape": "8a6a2a", "start": "lancer" },
   "warden":     { "n": "Warden",      "d": "Axe and shield. Bleeds, taunts and stands firm.",               "a": { "str": 3, "vit": 2 }, "w": { "name": "Bearded Axe", "wt": "axe", "dmg": 5 }, "shield": true, "mods": { "bleedP": 15, "hpP": 5 }, "skills": ["cleave", "warcry", "shieldbash", "heal"], "tunic": "4a3a2a", "cape": "2a4a2a", "start": "warden" }
  },
- "spells": [
+ "_spells_note": "Legacy list; skills now live in data/skills.json.", "spells": [
   { "id": "fire", "n": "Firebolt", "k": "1", "mp": 14, "cd": 0.7, "cast": 0.3 },
   { "id": "nova", "n": "Frost Nova", "k": "2", "mp": 28, "cd": 7, "cast": 0.4 },
   { "id": "heal", "n": "Healing Light", "k": "3", "mp": 30, "cd": 9, "cast": 0.45 },

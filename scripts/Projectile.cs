@@ -12,6 +12,9 @@ public partial class Projectile : Node3D
     public float Life = 2f, Dmg = 10f, Aoe = 0f;
     public bool Crit, Pierce, Big;
     public HashSet<Enemy> Hits = new();
+    // skill projectiles: resolved skill (type, statuses, leech), pierce and chain counts, homing, colour
+    public SkillCalc? Calc; public int PierceLeft, ChainLeft; public bool Homing; public Color? Tint; public Enemy? Source;
+    HitInfo HitFor(Vector3 from) => Calc != null ? Calc.Hit(Dmg, from, Crit) : new HitInfo { Damage = Dmg, From = from, Knock = 2.2f, Crit = Crit, Attacker = Player.Instance, IsPlayer = true };
 
     public static Projectile Spawn(string kind, char own, Vector3 pos, Vector3 vel, float dmg, float life, bool crit = false, bool pierce = false, float aoe = 0f, bool big = false)
     {
@@ -21,7 +24,8 @@ public partial class Projectile : Node3D
 
     public override void _Ready()
     { AddToGroup("projectiles");
-        Color c = Kind switch { "arrow" => new Color(0.85f, 0.8f, 0.6f), "fire" => new Color(1f, 0.55f, 0.15f), "ebolt" => new Color(0.8f, 0.3f, 1f), _ => new Color(0.55f, 0.75f, 1f) };
+        Color c = Tint ?? Kind switch { "arrow" => new Color(0.85f, 0.8f, 0.6f), "fire" => new Color(1f, 0.55f, 0.15f), "ebolt" => new Color(0.8f, 0.3f, 1f), _ => new Color(0.55f, 0.75f, 1f) };
+        if (Kind == "arrow" && Tint != null) c = new Color(0.85f, 0.8f, 0.6f);
         var mat = new StandardMaterial3D { AlbedoColor = c, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded };
         if (Kind == "arrow")
         {
@@ -53,6 +57,13 @@ public partial class Projectile : Node3D
         float dt = (float)delta;
         Life -= dt;
         if (Kind == "arrow") Vel.Y -= 7f * dt;
+        if (Homing && Own == 'p')
+        {
+            // seek the nearest living enemy ahead (within 22 m and 80 degrees), turning a few radians per second
+            Enemy? best = null; float bd = 22f; var dirN = Vel.Normalized();
+            foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Enemy e && !e.Dead && e.Active && !Hits.Contains(e)) { var d = e.GlobalPosition + Vector3.Up * e.HeightM() * .5f - GlobalPosition; float l = d.Length(); if (l < bd && dirN.AngleTo(d / l) < 1.4f) { bd = l; best = e; } }
+            if (best != null) { var want = (best.GlobalPosition + Vector3.Up * best.HeightM() * .5f - GlobalPosition).Normalized() * Vel.Length(); Vel = Vel.Lerp(want, Mathf.Clamp(6f * dt, 0, 1)); }
+        }
         var from = GlobalPosition; var to = from + Vel * dt;
         bool end = Life <= 0;
 
@@ -72,7 +83,7 @@ public partial class Projectile : Node3D
                 var d = e.GlobalPosition - to; float dy = to.Y - e.GlobalPosition.Y;
                 if (new Vector2(d.X, d.Z).Length() < e.Def.R * e.ScaleF() + 0.5f && dy > -0.3f && dy < e.HeightM() + 0.5f)
                 {
-                    if (Pierce && Aoe <= 0) { e.TakeHit(new HitInfo { Damage = Dmg, From = to - Vel, Knock = 1.5f, Crit = Crit, Attacker = Player.Instance, IsPlayer = true }); Hits.Add(e); continue; }
+                    if ((Pierce || PierceLeft > 0) && Aoe <= 0) { var ph = HitFor(to - Vel); ph.Knock = 1.5f; e.TakeHit(ph); Hits.Add(e); if (PierceLeft > 0) PierceLeft--; continue; }
                     hitE = e; end = true; break;
                 }
             }
@@ -83,7 +94,7 @@ public partial class Projectile : Node3D
             if (pl != null && !pl.Dead)
             {
                 var d = pl.GlobalPosition - to; float dy = to.Y - pl.GlobalPosition.Y;
-                if (new Vector2(d.X, d.Z).Length() < 0.75f && dy > -0.2f && dy < 2.1f) { pl.TakeHit(new HitInfo { Damage = Dmg, From = to - Vel, Knock = 3f, IsProjectile = true }); end = true; Fx.Burst(to, new Color(1, 0.5f, 0.2f), 8); }
+                if (new Vector2(d.X, d.Z).Length() < 0.75f && dy > -0.2f && dy < 2.1f) { var eh = new HitInfo { Damage = Dmg, From = to - Vel, Knock = 3f, IsProjectile = true }; if (Source != null && IsInstanceValid(Source)) Source.OnHit(eh); pl.TakeHit(eh); end = true; Fx.Burst(to, new Color(1, 0.5f, 0.2f), 8); }
             }
         }
 
@@ -99,12 +110,27 @@ public partial class Projectile : Node3D
                     var d = e.GlobalPosition - to; d.Y = 0; float dist = d.Length() - e.Def.R;
                     if (dist < Aoe)
                     {
-                        e.TakeHit(new HitInfo { Damage = Dmg * (1f - Mathf.Clamp(dist / Aoe, 0, 1) * 0.4f), From = to, Knock = 4f, Stun = 0.25f, Attacker = Player.Instance, IsPlayer = true, Fire = true });
-                        e.Ignite(3f, Dmg * 0.12f * (1f + Game.TS["burn"] / 100f));
+                        var ah = HitFor(to); ah.Damage = Dmg * (1f - Mathf.Clamp(dist / Aoe, 0, 1) * 0.4f); ah.Knock = Mathf.Max(ah.Knock, 4f); ah.Stun = Mathf.Max(ah.Stun, .25f);
+                        if (Calc == null) { ah.Type = "fire"; ah.Fire = true; ah.With("burn", 1, 1, .12f * (1f + Game.TS["burn"] / 100f) / .25f); }
+                        e.TakeHit(ah);
                     }
                 }
             }
-            else if (hitE != null) hitE.TakeHit(new HitInfo { Damage = Dmg, From = to - Vel, Knock = 2.2f, Crit = Crit, Attacker = Player.Instance, IsPlayer = true });
+            else if (hitE != null)
+            {
+                hitE.TakeHit(HitFor(to - Vel)); Hits.Add(hitE);
+                if (ChainLeft > 0)
+                {
+                    // chain: a new projectile leaps from this foe to the nearest one not yet hit
+                    Enemy? nx = null; float bd = 14f;
+                    foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Enemy e && !e.Dead && e.Active && !Hits.Contains(e)) { float d = (e.GlobalPosition - hitE.GlobalPosition).Length(); if (d < bd) { bd = d; nx = e; } }
+                    if (nx != null)
+                    {
+                        var start = hitE.GlobalPosition + Vector3.Up * hitE.HeightM() * .6f; var dir = (nx.GlobalPosition + Vector3.Up * nx.HeightM() * .5f - start).Normalized();
+                        var p2 = Spawn(Kind, 'p', start, dir * Vel.Length(), Dmg * .85f, 1.5f, Crit, Pierce, 0); p2.Calc = Calc; p2.ChainLeft = ChainLeft - 1; p2.Homing = true; p2.Tint = Tint; p2.Hits = new HashSet<Enemy>(Hits);
+                    }
+                }
+            }
             else Fx.Burst(to, new Color(0.8f, 0.8f, 0.9f), 4, 2f, 0.25f, 0.06f);
         }
         else if (Aoe > 0)

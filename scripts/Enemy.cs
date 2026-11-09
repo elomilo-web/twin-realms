@@ -313,6 +313,9 @@ public partial class Enemy : CharacterBody3D, IDamageable
         if (h.IsPlayer) foreach (var sd in Dmg.Statuses) { float c = TS[sd.Id + "Chance"] / 100f; if (c > 0) Try(sd.Id, c, 1, 0); }   // passives like "bleedChance"
     }
 
+    /// <summary>Stamps this enemy's damage type and on-hit statuses onto a hit against the player.</summary>
+    public HitInfo OnHit(HitInfo h) { h.Type = Def.DmgType; h.Attacker ??= this; if (Def.OnHit != null) foreach (var kv in Def.OnHit) h.With(kv.Key, kv.Value); return h; }
+
     public void TakeHit(HitInfo h)
     {
         if (Dead) return;
@@ -500,13 +503,13 @@ public partial class Enemy : CharacterBody3D, IDamageable
                         {
                             var from = GlobalPosition + new Vector3(0, 1.4f * _scale, 0); var to = pl!.GlobalPosition + new Vector3(0, 1.1f, 0);
                             var dir = (to - from).Normalized();
-                            Projectile.Spawn(Def.Ranged == "arrow" ? "arrow" : "ebolt", 'e', from, dir * (Def.Ranged == "arrow" ? 26f : 18f), Damage, 3f);
+                            { var pr = Projectile.Spawn(Def.Ranged == "arrow" ? "arrow" : "ebolt", 'e', from, dir * (Def.Ranged == "arrow" ? 26f : 18f), Damage, 3f); pr.Source = this; }
                             Sfx.Play(Def.Ranged == "arrow" ? "swing" : "zap", 0.6f);
                         }
                         else if (dist - 0.4f <= Def.Reach + 0.5f)
                         {
                             if (Def.Slam) { Fx.Ring(GlobalPosition + Vector3.Up * 0.1f, Def.Reach + 0.8f, new Color(1, 0.5f, 0.2f)); Player.Instance?.Rig?.Shake(0.2f); }
-                            pl!.TakeHit(new HitInfo { Damage = Damage, From = GlobalPosition, Knock = Def.Slam ? 9f : 4f, Attacker = this });
+                            pl!.TakeHit(OnHit(new HitInfo { Damage = Damage, From = GlobalPosition, Knock = Def.Slam ? 9f : 4f, Attacker = this }));
                         }
                     }
                     _state = State.Recover; _timer = Def.Cd * 0.6f;
@@ -543,7 +546,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
                     {
                         _tick = 0;
                         if (plOk && dist < 22f && Mathf.Abs(Util.AngDiff(_yaw, yawToP)) < 0.55f)
-                            pl!.TakeHit(new HitInfo { Damage = Damage * 0.35f, From = GlobalPosition, Knock = 1f, NoBlock = true, IsProjectile = true });
+                            pl!.TakeHit(OnHit(new HitInfo { Damage = Damage * 0.35f, From = GlobalPosition, Knock = 1f, NoBlock = true, IsProjectile = true, Attacker = this }));
                     }
                     break;
                 }

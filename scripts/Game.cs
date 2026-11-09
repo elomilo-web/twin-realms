@@ -30,6 +30,7 @@ public static class Game
         TreeDb.Load(); TreeDb.Recalc(new HashSet<int>(D.Tree), TS);
         foreach (var kv in Races.Get(D.Race).Mods) TS[kv.Key] += kv.Value;
         foreach (var kv in Classes.Get(D.Class).Mods) TS[kv.Key] += kv.Value;
+        if (Player.Instance != null) foreach (var b in Player.Instance.Buffs) foreach (var kv in b.mods) TS[kv.Key] += kv.Value;   // timed skill buffs (War Cry, Venom Blade)
     }
     public static void Notify() => Changed?.Invoke();
 

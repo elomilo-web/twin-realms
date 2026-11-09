@@ -120,6 +120,16 @@ public static class Vfx
         Sparks(pos + Vector3.Up * .3f, Ramp((0, new Color(1, 1, .7f)), (.5f, new Color(.5f, 1f, .5f)), (1, new Color(.4f, 1f, .4f, 0))), 36, 4f, 1.2f, .22f, 2.5f, true, 25f, Vector3.Up, .8f);
     }
 
+    /// <summary>A column of light striking down at a point (Smite), with a ground ring.</summary>
+    public static void HealPillarAt(Vector3 pos, Color c, float radius)
+    {
+        Flash(pos + Vector3.Up * 2f, c, 5f, radius * 4, .5f);
+        var col = Add(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = radius * .35f, BottomRadius = radius * .55f, Height = 9f, RadialSegments = 20, CapTop = false, CapBottom = false }, MaterialOverride = Glow(c, .6f), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off }, pos + Vector3.Up * 4.5f);
+        var tw = col.CreateTween().SetParallel(); tw.TweenProperty(col, "scale", new Vector3(.2f, 1, .2f), .35f).SetEase(Tween.EaseType.In); tw.TweenProperty(col.MaterialOverride, "albedo_color:a", 0f, .35f); Later(col, .4f);
+        Ring(pos + Vector3.Up * .1f, radius, c, .4f);
+        Sparks(pos + Vector3.Up * .3f, Ramp((0, Colors.White), (1, new Color(c, 0))), 30, 6f, .6f, .22f, -2f);
+    }
+
     /// <summary>Jagged lightning between two points (core and glow), re-forking a few times before it fades.</summary>
     public static void Lightning(Vector3 a, Vector3 b, Color c, float time = .25f)
     {

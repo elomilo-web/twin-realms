@@ -17,7 +17,7 @@ public static class Inputs
         if (_done) return; _done = true;
         Bind(Left, Key.A); Bind(Right, Key.D); Bind(Forward, Key.W); Bind(Back, Key.S);
         Bind(Jump, Key.Space); Bind(Sprint, Key.Shift); Bind(Roll, Key.C); Bind(Pause, Key.Escape);
-        Bind(Spell1, Key.Key1); Bind(Spell2, Key.Key2); Bind(Spell3, Key.Key3); Bind(Spell4, Key.Key4);
+        Bind(Spell1, Key.Key1); Bind(Spell2, Key.Key2); Bind(Spell3, Key.Key3); Bind(Spell4, Key.Key4); Bind("spell5", Key.Key5); Bind("spell6", Key.Key6);
         Bind(PotHp, Key.H); Bind(PotMp, Key.G); Bind(Use, Key.E); Bind(Realm, Key.R); Bind(Mount, Key.T);
         Bind(Pack, Key.I); Bind(Journal, Key.J); Bind(Map, Key.M); Bind(Tree, Key.K);
         Bind(Lock, Key.Tab); Bind(Unlock, Key.Q); Bind(SkillsUi, Key.L);

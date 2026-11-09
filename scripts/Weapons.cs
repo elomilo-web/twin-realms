@@ -28,6 +28,7 @@ public class WeaponDef
 {
     public string Id = "", Name = ""; public int Hands = 1; public bool Ranged, LeftHand;
     public float Dmg = 1, Str, Dex, Mag, Grip, Speed = 1, Crit;
+    public Dictionary<string, float> OnHit = new();   // status id -> chance per hit (finishers and power attacks x1.5)
     public Color Trail = new(.45f, .85f, 1f);
     public HandPose Rest, Aim, Draw;
     public List<AttackDef> Combo = new(); public AttackDef Power = new();
@@ -75,6 +76,7 @@ public static class Weapons
             };
             w.Rest = P(e.TryGetProperty("rest", out var re) ? re : default, new HandPose { H = new Vector3(.42f, .95f, -.14f), Yaw = -6, Pitch = -50 });
             w.Aim = P(e.TryGetProperty("aim", out var ai) ? ai : default, w.Rest); w.Draw = P(e.TryGetProperty("draw", out var dr) ? dr : default, w.Aim);
+            if (e.TryGetProperty("onHit", out var oh)) foreach (var x in oh.EnumerateObject()) w.OnHit[x.Name] = x.Value.GetSingle();
             foreach (var c in e.GetProperty("combo").EnumerateArray()) w.Combo.Add(A(c));
             w.Power = A(e.GetProperty("power"));
             _d[t.Name] = w;

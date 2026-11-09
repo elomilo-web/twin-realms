@@ -4,20 +4,18 @@ using Godot;
 
 namespace TwinRealms;
 
-public class SpellDef { public string Id = "", Name = ""; public float Mp, Cd, Cast; }
+
 
 /// <summary>The hero: movement, roll, four weapon types (sword, bow, wand, staff), block/parry, four spells, potions, interaction, horse.</summary>
 public partial class Player : CharacterBody3D, IDamageable
 {
     public static Player? Instance;
-    public static List<SpellDef> Spells = new();
 
     public CameraRig? Rig;
     public float Hp, Mp, St;
     public bool Dead { get; private set; }
     public bool Mounted { get; private set; }
     public string Prompt = "";
-    public float[] SpellCd = new float[4];
     public float ShiftFlash;
     public readonly StatusSet Statuses = new();   // statuses on the hero (enemy on-hit effects come in the next round)
 
@@ -32,21 +30,13 @@ public partial class Player : CharacterBody3D, IDamageable
     Vector3 _rollDir, _kb;
     bool _lmbPrev; float _lmbHold;
     float _atkT, _atkDur, _comboT, _blockT, _queueT, _castT, _castDur; bool _queuePower, _hasQueue;
-    int _combo, _castIdx = -1; bool _atkPower, _hitDone, _blocking, _fired;
+    int _combo; bool _atkPower, _hitDone, _blocking, _fired;
     float _undyReady; Item? _shownWeapon; string _shownType = "";
     float _regenAcc;
 
-    static void LoadSpells()
-    {
-        if (Spells.Count > 0) return;
-        using var doc = JsonUtil.Load("res://data/classes.json");
-        foreach (var s in doc.RootElement.GetProperty("spells").EnumerateArray())
-            Spells.Add(new SpellDef { Id = JsonUtil.S(s, "id"), Name = JsonUtil.S(s, "n"), Mp = JsonUtil.F(s, "mp"), Cd = JsonUtil.F(s, "cd"), Cast = JsonUtil.F(s, "cast") });
-    }
-
     public override void _Ready()
     {
-        Instance = this; LoadSpells();
+        Instance = this;
         AddToGroup("player");
         CollisionMask = 1 | 2;
         _gravity = (float)ProjectSettings.GetSetting("physics/3d/default_gravity");
@@ -113,9 +103,15 @@ public partial class Player : CharacterBody3D, IDamageable
     // ------------------------------------------------------------------ damage in
     public void TakeHit(HitInfo h)
     {
-        if (Dead || _inv > 0 || _rollT > 0 || World.Shifting) return;
+        if (Dead || _inv > 0 || _rollT > 0 || World.Shifting || _moveT > 0) return;
         var D = Game.D; var TS = Game.TS;
-        float baseDmg = h.Damage * 100f / (100f + D.Defense() * 5f);
+        // evade: a clean dodge (Halfling, Ranger passives)
+        if (GD.Randf() < Mathf.Clamp(TS["evade"], 0, 60) / 100f) { FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.2f, 0), "Evade", new Color(.75f, .95f, 1f), .9f); _inv = .15f; return; }
+        // physical damage against defense; other types against magic resist (half defense + mr), then the per-type resistance (capped at 75%)
+        float baseDmg = h.Type == "physical" || h.Type == "" ? h.Damage * 100f / (100f + D.Defense() * 5f)
+            : h.Type == "true" ? h.Damage : h.Damage * 100f / (100f + (D.Defense() * .5f + TS["mr"]) * 5f) * (1 - Mathf.Clamp(TS["res_" + h.Type], -100, 75) / 100f);
+        baseDmg *= Statuses.TakenMul;
+        if (h.Attacker is Enemy src && IsInstanceValid(src)) baseDmg *= src.Status.DealtMul;
         var toSrc = h.From - GlobalPosition; toSrc.Y = 0;
         float srcYaw = Util.YawTo(toSrc.X, toSrc.Z);
         bool front = toSrc.LengthSquared() < 0.01f || Mathf.Abs(Util.AngDiff(_modelYaw, srcYaw)) < 1.25f;
@@ -138,15 +134,18 @@ public partial class Player : CharacterBody3D, IDamageable
             Sfx.Play("hurt");
             if (away.LengthSquared() > 0.001f) _kb += away.Normalized() * h.Knock;
             if (!h.IsProjectile) _stagger = Mathf.Max(_stagger, 0.18f);
-            _atkT = 0; _castT = 0; _castIdx = -1;
+            _atkT = 0; _castT = 0; _castSkill = null; _atkSkill = null;
         }
         if (TS.Has("manaShield") && Mp > 0) { float m = Mathf.Min(Mp, dmg * 0.35f); Mp -= m; dmg -= m; }
         if (TS["thorns"] > 0 && h.Attacker is Enemy te && !h.IsProjectile && te.GlobalPosition.DistanceTo(GlobalPosition) < 6f)
             te.TakeHit(new HitInfo { Damage = h.Damage * TS["thorns"] / 100f, From = GlobalPosition, IsPlayer = true, Attacker = this });
         int final = Mathf.Max(1, Mathf.RoundToInt(dmg));
         Hp -= final; _inv = 0.2f;
+        // the attacker's on-hit statuses (tenacity shortens them), then "when hit" triggers
+        if (h.Statuses != null) foreach (var (id, chance, durMul, pow) in h.Statuses) if (GD.Randf() < chance) Statuses.Add(id, durMul, pow, h.Damage, TS["tenacity"]);
+        TriggerAuto("hit");
         Rig?.Shake(0.18f); Feel.HitStop(Feel.Taken);
-        FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.1f, 0), "-" + final, new Color(1, 0.4f, 0.35f));
+        FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.1f, 0), "-" + final, h.Type is "physical" or "" ? new Color(1, 0.4f, 0.35f) : Dmg.TypeColor(h.Type).Lerp(new Color(1, .3f, .3f), .3f));
         if (Hp <= 0)
         {
             if (TS.Has("undying") && World.Clock > _undyReady)
@@ -250,7 +249,9 @@ public partial class Player : CharacterBody3D, IDamageable
             if (Mathf.Abs(e.GlobalPosition.Y - GlobalPosition.Y) > 3.5f + e.Def.R) continue;
             bool crit = GD.Randf() < D.CritChance() + (w.Crit + a.CritBonus) / 100f;
             float dmg = D.WpnDmg() * (float)GD.RandRange(0.9, 1.1) * mult * (crit ? D.CritMult() : 1f);
-            e.TakeHit(new HitInfo { Damage = dmg, From = GlobalPosition, Knock = knock, Stun = stun, Up = up, Crit = crit, Attacker = this, IsPlayer = true, Kind = _atkPower ? "power" : fin ? "combo" : "light" });
+            var hi = new HitInfo { Damage = dmg, From = GlobalPosition, Knock = knock, Stun = stun, Up = up, Crit = crit, Attacker = this, IsPlayer = true, Kind = _atkPower ? "power" : fin ? "combo" : "light" };
+            foreach (var kv in w.OnHit) hi.With(kv.Key, kv.Value * (fin || _atkPower ? 1.5f : 1f));
+            e.TakeHit(hi); if (crit) TriggerAuto("crit");
             hits++;
         }
         if (hits > 0) { Rig?.Shake(_atkPower ? 0.25f : fin ? 0.15f : 0.08f); Sfx.Play("hit"); }
@@ -298,74 +299,6 @@ public partial class Player : CharacterBody3D, IDamageable
         }
     }
 
-    // ------------------------------------------------------------------ spells
-    void TryCast(int i)
-    {
-        if (Dead || _castT > 0 || _rollT > 0 || _stagger > 0 || i >= Spells.Count) return;
-        if (Mounted) { Ui.Note("You cannot cast while mounted", new Color(0.7f, 0.8f, 1)); return; }
-        if (SpellCd[i] > 0) return;
-        var sp = Spells[i]; var D = Game.D;
-        int mc = Mathf.RoundToInt(sp.Mp * (1f + Game.TS["mcost"] / 100f) * (1f - (D.Weapon?.Mc ?? 0f)));
-        if (Mp < mc) { Ui.Note("Not enough mana", new Color(0.4f, 0.65f, 1f)); return; }
-        Mp -= mc; SpellCd[i] = sp.Cd * (1f - Game.TS["cdr"] / 100f); _castIdx = i; _castT = _castDur = sp.Cast; _atkT = 0;
-        _modelYaw = Rig?.Yaw ?? _modelYaw; _fired = false;
-    }
-
-    void FireSpell(int i)
-    {
-        var sp = Spells[i]; var D = Game.D; float pow = D.SpellPow(); var origin = MuzzlePos();
-        if (sp.Id == "fire")
-        {
-            var (t, _) = AimPoint(70f); var dir = (t - origin).Normalized();
-            Projectile.Spawn("fire", 'p', origin, dir * 38f, (20 + D.Level * 3.2f) * pow, 2.2f, false, false, 3f); Sfx.Play("fire");
-        }
-        else if (sp.Id == "nova")
-        {
-            float dmg = (14 + D.Level * 2.6f) * pow; Sfx.Play("ice");
-            Vfx.FrostNova(GlobalPosition, 7.5f); Rig?.Shake(0.15f);
-            foreach (var n in GetTree().GetNodesInGroup("enemies"))
-                if (n is Enemy e && !e.Dead && e.Active && (e.GlobalPosition - GlobalPosition).Length() - e.Def.R < 7.5f)
-                { e.Slow(4f); e.TakeHit(new HitInfo { Damage = dmg, From = GlobalPosition, Knock = 4f, Stun = 0.3f, Attacker = this, IsPlayer = true }); }
-        }
-        else if (sp.Id == "heal")
-        {
-            float amt = D.MaxHp() * 0.35f; Hp = Mathf.Min(D.MaxHp(), Hp + amt); Sfx.Play("heal");
-            Vfx.HealPillar(this);
-            FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.2f, 0), "+" + Mathf.RoundToInt(amt), new Color(0.5f, 1f, 0.6f));
-        }
-        else if (sp.Id == "zap")
-        {
-            var (t, cur) = AimPoint(40f);
-            if (cur == null)
-            {
-                float bd = 28f;
-                foreach (var n in GetTree().GetNodesInGroup("enemies"))
-                {
-                    if (n is not Enemy e || e.Dead || !e.Active) continue;
-                    var d = e.GlobalPosition - GlobalPosition; d.Y = 0; float dist = d.Length();
-                    if (dist < bd && Mathf.Abs(Util.AngDiff(Rig?.Yaw ?? _modelYaw, Util.YawTo(d.X, d.Z))) < 1.2f) { bd = dist; cur = e; }
-                }
-            }
-            Sfx.Play("zap");
-            if (cur == null) { Vfx.Lightning(origin, t, new Color(0.6f, 0.7f, 1f)); return; }
-            var prev = origin; float dm = (24 + D.Level * 3) * pow; var seen = new HashSet<Enemy>();
-            for (int j = 0; j < 4 + (int)Game.TS["chain"] && cur != null; j++)
-            {
-                var pt = cur.GlobalPosition + new Vector3(0, cur.HeightM() * 0.55f, 0);
-                Vfx.Lightning(prev, pt, new Color(0.6f, 0.7f, 1f), 0.28f); seen.Add(cur);
-                cur.TakeHit(new HitInfo { Damage = dm, From = GlobalPosition, Knock = 1.5f, Stun = 0.25f, Attacker = this, IsPlayer = true });
-                dm *= 0.82f; prev = pt; Enemy? nx = null; float bd2 = 10f;
-                foreach (var n in GetTree().GetNodesInGroup("enemies"))
-                {
-                    if (n is not Enemy e || e.Dead || !e.Active || seen.Contains(e)) continue;
-                    float dist = (e.GlobalPosition - cur.GlobalPosition).Length();
-                    if (dist < bd2) { bd2 = dist; nx = e; }
-                }
-                cur = nx;
-            }
-        }
-    }
-
     // ------------------------------------------------------------------ interaction + potions
     void ScanInteract()
     {
@@ -399,7 +332,6 @@ public partial class Player : CharacterBody3D, IDamageable
         if (!IsOnFloor()) v.Y -= _gravity * dt;
         _rollCd = Mathf.Max(0, _rollCd - dt); _inv = Mathf.Max(0, _inv - dt); _stagger = Mathf.Max(0, _stagger - dt);
         _comboT = Mathf.Max(0, _comboT - dt); _stLockT = Mathf.Max(0, _stLockT - dt);
-        for (int i = 0; i < 4; i++) SpellCd[i] = Mathf.Max(0, SpellCd[i] - dt);
 
         if (Dead)
         {
@@ -408,6 +340,16 @@ public partial class Player : CharacterBody3D, IDamageable
             if (_deadT > 3f && !Arenas.Active) Respawner.PlayerDied();
             return;
         }
+        // statuses on the hero: damage over time (resisted by type), stuns stagger, slows apply below
+        Statuses.Tick(dt, (type, amount, col) =>
+        {
+            float d = type == "true" ? amount : amount * (1 - Mathf.Clamp(TS["res_" + type], -100, 75) / 100f);
+            int n = Mathf.Max(1, Mathf.RoundToInt(d)); Hp -= n; FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.0f, 0), "-" + n, col, 0.7f);
+            if (Hp <= 0 && !Dead) Die();
+        });
+        if (Dead) return;
+        if (Statuses.Stunned) _stagger = Mathf.Max(_stagger, .1f);
+        if (SkillTick(dt)) { Animate(dt); return; }   // leap or dash in progress
 
         bool captured = Input.MouseMode == Input.MouseModeEnum.Captured;
         var input = Input.GetVector(Inputs.Left, Inputs.Right, Inputs.Forward, Inputs.Back);
@@ -415,7 +357,7 @@ public partial class Player : CharacterBody3D, IDamageable
         var dir = new Vector3(input.X, 0, input.Y).Rotated(Vector3.Up, camYaw);
 
         // ---- hotkeys
-        for (int i = 0; i < 4; i++) if (captured && Input.IsActionJustPressed("spell" + (i + 1))) TryCast(i);
+        for (int i = 0; i < 6; i++) if (captured && Input.IsActionJustPressed("spell" + (i + 1))) TryCast(i);
         if (captured && Input.IsActionJustPressed(Inputs.PotHp)) UsePotion(true);
         if (captured && Input.IsActionJustPressed(Inputs.PotMp)) UsePotion(false);
         if (captured && Input.IsActionJustPressed(Inputs.Mount)) ToggleMount();
@@ -449,7 +391,7 @@ public partial class Player : CharacterBody3D, IDamageable
         if (_atkT > 0)
         {
             _atkT -= dt; float prog = 1f - _atkT / _atkDur; var a = _atk ?? W.Combo[0];
-            if (!_hitDone && prog >= a.Hit) { _hitDone = true; if (Ranged) FireWeapon(); else ResolveMelee(a); }
+            if (!_hitDone && prog >= a.Hit) { _hitDone = true; if (_atkSkill != null) FireWeaponSkill(_atkSkill); else if (Ranged) FireWeapon(); else ResolveMelee(a); }
             if (Ranged) _modelYaw = Targeting.Current != null ? Util.YawTo(Targeting.Current.GlobalPosition.X - GlobalPosition.X, Targeting.Current.GlobalPosition.Z - GlobalPosition.Z) : camYaw;
             else
             {
@@ -461,7 +403,7 @@ public partial class Player : CharacterBody3D, IDamageable
         if (_castT > 0)
         {
             _castT -= dt; _modelYaw = camYaw;
-            if (!_fired && _castT <= 0 && _castIdx >= 0) { _fired = true; FireSpell(_castIdx); _castIdx = -1; }
+            if (!_fired && _castT <= 0 && _castSkill != null) { _fired = true; var cs = _castSkill; _castSkill = null; Execute(cs); }
         }
 
         // ---- movement
@@ -484,6 +426,8 @@ public partial class Player : CharacterBody3D, IDamageable
             if (Mounted) speed = 10.5f * moveMul;
             if (_atkT > 0 || _castT > 0) speed *= 0.3f;
             if (_blocking) speed *= 0.5f;
+            speed *= Statuses.SpeedMul;
+            if (_spinLeft > 0) speed = Mathf.Max(speed, 3.5f);
             if (_stagger > 0) speed = 0;
             if (sprint) { St = Mathf.Max(0, St - 10f * dt); _stLockT = 0.5f; }
             var target = dir * speed; float a = (IsOnFloor() ? Accel : AirAccel) * dt;
