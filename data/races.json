@@ -1,0 +1,21 @@
+{
+ "_help": "Playable races. a = starting attribute bonus, mods = permanent bonuses (same keys as the skill tree, see docs/STATS.md), look = appearance. Read by scripts/Races.cs.",
+ "races": {
+  "human": { "n": "Human", "d": "Adaptable. Extra skill point and a little of everything.", "a": { "str": 1, "dex": 1, "vit": 1, "mag": 1 }, "mods": { "xpP": 10, "allP": 3 }, "pts": 1,
+   "look": { "skin": "e0b590", "hair": "52331a", "eyes": "14181f" } },
+  "elf": { "n": "Elf", "d": "Graceful and long-lived. Keen with bows and magic, light on their feet.", "a": { "dex": 3, "mag": 2, "vit": -1 }, "mods": { "rangedP": 8, "spellP": 5, "move": 5, "res_shadow": 10 },
+   "look": { "skin": "f0d2b8", "hair": "e8dca0", "eyes": "2a6a4a", "ears": true, "height": 1.04, "bulk": 0.92 } },
+  "dwarf": { "n": "Dwarf", "d": "Stout and stubborn. Hard to stagger, tough against fire and poison.", "a": { "str": 2, "vit": 3, "dex": -1 }, "mods": { "def": 6, "hpP": 8, "res_fire": 15, "res_poison": 15, "tenacity": 20 },
+   "look": { "skin": "d8a585", "hair": "8a3c1a", "eyes": "1a1410", "beard": true, "height": 0.84, "bulk": 1.14 } },
+  "orc": { "n": "Orc", "d": "Brutal strength and a rage that heals.", "a": { "str": 4, "vit": 2, "mag": -2 }, "mods": { "meleeP": 10, "regenHp": 1.2, "armorPen": 4 },
+   "look": { "skin": "6e9a50", "hair": "1a1a14", "eyes": "3a1408", "tusks": true, "height": 1.06, "bulk": 1.15 } },
+  "halfling": { "n": "Halfling", "d": "Small, quick and lucky. More crits and evasion.", "a": { "dex": 4, "str": -1 }, "mods": { "crit": 4, "evade": 6, "move": 6 },
+   "look": { "skin": "ecc4a0", "hair": "6a4220", "eyes": "2a2010", "height": 0.76, "bulk": 0.95 } },
+  "shadowkin": { "n": "Shadowkin", "d": "Born of the Rift. Shadow damage, life drain, at home in the dark.", "a": { "mag": 2, "dex": 2 }, "mods": { "shadowP": 12, "leech": 1.5, "res_shadow": 25, "res_holy": -10 },
+   "look": { "skin": "6a5a8c", "hair": "e8e8f0", "eyes": "c08cff", "glow": true, "horns": true, "height": 1.02 } },
+  "drakeling": { "n": "Drakeling", "d": "Dragon-blooded. Fire in the veins, scales for skin.", "a": { "str": 2, "vit": 2, "mag": 1 }, "mods": { "fireP": 12, "res_fire": 25, "def": 4 },
+   "look": { "skin": "a8503a", "hair": "2a1410", "eyes": "ffb000", "glow": true, "horns": true, "height": 1.08, "bulk": 1.08 } },
+  "lumen": { "n": "Lumen", "d": "Touched by the old light. Holy power and stronger healing.", "a": { "mag": 3, "vit": 1 }, "mods": { "holyP": 12, "healP": 15, "res_shadow": 15, "mpP": 6 },
+   "look": { "skin": "f6e6d0", "hair": "fff4c0", "eyes": "ffe680", "glow": true, "height": 1.03 } }
+ }
+}

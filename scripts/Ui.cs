@@ -217,11 +217,11 @@ public partial class Ui : CanvasLayer
         // ---- left: equipment slots around a silhouette, stats, materials
         var left = new VBoxContainer { CustomMinimumSize = new Vector2(300, 0) }; left.AddThemeConstantOverride("separation", 6); cols.AddChild(left);
         Lbl("EQUIPPED", 15, UiTheme.Accent, left);
-        var doll = new GridContainer { Columns = 2 }; doll.AddThemeConstantOverride("h_separation", 8); doll.AddThemeConstantOverride("v_separation", 8); left.AddChild(doll);
-        foreach (var slot in new[] { "weapon", "shield", "armor", "trinket" })
+        var doll = new GridContainer { Columns = 2 }; doll.AddThemeConstantOverride("h_separation", 8); doll.AddThemeConstantOverride("v_separation", 6); left.AddChild(doll);
+        foreach (var slot in PlayerStats.Slots)
         {
             var it = d.Eq.GetValueOrDefault(slot); string sl = slot;
-            var cell = new ItemSlot { Item = it, Empty = slot, Wide = true, CustomMinimumSize = new Vector2(144, 64) }; doll.AddChild(cell);
+            var cell = new ItemSlot { Item = it, Empty = slot, Wide = true, CustomMinimumSize = new Vector2(144, 50) }; doll.AddChild(cell);
             cell.Hover += on => ShowTip(on ? it : null, cell, null);
             cell.Clicked += right => { if (it == null) return; if (d.Inv.Count >= 28) { Note("Pack is full", new Color(1, .5f, .5f)); return; } d.Eq[sl] = null; d.Inv.Add(it); Sfx.Play("click"); Game.Notify(); OpenPack(); };
         }

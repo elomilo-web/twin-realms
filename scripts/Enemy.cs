@@ -28,7 +28,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
     readonly List<StandardMaterial3D> _mats = new();
     readonly List<Color> _baseCols = new();
     Label3D _label = null!;
-    float _scale = 1f;
+    float _scale = 1f, _launch;
     bool _meleeSwing; int _summoned;
 
     public float ScaleF() => _scale;
@@ -290,6 +290,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         FloatText.Spawn(this, GlobalPosition + new Vector3(0, HeightM() + 0.3f, 0), h.Crit ? dmg + "!" : dmg.ToString(), h.Crit ? new Color(1, 0.82f, 0.3f) : h.Fire ? new Color(1, 0.7f, 0.4f) : Colors.White);
         var away = GlobalPosition - h.From; away.Y = 0;
         if (away.LengthSquared() > 0.001f && !Def.Boss) _kb += away.Normalized() * h.Knock * 1.6f;
+        if (h.Up > 0 && !Def.Boss && Def.Kind != "dragon") { _launch = h.Up; Stun(Mathf.Max(h.Stun, h.Up * .12f)); }
         if (h.Stun > 0 && !Def.Boss && Def.Kind != "dragon") Stun(h.Stun * 1f);
         else if (_state == State.Idle || _state == State.Sleep || _state == State.Return) Wake();
         Fx.Burst(GlobalPosition + new Vector3(0, HeightM() * 0.6f, 0), h.Crit ? new Color(1, 0.8f, 0.2f) : new Color(1, 0.3f, 0.2f), h.Crit ? 12 : 6, 4f, 0.35f, 0.08f);
@@ -349,6 +350,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
 
         var v = Velocity;
         if (!IsOnFloor()) v.Y -= _gravity * dt; else v.Y = 0;
+        if (_launch > 0) { v.Y = _launch; _launch = 0; }   // knock-up
 
         if (_recoilT > 0 || _body.Position != Vector3.Zero)
         {

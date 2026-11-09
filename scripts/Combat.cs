@@ -8,6 +8,7 @@ public class HitInfo
     public Vector3 From;
     public float Knock;
     public float Stun;
+    public float Up;           // knock-up: upward launch speed (m/s); bosses and the dragon ignore it
     public bool Crit;
     public Node3D? Attacker;
     public bool IsPlayer, IsProjectile, NoBlock, Fire;

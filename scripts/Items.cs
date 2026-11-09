@@ -66,22 +66,25 @@ public static class Items
         int idx = x < .55f ? 0 : x < .82f ? 1 : x < .94f ? 2 : x < .985f ? 3 : 4;
         if (GD.Randf() < bonus * .25f && idx < 4) idx++;
         level = Math.Max(1, level);
-        if (slot == null) { float q = GD.Randf(); slot = q < .3f ? "weapon" : q < .58f ? "armor" : q < .75f ? "shield" : "trinket"; }
+        if (slot == null) { float q = GD.Randf(); slot = q < .28f ? "weapon" : q < .44f ? "armor" : q < .55f ? "shield" : q < .67f ? "head" : q < .78f ? "hands" : q < .89f ? "feet" : "trinket"; }
         float m = _mult[idx];
         var it = new Item { Slot = slot, Rar = idx, Lvl = level };
         if (slot == "weapon")
         {
-            float q = GD.Randf();
-            string wt = q < .34f ? "sword" : q < .56f ? "bow" : q < .78f ? "wand" : "staff";
-            it.Wt = wt;
-            float dm = wt == "sword" ? 1f : wt == "bow" ? .95f : wt == "wand" ? .62f : .8f;
+            // any weapon type from data/weapons.json; damage factors live there, so item damage rolls the same for all
+            var types = new List<string>(Weapons.Types); string wt = types[(int)(GD.Randf() * types.Count) % types.Count];
+            it.Wt = wt; var wd = Weapons.Get(wt);
+            float dm = wt == "wand" ? .62f : wt == "staff" ? .8f : 1f;
             it.Dmg = (int)Math.Floor((3 + level * 2.2f) * m * dm);
             if (wt == "wand") it.Sp = (float)Math.Round((.06f + level * .006f) * m, 2);
-            if (wt == "staff") { it.Sp = (float)Math.Round((.12f + level * .01f) * m, 2); it.Two = true; it.Mc = .1f; }
-            if (wt == "bow") it.Two = true;
+            if (wt == "staff") { it.Sp = (float)Math.Round((.12f + level * .01f) * m, 2); it.Mc = .1f; }
+            it.Two = wd.Hands > 1;
         }
         else if (slot == "armor") { it.Def = (int)Math.Floor((1 + level * 1.1f) * m); it.Hp = (int)Math.Floor(level * 2 * m); }
         else if (slot == "shield") { it.Def = (int)Math.Floor((1 + level * .9f) * m); it.Hp = (int)Math.Floor(level * m); }
+        else if (slot == "head") { it.Def = (int)Math.Floor((1 + level * .6f) * m); it.Mp = (int)Math.Floor(level * 1.5f * m); }
+        else if (slot == "hands") { it.Def = (int)Math.Floor((1 + level * .4f) * m); it.Dmg = idx >= 2 ? (int)Math.Floor(level * .4f * m) : 0; }
+        else if (slot == "feet") { it.Def = (int)Math.Floor((1 + level * .5f) * m); it.Hp = (int)Math.Floor(level * 1.2f * m); }
         else { it.Hp = (int)Math.Floor((6 + level * 3) * m); it.Mp = (int)Math.Floor((4 + level * 2) * m); it.Def = idx >= 2 ? (int)Math.Floor(level * .5f * m) : 0; }
         string baseName;
         if (slot == "weapon") { var names = _wn.GetValueOrDefault(it.Wt!, new[] { "Weapon" }); baseName = names[Math.Min(names.Length - 1, (int)(GD.Randf() * 5))]; }

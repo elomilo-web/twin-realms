@@ -9,7 +9,9 @@ public class QuestState { public int S; public int N; }   // S: 0 none, 1 active
 /// <summary>Everything that is saved. Plain public fields (serialised with IncludeFields).</summary>
 public class PlayerStats
 {
-    public string Name = "Hero", Class = "warrior";
+    public string Name = "Hero", Class = "warrior", Race = "human";
+    public static readonly string[] Slots = { "weapon", "shield", "head", "armor", "hands", "feet", "trinket" };
+    public List<Item> Stash = new();                    // storage chest at home; older saves load with an empty chest
     public int Level = 1, Xp = 0, Gold = 60, AttrPts = 0, SkillPts = 3, Kills = 0;
     public int Str = 5, Dex = 5, Vit = 5, Mag = 5;
     public int HpPot = 3, MpPot = 2, BestWave = 0, BestDuel = 0, Deepest = 0;
@@ -45,12 +47,17 @@ public class PlayerStats
     public float CritChance() => .05f + Dex * .005f + TS["crit"] / 100f;
     public float CritMult() => 1.8f + TS["critD"] / 100f;
     public float SpellPow() => (1 + Mag * .08f + Level * .02f) * (1 + TS["spellP"] / 100f) * (1 + EqStat("sp")) * (1 + TS["allP"] / 100f);
+    /// <summary>
+    /// Weapon hit damage before crits: base 5 plus attribute scaling from data/weapons.json (str/dex/mag per point) plus item damage,
+    /// times the weapon's damage factor, times the matching passive bonus (melee, bow, or spell for wands and staves) and all-damage.
+    /// </summary>
     public float WpnDmg()
     {
-        string wt = WType(); float wd = Weapon?.Dmg ?? 0, all = 1 + TS["allP"] / 100f;
-        if (wt == "bow") return (5 + Dex * 1.7f + wd + Str * TS["strToBow"] + Mag * TS["magToBow"]) * (1 + TS["rangedP"] / 100f) * all;
-        if (wt == "wand" || wt == "staff") return (4 + Mag * 1.5f + wd) * (1 + TS["spellP"] / 100f) * (1 + EqStat("sp")) * all;
-        return (5 + Str * 1.8f + wd + Mag * TS["magToDmg"]) * (1 + TS["meleeP"] / 100f) * all;
+        string wt = WType(); var w = Weapons.Get(wt); float wd = Weapon?.Dmg ?? 0, all = 1 + TS["allP"] / 100f;
+        if (wt == "bow") return (5 + Dex * w.Dex + Str * w.Str + wd + Str * TS["strToBow"] + Mag * TS["magToBow"]) * w.Dmg * (1 + TS["rangedP"] / 100f) * all;
+        if (wt == "wand" || wt == "staff") return (4 + Mag * w.Mag + wd) * w.Dmg * (1 + TS["spellP"] / 100f) * (1 + EqStat("sp")) * all;
+        float wpnType = 1 + TS[wt + "P"] / 100f;                                    // e.g. "axeP": +% axe damage
+        return (5 + Str * w.Str + Dex * w.Dex + Mag * w.Mag + wd + Mag * TS["magToDmg"]) * w.Dmg * (1 + TS["meleeP"] / 100f) * wpnType * all;
     }
     [JsonIgnore] public float ShieldDef => Eq.GetValueOrDefault("shield")?.Def ?? 0;
 

@@ -23,9 +23,9 @@ public partial class Player : CharacterBody3D, IDamageable
     const float Accel = 40f, AirAccel = 10f;
     const float JumpVelocity = 6.0f, RollSpeed = 11f, RollTime = 0.45f;
 
-    Node3D _cape = null!; SwordTrail _trail = null!; Node3D? _bladeBase, _bladeTip;
-    Node3D _model = null!, _hand = null!, _shield = null!, _horse = null!, _weaponRoot = null!, _legR = null!, _legL = null!, _upR = null!, _upL = null!;
-    static readonly Vector3 ShoulderR = new(0.42f, 1.5f, 0), ShoulderL = new(-0.42f, 1.5f, 0), HandRest = new(0.5f, 1.1f, -0.1f), ShieldRest = new(-0.5f, 1.1f, -0.15f);
+    SwordTrail _trail = null!;
+    Node3D _model = null!, _horse = null!;
+    AttackDef? _atk; float _spinBase; float _capeX, _landT; bool _wasFloor = true;
     float _walkPh, _walkAmt, _idleT;
     float _gravity, _modelYaw, _rollT, _rollCd, _stLockT, _inv, _stagger, _deadT;
     Vector3 _rollDir, _kb;
@@ -60,65 +60,16 @@ public partial class Player : CharacterBody3D, IDamageable
     void OnGearChanged() { Hp = Mathf.Min(Hp, Game.D.MaxHp()); Mp = Mathf.Min(Mp, Game.D.MaxMp()); St = Mathf.Min(St, Game.D.MaxSt()); RefreshWeapon(); }
 
     // ------------------------------------------------------------------ model
+    HeroRig _rig = null!; OmniLight3D _glow = null!;
+    public HeroRig Rig3D => _rig;
     void BuildModel()
     {
-        _model = new Node3D { Name = "Model" }; AddChild(_model);
-        var body = Gfx.Tex(new StandardMaterial3D { AlbedoColor = new Color(0.58f, 0.16f, 0.17f), Roughness = 0.8f }, "cloth", .5f);
-        var skin = new StandardMaterial3D { AlbedoColor = new Color(0.88f, 0.71f, 0.56f), Roughness = .7f };
-        var cloth = Gfx.Tex(new StandardMaterial3D { AlbedoColor = new Color(0.27f, 0.22f, 0.2f) }, "cloth", .5f);
-        var leather = Gfx.Tex(new StandardMaterial3D { AlbedoColor = new Color(0.36f, 0.24f, 0.14f), Roughness = .75f }, "grain", .5f, true, .6f);
-        var steel = new StandardMaterial3D { AlbedoColor = new Color(0.72f, 0.74f, 0.78f), Metallic = 0.85f, Roughness = 0.32f };
-        var gold = new StandardMaterial3D { AlbedoColor = new Color(0.9f, 0.72f, 0.32f), Metallic = 0.9f, Roughness = 0.3f };
-        var hair = new StandardMaterial3D { AlbedoColor = new Color(0.32f, 0.2f, 0.1f), Roughness = .9f };
-        MeshInstance3D P(Node3D par, Mesh m, Material mt, Vector3 pos, Vector3? rot = null) { var mi = new MeshInstance3D { Mesh = m, MaterialOverride = mt, Position = pos, Rotation = rot ?? Vector3.Zero }; par.AddChild(mi); return mi; }
-        // torso: tapered chest and hips, belt with buckle, tabard, pauldrons, cape
-        P(_model, new CylinderMesh { TopRadius = .31f, BottomRadius = .24f, Height = .55f, RadialSegments = 14 }, body, new Vector3(0, 1.3f, 0));
-        P(_model, new SphereMesh { Radius = .3f, Height = .26f, RadialSegments = 14, Rings = 5 }, body, new Vector3(0, 1.56f, 0));
-        P(_model, new CylinderMesh { TopRadius = .24f, BottomRadius = .27f, Height = .28f, RadialSegments = 14 }, cloth, new Vector3(0, .97f, 0));
-        P(_model, new CylinderMesh { TopRadius = .255f, BottomRadius = .265f, Height = .08f, RadialSegments = 14 }, leather, new Vector3(0, 1.07f, 0));
-        P(_model, new BoxMesh { Size = new Vector3(.1f, .08f, .03f) }, gold, new Vector3(0, 1.07f, -.265f));
-        P(_model, new BoxMesh { Size = new Vector3(.3f, .5f, .02f) }, body, new Vector3(0, .82f, -.24f), new Vector3(-.08f, 0, 0));
-        P(_model, new BoxMesh { Size = new Vector3(.3f, .04f, .025f) }, gold, new Vector3(0, .58f, -.22f), new Vector3(-.08f, 0, 0));
-        foreach (float sx in new[] { -1f, 1f }) { P(_model, new SphereMesh { Radius = .16f, Height = .2f, RadialSegments = 10, Rings = 4, IsHemisphere = true }, steel, new Vector3(sx * .36f, 1.5f, 0), new Vector3(0, 0, -sx * .35f)); P(_model, new TorusMesh { InnerRadius = .14f, OuterRadius = .165f, Rings = 12, RingSegments = 4 }, gold, new Vector3(sx * .36f, 1.5f, 0), new Vector3(0, 0, -sx * .35f)); }
-        _cape = new Node3D { Position = new Vector3(0, 1.58f, .2f) }; _model.AddChild(_cape);
-        P(_cape, new BoxMesh { Size = new Vector3(.58f, 1.15f, .03f) }, Gfx.Tex(new StandardMaterial3D { AlbedoColor = new Color(.18f, .22f, .4f), CullMode = BaseMaterial3D.CullModeEnum.Disabled }, "cloth", .4f), new Vector3(0, -.58f, .06f), new Vector3(-.1f, 0, 0));
-        // legs hang from hip pivots so they can swing: thigh, knee, shin, boot with cuff
-        _legR = new Node3D { Position = new Vector3(0.14f, 0.9f, 0) }; _model.AddChild(_legR);
-        _legL = new Node3D { Position = new Vector3(-0.14f, 0.9f, 0) }; _model.AddChild(_legL);
-        foreach (var leg in new[] { _legR, _legL })
-        {
-            P(leg, new CylinderMesh { TopRadius = .125f, BottomRadius = .1f, Height = .46f, RadialSegments = 10 }, cloth, new Vector3(0, -.23f, 0));
-            P(leg, new SphereMesh { Radius = .1f, Height = .2f, RadialSegments = 8, Rings = 4 }, cloth, new Vector3(0, -.47f, 0));
-            P(leg, new CylinderMesh { TopRadius = .1f, BottomRadius = .085f, Height = .36f, RadialSegments = 10 }, leather, new Vector3(0, -.66f, 0));
-            P(leg, new CylinderMesh { TopRadius = .115f, BottomRadius = .11f, Height = .08f, RadialSegments = 10 }, leather, new Vector3(0, -.5f, 0));
-            P(leg, new BoxMesh { Size = new Vector3(.15f, .12f, .28f) }, leather, new Vector3(0, -.85f, -.05f));
-        }
-        // head: neck, face, hair, eyes, brows, nose, ears
-        P(_model, new CylinderMesh { TopRadius = .07f, BottomRadius = .085f, Height = .14f, RadialSegments = 10 }, skin, new Vector3(0, 1.66f, 0));
-        var head = new Node3D { Position = new Vector3(0, 1.82f, 0) }; _model.AddChild(head);
-        P(head, new SphereMesh { Radius = .165f, Height = .36f, RadialSegments = 14, Rings = 7 }, skin, Vector3.Zero);
-        P(head, new SphereMesh { Radius = .178f, Height = .24f, RadialSegments = 14, Rings = 6, IsHemisphere = true }, hair, new Vector3(0, .03f, .025f), new Vector3(-.3f, 0, 0));
-        P(head, new BoxMesh { Size = new Vector3(.3f, .16f, .1f) }, hair, new Vector3(0, -.01f, .12f));
-        var eye = new StandardMaterial3D { AlbedoColor = new Color(.08f, .1f, .14f) };
-        foreach (float sx in new[] { -1f, 1f })
-        {
-            P(head, new SphereMesh { Radius = .022f, Height = .044f, RadialSegments = 6, Rings = 3 }, eye, new Vector3(sx * .06f, .02f, -.148f));
-            P(head, new BoxMesh { Size = new Vector3(.06f, .014f, .02f) }, hair, new Vector3(sx * .062f, .058f, -.15f), new Vector3(0, 0, sx * -.15f));
-            P(head, new SphereMesh { Radius = .035f, Height = .07f, RadialSegments = 6, Rings = 3 }, skin, new Vector3(sx * .165f, 0, 0));
-        }
-        P(head, new PrismMesh { Size = new Vector3(.045f, .07f, .055f) }, skin, new Vector3(0, -.025f, -.165f), new Vector3(-Mathf.Pi / 2, 0, 0));
-        _hand = new Node3D { Position = new Vector3(0.5f, 1.1f, -0.1f) }; _model.AddChild(_hand);
-        _shield = new Node3D { Position = new Vector3(-0.5f, 1.1f, -0.15f) }; _model.AddChild(_shield);
-        _weaponRoot = new Node3D(); _hand.AddChild(_weaponRoot);
-        // arms: upper arms run from the shoulders to the weapon hand and the shield and are re-aimed every frame; forearms ride on them
-        _upR = Limb(_model, ShoulderR, HandRest, 0.1f, body);
-        _upL = Limb(_model, ShoulderL, ShieldRest, 0.1f, body);
-        Limb(_hand, new Vector3(0, 0, 0.05f), new Vector3(0, 0, -0.38f), 0.085f, skin);
-        Limb(_shield, new Vector3(0.1f, 0, 0.3f), new Vector3(0.1f, 0, -0.05f), 0.085f, skin);
-        _hand.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = 0.1f, Height = 0.2f }, MaterialOverride = leather, Position = new Vector3(0, 0, -0.38f) });
+        _rig = new HeroRig { Name = "Model" }; AddChild(_rig); _model = _rig;
+        _rig.Build(Races.Look(Game.D));
         _trail = new SwordTrail(); AddChild(_trail);
-        // one draw call per material for each rigid part of the body
-        Gfx.MergeChildren(_model); Gfx.MergeChildren(head); Gfx.MergeChildren(_legR); Gfx.MergeChildren(_legL);
+        // a soft light around the hero that grows in the dark (night, Shadow realm, dungeons)
+        _glow = new OmniLight3D { LightColor = new Color(1f, .86f, .65f), OmniRange = 9f, LightEnergy = 0f, ShadowEnabled = false, Position = new Vector3(0, 2.3f, .3f), LightSpecular = .1f };
+        AddChild(_glow);
 
         _horse = new Node3D { Visible = false }; AddChild(_horse);
         var hm = new StandardMaterial3D { AlbedoColor = new Color(0.4f, 0.26f, 0.16f) };
@@ -127,71 +78,19 @@ public partial class Player : CharacterBody3D, IDamageable
         for (int i = 0; i < 4; i++) _horse.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(0.18f, 0.9f, 0.18f) }, MaterialOverride = hm, Position = new Vector3(i % 2 == 0 ? 0.25f : -0.25f, 0.45f, i < 2 ? -0.8f : 0.8f) });
     }
 
-    static Node3D Limb(Node3D parent, Vector3 a, Vector3 b, float r, Material mat)
-    {
-        var n = new Node3D(); parent.AddChild(n); n.SetMeta("len", (b - a).Length());
-        n.AddChild(new MeshInstance3D { Mesh = new CapsuleMesh { Radius = r, Height = (b - a).Length() + r * 2 }, MaterialOverride = mat, Rotation = new Vector3(Mathf.Pi / 2, 0, 0) });
-        AimLimb(n, a, b); return n;
-    }
-    /// <summary>Point a limb from a to b, stretching it along its length to fit.</summary>
-    static void AimLimb(Node3D n, Vector3 a, Vector3 b)
-    {
-        var d = b - a; float len = d.Length(); if (len < 0.01f) return; var dir = d / len; var up = Mathf.Abs(dir.Y) > 0.95f ? Vector3.Right : Vector3.Up;
-        float baseLen = (float)n.GetMeta("len");
-        n.Transform = new Transform3D(Basis.LookingAt(dir, up).Scaled(new Vector3(1, 1, len / baseLen)), (a + b) / 2);
-    }
-
+    string _gearSig = "";
+    /// <summary>Rebuilds the visible gear when anything equipped changes (weapon, shield, armor, helmet, gloves, boots, trinket).</summary>
     void RefreshWeapon()
     {
-        var w = Game.D.Weapon; string wt = Game.D.WType();
-        if (w == _shownWeapon && wt == _shownType) { UpdateShieldVisible(); return; }
-        _shownWeapon = w; _shownType = wt;
-        foreach (var c in _weaponRoot.GetChildren()) c.QueueFree();
-        var steel = new StandardMaterial3D { AlbedoColor = new Color(0.8f, 0.82f, 0.88f), Metallic = 0.8f, Roughness = 0.35f };
-        var wood = new StandardMaterial3D { AlbedoColor = new Color(0.45f, 0.3f, 0.15f), Roughness = 0.9f };
-        var orbCol = wt == "staff" ? new Color(0.5f, 0.9f, 1f) : new Color(0.75f, 0.45f, 1f);
-        var glow = new StandardMaterial3D { AlbedoColor = orbCol, EmissionEnabled = true, Emission = orbCol, EmissionEnergyMultiplier = 2f };
-        void A(Mesh m, Material mat, Vector3 p, Vector3? r = null) { var mi = new MeshInstance3D { Mesh = m, MaterialOverride = mat, Position = p }; if (r.HasValue) mi.Rotation = r.Value; _weaponRoot.AddChild(mi); }
-        if (wt == "bow")
-        {
-            for (int i = -2; i <= 2; i++) { float a = i * 0.25f; A(new BoxMesh { Size = new Vector3(0.04f, 0.04f, 0.42f) }, wood, new Vector3(0, i * 0.3f, -0.45f + Mathf.Abs(i) * 0.1f), new Vector3(a, 0, 0)); }
-            A(new BoxMesh { Size = new Vector3(0.01f, 1.4f, 0.01f) }, steel, new Vector3(0, 0, -0.1f));
-        }
-        else if (wt == "wand") { A(new CylinderMesh { TopRadius = 0.02f, BottomRadius = 0.03f, Height = 0.55f }, wood, new Vector3(0, 0, -0.3f), new Vector3(Mathf.Pi / 2, 0, 0)); A(new SphereMesh { Radius = 0.06f, Height = 0.12f }, glow, new Vector3(0, 0, -0.62f)); }
-        else if (wt == "staff") { A(new CylinderMesh { TopRadius = 0.03f, BottomRadius = 0.035f, Height = 2.0f }, wood, new Vector3(0, 0, -0.5f), new Vector3(Mathf.Pi / 2, 0, 0)); A(new SphereMesh { Radius = 0.11f, Height = 0.22f }, glow, new Vector3(0, 0, -1.55f)); }
-        else
-        {
-            // diamond-section blade, curved crossguard, wrapped grip, pommel; markers at blade base and tip feed the swing trail
-            var gold = new StandardMaterial3D { AlbedoColor = new Color(0.85f, 0.68f, 0.3f), Metallic = 0.9f, Roughness = 0.3f };
-            var wrap = Gfx.Tex(new StandardMaterial3D { AlbedoColor = new Color(0.3f, 0.18f, 0.1f) }, "cloth", .15f);
-            A(Gfx.Blade(0.95f, 0.085f, 0.025f), steel, new Vector3(0, 0, -0.17f));
-            A(new CylinderMesh { TopRadius = .022f, BottomRadius = .022f, Height = .34f, RadialSegments = 6 }, gold, new Vector3(0, 0, -0.14f), new Vector3(0, 0, Mathf.Pi / 2));
-            foreach (float sx in new[] { -1f, 1f }) A(new SphereMesh { Radius = .035f, Height = .07f, RadialSegments = 6, Rings = 3 }, gold, new Vector3(sx * .17f, 0, -0.14f));
-            A(new CylinderMesh { TopRadius = .028f, BottomRadius = .032f, Height = .22f, RadialSegments = 8 }, wrap, new Vector3(0, 0, -0.02f), new Vector3(Mathf.Pi / 2, 0, 0));
-            A(new SphereMesh { Radius = .045f, Height = .09f, RadialSegments = 8, Rings = 4 }, gold, new Vector3(0, 0, 0.11f));
-            _bladeBase = new Node3D { Position = new Vector3(0, 0, -0.3f) }; _weaponRoot.AddChild(_bladeBase);
-            _bladeTip = new Node3D { Position = new Vector3(0, 0, -1.2f) }; _weaponRoot.AddChild(_bladeTip);
-        }
-        if (wt != "sword") { _bladeBase = null; _bladeTip = null; }
-        _trail.Base = _bladeBase; _trail.Tip = _bladeTip;
-        foreach (var c in _shield.GetChildren()) c.QueueFree();
-        // heater shield: steel rim plate behind a painted wooden face, cross and boss
-        var sh = new[] { new Vector2(-.27f, .34f), new Vector2(.27f, .34f), new Vector2(.26f, -.05f), new Vector2(.15f, -.27f), new Vector2(0, -.37f), new Vector2(-.15f, -.27f), new Vector2(-.26f, -.05f) };
-        var shSmall = System.Array.ConvertAll(sh, v => v * .86f + new Vector2(0, .01f));
-        var rim = new StandardMaterial3D { AlbedoColor = new Color(0.6f, 0.62f, 0.66f), Metallic = 0.8f, Roughness = 0.35f };
-        var paint = Gfx.Tex(new StandardMaterial3D { AlbedoColor = new Color(0.2f, 0.32f, 0.6f) }, "planks", .5f);
-        _shield.AddChild(new MeshInstance3D { Mesh = Gfx.ExtrudeX(sh, .05f), MaterialOverride = rim });
-        _shield.AddChild(new MeshInstance3D { Mesh = Gfx.ExtrudeX(shSmall, .08f), MaterialOverride = paint });
-        var trim = new StandardMaterial3D { AlbedoColor = new Color(0.85f, 0.68f, 0.3f), Metallic = 0.9f, Roughness = 0.3f };
-        _shield.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(.09f, .58f, .05f) }, MaterialOverride = trim, Position = new Vector3(0, -.01f, 0) });
-        _shield.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(.09f, .05f, .42f) }, MaterialOverride = trim, Position = new Vector3(0, .12f, 0) });
-        _shield.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = .07f, Height = .1f, RadialSegments = 10, Rings = 4, IsHemisphere = true }, MaterialOverride = rim, Position = new Vector3(-.045f, .1f, 0), Rotation = new Vector3(0, 0, Mathf.Pi / 2) });
-        Gfx.MergeChildren(_weaponRoot); Gfx.MergeChildren(_shield);
-        UpdateShieldVisible();
+        var d = Game.D; var sig = d.WType();
+        foreach (var s in PlayerStats.Slots) { var it = d.Eq.GetValueOrDefault(s); sig += "|" + (it == null ? "-" : it.Name + it.Rar + it.Up); }
+        if (sig == _gearSig) return; _gearSig = sig;
+        _rig.ApplyGear(d);
+        _trail.Base = _rig.BladeBase; _trail.Tip = _rig.BladeTip; _trail.Col = Weapons.Get(d.WType()).Trail;
     }
-    bool HasShield => Game.D.Eq.GetValueOrDefault("shield") != null && !(Game.D.Weapon?.Two ?? false);
-    void UpdateShieldVisible() => _shield.Visible = HasShield;
-    bool Ranged => Game.D.WType() != "sword";
+    bool HasShield => Game.D.Eq.GetValueOrDefault("shield") != null && Weapons.Get(Game.D.WType()).Hands < 2;
+    WeaponDef W => Weapons.Get(Game.D.WType());
+    bool Ranged => W.Ranged;
 
     void UseStamina(float n) { St = Mathf.Max(0, St - n); _stLockT = 0.7f; }
 
@@ -290,6 +189,7 @@ public partial class Player : CharacterBody3D, IDamageable
     // ------------------------------------------------------------------ aiming
     public (Vector3 point, Enemy? enemy) AimPoint(float maxDist)
     {
+        if (Targeting.Current is Enemy lt && IsInstanceValid(lt) && !lt.Dead) return (lt.GlobalPosition + new Vector3(0, lt.HeightM() * .55f, 0), lt);
         if (Rig == null) return (GlobalPosition + new Vector3(0, 1.4f, 0) + new Vector3(-Mathf.Sin(_modelYaw), 0, -Mathf.Cos(_modelYaw)) * maxDist, null);
         var cam = Rig.Camera; var from = cam.GlobalPosition; var dir = -cam.GlobalTransform.Basis.Z;
         var q = PhysicsRayQueryParameters3D.Create(from, from + dir * maxDist, 3);
@@ -306,15 +206,18 @@ public partial class Player : CharacterBody3D, IDamageable
     {
         if (Dead || _atkT > 0 || _rollT > 0 || _stagger > 0 || _castT > 0) return false;
         if (Mounted) { Ui.Note("Dismount to fight (T)", new Color(0.7f, 0.8f, 1)); return false; }
-        string wt = Game.D.WType(); bool ranged = wt != "sword";
-        float cost = ranged ? (power ? 16f : 7f) : (power ? 26f : 9f);
+        var w = W; bool ranged = w.Ranged;
+        float cost = ranged ? (power ? 16f : 7f) : (power ? 26f : 9f) * (w.Hands > 1 ? 1.25f : w.Id == "dagger" ? .6f : 1f);
         if (St < 4f) { FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.2f, 0), "Out of stamina", new Color(0.6f, 0.8f, 1f), 0.8f); return false; }
         UseStamina(cost);
-        if (!ranged) { if (!power) _combo = _comboT > 0 ? (_combo + 1) % 3 : 0; else _combo = 0; } else _combo = 0;
-        float baseT = wt == "sword" ? (power ? .85f : .5f) : wt == "bow" ? (power ? 1.0f : .6f) : wt == "wand" ? (power ? .7f : .4f) : (power ? 1.1f : .85f);
-        _atkPower = power; _atkDur = baseT / Game.D.AtkSpeed(); _atkT = _atkDur; _hitDone = false; _comboT = _atkDur + 0.55f;
+        // each weapon type has its own combo chain (data/weapons.json); power attacks reset it
+        if (!power) _combo = _comboT > 0 ? (_combo + 1) % w.Combo.Count : 0; else _combo = 0;
+        _atk = power ? w.Power : w.Combo[Mathf.Min(_combo, w.Combo.Count - 1)];
+        _atkPower = power; _atkDur = _atk.Dur / (Game.D.AtkSpeed() * w.Speed); _atkT = _atkDur; _hitDone = false; _comboT = _atkDur + 0.55f;
         float camYaw = Rig?.Yaw ?? _modelYaw; float face = camYaw;
-        if (!ranged)
+        var tgt = Targeting.Current;
+        if (tgt != null) { var d = tgt.GlobalPosition - GlobalPosition; face = Util.YawTo(d.X, d.Z); }
+        else if (!ranged)
         {
             float best = 5.5f;
             foreach (var n in GetTree().GetNodesInGroup("enemies"))
@@ -324,29 +227,45 @@ public partial class Player : CharacterBody3D, IDamageable
                 if (dd < best && Mathf.Abs(Util.AngDiff(camYaw, Util.YawTo(d.X, d.Z))) < 0.9f) { best = dd; face = Util.YawTo(d.X, d.Z); }
             }
         }
-        _modelYaw = face; Sfx.Play("swing");
+        _modelYaw = face; _spinBase = face; Sfx.Play("swing");
         return true;
     }
 
-    void ResolveSword()
+    /// <summary>Melee hit for the current attack: arc, reach, knockback, stun and knock-up come from the attack data, then passives modify them.</summary>
+    void ResolveMelee(AttackDef a)
     {
-        var D = Game.D; var TS = Game.TS;
-        bool comboHit = !_atkPower && _combo == 2, cleave = TS.Has("cleave") && (_atkPower || comboHit);
-        float range = (_atkPower ? 3.6f : 3.0f) + (cleave ? .8f : 0f), arc = cleave ? Mathf.Pi : _atkPower ? 1.35f : 1.0f;
+        var D = Game.D; var TS = Game.TS; var w = W;
+        bool fin = a.Finisher, cleave = TS.Has("cleave") && (_atkPower || fin);
+        float range = a.Range + (cleave ? .8f : 0f) + TS["reach"] / 100f * a.Range, arc = cleave ? Mathf.Pi : Mathf.DegToRad(Mathf.Min(180, a.Arc));
+        float mult = a.Dmg * (fin ? 1f + TS["finisherP"] / 100f : 1f) * (_atkPower ? 1f + TS["powerP"] / 100f : 1f);
+        float stun = a.Stun + (fin ? TS["finisherStun"] : 0f), up = a.Up + (fin ? TS["finisherUp"] : 0f), knock = a.Knock * (1f + TS["knockP"] / 100f);
         int hits = 0;
         foreach (var n in GetTree().GetNodesInGroup("enemies"))
         {
             if (n is not Enemy e || e.Dead || !e.Active) continue;
             var d = e.GlobalPosition - GlobalPosition; d.Y = 0; float dist = d.Length() - e.Def.R * e.ScaleF();
             if (dist > range) continue;
-            if (dist > 0.6f && Mathf.Abs(Util.AngDiff(_modelYaw, Util.YawTo(d.X, d.Z))) > arc + (e.Def.R > 1 ? 0.5f : 0f)) continue;
+            if (dist > 0.6f && arc < Mathf.Pi - .01f && Mathf.Abs(Util.AngDiff(_modelYaw, Util.YawTo(d.X, d.Z))) > arc + (e.Def.R > 1 ? 0.5f : 0f)) continue;
             if (Mathf.Abs(e.GlobalPosition.Y - GlobalPosition.Y) > 3.5f + e.Def.R) continue;
-            bool crit = GD.Randf() < D.CritChance();
-            float dmg = D.WpnDmg() * (float)GD.RandRange(0.9, 1.1) * (_atkPower ? 2.2f : comboHit ? 1.35f : 1f) * (crit ? D.CritMult() : 1f);
-            e.TakeHit(new HitInfo { Damage = dmg, From = GlobalPosition, Knock = _atkPower ? 9f : comboHit ? 5f : 2.5f, Stun = _atkPower ? 0.6f : 0f, Crit = crit, Attacker = this, IsPlayer = true, Kind = _atkPower ? "power" : comboHit ? "combo" : "light" });
+            bool crit = GD.Randf() < D.CritChance() + (w.Crit + a.CritBonus) / 100f;
+            float dmg = D.WpnDmg() * (float)GD.RandRange(0.9, 1.1) * mult * (crit ? D.CritMult() : 1f);
+            e.TakeHit(new HitInfo { Damage = dmg, From = GlobalPosition, Knock = knock, Stun = stun, Up = up, Crit = crit, Attacker = this, IsPlayer = true, Kind = _atkPower ? "power" : fin ? "combo" : "light" });
             hits++;
         }
-        if (hits > 0) { Rig?.Shake(_atkPower ? 0.25f : 0.08f); Sfx.Play("hit"); }
+        if (hits > 0) { Rig?.Shake(_atkPower ? 0.25f : fin ? 0.15f : 0.08f); Sfx.Play("hit"); }
+        if ((_atkPower || fin) && (a.Up > 0 || a.Arc >= 180 || stun > .5f)) { Vfx.Ring(GlobalPosition + Vector3.Up * .08f, range * .9f, w.Trail, .35f); }
+    }
+
+    /// <summary>Hand poses for the current attack at progress p (0..1): rest -> wind-up -> mid-swing -> follow-through.</summary>
+    HandPose AttackPose(AttackDef a, HandPose rest, float p)
+    {
+        if (a.Keys.Length < 3) return rest;
+        static float S(float t) => t * t * (3 - 2 * t);
+        if (p < a.Wind) return HandPose.Lerp(rest, a.Keys[0], S(p / Mathf.Max(.01f, a.Wind)));
+        float q = (p - a.Wind) / Mathf.Max(.01f, 1 - a.Wind);
+        float strikeEnd = Mathf.Clamp((a.Hit - a.Wind) / Mathf.Max(.01f, 1 - a.Wind) * 1.6f, .3f, .85f); // fast through the hit, then ease out
+        if (q < strikeEnd) { float u = S(q / strikeEnd); return u < .5f ? HandPose.Lerp(a.Keys[0], a.Keys[1], u * 2) : HandPose.Lerp(a.Keys[1], a.Keys[2], u * 2 - 1); }
+        float r = (q - strikeEnd) / (1 - strikeEnd); return HandPose.Lerp(a.Keys[2], rest, S(Mathf.Clamp(r * 1.3f - .3f, 0, 1)));
     }
 
     void FireWeapon()
@@ -501,6 +420,12 @@ public partial class Player : CharacterBody3D, IDamageable
         if (captured && Input.IsActionJustPressed(Inputs.Mount)) ToggleMount();
         if (captured && Input.IsActionJustPressed(Inputs.Realm)) World.TryShiftRealm();
         if (captured) ScanInteract(); else Prompt = "";
+        if (captured && Input.IsActionJustPressed(Inputs.Lock)) Targeting.Toggle(Targeting.Current != null);
+        if (captured && Input.IsActionJustPressed(Inputs.Unlock)) Targeting.Clear();
+        Targeting.Tick(this);
+        // hero light: off in daylight, a warm pool of light at night, in the Shadow realm and underground
+        float dark = Dungeon.Active ? 1f : Mathf.Clamp((World.Night - .25f) / .5f, 0, 1);
+        _glow.LightEnergy = Mathf.Lerp(_glow.LightEnergy, dark * Feel.GlowEnergy, 1f - Mathf.Exp(-3f * dt)); _glow.OmniRange = Feel.GlowRange; _glow.Visible = _glow.LightEnergy > .02f;
 
         // ---- attack input: tap = light, hold = power (fires on release)
         bool lmb = captured && Input.IsMouseButtonPressed(MouseButton.Left);
@@ -522,9 +447,15 @@ public partial class Player : CharacterBody3D, IDamageable
         // ---- attack + cast timelines
         if (_atkT > 0)
         {
-            _atkT -= dt; float prog = 1f - _atkT / _atkDur;
-            if (!_hitDone && prog >= (Ranged ? 0.4f : 0.45f)) { _hitDone = true; if (Ranged) FireWeapon(); else ResolveSword(); }
-            if (Ranged) _modelYaw = camYaw;
+            _atkT -= dt; float prog = 1f - _atkT / _atkDur; var a = _atk ?? W.Combo[0];
+            if (!_hitDone && prog >= a.Hit) { _hitDone = true; if (Ranged) FireWeapon(); else ResolveMelee(a); }
+            if (Ranged) _modelYaw = Targeting.Current != null ? Util.YawTo(Targeting.Current.GlobalPosition.X - GlobalPosition.X, Targeting.Current.GlobalPosition.Z - GlobalPosition.Z) : camYaw;
+            else
+            {
+                // lunge forward between wind-up and impact; spinning attacks turn the whole body
+                if (a.Lunge > 0 && prog > a.Wind && prog < a.Hit) { var fw = new Vector3(-Mathf.Sin(_spinBase), 0, -Mathf.Cos(_spinBase)); float span = Mathf.Max(.05f, (a.Hit - a.Wind) * _atkDur); _kb += fw * (a.Lunge / span) * dt * 3.3f; }
+                if (a.Spin != 0 && prog > a.Wind) { float q = Mathf.Clamp((prog - a.Wind) / (1 - a.Wind) * 1.4f, 0, 1); _modelYaw = _spinBase + Mathf.DegToRad(a.Spin) * (q * q * (3 - 2 * q)); }
+            }
         }
         if (_castT > 0)
         {
@@ -567,7 +498,9 @@ public partial class Player : CharacterBody3D, IDamageable
 
         // ---- facing
         var flat = new Vector3(v.X, 0, v.Z);
-        if (_atkT <= 0 && !_blocking && _rollT <= 0 && _castT <= 0 && flat.LengthSquared() > 0.5f)
+        if (Targeting.Current is Enemy lk && IsInstanceValid(lk) && _atkT <= 0 && _rollT <= 0 && !Mounted)
+        { var td = lk.GlobalPosition - GlobalPosition; _modelYaw = Mathf.LerpAngle(_modelYaw, Util.YawTo(td.X, td.Z), 1f - Mathf.Exp(-12f * dt)); }   // strafe around a locked target
+        else if (_atkT <= 0 && !_blocking && _rollT <= 0 && _castT <= 0 && flat.LengthSquared() > 0.5f)
             _modelYaw = Mathf.LerpAngle(_modelYaw, Util.YawTo(flat.X, flat.Z), 1f - Mathf.Exp(-14f * dt));
 
         Velocity = v; MoveAndSlide();
@@ -575,63 +508,85 @@ public partial class Player : CharacterBody3D, IDamageable
         Game.PlayTime += dt;
     }
 
-    // ------------------------------------------------------------------ placeholder animation
+    // ------------------------------------------------------------------ animation (procedural, on the HeroRig joints)
     void Animate(float dt)
     {
-        Feel.Load();
+        Feel.Load(); var w = W;
         // ---- locomotion: stride phase advances with ground speed, so feet roughly match the distance covered
         float hv = new Vector2(Velocity.X, Velocity.Z).Length(); bool floor = IsOnFloor();
+        if (floor && !_wasFloor) _landT = .22f; _wasFloor = floor; _landT = Mathf.Max(0, _landT - dt);
         float moveAmt = floor && !Mounted && _rollT <= 0 ? Mathf.Clamp(hv / 8.4f, 0, 1) : 0f;
         _walkAmt = Mathf.Lerp(_walkAmt, moveAmt, 1f - Mathf.Exp(-10f * dt));
         _walkPh = Mathf.Wrap(_walkPh + hv * Feel.Stride * dt, 0, Mathf.Tau); _idleT += dt;
         float s = Mathf.Sin(_walkPh), amt = _walkAmt;
-        float legR = s * Feel.LegSwing * amt, legL = -legR;
-        if (Mounted) { legR = legL = 1.25f; }                               // seated
-        else if (!floor && _rollT <= 0) { legR = 0.55f; legL = -0.25f; }    // jump: one knee up
-        float lk = 1f - Mathf.Exp(-20f * dt);
-        _legR.Rotation = new Vector3(Mathf.Lerp(_legR.Rotation.X, legR, lk), 0, Mounted ? 0.35f : 0);
-        _legL.Rotation = new Vector3(Mathf.Lerp(_legL.Rotation.X, legL, lk), 0, Mounted ? -0.35f : 0);
+        bool atk = _atkT > 0 && _atk != null; float prog = atk ? 1f - _atkT / _atkDur : 0f;
+        // crouch: wind-ups load the legs, landings absorb the fall
+        float crouch = _landT / .22f * .8f + (atk && !w.Ranged ? Mathf.Sin(Mathf.Clamp(prog / Mathf.Max(.05f, _atk!.Hit), 0, 1) * Mathf.Pi) * (_atkPower ? .55f : .3f) : 0f) + (_blocking ? .25f : 0f);
+        var legs = new HeroRig.LegPose
+        {
+            SwingR = s * Feel.LegSwing * amt + crouch * .35f, SwingL = -s * Feel.LegSwing * amt - crouch * .1f,
+            KneeR = Mathf.Max(0, Mathf.Sin(_walkPh + 1.3f)) * 1.1f * amt + .06f + crouch * .7f, KneeL = Mathf.Max(0, Mathf.Sin(_walkPh + 1.3f + Mathf.Pi)) * 1.1f * amt + .06f + crouch * .45f,
+        };
+        if (Mounted) { legs.SwingR = legs.SwingL = 1.2f; legs.KneeR = legs.KneeL = 1.4f; legs.Splay = .35f; }
+        else if (!floor && _rollT <= 0) { legs.SwingR = .7f; legs.KneeR = 1.3f; legs.SwingL = -.15f; legs.KneeL = .5f; }
+        else if (_rollT > 0) { legs.SwingR = legs.SwingL = 1.4f; legs.KneeR = legs.KneeL = 2f; }
         float bob = Mathf.Abs(Mathf.Cos(_walkPh)) * Feel.Bob * amt - Feel.Bob * 0.5f * amt;     // two bounces per stride
         float breath = Mathf.Sin(_idleT * 2.2f) * Feel.Breath * (1f - amt);                      // idle breathing
-        float lean = -Feel.Lean * amt * amt;                                                      // forward lean grows with speed
-
+        float lean = Feel.Lean * amt * amt;                                                       // forward lean grows with speed
         float roll = _rollT > 0 ? (1f - _rollT / RollTime) * Mathf.Tau : 0f;
-        _model.Rotation = new Vector3(roll + lean, _modelYaw, 0);
-        _model.Position = new Vector3(0, (Mounted ? 0.9f : 0f) + bob + breath, 0);
+        _model.Rotation = new Vector3(roll, _modelYaw, 0);
+        _model.Position = new Vector3(0, (Mounted ? 0.9f : 0f) + bob + breath - crouch * .12f, 0);
         _horse.Rotation = new Vector3(0, _modelYaw, 0);
 
-        string wt = Game.D.WType();
-        Vector3 target = wt == "sword" ? new Vector3(0.5f, 0, 0) : new Vector3(0.1f, 0, 0);
-        float k = 1f - Mathf.Exp(-18f * dt);
-        if (_castT > 0) { float p = 1f - _castT / Mathf.Max(0.05f, _castDur); target = new Vector3(Mathf.Lerp(0.2f, 1.2f, p), 0, 0); }
-        else if (_atkT > 0)
+        // ---- hands
+        var restR = w.Rest; var lift = new Vector3(0, breath * .6f, 0);
+        bool free = !atk && _castT <= 0 && !_blocking && !Mounted;
+        float armSwing = free ? s * Feel.ArmSwing * amt * .3f : 0f;
+        restR.H += new Vector3(0, 0, armSwing) + lift;
+        var r = restR; float twist = -s * .12f * amt, spineLean = lean * .6f;
+        var restL = new HandPose { H = new Vector3(-.42f, .97f, -.12f) + new Vector3(0, 0, -armSwing) + lift, Yaw = 0, Pitch = -60 };
+        HandPose l = restL;
+        if (atk && !w.Ranged)
         {
-            float p = 1f - _atkT / _atkDur, wind = 0.35f;
-            float t = Mathf.Clamp(p < wind ? p / wind : (p - wind) / (1f - wind), 0, 1), e = t * t * (3f - 2f * t);
-            if (wt != "sword") target = p < wind ? new Vector3(Mathf.Lerp(0.1f, 0.6f, e), 0, 0) : new Vector3(Mathf.Lerp(0.6f, -0.3f, e), 0, 0);
-            else if (_atkPower || _combo == 0) target = p < wind ? new Vector3(Mathf.Lerp(0.5f, 1.9f, e), 0, 0) : new Vector3(Mathf.Lerp(1.9f, -0.9f, e), 0, 0);
-            else if (_combo == 1) target = p < wind ? new Vector3(0.1f, Mathf.Lerp(0, -1.3f, e), 0) : new Vector3(0.1f, Mathf.Lerp(-1.3f, 1.3f, e), 0);
-            else target = p < wind ? new Vector3(0.1f, Mathf.Lerp(0, 1.3f, e), 0) : new Vector3(0.1f, Mathf.Lerp(1.3f, -1.3f, e), 0);
-            k = 1f;
+            r = AttackPose(_atk!, restR, prog);
+            twist = Mathf.Clamp(Mathf.DegToRad(r.Yaw) * .4f, -.7f, .7f);                     // the chest turns into the swing
+            spineLean = lean * .6f + Mathf.Clamp(-(r.H.Y - 1.3f) * .5f, -.15f, .35f);          // and folds over low strikes
+            l = new HandPose { H = new Vector3(-.38f, 1.05f, -.25f) - new Vector3(twist * .3f, 0, 0), Yaw = 0, Pitch = -40 };
         }
-        else if (_blocking) target = new Vector3(0.9f, 0.3f, 0);
-        _hand.Rotation = _hand.Rotation.Lerp(target, k);
-        // arms swing against the legs while the hands are free; a little breathing lift at rest
-        bool free = _atkT <= 0 && _castT <= 0 && !_blocking && !Mounted;
-        float arm = free ? s * Feel.ArmSwing * amt : 0f; var lift = new Vector3(0, breath * 0.6f, 0);
-        _hand.Position = _hand.Position.Lerp(HandRest + new Vector3(0, 0, arm) + lift, 1f - Mathf.Exp(-16f * dt));
-        var shieldPos = _blocking ? new Vector3(-0.15f, 1.15f, -0.65f) : ShieldRest + new Vector3(0, 0, -arm) + lift;
-        _shield.Position = _shield.Position.Lerp(shieldPos, 1f - Mathf.Exp(-16f * dt));
-        _shield.Rotation = new Vector3(0, _blocking ? Mathf.Pi / 2 : 0, 0);
-        AimLimb(_upR, ShoulderR, _hand.Position); AimLimb(_upL, ShoulderL, _shield.Position);
-        // cape streams back with speed and flutters a little
-        float capeK = 1f - Mathf.Exp(-6f * dt);
-        _cape.Rotation = new Vector3(Mathf.Lerp(_cape.Rotation.X, -(.05f + amt * .75f + Mathf.Sin(_idleT * 7f) * .05f * amt + (_rollT > 0 ? .4f : 0)), capeK), 0, 0); // negative X tips the hem backward (+Z)
-        // swing trail during the cutting part of a sword attack: cyan for light hits, orange for the combo finisher, gold for power
-        if (_atkT > 0 && wt == "sword")
+        else if (atk && w.Ranged)
         {
-            float p = 1f - _atkT / _atkDur; _trail.Emit = p > .3f && p < .9f;
-            _trail.Col = _atkPower ? new Color(1f, .8f, .35f) : _combo == 2 ? new Color(1f, .5f, .25f) : new Color(.45f, .85f, 1f);
+            float a = Mathf.Clamp(prog / Mathf.Max(.05f, _atk!.Hit), 0, 1); float e = a * a * (3 - 2 * a);
+            if (w.LeftHand) // bow: left arm extends the bow, right hand draws to the cheek, then releases
+            {
+                l = HandPose.Lerp(new HandPose { H = new Vector3(-.4f, 1.05f, -.2f), Yaw = 0, Pitch = 40 }, w.Aim, Mathf.Min(1, e * 1.6f));
+                r = prog < _atk!.Hit ? HandPose.Lerp(w.Aim, w.Draw, e) : HandPose.Lerp(w.Draw, w.Aim, Mathf.Clamp((prog - _atk.Hit) * 6, 0, 1));
+                r.H.X = Mathf.Max(r.H.X, .05f); twist = -.25f;
+            }
+            else { r = HandPose.Lerp(restR, w.Aim, prog < _atk!.Hit ? e : 1f - Mathf.Clamp((prog - _atk.Hit) * 2.5f, 0, 1)); twist = .15f; }
+        }
+        else if (_castT > 0)
+        {
+            float p = 1f - _castT / Mathf.Max(0.05f, _castDur), e = p * p * (3 - 2 * p);
+            r = HandPose.Lerp(restR, w.Ranged ? w.Aim : new HandPose { H = new Vector3(.3f, 1.55f, -.45f), Yaw = 0, Pitch = 60 }, e);
+            l = HandPose.Lerp(restL, new HandPose { H = new Vector3(-.2f, 1.45f, -.52f), Yaw = -20, Pitch = 10 }, e);
+            spineLean = -.1f * e;
+        }
+        if (_blocking) l = new HandPose { H = new Vector3(-.12f, 1.3f, -.46f), Yaw = -90, Pitch = 0 };
+        // two-handed weapons: the off hand holds the grip (behind the main hand, or ahead of it on a spear or staff shaft)
+        if (w.Hands > 1 && !w.LeftHand) l = new HandPose { H = r.H - r.Dir * w.Grip, Yaw = r.Yaw, Pitch = r.Pitch };
+        if (w.LeftHand && !atk) { l = new HandPose { H = new Vector3(-.4f, 1.0f, -.18f) + new Vector3(0, 0, -armSwing), Yaw = 0, Pitch = -65 }; r = new HandPose { H = r.H, Yaw = -6, Pitch = -60 }; }
+        _rig.SteadyLeft = HasShield || w.LeftHand;
+        Vector3? look = Targeting.Current != null && IsInstanceValid(Targeting.Current) ? _rig.ToLocal(Targeting.Current.GlobalPosition + Vector3.Up * 1.2f) : null;
+        _rig.Pose(dt, legs, twist, spineLean, r, l, look);
+
+        // cape streams back with speed and flutters
+        _capeX = Mathf.Lerp(_capeX, -(.05f + amt * .75f + Mathf.Sin(_idleT * 7f) * .05f * amt + (_rollT > 0 ? .4f : 0) + (!floor ? .5f : 0)), 1f - Mathf.Exp(-6f * dt));
+        _rig.Cape.Rotation = new Vector3(_capeX + spineLean, 0, 0);
+        // swing trail during the cutting part of a melee attack: weapon colour, gold for power attacks, hot orange for finishers
+        if (atk && !w.Ranged)
+        {
+            _trail.Emit = prog > _atk!.Wind * .9f && prog < Mathf.Min(.95f, _atk.Hit + .3f);
+            _trail.Col = _atkPower ? new Color(1f, .8f, .35f) : _atk.Finisher ? w.Trail.Lerp(new Color(1f, .45f, .2f), .6f) : w.Trail;
         }
         else _trail.Emit = false;
     }

@@ -1,29 +1,38 @@
 {
- "_comment": "Game feel tuning. Hit-stop times are in real seconds; the game runs at timeScale while frozen.",
- "hitstop": {
-  "light": 0.035,
-  "combo": 0.055,
-  "power": 0.085,
-  "spell": 0.025,
-  "critBonus": 0.03,
-  "killBonus": 0.03,
-  "taken": 0.05,
-  "max": 0.12,
-  "timeScale": 0.05
- },
- "recoil": {
-  "time": 0.2,
-  "push": 0.22,
-  "squash": 0.16,
-  "bossMul": 0.4
- },
- "walk": {
-  "_comment": "Player procedural walk. stride = radians of leg cycle per metre; swings in radians (legs) and metres (arms, bob, breath); lean in radians at full sprint.",
-  "stride": 1.9,
-  "legSwing": 0.7,
-  "armSwing": 0.2,
-  "bob": 0.07,
-  "lean": 0.16,
-  "breath": 0.012
- }
+    "_comment":  "Game feel tuning. Hit-stop times are in real seconds; the game runs at timeScale while frozen.",
+    "hitstop":  {
+                    "light":  0.035,
+                    "combo":  0.055,
+                    "power":  0.085,
+                    "spell":  0.025,
+                    "critBonus":  0.03,
+                    "killBonus":  0.03,
+                    "taken":  0.05,
+                    "max":  0.12,
+                    "timeScale":  0.05
+                },
+    "recoil":  {
+                   "time":  0.2,
+                   "push":  0.22,
+                   "squash":  0.16,
+                   "bossMul":  0.4
+               },
+    "walk":  {
+                 "_comment":  "Player procedural walk. stride = radians of leg cycle per metre; swings in radians (legs) and metres (arms, bob, breath); lean in radians at full sprint.",
+                 "stride":  1.9,
+                 "legSwing":  0.7,
+                 "armSwing":  0.2,
+                 "bob":  0.07,
+                 "lean":  0.16,
+                 "breath":  0.012
+             },
+    "glow":  {
+                 "_comment":  "Soft light around the hero in the dark (night, Shadow, dungeons).",
+                 "energy":  0.9,
+                 "range":  10
+             },
+    "camera":  {
+                   "_comment":  "lockTurn: how fast the camera swings to a locked target (per second).",
+                   "lockTurn":  6
+               }
 }

@@ -523,7 +523,7 @@ void fragment(){
     }
     public void SetDungeonLook(bool on, Color? ambient = null)
     {
-        if (on) { _env.BackgroundMode = Godot.Environment.BGMode.Color; _env.BackgroundColor = new Color(.02f, .015f, .03f); _env.AmbientLightColor = ambient ?? new Color(.25f, .25f, .35f); _env.AmbientLightEnergy = .7f; _env.FogDensity = 0.012f; _env.FogLightColor = new Color(.04f, .035f, .06f); _suspend = true; }
+        if (on) { _env.BackgroundMode = Godot.Environment.BGMode.Color; _env.BackgroundColor = new Color(.02f, .015f, .03f); _env.AmbientLightColor = ambient ?? new Color(.25f, .25f, .35f); _env.AmbientLightEnergy = LF("dungeonAmbient", 1.3f); _env.FogDensity = 0.01f; _env.FogLightColor = new Color(.04f, .035f, .06f); _suspend = true; }
         else { _env.BackgroundMode = Godot.Environment.BGMode.Sky; _suspend = false; }
     }
     bool _suspend;

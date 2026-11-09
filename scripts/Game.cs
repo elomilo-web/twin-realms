@@ -24,7 +24,13 @@ public static class Game
     const string SavePath = "user://save.json", SetPath = "user://settings.json";
     static readonly JsonSerializerOptions Opt = new() { IncludeFields = true, WriteIndented = false };
 
-    public static void RecalcTree() { TreeDb.Load(); TreeDb.Recalc(new HashSet<int>(D.Tree), TS); }
+    /// <summary>All permanent modifiers: skill tree nodes + race bonuses + class passive. Everything reads them through Game.TS.</summary>
+    public static void RecalcTree()
+    {
+        TreeDb.Load(); TreeDb.Recalc(new HashSet<int>(D.Tree), TS);
+        foreach (var kv in Races.Get(D.Race).Mods) TS[kv.Key] += kv.Value;
+        foreach (var kv in Classes.Get(D.Class).Mods) TS[kv.Key] += kv.Value;
+    }
     public static void Notify() => Changed?.Invoke();
 
     public static bool HasSave() => Godot.FileAccess.FileExists(SavePath);
@@ -54,27 +60,15 @@ public static class Game
         catch (Exception e) { GD.PushError("load failed: " + e.Message); return false; }
     }
 
-    public static void NewGame(string cls, string name)
+    public static void NewGame(string cls, string name, string race = "human")
     {
-        D = new PlayerStats { Name = string.IsNullOrWhiteSpace(name) ? "Hero" : name, Class = cls };
-        D.Eq["weapon"] = new Item { Name = "Iron Sword", Slot = "weapon", Wt = "sword", Dmg = 4 };
-        D.Eq["shield"] = new Item { Name = "Oak Buckler", Slot = "shield", Def = 2 };
-        using var doc = JsonUtil.Load("res://data/classes.json");
-        if (doc.RootElement.GetProperty("classes").TryGetProperty(cls, out var c))
-        {
-            if (c.TryGetProperty("a", out var a))
-            {
-                if (a.TryGetProperty("str", out var s)) D.Str += s.GetInt32();
-                if (a.TryGetProperty("dex", out var x)) D.Dex += x.GetInt32();
-                if (a.TryGetProperty("vit", out var v)) D.Vit += v.GetInt32();
-                if (a.TryGetProperty("mag", out var m)) D.Mag += m.GetInt32();
-            }
-            if (c.TryGetProperty("w", out var w))
-            {
-                D.Eq["weapon"] = new Item { Name = JsonUtil.S(w, "name", "Weapon"), Slot = "weapon", Wt = JsonUtil.S(w, "wt", "sword"), Dmg = (int)JsonUtil.F(w, "dmg"), Sp = JsonUtil.F(w, "sp"), Two = w.TryGetProperty("two", out var t) && t.GetBoolean() };
-            }
-            if (c.TryGetProperty("noShield", out var ns) && ns.GetBoolean()) D.Eq["shield"] = null;
-        }
+        D = new PlayerStats { Name = string.IsNullOrWhiteSpace(name) ? "Hero" : name, Class = cls, Race = race };
+        var c = Classes.Get(cls); var r = Races.Get(race);
+        void Attr(Dictionary<string, int> a) { foreach (var kv in a) switch (kv.Key) { case "str": D.Str += kv.Value; break; case "dex": D.Dex += kv.Value; break; case "vit": D.Vit += kv.Value; break; case "mag": D.Mag += kv.Value; break; } }
+        Attr(c.Attr); Attr(r.Attr); D.SkillPts += r.Pts;
+        D.Eq["weapon"] = new Item { Name = c.WName, Slot = "weapon", Wt = c.Wt, Dmg = c.WDmg, Sp = c.WSp, Two = Weapons.Get(c.Wt).Hands > 1 };
+        D.Eq["shield"] = c.Shield ? new Item { Name = "Oak Buckler", Slot = "shield", Def = 2 } : null;
+        Skills.GrantStarting(D);
         PlayTime = 0; RecalcTree();
     }
 

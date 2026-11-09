@@ -1,54 +1,102 @@
 {
- "themes": {
-  "barrow": {
-   "name": "Hollow Barrow",
-   "mobs": [
-    "skeleton",
-    "skeleton",
-    "wraith",
-    "hound",
-    "skeleton"
-   ],
-   "boss": "barrowKing",
-   "wall": 4870496,
-   "floor": 3290687,
-   "torch": 8376575,
-   "flame": 8376575
-  },
-  "warrens": {
-   "name": "Goblin Warrens",
-   "mobs": [
-    "goblin",
-    "goblin",
-    "goblin",
-    "wolf",
-    "archer",
-    "brute"
-   ],
-   "boss": "warchief",
-   "wall": 6966836,
-   "floor": 4075040,
-   "torch": 16754768,
-   "flame": 16753208
-  },
-  "depths": {
-   "name": "Ashen Depths",
-   "mobs": [
-    "revenant",
-    "skeleton",
-    "hound",
-    "wraith",
-    "hound"
-   ],
-   "boss": "golem",
-   "wall": 3941412,
-   "floor": 2364952,
-   "torch": 16734762,
-   "flame": 16738864
-  }
- },
- "tile": 4,
- "wallHeight": 6,
- "gridW": 40,
- "gridH": 40
+    "themes":  {
+                   "barrow":  {
+                                  "name":  "Hollow Barrow",
+                                  "mobs":  [
+                                               "skeleton",
+                                               "skeleton",
+                                               "wraith",
+                                               "hound",
+                                               "skeleton"
+                                           ],
+                                  "boss":  "barrowKing",
+                                  "wall":  4870496,
+                                  "floor":  3290687,
+                                  "torch":  8376575,
+                                  "flame":  8376575,
+                                  "moss":  "3a5a3a",
+                                  "arches":  true,
+                                  "ceilTex":  "rock",
+                                  "banner":  "4a2a6a",
+                                  "wallTex":  "stone",
+                                  "floorTile":  3.5,
+                                  "embers":  false,
+                                  "beams":  false,
+                                  "wallTile":  3.2,
+                                  "floorTex":  "cobble",
+                                  "props":  [
+                                                "bones",
+                                                "rubble",
+                                                "urn",
+                                                "coffin"
+                                            ]
+                              },
+                   "warrens":  {
+                                   "name":  "Goblin Warrens",
+                                   "mobs":  [
+                                                "goblin",
+                                                "goblin",
+                                                "goblin",
+                                                "wolf",
+                                                "archer",
+                                                "brute"
+                                            ],
+                                   "boss":  "warchief",
+                                   "wall":  6966836,
+                                   "floor":  4075040,
+                                   "torch":  16754768,
+                                   "flame":  16753208,
+                                   "moss":  "4a5a2a",
+                                   "arches":  false,
+                                   "ceilTex":  "rock",
+                                   "banner":  "8a2a1a",
+                                   "wallTex":  "rock",
+                                   "floorTile":  4,
+                                   "embers":  false,
+                                   "beams":  true,
+                                   "wallTile":  4.5,
+                                   "floorTex":  "noise",
+                                   "props":  [
+                                                 "rubble",
+                                                 "mushroom",
+                                                 "crate",
+                                                 "bones"
+                                             ]
+                               },
+                   "depths":  {
+                                  "name":  "Ashen Depths",
+                                  "mobs":  [
+                                               "revenant",
+                                               "skeleton",
+                                               "hound",
+                                               "wraith",
+                                               "hound"
+                                           ],
+                                  "boss":  "golem",
+                                  "wall":  3941412,
+                                  "floor":  2364952,
+                                  "torch":  16734762,
+                                  "flame":  16738864,
+                                  "moss":  "",
+                                  "arches":  true,
+                                  "ceilTex":  "rock",
+                                  "banner":  "",
+                                  "wallTex":  "rock",
+                                  "floorTile":  3,
+                                  "embers":  true,
+                                  "beams":  false,
+                                  "wallTile":  4,
+                                  "floorTex":  "stone",
+                                  "props":  [
+                                                "rubble",
+                                                "crystal",
+                                                "bones"
+                                            ]
+                              }
+               },
+    "tile":  4,
+    "wallHeight":  6,
+    "gridW":  40,
+    "gridH":  40,
+    "_help":  "themes: colours are ints (0xRRGGBB). wallTex/floorTex/ceilTex = procedural texture kinds from scripts/Gfx.cs (stone, cobble, rock, noise, planks); wallTile/floorTile = metres per texture tile; props = floor decoration kinds (bones, rubble, urn, coffin, mushroom, crate, crystal); banner = hex colour of wall banners or empty; beams = wooden ceiling beams; arches = stone ribs across rooms; embers = glowing lava cracks in the floor; moss = hex tint at the foot of walls or empty."
 }

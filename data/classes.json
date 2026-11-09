@@ -1,75 +1,24 @@
 {
+ "_help": "Classes. a = starting attributes, w = starting weapon (wt from data/weapons.json), shield = start with a shield, mods = class passive (stat keys, see docs/STATS.md), skills = starting skills (data/skills.json), tunic/cape = colours, start = skill tree start cluster. 'rogue' is the Ranger id (kept for old saves).",
  "classes": {
-  "warrior": {
-   "n": "Warrior",
-   "d": "Sword and shield",
-   "a": {
-    "str": 3,
-    "vit": 2
-   }
-  },
-  "rogue": {
-   "n": "Ranger",
-   "d": "Shortbow, quick feet",
-   "a": {
-    "dex": 4,
-    "str": 1
-   },
-   "w": {
-    "name": "Hunter's Shortbow",
-    "wt": "bow",
-    "two": true,
-    "dmg": 4
-   },
-   "noShield": true
-  },
-  "mage": {
-   "n": "Mage",
-   "d": "Wand and spells",
-   "a": {
-    "mag": 5
-   },
-   "w": {
-    "name": "Apprentice Wand",
-    "wt": "wand",
-    "dmg": 2,
-    "sp": 0.1
-   },
-   "noShield": true
-  }
+  "warrior":    { "n": "Warrior",     "d": "Sword and shield. Sturdy front-liner.",                          "a": { "str": 3, "vit": 2 }, "w": { "name": "Iron Sword", "wt": "sword", "dmg": 4 }, "shield": true, "mods": { "def": 4, "block": 5 }, "skills": ["cleave", "fire", "heal", "shieldbash"], "tunic": "94282b", "cape": "2e3866", "start": "warrior" },
+  "rogue":      { "n": "Ranger",      "d": "Shortbow, quick feet.",                                          "a": { "dex": 4, "str": 1 }, "w": { "name": "Hunter's Shortbow", "wt": "bow", "dmg": 4 }, "mods": { "rangedP": 5, "move": 4 }, "skills": ["volley", "rain", "heal", "fire"], "tunic": "3a5a2a", "cape": "2a3a1a", "start": "ranger" },
+  "mage":       { "n": "Mage",        "d": "Wand and spells.",                                               "a": { "mag": 5 }, "w": { "name": "Apprentice Wand", "wt": "wand", "dmg": 2, "sp": 0.1 }, "mods": { "spellP": 5, "mpP": 5 }, "skills": ["fire", "nova", "heal", "zap"], "tunic": "2a3a8a", "cape": "1a1a4a", "start": "mage" },
+  "paladin":    { "n": "Paladin",     "d": "Mace, shield and holy light. Smites foes and heals allies.",    "a": { "str": 2, "vit": 2, "mag": 1 }, "w": { "name": "Blessed Mace", "wt": "mace", "dmg": 4 }, "shield": true, "mods": { "holyP": 8, "healP": 10 }, "skills": ["smite", "heal", "consecrate", "shieldbash"], "tunic": "e8e0c8", "cape": "c8a040", "start": "paladin" },
+  "berserker":  { "n": "Berserker",   "d": "Greatsword and fury. Hits harder the more hurt you are.",      "a": { "str": 4, "vit": 1 }, "w": { "name": "Notched Greatsword", "wt": "greatsword", "dmg": 6 }, "mods": { "meleeP": 6, "rage": 1 }, "skills": ["whirlwind", "leap", "warcry", "cleave"], "tunic": "6a2a18", "cape": "3a1a10", "start": "berserker" },
+  "assassin":   { "n": "Assassin",    "d": "Twin-fast dagger. Crits, poison and vanishing steps.",          "a": { "dex": 4, "str": 1 }, "w": { "name": "Worn Dagger", "wt": "dagger", "dmg": 3 }, "mods": { "crit": 5, "critD": 15 }, "skills": ["shadowstep", "poisonblade", "fan", "heal"], "tunic": "22222e", "cape": "3a1428", "start": "assassin" },
+  "spellblade": { "n": "Spellblade",  "d": "Sword and sorcery. Magic feeds the blade.",                     "a": { "str": 2, "mag": 3 }, "w": { "name": "Runed Sword", "wt": "sword", "dmg": 4 }, "mods": { "magToDmg": 0.6, "spellP": 4 }, "skills": ["cleave", "fire", "zap", "arcanestrike"], "tunic": "4a2a7a", "cape": "1a3a5a", "start": "spellblade" },
+  "cleric":     { "n": "Cleric",      "d": "Mace and miracles. The best healer, steady holy damage.",      "a": { "mag": 3, "vit": 2 }, "w": { "name": "Oak Cudgel", "wt": "mace", "dmg": 3, "sp": 0.05 }, "mods": { "healP": 20, "regenHp": 1 }, "skills": ["heal", "smite", "consecrate", "nova"], "tunic": "d8d8e8", "cape": "6a8ac8", "start": "cleric" },
+  "druid":      { "n": "Druid",       "d": "Staff of the wild. Poison, thorns and regrowth.",               "a": { "mag": 3, "vit": 2 }, "w": { "name": "Gnarled Staff", "wt": "staff", "dmg": 3, "sp": 0.12 }, "mods": { "poisonP": 10, "thorns": 8 }, "skills": ["thornvolley", "heal", "entangle", "nova"], "tunic": "3a6a2a", "cape": "5a3a1a", "start": "druid" },
+  "necromancer":{ "n": "Necromancer", "d": "Staff of bones. Shadow magic and life drain.",                   "a": { "mag": 4, "vit": 1 }, "w": { "name": "Bone Staff", "wt": "staff", "dmg": 3, "sp": 0.12 }, "mods": { "shadowP": 10, "leech": 2 }, "skills": ["shadowbolt", "drain", "nova", "heal"], "tunic": "1a1a1a", "cape": "3a0a2a", "start": "necromancer" },
+  "warlock":    { "n": "Warlock",     "d": "Wand of hexes. Curses that burn and wither.",                   "a": { "mag": 4, "dex": 1 }, "w": { "name": "Hex Wand", "wt": "wand", "dmg": 2, "sp": 0.1 }, "mods": { "shadowP": 6, "fireP": 6, "statusP": 15 }, "skills": ["shadowbolt", "fire", "hex", "drain"], "tunic": "5a1a3a", "cape": "2a0a1a", "start": "warlock" },
+  "lancer":     { "n": "Lancer",      "d": "Spear and reach. Charges, sweeps and launches foes.",           "a": { "str": 2, "dex": 3 }, "w": { "name": "Ash Spear", "wt": "spear", "dmg": 5 }, "mods": { "reach": 10, "knockP": 15 }, "skills": ["lunge", "leap", "cleave", "heal"], "tunic": "2a4a6a", "cape": "8a6a2a", "start": "lancer" },
+  "warden":     { "n": "Warden",      "d": "Axe and shield. Bleeds, taunts and stands firm.",               "a": { "str": 3, "vit": 2 }, "w": { "name": "Bearded Axe", "wt": "axe", "dmg": 5 }, "shield": true, "mods": { "bleedP": 15, "hpP": 5 }, "skills": ["cleave", "warcry", "shieldbash", "heal"], "tunic": "4a3a2a", "cape": "2a4a2a", "start": "warden" }
  },
  "spells": [
-  {
-   "id": "fire",
-   "n": "Firebolt",
-   "k": "1",
-   "mp": 14,
-   "cd": 0.7,
-   "cast": 0.3
-  },
-  {
-   "id": "nova",
-   "n": "Frost Nova",
-   "k": "2",
-   "mp": 28,
-   "cd": 7,
-   "cast": 0.4
-  },
-  {
-   "id": "heal",
-   "n": "Healing Light",
-   "k": "3",
-   "mp": 30,
-   "cd": 9,
-   "cast": 0.45
-  },
-  {
-   "id": "zap",
-   "n": "Chain Lightning",
-   "k": "4",
-   "mp": 22,
-   "cd": 2.6,
-   "cast": 0.35
-  }
+  { "id": "fire", "n": "Firebolt", "k": "1", "mp": 14, "cd": 0.7, "cast": 0.3 },
+  { "id": "nova", "n": "Frost Nova", "k": "2", "mp": 28, "cd": 7, "cast": 0.4 },
+  { "id": "heal", "n": "Healing Light", "k": "3", "mp": 30, "cd": 9, "cast": 0.45 },
+  { "id": "zap", "n": "Chain Lightning", "k": "4", "mp": 22, "cd": 2.6, "cast": 0.35 }
  ]
 }

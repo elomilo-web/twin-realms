@@ -71,6 +71,41 @@ public static class Icons
                 ci.DrawLine(c + new Vector2(-.32f, .32f) * s, c + new Vector2(-.62f, .62f) * s, A(new Color(.45f, .28f, .15f)), Mathf.Max(2f, s * .12f), true);
                 ci.DrawCircle(c + new Vector2(-.68f, .68f) * s, s * .09f, A(new Color(.85f, .65f, .25f)));
                 break;
+            case "greatsword":
+                Poly(ci, P(c, s, .72f, -.88f, .88f, -.72f, -.15f, .42f, -.42f, .15f), A(new Color(.85f, .9f, .98f)), ol);
+                ci.DrawLine(c + new Vector2(-.55f, .05f) * s, c + new Vector2(-.05f, .55f) * s, A(new Color(.85f, .65f, .25f)), Mathf.Max(2.5f, s * .16f), true);
+                ci.DrawLine(c + new Vector2(-.3f, .3f) * s, c + new Vector2(-.75f, .75f) * s, A(new Color(.45f, .28f, .15f)), Mathf.Max(2.5f, s * .14f), true);
+                break;
+            case "axe":
+                ci.DrawLine(c + new Vector2(-.6f, .7f) * s, c + new Vector2(.35f, -.6f) * s, A(new Color(.5f, .33f, .18f)), Mathf.Max(2.5f, s * .13f), true);
+                Poly(ci, P(c, s, .1f, -.55f, .55f, -.85f, .8f, -.35f, .55f, .05f, .3f, -.2f), A(new Color(.8f, .84f, .9f)), ol);
+                break;
+            case "mace":
+                ci.DrawLine(c + new Vector2(-.6f, .7f) * s, c + new Vector2(.25f, -.3f) * s, A(new Color(.35f, .35f, .38f)), Mathf.Max(2.5f, s * .12f), true);
+                ci.DrawCircle(c + new Vector2(.35f, -.42f) * s, s * .3f, A(new Color(.75f, .78f, .84f)));
+                for (int k = 0; k < 6; k++) { float a = k * Mathf.Tau / 6; var o = new Vector2(Mathf.Cos(a), Mathf.Sin(a)); Poly(ci, new[] { c + new Vector2(.35f, -.42f) * s + o * s * .26f + new Vector2(-o.Y, o.X) * s * .08f, c + new Vector2(.35f, -.42f) * s + o * s * .45f, c + new Vector2(.35f, -.42f) * s + o * s * .26f - new Vector2(-o.Y, o.X) * s * .08f }, A(new Color(.75f, .78f, .84f))); }
+                break;
+            case "dagger":
+                Poly(ci, P(c, s, .5f, -.6f, .62f, -.5f, .0f, .15f, -.12f, .03f), A(new Color(.88f, .92f, .98f)), ol);
+                ci.DrawLine(c + new Vector2(-.25f, -.1f) * s, c + new Vector2(.1f, .25f) * s, A(new Color(.85f, .65f, .25f)), Mathf.Max(2f, s * .1f), true);
+                ci.DrawLine(c + new Vector2(-.06f, .1f) * s, c + new Vector2(-.42f, .46f) * s, A(new Color(.3f, .2f, .12f)), Mathf.Max(2f, s * .12f), true);
+                break;
+            case "spear":
+                ci.DrawLine(c + new Vector2(-.8f, .8f) * s, c + new Vector2(.4f, -.4f) * s, A(new Color(.55f, .38f, .2f)), Mathf.Max(2f, s * .09f), true);
+                Poly(ci, P(c, s, .85f, -.85f, .55f, -.25f, .4f, -.4f, .25f, -.55f), A(new Color(.85f, .9f, .98f)), ol);
+                break;
+            case "head":
+                Poly(ci, P(c, s, -.62f, .3f, -.6f, -.25f, -.35f, -.65f, 0, -.75f, .35f, -.65f, .6f, -.25f, .62f, .3f, .2f, .3f, .2f, .65f, -.2f, .65f, -.2f, .3f), A(new Color(.7f, .73f, .78f)), ol, 2f);
+                ci.DrawLine(c + new Vector2(-.45f, -.05f) * s, c + new Vector2(.45f, -.05f) * s, A(new Color(.1f, .1f, .12f)), Mathf.Max(2f, s * .1f));
+                break;
+            case "hands":
+                Poly(ci, P(c, s, -.4f, .8f, -.45f, -.1f, -.6f, -.45f, -.4f, -.55f, -.25f, -.25f, -.2f, -.8f, 0, -.85f, .05f, -.4f, .12f, -.85f, .3f, -.8f, .28f, -.35f, .4f, -.7f, .55f, -.6f, .5f, .1f, .45f, .8f), A(new Color(.62f, .44f, .26f)), ol, 1.5f);
+                ci.DrawLine(c + new Vector2(-.42f, .45f) * s, c + new Vector2(.47f, .45f) * s, A(new Color(.85f, .7f, .35f)), Mathf.Max(2f, s * .1f));
+                break;
+            case "feet":
+                Poly(ci, P(c, s, -.35f, -.85f, .2f, -.85f, .2f, .3f, .8f, .45f, .85f, .8f, -.4f, .8f), A(new Color(.5f, .34f, .2f)), ol, 1.5f);
+                ci.DrawLine(c + new Vector2(-.35f, -.55f) * s, c + new Vector2(.2f, -.55f) * s, A(new Color(.85f, .7f, .35f)), Mathf.Max(2f, s * .1f));
+                break;
             case "bow":
                 ci.DrawArc(c + new Vector2(-.35f, .35f) * s, s * 1.05f, -Mathf.Pi * .5f + .15f, -.15f, 20, A(new Color(.6f, .4f, .2f)), Mathf.Max(2.5f, s * .14f), true);
                 ci.DrawLine(c + new Vector2(-.33f, -.68f) * s, c + new Vector2(.68f, .33f) * s, A(new Color(.95f, .95f, .9f)), 1.2f, true);
@@ -151,7 +186,7 @@ public static class Icons
     /// <summary>Gear slot/weapon type to icon id.</summary>
     public static string ForItem(string slot, string wt) => slot switch
     {
-        "weapon" => wt switch { "bow" => "bow", "wand" => "wand", "staff" => "staff", _ => "sword" },
+        "weapon" => wt is "bow" or "wand" or "staff" or "greatsword" or "axe" or "mace" or "dagger" or "spear" ? wt : "sword",
         "shield" => "shield", "armor" => "armor", "trinket" => "trinket", _ => slot,
     };
 

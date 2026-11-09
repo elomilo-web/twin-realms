@@ -8,6 +8,7 @@ public static class Feel
     public static float Light = .035f, Combo = .055f, Power = .085f, Spell = .025f, CritBonus = .03f, KillBonus = .03f, Taken = .05f, MaxStop = .12f, StopScale = .05f;
     public static float RecoilTime = .2f, RecoilPush = .22f, RecoilSquash = .16f, RecoilBossMul = .4f;
     public static float Stride = 1.9f, LegSwing = .7f, ArmSwing = .2f, Bob = .07f, Lean = .16f, Breath = .012f;
+    public static float GlowEnergy = .9f, GlowRange = 10f, LockTurn = 6f;
     static bool _loaded, _on;
     static ulong _until;
 
@@ -25,6 +26,8 @@ public static class Feel
         {
             RecoilTime = JsonUtil.F(c, "time", RecoilTime); RecoilPush = JsonUtil.F(c, "push", RecoilPush); RecoilSquash = JsonUtil.F(c, "squash", RecoilSquash); RecoilBossMul = JsonUtil.F(c, "bossMul", RecoilBossMul);
         }
+        if (r.TryGetProperty("glow", out var g)) { GlowEnergy = JsonUtil.F(g, "energy", GlowEnergy); GlowRange = JsonUtil.F(g, "range", GlowRange); }
+        if (r.TryGetProperty("camera", out var cm)) { LockTurn = JsonUtil.F(cm, "lockTurn", LockTurn); }
         if (r.TryGetProperty("walk", out var w))
         {
             Stride = JsonUtil.F(w, "stride", Stride); LegSwing = JsonUtil.F(w, "legSwing", LegSwing); ArmSwing = JsonUtil.F(w, "armSwing", ArmSwing);

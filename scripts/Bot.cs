@@ -124,6 +124,45 @@ public partial class Bot : Node
             Check("loot collected without freezing", true, $"gold {gold0} -> {Game.D.Gold}, pack {Game.D.Inv.Count}");
         });
 
+        await Step("weapons, gear and targeting", async () =>
+        {
+            // every weapon type can kill a goblin with its own combo; gear in every slot builds on the model
+            var keepW = Game.D.Eq["weapon"]; var keepS = Game.D.Eq.GetValueOrDefault("shield"); int ok = 0; var bad = new List<string>();
+            foreach (var wt in Weapons.Types)
+            {
+                Game.D.Eq["weapon"] = new Item { Name = "Bot " + wt, Slot = "weapon", Wt = wt, Dmg = 40, Two = Weapons.Get(wt).Hands > 1 }; Game.Notify();
+                var spot = World.OnGround(-80, -80, .5f); P.Teleport(spot, 0f);
+                var g = new Enemy { Type = "goblin", Level = 1, AnyRealm = true, NoLeash = true, Position = spot + new Vector3(0, 0, -2.5f) }; Game.Root!.AddChild(g); await Wait(0.25f); g.Stun(6f);
+                bool dead = await Fight(g, 8f); if (dead) ok++; else bad.Add(wt);
+                if (GodotObject.IsInstanceValid(g)) g.QueueFree();
+            }
+            Check("every weapon type kills a target", bad.Count == 0, $"{ok} ok" + (bad.Count > 0 ? ", failed: " + string.Join(",", bad) : ""));
+            // knock-up from a mace power attack
+            Game.D.Eq["weapon"] = new Item { Name = "Bot mace", Slot = "weapon", Wt = "mace", Dmg = 1 }; Game.Notify(); Heal();
+            var sp2 = World.OnGround(-90, -80, .5f); P.Teleport(sp2, 0f); var b = new Enemy { Type = "brute", Level = 30, AnyRealm = true, NoLeash = true, Position = sp2 + new Vector3(0, 0, -2.2f) }; Game.Root!.AddChild(b); await Wait(0.3f); b.Stun(5f);
+            float y0 = b.GlobalPosition.Y, yMax = y0; Face(b.GlobalPosition); Mouse(MouseButton.Left, true); await Wait(0.5f); Mouse(MouseButton.Left, false);
+            for (int i = 0; i < 20; i++) { await Wait(0.05f); if (GodotObject.IsInstanceValid(b)) yMax = Mathf.Max(yMax, b.GlobalPosition.Y); }
+            Check("power slam knocks a foe up", yMax > y0 + 0.3f, $"rose {yMax - y0:0.00} m");
+            // lock-on picks the brute in front of the camera, then Q releases
+            Face(b.GlobalPosition); await Wait(0.2f); Targeting.Toggle(false); Check("lock-on picks a target", Targeting.Current == b, Targeting.Current?.Def.N ?? "none");
+            Targeting.Clear(); Check("lock-on releases", Targeting.Current == null);
+            if (GodotObject.IsInstanceValid(b)) b.QueueFree();
+            foreach (var s in PlayerStats.Slots) if (s != "weapon") Game.D.Eq[s] = Items.Roll(5, 1, s);
+            Game.Notify(); await Wait(0.2f);
+            int pieces = 0; foreach (var n in P.Rig3D.FindChildren("*", "MeshInstance3D", true, false)) pieces++;
+            Check("gear in all 7 slots shows on the model", pieces > 25, $"{pieces} mesh parts");
+            Game.D.Eq["weapon"] = keepW; Game.D.Eq["shield"] = keepS; foreach (var s in new[] { "head", "hands", "feet", "armor", "trinket" }) Game.D.Eq[s] = null; Game.Notify(); Heal();
+            // every class and race can start (stats, weapon and tree recalc stay valid)
+            var save = Game.D; var bad2 = new List<string>();
+            foreach (var c in Classes.All) foreach (var r in Races.All)
+            {
+                Game.NewGame(c.Id, "Bot", r.Id);
+                if (Game.D.MaxHp() < 30 || Game.D.Weapon == null || float.IsNaN(Game.D.WpnDmg()) || Game.D.WpnDmg() <= 0) bad2.Add(c.Id + "/" + r.Id);
+            }
+            Game.D = save; Game.RecalcTree(); Game.Notify();
+            Check("every class and race starts with valid stats", bad2.Count == 0, bad2.Count > 0 ? string.Join(",", bad2) : $"{Classes.Order.Count} classes x {Races.Order.Count} races");
+        });
+
         await Step("gathering", async () =>
         {
             Gatherable? g = null; float bd = 1e9f;

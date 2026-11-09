@@ -1,98 +1,152 @@
 {
- "rarityNames": [
-  "Common",
-  "Fine",
-  "Rare",
-  "Epic",
-  "Legendary"
- ],
- "rarityColors": [
-  "#cfcfcf",
-  "#4fd06a",
-  "#5b86ff",
-  "#b866f5",
-  "#ff9a1f"
- ],
- "rarityMult": [
-  1,
-  1.3,
-  1.7,
-  2.3,
-  3.2
- ],
- "weaponNames": {
-  "sword": [
-   "Sword",
-   "Blade",
-   "Saber",
-   "Longsword",
-   "Falchion"
-  ],
-  "bow": [
-   "Shortbow",
-   "Hunting Bow",
-   "Recurve Bow",
-   "Longbow",
-   "Warbow"
-  ],
-  "wand": [
-   "Wand",
-   "Rod",
-   "Baton",
-   "Scepter",
-   "Wand"
-  ],
-  "staff": [
-   "Staff",
-   "Crook",
-   "Quarterstaff",
-   "Stave",
-   "Staff"
-  ]
- },
- "itemNames": {
-  "weapon": [
-   "Sword",
-   "Blade",
-   "Saber",
-   "Longsword",
-   "Falchion"
-  ],
-  "armor": [
-   "Cuirass",
-   "Hauberk",
-   "Brigandine",
-   "Plate",
-   "Robe"
-  ],
-  "shield": [
-   "Buckler",
-   "Kite Shield",
-   "Heater",
-   "Aegis",
-   "Tower Shield"
-  ],
-  "trinket": [
-   "Amulet",
-   "Ring",
-   "Charm",
-   "Talisman",
-   "Sigil"
-  ]
- },
- "prefixes": [
-  "Rusty",
-  "Sturdy",
-  "Fine",
-  "Runed",
-  "Mythic"
- ],
- "weaponBase": {
-  "slot": "weapon",
-  "rar": 0,
-  "lvl": 1,
-  "def": 0,
-  "hp": 0,
-  "mp": 0
- }
+    "rarityNames":  [
+                        "Common",
+                        "Fine",
+                        "Rare",
+                        "Epic",
+                        "Legendary"
+                    ],
+    "rarityColors":  [
+                         "#cfcfcf",
+                         "#4fd06a",
+                         "#5b86ff",
+                         "#b866f5",
+                         "#ff9a1f"
+                     ],
+    "rarityMult":  [
+                       1,
+                       1.3,
+                       1.7,
+                       2.3,
+                       3.2
+                   ],
+    "weaponNames":  {
+                        "sword":  [
+                                      "Sword",
+                                      "Blade",
+                                      "Saber",
+                                      "Longsword",
+                                      "Falchion"
+                                  ],
+                        "bow":  [
+                                    "Shortbow",
+                                    "Hunting Bow",
+                                    "Recurve Bow",
+                                    "Longbow",
+                                    "Warbow"
+                                ],
+                        "wand":  [
+                                     "Wand",
+                                     "Rod",
+                                     "Baton",
+                                     "Scepter",
+                                     "Wand"
+                                 ],
+                        "staff":  [
+                                      "Staff",
+                                      "Crook",
+                                      "Quarterstaff",
+                                      "Stave",
+                                      "Staff"
+                                  ],
+                        "greatsword":  [
+                                           "Greatsword",
+                                           "Claymore",
+                                           "Zweihander",
+                                           "Flamberge",
+                                           "Executioner"
+                                       ],
+                        "axe":  [
+                                    "Hatchet",
+                                    "Axe",
+                                    "Bearded Axe",
+                                    "War Axe",
+                                    "Cleaver"
+                                ],
+                        "mace":  [
+                                     "Club",
+                                     "Mace",
+                                     "Flanged Mace",
+                                     "Morningstar",
+                                     "Warhammer"
+                                 ],
+                        "dagger":  [
+                                       "Knife",
+                                       "Dagger",
+                                       "Dirk",
+                                       "Stiletto",
+                                       "Kris"
+                                   ],
+                        "spear":  [
+                                      "Spear",
+                                      "Pike",
+                                      "Partisan",
+                                      "Glaive",
+                                      "Lance"
+                                  ]
+                    },
+    "itemNames":  {
+                      "weapon":  [
+                                     "Sword",
+                                     "Blade",
+                                     "Saber",
+                                     "Longsword",
+                                     "Falchion"
+                                 ],
+                      "armor":  [
+                                    "Cuirass",
+                                    "Hauberk",
+                                    "Brigandine",
+                                    "Plate",
+                                    "Robe"
+                                ],
+                      "shield":  [
+                                     "Buckler",
+                                     "Kite Shield",
+                                     "Heater",
+                                     "Aegis",
+                                     "Tower Shield"
+                                 ],
+                      "trinket":  [
+                                      "Amulet",
+                                      "Ring",
+                                      "Charm",
+                                      "Talisman",
+                                      "Sigil"
+                                  ],
+                      "head":  [
+                                   "Hood",
+                                   "Cap",
+                                   "Helm",
+                                   "Greathelm",
+                                   "Circlet"
+                               ],
+                      "hands":  [
+                                    "Wraps",
+                                    "Gloves",
+                                    "Bracers",
+                                    "Gauntlets"
+                                ],
+                      "feet":  [
+                                   "Treads",
+                                   "Boots",
+                                   "Greaves",
+                                   "Sabatons"
+                               ]
+                  },
+    "prefixes":  [
+                     "Rusty",
+                     "Sturdy",
+                     "Fine",
+                     "Runed",
+                     "Mythic"
+                 ],
+    "weaponBase":  {
+                       "slot":  "weapon",
+                       "rar":  0,
+                       "lvl":  1,
+                       "def":  0,
+                       "hp":  0,
+                       "mp":  0
+                   }
 }

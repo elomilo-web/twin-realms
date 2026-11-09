@@ -151,6 +151,11 @@ public partial class Observer : Node
         {
             Dungeon.Enter("barrow", 1); await Wait(1.2f); var pp = P.GlobalPosition;
             CamAt(pp + new Vector3(0, 3.5f, 6f), pp + new Vector3(0, 1.5f, 0)); await Wait(0.6f); await Shot("d01_dungeon_start"); Perf("dungeon");
+            CamAt(pp + new Vector3(3f, 4.8f, 9f), pp + new Vector3(-2, 1.5f, -6)); await Wait(0.3f); await Shot("d02_dungeon_room");
+            Dungeon.Leave(false); await Wait(0.6f); Dungeon.Enter("depths", 1); await Wait(1.2f); pp = P.GlobalPosition;
+            CamAt(pp + new Vector3(2f, 4f, 8f), pp + new Vector3(0, 1.5f, -4)); await Wait(0.4f); await Shot("d03_depths");
+            Dungeon.Leave(false); await Wait(0.6f); Dungeon.Enter("warrens", 1); await Wait(1.2f); pp = P.GlobalPosition;
+            CamAt(pp + new Vector3(-2f, 4f, 8f), pp + new Vector3(0, 1.5f, -4)); await Wait(0.4f); await Shot("d04_warrens");
             Dungeon.Leave(false); await Wait(1f);
         });
         CamBack(); SetHud(true);
@@ -210,6 +215,18 @@ public partial class Observer : Node
             P.Mp = Game.D.MaxMp();
             await Strip("spell_fire", async () => { Press("spell1", true); await Wait(0.05f); Press("spell1", false); await Wait(0.5f); });
             await Strip("spell_nova", async () => { P.Mp = Game.D.MaxMp(); Press("spell2", true); await Wait(0.05f); Press("spell2", false); await Wait(0.6f); });
+            // every weapon type: its own combo (3 clicks) in one strip each, then a power attack strip for the heavy ones
+            var keepW = Game.D.Eq["weapon"]; var keepS = Game.D.Eq.GetValueOrDefault("shield");
+            foreach (var wt in new[] { "greatsword", "axe", "mace", "dagger", "spear", "bow", "staff" })
+            {
+                Game.D.Eq["weapon"] = new Item { Name = "Test " + wt, Slot = "weapon", Wt = wt, Dmg = 5, Rar = 2, Two = Weapons.Get(wt).Hands > 1 }; Game.Notify(); await Wait(0.3f);
+                P.Teleport(World.OnGround(0, 18, 0.5f), 0f); await Wait(0.3f);
+                int n = Weapons.Get(wt).Combo.Count;
+                await Strip("weapon_" + wt, async () => { for (int i = 0; i < n; i++) { Mouse(MouseButton.Left, true); await Wait(0.06f); Mouse(MouseButton.Left, false); await Wait(Weapons.Get(wt).Combo[i].Dur * .55f); } }, 12, 0.09f);
+                if (wt is "greatsword" or "mace" or "spear") await Strip("power_" + wt, async () => { Mouse(MouseButton.Left, true); await Wait(0.5f); Mouse(MouseButton.Left, false); await Wait(0.9f); }, 12, 0.1f);
+                await Wait(0.6f);
+            }
+            Game.D.Eq["weapon"] = keepW; Game.D.Eq["shield"] = keepS; Game.Notify(); await Wait(0.3f);
             await Strip("spell_heal", async () => { P.Mp = Game.D.MaxMp(); Press("spell3", true); await Wait(0.05f); Press("spell3", false); await Wait(0.6f); });
             // chain lightning needs targets: two stunned goblins in front of the hero
             {
@@ -222,6 +239,33 @@ public partial class Observer : Node
         });
         CamBack(); SetHud(true);
 
+        // gear on the body: epic items in every slot, front and back close-ups, then a plate set with a greatsword
+        await Safe("gear", async () =>
+        {
+            SetHud(false); Sky(0.45f, 0); P.Teleport(World.OnGround(0, 17, 0.5f), 0f); var keep = new Dictionary<string, Item?>(Game.D.Eq);
+            Item I(string slot, string name, int rar, string? wt = null) => new() { Name = name, Slot = slot, Rar = rar, Wt = wt, Def = 5, Dmg = wt != null ? 8 : 0 };
+            void Set(params Item[] items) { foreach (var it in items) Game.D.Eq[it.Slot] = it; Game.Notify(); }
+            Set(I("weapon", "Runed Longsword", 3, "sword"), I("shield", "Runed Kite Shield", 3), I("head", "Runed Helm", 3), I("armor", "Runed Brigandine", 3), I("hands", "Runed Gloves", 3), I("feet", "Runed Boots", 3), I("trinket", "Runed Amulet", 3));
+            await Wait(0.6f); var pp = P.GlobalPosition;
+            CamAt(pp + new Vector3(.6f, 1.6f, -2.8f), pp + new Vector3(0, 1.15f, 0)); _cam.Fov = 45; await Wait(0.4f); await Shot("h03_gear_front");
+            CamAt(pp + new Vector3(-1.8f, 1.7f, 2.4f), pp + new Vector3(0, 1.15f, 0)); await Wait(0.3f); await Shot("h04_gear_back");
+            Set(I("weapon", "Mythic Executioner", 4, "greatsword"), I("head", "Mythic Greathelm", 4), I("armor", "Mythic Plate", 4), I("hands", "Mythic Gauntlets", 4), I("feet", "Mythic Greaves", 4));
+            await Wait(0.6f); CamAt(pp + new Vector3(.9f, 1.6f, -2.9f), pp + new Vector3(0, 1.15f, 0)); await Wait(0.3f); await Shot("h05_plate_greatsword");
+            Set(I("weapon", "Fine Glaive", 1, "spear"), I("head", "Fine Hood", 1), I("armor", "Fine Robe", 1), I("hands", "Fine Wraps", 1), I("feet", "Fine Treads", 1));
+            await Wait(0.6f); CamAt(pp + new Vector3(.9f, 1.6f, -2.9f), pp + new Vector3(0, 1.15f, 0)); await Wait(0.3f); await Shot("h06_robe_spear");
+            Set(I("weapon", "Fine Longbow", 2, "bow")); await Wait(0.5f); Mouse(MouseButton.Left, true); await Wait(0.45f); CamAt(pp + new Vector3(-2.6f, 1.6f, -1.2f), pp + new Vector3(0, 1.3f, 0)); await Shot("h08_bow_draw"); Mouse(MouseButton.Left, false); await Wait(0.8f);
+            _cam.Fov = 70; foreach (var kv in keep) Game.D.Eq[kv.Key] = kv.Value; foreach (var s in new[] { "head", "hands", "feet" }) if (!keep.ContainsKey(s)) Game.D.Eq.Remove(s); Game.Notify();
+            // lock-on: target the nearest wolf from behind the hero, with the HUD
+            var wolf = Nearest("wolf"); if (wolf != null)
+            {
+                P.Teleport(World.OnGround(wolf.GlobalPosition.X + 6, wolf.GlobalPosition.Z + 6, .5f), 0f); CamBack(); SetHud(true); await Wait(0.5f);
+                Targeting.Set(wolf); await Wait(1.2f); await Shot("h07_lockon"); Targeting.Clear(); SetHud(false);
+            }
+            CamBack();
+            // night glow around the hero
+            Sky(0.97f, 0); P.Teleport(World.OnGround(-30, 40, .5f), 0f); await Wait(1.5f); var gp = P.GlobalPosition;
+            CamAt(gp + new Vector3(2.5f, 2.2f, 4f), gp + new Vector3(0, 1f, 0)); await Wait(0.4f); await Shot("w28_night_glow"); Sky(0.45f, 0); CamBack(); SetHud(true);
+        });
         await Safe("hitboxes", HitboxAudit);
         _m["errors"] = errors;
         Finish("ok");

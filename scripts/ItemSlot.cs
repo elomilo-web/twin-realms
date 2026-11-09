@@ -37,9 +37,10 @@ public partial class ItemSlot : Control
             if (Wide)
             {
                 float tx = r.Size.Y + 6, tw = r.Size.X - tx - 4;
-                DrawString(F, new Vector2(tx, 22), Fit(Item.Name, tw, 13), HorizontalAlignment.Left, tw, 13, rc.Lightened(.2f));
-                DrawString(F, new Vector2(tx, 40), Stat(Item), HorizontalAlignment.Left, tw, 12, UiTheme.Text);
-                DrawString(F, new Vector2(tx, 56), $"Lv {Item.Lvl}", HorizontalAlignment.Left, tw, 11, UiTheme.Dim);
+                float lh = r.Size.Y / 3.2f;
+                DrawString(F, new Vector2(tx, lh * 1.25f), Fit(Item.Name, tw, 13), HorizontalAlignment.Left, tw, 13, rc.Lightened(.2f));
+                DrawString(F, new Vector2(tx, lh * 2.55f), Stat(Item), HorizontalAlignment.Left, tw, 12, UiTheme.Text);
+                DrawString(F, new Vector2(tx, lh * 2.55f), $"Lv {Item.Lvl}", HorizontalAlignment.Right, tw, 11, UiTheme.Dim);
             }
             else
             {

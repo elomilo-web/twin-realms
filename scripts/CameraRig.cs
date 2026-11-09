@@ -60,6 +60,12 @@ public partial class CameraRig : Node3D
             var goal = Target.GlobalPosition + new Vector3(0, 1.6f, 0);
             GlobalPosition = GlobalPosition.Lerp(goal, 1f - Mathf.Exp(-14f * (float)delta));
         }
+        // lock-on: swing the camera so the target stays in view (mouse still controls pitch)
+        if (Targeting.Current is Enemy t && IsInstanceValid(t) && Target != null)
+        {
+            var d = t.GlobalPosition - Target.GlobalPosition; d.Y = 0;
+            if (d.LengthSquared() > .5f) Rotation = new Vector3(0, Mathf.LerpAngle(Rotation.Y, Util.YawTo(d.X, d.Z), 1f - Mathf.Exp(-Feel.LockTurn * (float)delta)), 0);
+        }
         _arm.SpringLength = Mathf.Lerp(_arm.SpringLength, Distance, 1f - Mathf.Exp(-10f * (float)delta));
         _shake = Mathf.Max(0, _shake - (float)delta * 1.2f);
         _cam.HOffset = (float)GD.RandRange(-1.0, 1.0) * _shake * 0.3f;

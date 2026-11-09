@@ -20,7 +20,11 @@ public static class Inputs
         Bind(Spell1, Key.Key1); Bind(Spell2, Key.Key2); Bind(Spell3, Key.Key3); Bind(Spell4, Key.Key4);
         Bind(PotHp, Key.H); Bind(PotMp, Key.G); Bind(Use, Key.E); Bind(Realm, Key.R); Bind(Mount, Key.T);
         Bind(Pack, Key.I); Bind(Journal, Key.J); Bind(Map, Key.M); Bind(Tree, Key.K);
+        Bind(Lock, Key.Tab); Bind(Unlock, Key.Q); Bind(SkillsUi, Key.L);
+        if (!InputMap.HasAction(Unlock)) InputMap.AddAction(Unlock);
+        InputMap.ActionAddEvent(Lock, new InputEventMouseButton { ButtonIndex = MouseButton.Middle });
     }
+    public const string Lock = "lock_on", Unlock = "lock_off", SkillsUi = "ui_skills";
 
     static void Bind(string action, Key key)
     {
