@@ -94,6 +94,8 @@ public static class Builder
         var well = Group(over, 0, 0); Cyl(well, 1.5f, .9f, new Vector3(0, .45f, 0), Stone, true); Cyl(well, 1.2f, .05f, new Vector3(0, .86f, 0), World.Mat(new Color(.04f, .1f, .16f)));
         Box(well, new Vector3(.2f, 2.4f, .2f), new Vector3(-1.2f, 1.5f, 0), Wood); Box(well, new Vector3(.2f, 2.4f, .2f), new Vector3(1.2f, 1.5f, 0), Wood); Box(well, new Vector3(3.2f, .25f, 1.8f), new Vector3(0, 2.7f, 0), Roof);
         Campfire(over, 7, 5);
+        // the hero's home: the cottage north of the plaza (at -7, 19, door facing the plaza); storage chest beside the door
+        over.AddChild(new StashChest { Position = World.OnGround(-4.6f, 15.3f), Rotation = new Vector3(0, Mathf.Pi, 0) });
         var st = Group(over, -9, 8); foreach (var s in new[] { (-1.8f, -1f), (1.8f, -1f), (-1.8f, 1f), (1.8f, 1f) }) Box(st, new Vector3(.2f, 2.8f, .2f), new Vector3(s.Item1, 1.4f, s.Item2), Wood);
         Box(st, new Vector3(4.4f, .15f, 3f), new Vector3(0, 2.85f, 0), Cloth); Solid(st, new Vector3(3.6f, .9f, .9f), new Vector3(0, .5f, .3f), Wood); Box(st, new Vector3(3.6f, .1f, .9f), new Vector3(0, .97f, .3f), Cloth);
         var fg = Group(over, 24, 2); Solid(fg, new Vector3(2.4f, 1.3f, 2f), new Vector3(0, .65f, 0), Stone); Box(fg, new Vector3(1.1f, .6f, .6f), new Vector3(2, .8f, 0), Metal); Box(fg, new Vector3(.5f, 3f, .5f), new Vector3(-.6f, 2.4f, -.5f), Stone); Fire(fg, new Vector3(.2f, 1.45f, 0), 1.4f, 16f);

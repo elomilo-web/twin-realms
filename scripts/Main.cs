@@ -13,7 +13,7 @@ public partial class Main : Node3D
         Game.LoadSettings();
         AddChild(new Sfx { Name = "Sfx" });
         var ui = new Ui { Name = "Ui" }; AddChild(ui);
-        Ui.OnNew = (cls, name) => { Game.NewGame(cls, name); Game.D.PosX = 0; Game.D.PosZ = 9; Begin(); };
+        Ui.OnNew = (cls, name, race) => { Game.NewGame(cls, name, race); Game.D.PosX = 0; Game.D.PosZ = 9; Begin(); };
         Ui.OnContinue = () => { if (!Game.Load()) Game.NewGame("warrior", "Hero"); Begin(); };
         if (Observer.Wanted()) { Game.NewGame("warrior", "Observer"); Begin(); AddChild(new Observer { Name = "Observer" }); return; }
         if (Bot.Wanted()) { Game.NewGame("warrior", "Bot"); Begin(); AddChild(new Bot { Name = "Bot" }); return; }
@@ -36,7 +36,8 @@ public partial class Main : Node3D
         AddChild(new Hud { Name = "Hud" });
         AddChild(new Ambient { Name = "Ambient" });
         Ui.InGame = true; Input.MouseMode = Input.MouseModeEnum.Captured;
-        Ui.Banner(World.GetPoi("village")?.Name ?? "Oakhaven", "Press I for your pack, K for the skill tree, J for quests");
+        Ui.Banner(World.GetPoi("village")?.Name ?? "Oakhaven", "I pack, K skill tree, L skills, J quests, Tab lock on");
+        if (Game.TreeRefunded) { Game.TreeRefunded = false; Ui.Note("The skill tree has grown five times larger. Your tree points were refunded: press K.", new Color(1f, .85f, .4f)); }
         Game.Save();
     }
 

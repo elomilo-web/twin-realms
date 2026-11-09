@@ -19,6 +19,7 @@ public static class Game
     public static Settings Set = new();
     public static Node3D? Root;                 // Main scene root; projectiles, loot and floating text are added here
     public static float PlayTime;
+    public static bool TreeRefunded;            // set when an old save had its skill tree points refunded
     public static event Action? Changed;        // fired when saved data changes (UI refresh)
 
     const string SavePath = "user://save.json", SetPath = "user://settings.json";
@@ -56,7 +57,9 @@ public static class Game
             if (f == null) return false;
             var d = JsonSerializer.Deserialize<PlayerStats>(f.GetAsText(), Opt);
             if (d == null) return false;
-            D = d; Skills.GrantStarting(D); RecalcTree(); return true;
+            D = d; TreeDb.Load();
+            if (D.TreeVer < TreeDb.Version) { D.SkillPts += D.Tree.Count; D.Tree.Clear(); D.TreeVer = TreeDb.Version; TreeRefunded = true; }   // the tree was rebuilt: refund every point
+            Skills.GrantStarting(D); RecalcTree(); return true;
         }
         catch (Exception e) { GD.PushError("load failed: " + e.Message); return false; }
     }
@@ -69,7 +72,7 @@ public static class Game
         Attr(c.Attr); Attr(r.Attr); D.SkillPts += r.Pts;
         D.Eq["weapon"] = new Item { Name = c.WName, Slot = "weapon", Wt = c.Wt, Dmg = c.WDmg, Sp = c.WSp, Two = Weapons.Get(c.Wt).Hands > 1 };
         D.Eq["shield"] = c.Shield ? new Item { Name = "Oak Buckler", Slot = "shield", Def = 2 } : null;
-        Skills.GrantStarting(D);
+        Skills.GrantStarting(D); TreeDb.Load(); D.TreeVer = TreeDb.Version;
         PlayTime = 0; RecalcTree();
     }
 

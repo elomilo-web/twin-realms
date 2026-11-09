@@ -9,7 +9,7 @@ public partial class Ui : CanvasLayer
 {
     public static Ui? I;
     public static bool AnyOpen => I != null && I._panel != null;
-    public static Action<string, string>? OnNew; public static Action? OnContinue;
+    public static Action<string, string, string>? OnNew; public static Action? OnContinue;
     public static bool InGame;
 
     VBoxContainer _notes = null!; Label _banner = null!, _bannerSub = null!; ColorRect _flash = null!;
@@ -272,14 +272,19 @@ public partial class Ui : CanvasLayer
     public void OpenCharacter() => OpenCharacterPanel();
     void OpenCharacterPanel()
     {
-        var d = Game.D; var v = Frame("char", $"{d.Name}  -  Level {d.Level} {d.Class}", new Vector2(560, 560), OpenCharacterPanel);
+        var d = Game.D; var v = Frame("char", $"{d.Name}  -  Level {d.Level} {Races.Get(d.Race).Name} {Classes.Get(d.Class).Name}", new Vector2(640, 600), OpenCharacterPanel);
         Row(v, $"XP {d.Xp} / {d.XpNeed()}     Kills {d.Kills}     Gold {d.Gold}", Gold);
         Row(v, $"Attribute points: {d.AttrPts}      Skill points: {d.SkillPts} (K)", d.AttrPts > 0 ? Gold : Dim, 18);
         void Attr(string n, string desc, int val, Action up) { var h = new HBoxContainer(); v.AddChild(h); var l = Lbl($"{n}  {val}   - {desc}", 17, Colors.White, h); l.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; if (d.AttrPts > 0) h.AddChild(Btn("+", () => { d.AttrPts--; up(); Game.Notify(); Sfx.Play("click"); }, true)); }
         Attr("Strength", "melee damage", d.Str, () => d.Str++); Attr("Dexterity", "bow, speed, crit, stamina", d.Dex, () => d.Dex++); Attr("Vitality", "health, defense", d.Vit, () => d.Vit++); Attr("Magic", "mana, spell power", d.Mag, () => d.Mag++);
         Row(v, $"\nHealth {d.MaxHp()}   Mana {d.MaxMp()}   Stamina {d.MaxSt()}\nWeapon damage {d.WpnDmg():0}   Spell power x{d.SpellPow():0.00}   Defense {d.Defense()}\nCrit {d.CritChance() * 100:0}% (x{d.CritMult():0.0})   Attack speed x{d.AtkSpeed():0.00}");
         var sl = new List<string>(); foreach (var n in TreeDb.Nodes) if (d.Tree.Contains(n.Id)) sl.Add(n.Name);
-        Row(v, "\nSkill tree nodes: " + d.Tree.Count, Dim);
+        var TS = Game.TS; string R(string k) => $"{TS["res_" + k]:0}%";
+        Row(v, $"Armor {d.Defense()}   Magic resist {TS["mr"] + d.Defense() * .5f:0}   Evade {TS["evade"]:0}%   Tenacity {TS["tenacity"]:0}%", new Color(.8f, .9f, 1f), 15);
+        Row(v, $"Resist: fire {R("fire")}  frost {R("frost")}  lightning {R("lightning")}  poison {R("poison")}  shadow {R("shadow")}  holy {R("holy")}", new Color(.8f, .9f, 1f), 14);
+        Row(v, $"Penetration: armor {TS["armorPen"]:0} + {TS["armorPenP"]:0}%   magic {TS["magicPen"]:0} + {TS["magicPenP"]:0}%   Status duration +{TS["statusP"]:0}%", new Color(.8f, .9f, 1f), 14);
+        Row(v, $"Skill tree nodes: {d.Tree.Count}   Skill ranks to spend: {d.RankPts} (L)", Dim);
+        v.AddChild(Btn("All bonuses", OpenTotals, true));
     }
 
     // ---------------------------------------------------------------- journal
@@ -298,11 +303,33 @@ public partial class Ui : CanvasLayer
     public void OpenTree()
     {
         TreeDb.Load(); var v = Frame("tree", "Skill Tree", new Vector2(1000, 680), OpenTree);
-        Row(v, $"Skill points: {Game.D.SkillPts}      Left click: allocate      Right click: remove      Mouse wheel: zoom      Drag: pan", Gold, 15);
+        var hb = new HBoxContainer(); v.AddChild(hb); hb.AddThemeConstantOverride("separation", 14);
+        Lbl($"Skill points: {Game.D.SkillPts}", 16, Game.D.SkillPts > 0 ? UiTheme.Highlight : Gold, hb);
+        Lbl("Left click: take   Right click: refund   Wheel: zoom   Drag: pan", 14, Dim, hb);
+        TreeView? tvRef = null;
+        hb.AddChild(Btn("My start", () => tvRef?.CenterOn(TreeDb.Get(TreeDb.StartFor(Game.D.Class))!, 3.2f), true)); hb.AddChild(Btn("Whole tree", () => tvRef?.CenterOn(TreeDb.Nodes[0], 1f), true));
+        hb.AddChild(Btn("Totals", OpenTotals, true));
         // tree canvas takes what is left of the window after title, help row and a 3-line tip (fits 648 px tall windows)
         var vp = GetViewport().GetVisibleRect().Size;
-        var tv = new TreeView { CustomMinimumSize = new Vector2(Mathf.Min(960, vp.X - 64), Mathf.Clamp(vp.Y - 250, 240, 560)), SizeFlagsVertical = Control.SizeFlags.ExpandFill }; v.AddChild(tv);
+        var tv = new TreeView { CustomMinimumSize = new Vector2(Mathf.Min(960, vp.X - 64), Mathf.Clamp(vp.Y - 250, 240, 560)), SizeFlagsVertical = Control.SizeFlags.ExpandFill }; v.AddChild(tv); tvRef = tv;
         var tip = Row(v, " ", Colors.White, 14); tip.CustomMinimumSize = new Vector2(0, 60); tip.ClipContents = true; tv.Tip = tip; tv.Changed = () => { Game.RecalcTree(); Game.Notify(); };
+    }
+
+    /// <summary>Panel listing every bonus you currently have, with where the numbers come from.</summary>
+    public void OpenTotals()
+    {
+        var v = Frame("totals", "All bonuses", new Vector2(620, 600), OpenTotals);
+        Row(v, $"{Races.Get(Game.D.Race).Name} {Classes.Get(Game.D.Class).Name}: skill tree ({Game.D.Tree.Count} nodes) + race + class + active buffs", Dim, 14);
+        var sc = Scroll(v, 440); Row(Inner(sc), TreeTotals(), Colors.White, 15);
+        v.AddChild(Btn("Back to tree", OpenTree));
+    }
+
+    /// <summary>All bonuses you currently get (tree + race + class + buffs), one line each.</summary>
+    static string TreeTotals()
+    {
+        var keys = new List<string>(); foreach (var k in TreeDb.Known) if (Mathf.Abs(Game.TS[k]) > .001f) keys.Add(k); keys.Sort();
+        if (keys.Count == 0) return "No bonuses yet.";
+        var l = new List<string>(); foreach (var k in keys) l.Add(TreeDb.StatText(k, Game.TS[k])); return string.Join("\n", l);
     }
 
     // ---------------------------------------------------------------- map and fast travel
@@ -322,7 +349,7 @@ public partial class Ui : CanvasLayer
         var v = Frame("pause", "Paused", new Vector2(420, 360), OpenPause);
         v.AddChild(Btn("Resume", Close)); v.AddChild(Btn("Character (attributes)", OpenCharacterPanel)); v.AddChild(Btn("Save game", () => { Game.Save(); Note("Game saved", Gold); }));
         v.AddChild(Btn("Settings", OpenSettings)); v.AddChild(Btn("Quit to title", () => { Game.Save(); GetTree().Paused = false; InGame = false; GetTree().ReloadCurrentScene(); }));
-        Row(v, "Controls: WASD move, Shift sprint, Space jump, C roll, LMB strike (hold for power), RMB guard, 1-4 spells, H/G potions, E interact, R shift realm, T horse, I pack, J journal, M map, K skill tree.", Dim, 14);
+        Row(v, "Controls: WASD move, Shift sprint, Space jump, C roll, LMB strike (hold for power), RMB guard, 1-6 skills, Tab lock on (again: next target), Q release, H/G potions, E interact, R shift realm, T horse, I pack, J journal, M map, K skill tree, L skills.", Dim, 14);
     }
     public void OpenSettings()
     {
@@ -334,49 +361,99 @@ public partial class Ui : CanvasLayer
     }
 
     // ---------------------------------------------------------------- title
+    static string _pickClass = "warrior", _pickRace = "human", _pickName = "Hero";
     public void ShowTitle()
     {
         InGame = false; Input.MouseMode = Input.MouseModeEnum.Visible;
-        var v = Frame("title", "TWIN REALMS", new Vector2(520, 460), ShowTitle);
-        Row(v, "Two worlds. One hero. Press R to cross between Light and Shadow.", Dim, 16);
-        if (Game.HasSave()) v.AddChild(Btn("Continue", () => { CloseNoUnpause(); OnContinue?.Invoke(); }));
-        var name = new LineEdit { Text = "Hero", PlaceholderText = "Name", CustomMinimumSize = new Vector2(0, 34) }; v.AddChild(name);
-        Row(v, "New game - choose a class:", Gold, 18);
-        foreach (var (id, label) in new[] { ("warrior", "Warrior  -  sword and shield"), ("rogue", "Ranger  -  shortbow, quick feet"), ("mage", "Mage  -  wand and spells") })
-            v.AddChild(Btn(label, () => { CloseNoUnpause(); OnNew?.Invoke(id, name.Text); }));
-        v.AddChild(Btn("Settings", OpenSettings));
+        var v = Frame("title", "TWIN REALMS", new Vector2(1060, 640), ShowTitle);
+        var top = new HBoxContainer(); v.AddChild(top); top.AddThemeConstantOverride("separation", 12);
+        Lbl("Two worlds. One hero. Press R to cross between Light and Shadow.", 16, Dim, top).SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        if (Game.HasSave()) top.AddChild(Btn("Continue saved game", () => { CloseNoUnpause(); OnContinue?.Invoke(); }));
+        top.AddChild(Btn("Settings", OpenSettings));
+        var cols = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; cols.AddThemeConstantOverride("separation", 16); v.AddChild(cols);
+        // ---- races
+        var rc = new VBoxContainer { CustomMinimumSize = new Vector2(190, 0) }; cols.AddChild(rc); Lbl("RACE", 15, UiTheme.Accent, rc);
+        foreach (var r in Races.All) { string id = r.Id; var b = Btn(r.Name, () => { _pickRace = id; ShowTitle(); }); if (id == _pickRace) b.AddThemeColorOverride("font_color", UiTheme.Highlight); rc.AddChild(b); }
+        // ---- classes
+        var cc = new VBoxContainer { CustomMinimumSize = new Vector2(330, 0) }; cols.AddChild(cc); Lbl("CLASS", 15, UiTheme.Accent, cc);
+        var grid = new GridContainer { Columns = 2 }; grid.AddThemeConstantOverride("h_separation", 6); grid.AddThemeConstantOverride("v_separation", 4); cc.AddChild(grid);
+        foreach (var c in Classes.All)
+        {
+            string id = c.Id; var b = Btn(c.Name, () => { _pickClass = id; ShowTitle(); }); b.CustomMinimumSize = new Vector2(160, 34);
+            if (id == _pickClass) b.AddThemeColorOverride("font_color", UiTheme.Highlight); grid.AddChild(b);
+        }
+        // ---- details and start
+        var dc = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; dc.AddThemeConstantOverride("separation", 5); cols.AddChild(dc);
+        var rd = Races.Get(_pickRace); var cd = Classes.Get(_pickClass);
+        Lbl($"{rd.Name.ToUpper()} {cd.Name.ToUpper()}", 22, UiTheme.Title, dc);
+        Row(dc, rd.Desc, Colors.White, 14).CustomMinimumSize = new Vector2(420, 0);
+        string Attr(Dictionary<string, int> a) { var l = new List<string>(); foreach (var kv in a) l.Add($"{(kv.Value > 0 ? "+" : "")}{kv.Value} {kv.Key}"); return string.Join(", ", l); }
+        string Mods(Dictionary<string, float> m) { var l = new List<string>(); foreach (var kv in m) l.Add(TreeDb.StatText(kv.Key, kv.Value)); return string.Join("; ", l); }
+        Row(dc, "Race: " + Attr(rd.Attr) + (rd.Pts > 0 ? $", +{rd.Pts} skill point" : "") + ". " + Mods(rd.Mods), new Color(.75f, .9f, 1f), 13).CustomMinimumSize = new Vector2(420, 0);
+        Row(dc, cd.Desc, Colors.White, 14).CustomMinimumSize = new Vector2(420, 0);
+        var skills = new List<string>(); foreach (var s in cd.Skills) skills.Add(Skills.Get(s)?.Name ?? s);
+        Row(dc, $"Class: {Attr(cd.Attr)}. Weapon: {cd.WName} ({Weapons.Get(cd.Wt).Name}{(cd.Shield ? " and shield" : "")}). {Mods(cd.Mods)}", new Color(.75f, .9f, 1f), 13).CustomMinimumSize = new Vector2(420, 0);
+        Row(dc, "Starting skills: " + string.Join(", ", skills), UiTheme.Highlight, 13).CustomMinimumSize = new Vector2(420, 0);
+        Row(dc, "Every class starts on its own part of the skill tree, between its two neighbours; bridges lead into their paths for hybrid builds.", Dim, 13).CustomMinimumSize = new Vector2(420, 0);
+        var name = new LineEdit { Text = _pickName, PlaceholderText = "Name", CustomMinimumSize = new Vector2(0, 34) }; dc.AddChild(name); name.TextChanged += s => _pickName = s;
+        var go = Btn("Begin the journey", () => { CloseNoUnpause(); OnNew?.Invoke(_pickClass, name.Text, _pickRace); }); go.CustomMinimumSize = new Vector2(0, 44); dc.AddChild(go);
     }
 }
 
-/// <summary>Interactive skill-tree canvas.</summary>
+/// <summary>
+/// Interactive passive tree (about 420 nodes). Opens centred on your class start. Wheel zooms toward the cursor, drag pans,
+/// left click takes a node next to your path, right click refunds one that nothing else depends on. Class starts and keystones are labelled.
+/// </summary>
 public partial class TreeView : Control
 {
     public Label? Tip; public Action? Changed;
-    float _zoom = 1f; Vector2 _pan = Vector2.Zero; bool _drag; Vector2 _dragStart; int _hover = -1; float _scale = 1f;
+    float _zoom = 1f; Vector2 _pan = Vector2.Zero; bool _drag; int _hover = -1; float _scale = 1f; int _start;
+    static Font F => ThemeDB.FallbackFont;
     Vector2 ToScreen(TreeNode n) => Size / 2 + _pan + new Vector2(n.X, n.Y) * _scale * _zoom;
     public override void _Ready()
     {
-        ClipContents = true; MouseFilter = MouseFilterEnum.Stop; TreeDb.Load();
+        ClipContents = true; MouseFilter = MouseFilterEnum.Stop; TreeDb.Load(); _start = TreeDb.StartFor(Game.D.Class);
         float minx = 1e9f, maxx = -1e9f, miny = 1e9f, maxy = -1e9f; foreach (var n in TreeDb.Nodes) { minx = Mathf.Min(minx, n.X); maxx = Mathf.Max(maxx, n.X); miny = Mathf.Min(miny, n.Y); maxy = Mathf.Max(maxy, n.Y); }
-        var box = CustomMinimumSize == Vector2.Zero ? new Vector2(960, 560) : CustomMinimumSize; // fit the whole tree in the canvas
-        _scale = Mathf.Min((box.X - 30) / (maxx - minx + 60), (box.Y - 20) / (maxy - miny + 60)); _pan = -new Vector2((minx + maxx) / 2, (miny + maxy) / 2) * _scale;
+        var box = CustomMinimumSize == Vector2.Zero ? new Vector2(960, 560) : CustomMinimumSize;
+        _scale = Mathf.Min((box.X - 30) / (maxx - minx + 60), (box.Y - 20) / (maxy - miny + 60));
+        CenterOn(TreeDb.Get(_start) ?? TreeDb.Nodes[0], 3.2f);
     }
-    float Rad(TreeNode n) => (n.Type == "hub" ? 16f : n.Type == "key" ? 14f : n.Type == "notable" ? 10f : 6f) * Mathf.Clamp(_zoom, 0.8f, 1.5f);
+    public void CenterOn(TreeNode n, float zoom) { _zoom = zoom; _pan = -new Vector2(n.X, n.Y) * _scale * _zoom; QueueRedraw(); }
+    float Rad(TreeNode n) => (n.Type == "start" ? 15f : n.Type == "hub" ? 13f : n.Type == "key" ? 12f : n.Type == "notable" ? 8.5f : 5f) * Mathf.Clamp(_zoom / 2.5f, 0.55f, 1.5f);
     public override void _Draw()
     {
-        var alloc = new HashSet<int>(Game.D.Tree); alloc.Add(0);
-        DrawRect(new Rect2(Vector2.Zero, Size), new Color(.03f, .03f, .06f));
-        foreach (var n in TreeDb.Nodes) foreach (var a in n.Adj) if (a > n.Id) { var m = TreeDb.Nodes[a]; bool on = alloc.Contains(n.Id) && alloc.Contains(a); DrawLine(ToScreen(n), ToScreen(m), on ? new Color(.95f, .8f, .4f) : new Color(.28f, .28f, .35f), on ? 3f : 1.5f); }
-        var set = new HashSet<int>(Game.D.Tree);
+        var d = Game.D; var alloc = new HashSet<int>(d.Tree); alloc.Add(_start); var set = new HashSet<int>(d.Tree);
+        DrawRect(new Rect2(Vector2.Zero, Size), new Color(.02f, .03f, .06f));
+        // faint rings to show the structure
+        var c0 = Size / 2 + _pan; foreach (var r in new[] { 400f, 900f, 1520f }) DrawArc(c0, r * _scale * _zoom, 0, Mathf.Tau, 96, new Color(.15f, .22f, .32f, .35f), 1f);
+        foreach (var n in TreeDb.Nodes) foreach (var a in n.Adj) if (a > n.Id)
+        {
+            var m = TreeDb.Nodes[a]; bool on = alloc.Contains(n.Id) && alloc.Contains(a); var p0 = ToScreen(n); var p1 = ToScreen(m);
+            if (!GetRect().Grow(400).HasPoint(p0 + Position) && !GetRect().Grow(400).HasPoint(p1 + Position)) continue;
+            DrawLine(p0, p1, on ? new Color(.95f, .8f, .4f) : new Color(.25f, .27f, .34f), on ? 3f : 1.4f);
+        }
         foreach (var n in TreeDb.Nodes)
         {
-            var p = ToScreen(n); bool on = alloc.Contains(n.Id); bool can = TreeDb.CanAlloc(n, set, Game.D.SkillPts); float r = Rad(n);
-            DrawCircle(p, r + 2, on ? Colors.White : can ? new Color(.9f, .9f, .5f) : new Color(.2f, .2f, .26f));
-            DrawCircle(p, r, on ? n.Col : n.Col.Darkened(0.65f));
+            var p = ToScreen(n); if (p.X < -40 || p.Y < -40 || p.X > Size.X + 40 || p.Y > Size.Y + 40) continue;
+            bool on = alloc.Contains(n.Id); bool can = TreeDb.CanAlloc(n, set, d.SkillPts, _start); float r = Rad(n);
+            if (n.Type == "key") DrawColoredPolygon(new[] { p + new Vector2(0, -r - 4), p + new Vector2(r + 4, 0), p + new Vector2(0, r + 4), p + new Vector2(-r - 4, 0) }, on ? Colors.White : can ? new Color(.9f, .9f, .5f) : new Color(.25f, .25f, .3f));
+            else DrawCircle(p, r + 2, on ? Colors.White : can ? new Color(.9f, .9f, .5f) : n.Type == "start" ? n.Col.Darkened(.3f) : new Color(.2f, .2f, .26f));
+            DrawCircle(p, r, on ? n.Col : n.Col.Darkened(n.Type == "start" ? .3f : .65f));
+            if (n.Type == "start" && n.Id == _start) DrawArc(p, r + 7, 0, Mathf.Tau, 32, UiTheme.Highlight, 2.5f);
             if (_hover == n.Id) DrawArc(p, r + 5, 0, Mathf.Tau, 24, Colors.White, 2f);
+            // labels: class starts always, keystones and notables when zoomed in
+            if (n.Type == "start" || (n.Type == "key" && _zoom > 1.6f) || (n.Type == "notable" && _zoom > 3.6f))
+            {
+                int fs = n.Type == "start" ? 15 : n.Type == "key" ? 13 : 12; var col = n.Type == "start" ? n.Col.Lightened(.3f) : n.Type == "key" ? new Color(1f, .85f, .5f) : new Color(.8f, .85f, .95f);
+                DrawStringOutline(F, p + new Vector2(-80, -r - 6), n.Name, HorizontalAlignment.Center, 160, fs, 4, new Color(0, 0, 0, .9f)); DrawString(F, p + new Vector2(-80, -r - 6), n.Name, HorizontalAlignment.Center, 160, fs, col);
+            }
         }
     }
     int Pick(Vector2 pos) { int best = -1; float bd = 1e9f; foreach (var n in TreeDb.Nodes) { float d = ToScreen(n).DistanceTo(pos); if (d < Rad(n) + 6 && d < bd) { bd = d; best = n.Id; } } return best; }
+    void ZoomAt(Vector2 mouse, float factor)
+    {
+        float z2 = Mathf.Clamp(_zoom * factor, 0.7f, 9f); var c = Size / 2; _pan = mouse - c - (mouse - c - _pan) * (z2 / _zoom); _zoom = z2; QueueRedraw();
+    }
     public override void _GuiInput(InputEvent e)
     {
         if (e is InputEventMouseMotion mm)
@@ -386,33 +463,35 @@ public partial class TreeView : Control
         }
         else if (e is InputEventMouseButton mb)
         {
-            if (mb.ButtonIndex == MouseButton.WheelUp && mb.Pressed) { _zoom = Mathf.Min(2.5f, _zoom * 1.12f); QueueRedraw(); }
-            else if (mb.ButtonIndex == MouseButton.WheelDown && mb.Pressed) { _zoom = Mathf.Max(0.5f, _zoom / 1.12f); QueueRedraw(); }
+            if (mb.ButtonIndex == MouseButton.WheelUp && mb.Pressed) ZoomAt(mb.Position, 1.15f);
+            else if (mb.ButtonIndex == MouseButton.WheelDown && mb.Pressed) ZoomAt(mb.Position, 1 / 1.15f);
             else if (mb.ButtonIndex == MouseButton.Middle) { _drag = mb.Pressed; }
             else if (mb.ButtonIndex == MouseButton.Left && mb.Pressed)
             {
                 int id = Pick(mb.Position); var d = Game.D;
                 if (id < 0) { _drag = true; return; }
                 var n = TreeDb.Nodes[id]; var set = new HashSet<int>(d.Tree);
-                if (TreeDb.CanAlloc(n, set, d.SkillPts)) { d.Tree.Add(id); d.SkillPts--; Sfx.Play("level"); Changed?.Invoke(); }
+                if (TreeDb.CanAlloc(n, set, d.SkillPts, _start)) { d.Tree.Add(id); d.SkillPts--; Sfx.Play("level"); Changed?.Invoke(); }
                 else Sfx.Play("click");
             }
             else if (mb.ButtonIndex == MouseButton.Left && !mb.Pressed) _drag = false;
             else if (mb.ButtonIndex == MouseButton.Right && mb.Pressed)
             {
                 int id = Pick(mb.Position); if (id < 0) return; var n = TreeDb.Nodes[id]; var set = new HashSet<int>(Game.D.Tree);
-                if (TreeDb.CanDealloc(n, set)) { Game.D.Tree.Remove(id); Game.D.SkillPts++; Sfx.Play("click"); Changed?.Invoke(); }
+                if (TreeDb.CanDealloc(n, set, _start)) { Game.D.Tree.Remove(id); Game.D.SkillPts++; Sfx.Play("click"); Changed?.Invoke(); }
             }
         }
     }
     void UpdateTip()
     {
         if (Tip == null) return; if (_hover < 0) { Tip.Text = " "; return; }
-        var n = TreeDb.Nodes[_hover]; var s = n.Name + "  [" + n.Type + "]  " + n.Desc; foreach (var kv in n.Mods) s += "\n  " + TreeDb.StatText(kv.Key, kv.Value);
+        var n = TreeDb.Nodes[_hover]; string kind = n.Type switch { "key" => "KEYSTONE", "notable" => "notable", "start" => "class start", "hub" => "centre", _ => "" };
+        var s = n.Name + (kind != "" ? "  [" + kind + "]" : "") + (n.Arm == "hybrid" ? "  [hybrid path]" : "") + (n.Desc != "" ? "  " + n.Desc : "");
+        if (n.Type == "start") s += n.Id == _start ? "   (you start here)" : $"   ({Classes.Get(n.Arm).Name} start; reach it through the ring or the bridges)";
+        foreach (var kv in n.Mods) s += "\n  " + TreeDb.StatText(kv.Key, kv.Value);
         Tip.Text = s;
     }
 }
-
 /// <summary>World map with discovered points of interest.</summary>
 public partial class MapView : Control
 {

@@ -173,8 +173,10 @@ public partial class Observer : Node
         await Safe("menus", async () =>
         {
             for (int i = 0; i < 20; i++) Game.D.Inv.Add(Items.Roll(1 + i / 3, i / 6f));
-            var menus = new (string, Action)[] { ("pack", () => Ui.I!.OpenPack()), ("character", () => Ui.I!.OpenCharacter()), ("journal", () => Ui.I!.OpenJournal()), ("tree", () => Ui.I!.OpenTree()), ("map", () => Ui.I!.OpenMap()), ("pause", () => Ui.I!.OpenPause()), ("settings", () => Ui.I!.OpenSettings()), ("skills", () => { LearnAll(); Ui.I!.OpenSkills(); }) };
+            var menus = new (string, Action)[] { ("pack", () => Ui.I!.OpenPack()), ("character", () => Ui.I!.OpenCharacter()), ("journal", () => Ui.I!.OpenJournal()), ("tree", () => Ui.I!.OpenTree()), ("map", () => Ui.I!.OpenMap()), ("pause", () => Ui.I!.OpenPause()), ("settings", () => Ui.I!.OpenSettings()), ("skills", () => { LearnAll(); Ui.I!.OpenSkills(); }), ("stash", () => { for (int i = 0; i < 12; i++) Game.D.Stash.Add(Items.Roll(2 + i / 2, i / 4f)); Ui.I!.OpenStash(); }), ("totals", () => Ui.I!.OpenTotals()) };
             foreach (var (name, open) in menus) { open(); await Wait(0.4f); await Shot("m_" + name); AuditUi(name, ui); Ui.I!.Close(); await Wait(0.1f); }
+            Ui.I!.ShowTitle(); await Wait(0.4f); await Shot("m_title"); AuditUi("title", ui); Ui.InGame = true; Ui.I.Close(); await Wait(0.1f);
+            Game.D.SkillPts = 30; Ui.I.OpenTree(); await Wait(0.4f); await Shot("m_tree_start"); Ui.I.Close(); await Wait(0.1f);
             // pack with the tooltip open on an item of the same slot as something worn (shows comparison arrows)
             Ui.I!.OpenPack(); await Wait(0.4f);
             ItemSlot? pick = null; void Find(Node n) { foreach (var c in n.GetChildren()) { if (pick == null && c is ItemSlot s && s.Item != null && !s.Wide && s.Item.Slot == "weapon") pick = s; Find(c); } } Find(Ui.I);

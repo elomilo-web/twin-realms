@@ -16,6 +16,7 @@ public class PlayerStats
     public List<string> Supports = new();                 // unlocked support modifiers
     public string[] Bar = new string[6];                  // hotbar keys 1-6
     public int RankPts = 2;                               // skill rank points (1 per level)
+    public int TreeVer = 0;                               // skill tree layout version; older trees are refunded on load
     public int Level = 1, Xp = 0, Gold = 60, AttrPts = 0, SkillPts = 3, Kills = 0;
     public int Str = 5, Dex = 5, Vit = 5, Mag = 5;
     public int HpPot = 3, MpPot = 2, BestWave = 0, BestDuel = 0, Deepest = 0;

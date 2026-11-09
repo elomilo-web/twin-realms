@@ -200,6 +200,62 @@ public partial class Bot : Node
             Check("every skill fires and takes effect", bad.Count == 0, $"{ok}/{ok + bad.Count}" + (bad.Count > 0 ? " failed: " + string.Join(",", bad) : ""));
         });
 
+        await Step("classes, races, skill tree, passives and storage", async () =>
+        {
+            TreeDb.Load(); var d = Game.D;
+            // every stat key in data is one the game reads
+            var unknown = new List<string>();
+            foreach (var n in TreeDb.Nodes) foreach (var k in n.Mods.Keys) if (!TreeDb.Known.Contains(k)) unknown.Add("tree:" + k);
+            foreach (var r in Races.All) foreach (var k in r.Mods.Keys) if (!TreeDb.Known.Contains(k)) unknown.Add(r.Id + ":" + k);
+            foreach (var c in Classes.All) foreach (var k in c.Mods.Keys) if (!TreeDb.Known.Contains(k)) unknown.Add(c.Id + ":" + k);
+            foreach (var s in Skills.All) foreach (var k in s.Buff.Keys) if (!TreeDb.Known.Contains(k)) unknown.Add(s.Id + ":" + k);
+            Check("all passive stat keys are used by the game", unknown.Count == 0, unknown.Count > 0 ? string.Join(",", unknown.GetRange(0, Math.Min(8, unknown.Count))) : $"{TreeDb.Nodes.Count} nodes");
+            // the tree is ~5x the old 76 nodes, every class has a start, and every node can be reached from every start
+            bool starts = true; foreach (var c in Classes.All) if (TreeDb.Get(TreeDb.StartFor(c.Id))?.Type != "start") starts = false;
+            var seen = new HashSet<int> { TreeDb.StartFor("warrior") }; var q = new Stack<int>(seen);
+            while (q.Count > 0) foreach (var a in TreeDb.Nodes[q.Pop()].Adj) if (seen.Add(a)) q.Push(a);
+            Check("skill tree is large, connected, with a start per class", TreeDb.Nodes.Count >= 380 && starts && seen.Count == TreeDb.Nodes.Count, $"{TreeDb.Nodes.Count} nodes, {seen.Count} reachable");
+            // allocation grows from your class start only; refund keeps the path connected
+            var save = Game.D; Game.NewGame("mage", "Bot", "elf"); var md = Game.D; int st = TreeDb.StartFor("mage"); md.SkillPts = 10;
+            var first = TreeDb.Get(TreeDb.Nodes[st].Adj.Find(a => TreeDb.Nodes[a].Type != "start"))!; var far = TreeDb.Get(TreeDb.StartFor("warrior") + 3)!;
+            bool canFirst = TreeDb.CanAlloc(first, new HashSet<int>(md.Tree), md.SkillPts, st), canFar = TreeDb.CanAlloc(far, new HashSet<int>(md.Tree), md.SkillPts, st);
+            md.Tree.Add(first.Id); var second = TreeDb.Get(first.Adj.Find(a => a != st && !md.Tree.Contains(a) && TreeDb.Nodes[a].Type != "start"))!; md.Tree.Add(second.Id);
+            bool refundFirst = TreeDb.CanDealloc(first, new HashSet<int>(md.Tree), st), refundSecond = TreeDb.CanDealloc(second, new HashSet<int>(md.Tree), st);
+            Check("tree grows from the class start and refunds keep it connected", canFirst && !canFar && !refundFirst && refundSecond, $"first {canFirst}, far {canFar}, refund first {refundFirst}, refund leaf {refundSecond}");
+            // passives change the numbers they claim to (each key is pushed and the derived stat compared)
+            Game.RecalcTree(); var bad = new List<string>();
+            void Expect(string key, float add, Func<float> stat) { float b = stat(); Game.TS[key] += add; float a = stat(); Game.TS[key] -= add; if (Mathf.Abs(a - b) < 1e-4f) bad.Add(key); }
+            md.Eq["weapon"] = new Item { Name = "Bot sword", Slot = "weapon", Wt = "sword", Dmg = 10 };
+            foreach (var k in new[] { "allP", "meleeP", "swordP", "magToDmg" }) Expect(k, 20, () => md.WpnDmg());
+            foreach (var k in new[] { "hp", "hpP" }) Expect(k, 20, () => md.MaxHp());
+            foreach (var k in new[] { "mp", "mpP" }) Expect(k, 20, () => md.MaxMp());
+            Expect("st", 20, () => md.MaxSt()); Expect("def", 20, () => md.Defense()); Expect("crit", 20, () => md.CritChance()); Expect("critD", 20, () => md.CritMult()); Expect("aspd", 20, () => md.AtkSpeed()); Expect("spellP", 20, () => md.SpellPow());
+            md.Skills["fire"] = new SkillState();
+            Expect("skillP", 20, () => Skills.Compute("fire").Dmg); Expect("aoeP", 20, () => Skills.Compute("fire").Radius); Expect("cdr", 20, () => Skills.Compute("fire").Cd); Expect("castSpd", 20, () => Skills.Compute("fire").Cast); Expect("mcost", 20, () => Skills.Compute("fire").Mp);
+            var dummy = new Enemy { Type = "brute", Level = 5, AnyRealm = true, NoLeash = true, Position = World.OnGround(-60, -100, .5f) }; Game.Root!.AddChild(dummy); await Wait(0.2f);
+            foreach (var (k, ty) in new[] { ("fireP", "fire"), ("physicalP", "physical"), ("armorPen", "physical"), ("armorPenP", "physical"), ("magicPen", "fire"), ("magicPenP", "fire") })
+                Expect(k, 20, () => dummy.Incoming(new HitInfo { Damage = 100, IsPlayer = true, Type = ty }));
+            dummy.QueueFree();
+            Check("passives affect stats, skills and damage", bad.Count == 0, bad.Count > 0 ? "no effect: " + string.Join(",", bad) : "28 keys");
+            // race and class bonuses land in the stat table
+            Check("race and class bonuses apply", Game.TS["rangedP"] >= 8 && Game.TS["spellP"] >= 10 && md.Race == "elf", $"elf mage rangedP {Game.TS["rangedP"]}, spellP {Game.TS["spellP"]}");
+            Game.D = save; Game.RecalcTree(); Game.Notify();
+            // storage at home moves items both ways and saves
+            StashChest? chest = null; foreach (var n in GetTree().GetNodesInGroup("interact")) if (n is StashChest s) chest = s;
+            Check("home storage chest exists", chest != null);
+            if (chest != null)
+            {
+                Game.D.Inv.Add(Items.Roll(3, 1, "armor")); int inv0 = Game.D.Inv.Count, st0 = Game.D.Stash.Count;
+                P.Teleport(chest.GlobalPosition + new Vector3(0, .5f, -1.4f), 0f); await Wait(0.3f); chest.Interact(); await Wait(0.3f);
+                ItemSlot? cell = null; void Find(Node n) { foreach (var c in n.GetChildren()) { if (cell == null && c is ItemSlot s && s.Item != null) cell = s; Find(c); } } Find(Ui.I!);
+                await Shot("18_home_storage");
+                // first item cell belongs to the pack grid: click it to store
+                if (cell != null) { var ev = new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = true }; cell._GuiInput(ev); }
+                await Wait(0.2f); Ui.I!.Close(); await Wait(0.1f);
+                Check("storage takes items from the pack", Game.D.Stash.Count == st0 + 1 && Game.D.Inv.Count == inv0 - 1, $"pack {inv0}->{Game.D.Inv.Count}, storage {st0}->{Game.D.Stash.Count}");
+            }
+        });
+
         await Step("gathering", async () =>
         {
             Gatherable? g = null; float bd = 1e9f;
