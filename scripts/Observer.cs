@@ -37,6 +37,7 @@ public partial class Observer : Node
         _m[tag + "_nodes"] = Performance.GetMonitor(Performance.Monitor.ObjectNodeCount);
     }
 
+    Enemy? Nearest(string type) { Enemy? best = null; float bd = 1e9f; foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Enemy e && e.Type == type && !e.Dead) { float d = e.GlobalPosition.DistanceTo(P.GlobalPosition); if (d < bd) { bd = d; best = e; } } return best; }
     void CamAt(Vector3 pos, Vector3 look) { _cam.GlobalPosition = pos; _cam.LookAt(look, Vector3.Up); _cam.MakeCurrent(); }
     void CamBack() { P.Rig?.Camera.MakeCurrent(); }
     void SetHud(bool on) { var h = GetNodeOrNull<CanvasLayer>("../Hud"); if (h != null) h.Visible = on; }
@@ -132,43 +133,19 @@ public partial class Observer : Node
         SetHud(false);
         await Safe("scenes", async () =>
         {
-            await Scene("w01_village_day", 0, 14, new Vector3(0, 6, 22), 3, 0.4f);
-            await Scene("w02_village_dusk", 0, 14, new Vector3(0, 6, 22), 3, 0.76f);
-            await Scene("w03_village_night", 0, 14, new Vector3(0, 6, 22), 3, 0.95f);
-            await Scene("w04_plaza_close", -4, 6, new Vector3(5, 2, 7), 1.5f, 0.45f);
-            await Scene("w05_hills_vista", -60, 40, new Vector3(0, 10, 35), 6, 0.4f);
-            await Scene("w06_forest", -45, -40, new Vector3(5, 3, 12), 3, 0.42f);
-            var ap = World.GetPoi("arena")!; await Scene("w07_arena_outside", ap.X, ap.Z, new Vector3(-55, 22, 0), 5, 0.4f);
-            var bp = World.GetPoi("barrow")!; await Scene("w08_dungeon_mouth", bp.Door.X, bp.Door.Z, new Vector3(-8, 4, -2), 4, 0.4f);
-            await Scene("w09_shadow_village", 0, 14, new Vector3(0, 6, 22), 3, 0.4f, 1);
-            await Scene("w10_shadow_wilds", -60, 40, new Vector3(0, 10, 35), 6, 0.5f, 1);
-            // gatherables: frame the berry bush nearest the village plus whatever grows around it
-            Node3D? gb = null; float gbd = 1e9f;
-            foreach (var n in GetTree().GetNodesInGroup("gather")) if (n is Gatherable g && g.Def.Shape == "berry") { float d = g.GlobalPosition.Length(); if (d < gbd) { gbd = d; gb = g; } }
-            if (gb != null) { var gp = gb.GlobalPosition; await Scene("w11_gatherables", gp.X, gp.Z, new Vector3(3.5f, 2.2f, 4.5f), 0.6f, 0.4f); }
-            Node3D? ore = null; float od = 1e9f;
-            foreach (var n in GetTree().GetNodesInGroup("gather")) if (n is Gatherable g && (g.Def.Shape == "ore" || g.Def.Shape == "crystal")) { float d = g.GlobalPosition.Length(); if (d < od) { od = d; ore = g; } }
-            if (ore != null) { var op = ore.GlobalPosition; await Scene("w12_ore", op.X, op.Z, new Vector3(3f, 2.2f, 3.5f), 0.6f, 0.4f); }
-            // wildlife: keep the hero far away (animals flee) and frame the nearest deer herd and boar
-            // lineup of every wildlife type on open ground, stunned so they hold still (forest animals hide behind trees otherwise)
+            // data/observe_scenes.json: the improvement loop edits this file to look at new places, times and subjects
+            using var sd = JsonUtil.Load("res://data/observe_scenes.json");
+            foreach (var sc in sd.RootElement.GetProperty("scenes").EnumerateArray())
             {
-                Sky(0.4f, 0); var lp = World.OnGround(-20, -60, 0.3f); P.Teleport(World.OnGround(-20, 10, 0.5f), 0f); var lineup = new List<Enemy>();
-                string[] kinds = { "rabbit", "deer", "boar", "wolf", "shadeStag" };
-                for (int i = 0; i < kinds.Length; i++) { var e = new Enemy { Type = kinds[i], Level = 1, AnyRealm = true, NoLeash = true, Position = World.OnGround(lp.X + (i - 2) * 2.6f, lp.Z, 0.3f), Rotation = new Vector3(0, -1.2f, 0) }; Game.Root!.AddChild(e); lineup.Add(e); }
-                await Wait(0.3f); foreach (var e in lineup) e.Stun(5f);
-                var cp = lp + new Vector3(1.5f, 0, 8f); cp.Y = World.GroundAt(cp.X, cp.Z) + 2.4f; CamAt(cp, lp + new Vector3(0, 0.8f, 0));
-                await Wait(0.8f); await Shot("w14_animals"); foreach (var e in lineup) e.QueueFree();
+                string name = JsonUtil.S(sc, "name", "scene"); float x = JsonUtil.F(sc, "x"), z = JsonUtil.F(sc, "z");
+                if (sc.TryGetProperty("poi", out var pj) && World.GetPoi(pj.GetString() ?? "") is Poi po) { x = po.Door != Vector3.Zero ? po.Door.X : po.X; z = po.Door != Vector3.Zero ? po.Door.Z : po.Z; }
+                if (sc.TryGetProperty("npc", out var nj)) foreach (var n in GetTree().GetNodesInGroup("interact")) if (n is Npc c && c.Id == nj.GetString()) { x = c.GlobalPosition.X; z = c.GlobalPosition.Z; }
+                if (sc.TryGetProperty("enemy", out var ej)) { var e = Nearest(ej.GetString() ?? ""); if (e != null) { x = e.GlobalPosition.X; z = e.GlobalPosition.Z; } }
+                var off = new Vector3(0, 5, 12); if (sc.TryGetProperty("off", out var oj)) { var arr = new List<float>(); foreach (var v in oj.EnumerateArray()) arr.Add(v.GetSingle()); if (arr.Count == 3) off = new Vector3(arr[0], arr[1], arr[2]); }
+                _cam.Fov = JsonUtil.F(sc, "fov", 70);
+                await Scene(name, x, z, off, JsonUtil.F(sc, "look", 2f), JsonUtil.F(sc, "tod", 0.4f), (int)JsonUtil.F(sc, "realm", 0));
             }
-            foreach (var (shot, type) in new[] { ("w13_deer", "deer") })
-            {
-                Enemy? an = null; float ad = 1e9f;
-                foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Enemy e && e.Type == type && !e.Dead) { float d = e.GlobalPosition.Length(); if (d < ad) { ad = d; an = e; } }
-                if (an == null) continue;
-                Sky(0.4f, 0); var ap2 = an.GlobalPosition; P.Teleport(World.OnGround(ap2.X + 60f, ap2.Z, 0.5f), 0f);
-                var cp = ap2 + new Vector3(4.5f, 0, 5.5f); cp.Y = World.GroundAt(cp.X, cp.Z) + 2.2f; CamAt(cp, ap2 + new Vector3(0, 0.7f, 0));
-                await Wait(1.0f); await Shot(shot); Perf(shot);
-            }
-            Sky(0.4f, 0);
+            _cam.Fov = 70; Sky(0.4f, 0);
         });
         await Safe("dungeon", async () =>
         {

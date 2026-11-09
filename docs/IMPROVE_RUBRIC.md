@@ -29,3 +29,8 @@ Inspirations to borrow from (ideas only, no copied art or names):
 - Stats and content live in data/*.json, never hard-coded.
 - Never break saves: add new fields with defaults.
 - One focused change per iteration. Keep it small enough to review.
+
+## Lessons from the user (added after run 1)
+- The first run was too timid: tiny single changes, an hour of work, little visible gain. Make big batches.
+- The user should never need to point out obvious flaws (for example "buildings look blocky"). Critique every pixel of every screenshot.
+- Look in more places, at more times of day, from close up and far away, in motion and standing still.
