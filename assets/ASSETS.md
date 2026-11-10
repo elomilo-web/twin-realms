@@ -12,6 +12,14 @@ All by Quaternius (quaternius.com), CC0 1.0 (licence text kept next to the files
 | `models/weapons/` | Medieval Weapons Pack (FBX) — CC0 per quaternius.com/packs/medievalweapons.html | swords, axes, hammers, daggers, spear, bows, shields |
 | `models/anim/clips.res` | baked from Universal Animation Library 1 (`AL_Standard.fbx`) + 2 (`UAL2_Standard.glb`), both CC0, from OpenGameArt | only the clips the game plays; the two source files stay in the folder for rebuilding (`-- --bake-anims`) and are excluded from exports |
 
+## Environment (`models/env/`), used by `scripts/Kit.cs` via `data/env.json`
+All by Quaternius, CC0 1.0 (licence text in each folder). Free "Standard" tiers. Only the models the game places are kept, with base-colour textures only (normal/roughness/ORM maps removed; metallic set to 0 where the file left it unset). Nature and props textures import at 512 px to fit the download size.
+| Path | Pack | Used for |
+|---|---|---|
+| `models/env/nature/` | Stylized Nature MegaKit [Standard] | leafy trees, pines, rocks, flowering bushes, flowers, mushrooms |
+| `models/env/village/` | Medieval Village MegaKit [Standard] | Oakhaven houses (walls, windows, doors, corners, roofs, gables, chimneys), wagon, fences |
+| `models/env/props/` | Fantasy Props MegaKit [Standard] | crates, barrels, market stall, anvil, workbench, weapon stand, training dummies, benches, table, cauldron, lanterns, sacks |
+
 Not used (licence): Bestiary – Dungeon Monsters Kit is under the Quaternius Asset License (no redistribution of the raw files), so it is not in the repo. Farm Animals had no licence file and could not be verified.
 
 | Path | Source | License |
@@ -25,8 +33,8 @@ Not used (licence): Bestiary – Dungeon Monsters Kit is under the Quaternius As
 | `day/a_new_town.mp3` | "A New Town", The Cynic Project / cynicmusic | https://opengameart.org/content/a-new-town-rpg-theme |
 | `day/champ_de_tournesol.mp3` | "Champ de tournesol", Komiku | https://opengameart.org/content/champ-de-tournesol |
 | `night/contemplation.mp3` | "Contemplation" | https://opengameart.org/content/contemplation-0 |
-| `night/deep_blue_piano.wav` | "Yoiyami Core Theme – Deep Blue Ambient Piano", Yoiyami (converted to mono 32 kHz) | https://opengameart.org/content/yoiyami-core-theme-%E2%80%93-deep-blue-ambient-piano |
-| `night/budding_of_consciousness.wav` | "The Budding of Consciousness", Yoiyami (mono 32 kHz) | https://opengameart.org/content/the-budding-of-consciousness-%E2%80%93-cc0-ambient-minimalist-theme-yoiyami-blue-series-%E2%80%93-no4 |
+| `night/deep_blue_piano.wav` | "Yoiyami Core Theme – Deep Blue Ambient Piano", Yoiyami (converted to mono 22 kHz) | https://opengameart.org/content/yoiyami-core-theme-%E2%80%93-deep-blue-ambient-piano |
+| `night/budding_of_consciousness.wav` | "The Budding of Consciousness", Yoiyami (mono 22 kHz) | https://opengameart.org/content/the-budding-of-consciousness-%E2%80%93-cc0-ambient-minimalist-theme-yoiyami-blue-series-%E2%80%93-no4 |
 
 ## Ambience (`audio/ambient/`), looping layers mixed by time of day / realm / dungeon
 | File | Source |

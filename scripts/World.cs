@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using Godot;
 
@@ -47,6 +48,12 @@ public partial class World : Node3D
         var d = dark ?? new Color(light.R * 0.42f + 0.06f, light.G * 0.34f + 0.04f, light.B * 0.55f + 0.13f);
         if (dark != null) d = d.Lerp(new Color(.42f, .36f, .55f), .25f); // lift hand-picked Shadow colours so buildings read as shapes, not black holes
         Mats.Add((m, light, d)); return m;
+    }
+    /// <summary>Realm tint for a material made elsewhere (imported models): its current colour in the Light, a darker violet one in the Shadow.</summary>
+    public static void Track(StandardMaterial3D m)
+    {
+        var l = m.AlbedoColor; if (Mats.Exists(x => x.m == m)) return;
+        Mats.Add((m, l, new Color(l.R * .55f + .06f, l.G * .45f + .04f, l.B * .7f + .13f)));
     }
     public static StandardMaterial3D WindowMat = new() { AlbedoColor = new Color(0.2f, 0.22f, 0.26f), EmissionEnabled = true, Emission = new Color(1, .75f, .4f), EmissionEnergyMultiplier = 0f };
     /// <summary>Lantern glass on lamp posts: lit like windows, but fades out when the camera is right next to it.</summary>
@@ -381,18 +388,7 @@ void fragment(){
     {
         var rg = Mul32(20261107u);
         float R(float a, float b) => a + rg() * (b - a);
-        // pines: four jagged drooping tiers; oaks: clusters of faceted noise blobs (scripts/Gfx.cs)
-        var pineFol = Gfx.Pine(3);
-        Mesh Blob(float r, uint seed) => Gfx.Lumpy(new SphereMesh { Radius = r, Height = r * 2, RadialSegments = 9, Rings = 6 }, r * .22f, 1.1f / r, seed, .9f);
-        var oakFol = Merge(
-            (Blob(1.6f, 1), T(new Vector3(0, 4.4f, 0), new Vector3(1.2f, 1.0f, 1.2f))),
-            (Blob(1.15f, 2), T(new Vector3(1.35f, 3.7f, 0.5f))),
-            (Blob(1.1f, 3), T(new Vector3(-1.15f, 3.95f, -0.7f))),
-            (Blob(.95f, 4), T(new Vector3(.2f, 5.4f, -.5f))),
-            (Blob(.9f, 5), T(new Vector3(-.4f, 3.5f, 1.2f))));
-        var trunkP = new CylinderMesh { TopRadius = 0.18f, BottomRadius = 0.3f, Height = 2.6f, RadialSegments = 6 };
-        var trunkO = new CylinderMesh { TopRadius = 0.25f, BottomRadius = 0.45f, Height = 3.2f, RadialSegments = 6 };
-        var pines = new List<Transform3D>(); var oaks = new List<Transform3D>(); var rocks = new List<Transform3D>(); var flowers = new List<(Transform3D, Color)>();
+        var pines = new List<Transform3D>(); var oaks = new List<Transform3D>(); var rocks = new List<Transform3D>(); var rockKit = new List<Transform3D>(); var flowers = new List<(Transform3D, Color)>();
         var col = new StaticBody3D { Name = "TreeColliders", CollisionLayer = 1 }; Over.AddChild(col);
         int tries = 0;
         while ((pines.Count + oaks.Count) < 1100 && tries++ < 9000)
@@ -409,6 +405,7 @@ void fragment(){
         {
             float x = R(-Half + 12, Half - 12), z = R(-Half + 12, Half - 12), h = GroundAt(x, z); if (h < 1.2f || !FreeSpot(x, z, 1.5f)) continue;
             float s = R(.5f, 2.2f); rocks.Add(T(new Vector3(x, h + s * .15f, z), new Vector3(s * R(.8f, 1.4f), s * R(.5f, 1f), s * R(.8f, 1.4f)), new Vector3(R(0, 3), R(0, 6), R(0, 3))));
+            rockKit.Add(T(new Vector3(x, h - s * .12f, z), Vector3.One * s, new Vector3(0, x * 1.7f + z, 0)));   // kit rocks: flat bottom, upright
         }
         for (int i = 0; i < 700; i++)
         {
@@ -416,6 +413,18 @@ void fragment(){
             var c = new[] { new Color(1, .45f, .55f), new Color(1, .9f, .3f), Colors.White, new Color(.7f, .5f, 1f), new Color(1, .6f, .2f) }[(int)(rg() * 5) % 5];
             flowers.Add((T(new Vector3(x, h + .12f, z), new Vector3(.12f, .12f, .12f)), c));
         }
+        if (Kit.Available) { KitVegetation(pines, oaks, rockKit, flowers); return; }
+        // pines: four jagged drooping tiers; oaks: clusters of faceted noise blobs (scripts/Gfx.cs)
+        var pineFol = Gfx.Pine(3);
+        Mesh Blob(float r, uint seed) => Gfx.Lumpy(new SphereMesh { Radius = r, Height = r * 2, RadialSegments = 9, Rings = 6 }, r * .22f, 1.1f / r, seed, .9f);
+        var oakFol = Merge(
+            (Blob(1.6f, 1), T(new Vector3(0, 4.4f, 0), new Vector3(1.2f, 1.0f, 1.2f))),
+            (Blob(1.15f, 2), T(new Vector3(1.35f, 3.7f, 0.5f))),
+            (Blob(1.1f, 3), T(new Vector3(-1.15f, 3.95f, -0.7f))),
+            (Blob(.95f, 4), T(new Vector3(.2f, 5.4f, -.5f))),
+            (Blob(.9f, 5), T(new Vector3(-.4f, 3.5f, 1.2f))));
+        var trunkP = new CylinderMesh { TopRadius = 0.18f, BottomRadius = 0.3f, Height = 2.6f, RadialSegments = 6 };
+        var trunkO = new CylinderMesh { TopRadius = 0.25f, BottomRadius = 0.45f, Height = 3.2f, RadialSegments = 6 };
         var bark = Gfx.Tex(Mat(new Color(.36f, .25f, .17f), new Color(.1f, .08f, .13f)), "bark", 1.5f, true, 1.5f);
         var pineMat = Mat(new Color(.2f, .42f, .21f), new Color(.1f, .12f, .2f)); pineMat.VertexColorUseAsAlbedo = true;
         var oakMat = Mat(new Color(.34f, .58f, .23f), new Color(.2f, .12f, .3f)); oakMat.VertexColorUseAsAlbedo = true;
@@ -440,6 +449,69 @@ void fragment(){
         var mm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseColors = tint != null, Mesh = mesh, InstanceCount = list.Count };
         for (int i = 0; i < list.Count; i++) { mm.SetInstanceTransform(i, list[i]); if (tint != null) mm.SetInstanceColor(i, tint(i)); }
         Over.AddChild(new MultiMeshInstance3D { Multimesh = mm, MaterialOverride = mat });
+    }
+
+    /// <summary>Kit models (data/env.json) in the same spots the procedural trees, rocks and flowers would use, plus bushes and ferns.</summary>
+    void KitVegetation(List<Transform3D> pines, List<Transform3D> oaks, List<Transform3D> rocks, List<(Transform3D t, Color c)> flowers)
+    {
+        var cfg = Kit.Cfg; float treeVis = cfg.TryGetProperty("trees", out var tr) ? JsonUtil.F(tr, "visEnd", 300f) : 300f;
+        // per-tree tint so a forest is not one flat green
+        Color Tint(int i) { float k = (float)i * 0.618034f % 1f, j = (float)i * 0.414213f % 1f; return new Color(.86f + .22f * k, .88f + .18f * j, .84f + .16f * (1 - k)); }
+        void Spread(List<Kit.Model> models, List<Transform3D> list, float vis, Func<int, Color>? tint = null)
+        {
+            if (models.Count == 0 || list.Count == 0) return;
+            for (int v = 0; v < models.Count; v++)
+            {
+                var p = Kit.Get(models[v].Name); if (p == null) continue;
+                var local = new Transform3D(Basis.Identity.Scaled(Vector3.One * models[v].Scale), Vector3.Zero) * p.Xf;
+                var mine = new List<Transform3D>(); var cols = new List<Color>();
+                for (int i = v; i < list.Count; i += models.Count) { mine.Add(list[i] * local); cols.Add(tint?.Invoke(i) ?? Colors.White); }
+                Chunked(p.Mesh, mine, tint != null ? cols : null, vis);
+            }
+        }
+        // leafy trees in the lowlands, pines higher up (same spots; chosen by a hash, so the seed sequence is untouched)
+        float oakBelow = JsonUtil.F(tr, "oakBelow", 18f), oakShare = JsonUtil.F(tr, "oakShare", .6f);
+        var kp = new List<Transform3D>(); var ko = new List<Transform3D>(); int n = 0;
+        foreach (var t in pines.Concat(oaks)) { float hsh = (n++ * 0.754877f) % 1f; (t.Origin.Y < oakBelow && hsh < oakShare ? ko : kp).Add(t); }
+        Spread(Kit.Models("trees", "pine"), kp, treeVis, Tint);
+        Spread(Kit.Models("trees", "oak"), ko, treeVis, Tint);
+        Spread(Kit.Models("rocks"), rocks.FindAll(t => FreeSpot(t.Origin.X, t.Origin.Z, 1.5f + t.Basis.Scale.X * 2.2f)), treeVis);   // kit rocks are wider than the old boulders: keep them off gates and roads
+        var fl = new List<Transform3D>(); for (int i = 0; i < flowers.Count; i++) { var o = flowers[i].t.Origin; fl.Add(new Transform3D(new Basis(Vector3.Up, i * 2.4f), new Vector3(o.X, o.Y - .12f, o.Z))); }
+        Spread(Kit.Models("flowers"), fl, 120f);
+        // bushes, ferns and mushrooms: their own seed, so nothing else moves
+        if (cfg.TryGetProperty("bushes", out var bu))
+        {
+            var rg = Mul32(20261110u); float R(float a, float b) => a + rg() * (b - a);
+            var list = new List<Transform3D>(); int want = (int)JsonUtil.F(bu, "count", 400), tries = 0;
+            while (list.Count < want && tries++ < want * 8)
+            {
+                float x = R(-Half + 14, Half - 14), z = R(-Half + 14, Half - 14), h = GroundAt(x, z);
+                if (h < 1.6f || h > 30f || !FreeSpot(x, z, 1.5f)) continue;
+                if (Fbm(x * .02f + 3, z * .02f + 9, 3) < .42f && rg() < .7f) continue;   // mostly at forest edges
+                float s = R(.75f, 1.25f); list.Add(T(new Vector3(x, h - .05f, z), Vector3.One * s, new Vector3(0, R(0, Mathf.Tau), 0)));
+            }
+            Spread(Kit.Models("bushes", "models"), list, JsonUtil.F(bu, "visEnd", 160f));
+        }
+    }
+
+    /// <summary>A MultiMesh split into 64 m patches, so off-screen and far patches are skipped.</summary>
+    void Chunked(Mesh mesh, List<Transform3D> list, List<Color>? cols, float visEnd)
+    {
+        const float C = 64f;
+        var groups = new Dictionary<(int, int), List<int>>();
+        for (int i = 0; i < list.Count; i++)
+        {
+            var key = ((int)Mathf.Floor((list[i].Origin.X + Half) / C), (int)Mathf.Floor((list[i].Origin.Z + Half) / C));
+            if (!groups.TryGetValue(key, out var g)) groups[key] = g = new List<int>();
+            g.Add(i);
+        }
+        foreach (var (key, idx) in groups)
+        {
+            var centre = new Vector3(-Half + (key.Item1 + .5f) * C, 0, -Half + (key.Item2 + .5f) * C);
+            var mm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseColors = cols != null, Mesh = mesh, InstanceCount = idx.Count };
+            for (int j = 0; j < idx.Count; j++) { var t = list[idx[j]]; t.Origin -= centre; mm.SetInstanceTransform(j, t); if (cols != null) mm.SetInstanceColor(j, cols[idx[j]]); }
+            Over.AddChild(new MultiMeshInstance3D { Multimesh = mm, Position = centre, VisibilityRangeEnd = visEnd, VisibilityRangeEndMargin = 12f });
+        }
     }
 
     /// <summary>True when (x,z) is clear of roads, points of interest and the village.</summary>

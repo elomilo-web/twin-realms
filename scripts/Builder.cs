@@ -55,8 +55,46 @@ public static class Builder
     }
 
     // ---------------------------------------------------------------- Oakhaven
+    /// <summary>A house from the Medieval Village kit (data/env.json "house"): 2 m wall modules, door in the middle of the front (+Z), glass that lights up at night, tiled roof with gable walls.</summary>
+    static void KitHouse(Node parent, float x, float z, float w, float d, float h, float rot)
+    {
+        var hc = Kit.Cfg.GetProperty("house"); float S = JsonUtil.F(hc, "storey", 3.12f);
+        var roofs = new HashSet<string>(); foreach (var r in hc.GetProperty("roofs").EnumerateArray()) roofs.Add(r.GetString() ?? "");
+        int W = w >= 8.5f ? 8 : w >= 5f ? 6 : 4, D = d >= 8.5f ? 8 : d >= 5f ? 6 : 4;
+        while (!roofs.Contains($"{W}x{D}") && D < 10) D += 2;   // round the footprint to a roof that exists
+        int floors = h > 3.6f ? 2 : 1;
+        var styles = hc.GetProperty("styles"); var st = styles[Math.Abs((int)(x * 7 + z * 13)) % styles.GetArrayLength()];
+        string P(string k) => JsonUtil.S(st, k, JsonUtil.S(hc, k));
+        var g = Group(parent, x, z, rot, -0.1f);
+        const float y0 = .3f; float top = y0 + floors * S, aDoor = 0;
+        Box(g, new Vector3(W + .5f, 1.6f, D + .5f), new Vector3(0, y0 - .8f, 0), Stone);   // plinth; also covers sloping ground
+        for (int f = 0; f < floors; f++)
+            for (int side = 0; side < 4; side++)   // 0 front (+Z), 1 right (+X), 2 back, 3 left
+            {
+                float yaw = side * Mathf.Pi / 2; var b = new Basis(Vector3.Up, yaw);
+                int len = side % 2 == 0 ? W : D, n = len / 2; float off = (side % 2 == 0 ? D : W) / 2f - .09f;
+                for (int i = 0; i < n; i++)
+                {
+                    float a = -len / 2f + 1 + 2 * i; var pos = b * new Vector3(a, y0 + f * S, off);
+                    bool door = f == 0 && side == 0 && i == n / 2, win = !door && (f == 0 && side == 0 || i % 2 == 1);
+                    Kit.Add(g, P(door ? "door" : win ? "window" : f > 0 ? "upper" : "wall"), pos, yaw);
+                    if (win) { Kit.Add(g, P("windowGlass"), pos, yaw); Kit.Add(g, P("shutters"), pos, yaw); }
+                    if (door) { aDoor = a; Kit.Add(g, P("doorLeaf"), b * new Vector3(a - .51f, y0 + f * S, off), yaw); }
+                }
+            }
+        for (int f = 0; f < floors; f++) foreach (var sx in new[] { -1f, 1f }) foreach (var sz in new[] { -1f, 1f }) Kit.Add(g, P("corner"), new Vector3(sx * W / 2f, y0 + f * S, sz * D / 2f));
+        Kit.Add(g, P("roof") + W + "x" + D, new Vector3(0, top, 0));
+        float gi = JsonUtil.F(hc, "gableIn", 0f);
+        Kit.Add(g, P("gable") + W, new Vector3(0, top, D / 2f - gi)); Kit.Add(g, P("gable") + W, new Vector3(0, top, -D / 2f + gi), Mathf.Pi);
+        Kit.Add(g, P("chimney"), new Vector3(W / 4f, top + .3f + W * .1f, -D / 4f));
+        Kit.Add(g, P("lantern"), new Vector3(aDoor + 1.15f, y0 + 1.3f, D / 2f), 0, .55f);
+        Box(g, new Vector3(1.8f, .3f, .9f), new Vector3(aDoor, .15f, D / 2f + .45f), Stone);   // door step
+        var body = new StaticBody3D { Position = new Vector3(0, y0 + floors * S / 2f, 0), CollisionLayer = 1 }; body.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(W + .2f, floors * S + .6f, D + .2f) } }); g.AddChild(body);
+    }
+
     static void House(Node parent, float x, float z, float w, float d, float h, float rot)
     {
+        if (Kit.Available) { KitHouse(parent, x, z, w, d, h, rot); return; }
         var g = Group(parent, x, z, rot, -0.1f);
         int v = Math.Abs((int)(x * 7 + z * 13)) % 4; var rf = v == 1 ? RoofB : Roof; float rh = Mathf.Max(2.3f, w * .4f), top = h + .5f;
         Box(g, new Vector3(w + .4f, 1.0f, d + .4f), new Vector3(0, .5f, 0), Stone);
@@ -98,9 +136,24 @@ public static class Builder
         // the hero's home: the cottage north of the plaza (at -7, 19, door facing the plaza); storage chest beside the door
         over.AddChild(new StashChest { Position = World.OnGround(-4.6f, 15.3f), Rotation = new Vector3(0, Mathf.Pi, 0) });
         over.AddChild(new PartyChestNode { Position = World.OnGround(-2.1f, 15.1f), Rotation = new Vector3(0, Mathf.Pi, 0) });
-        var st = Group(over, -9, 8); foreach (var s in new[] { (-1.8f, -1f), (1.8f, -1f), (-1.8f, 1f), (1.8f, 1f) }) Box(st, new Vector3(.2f, 2.8f, .2f), new Vector3(s.Item1, 1.4f, s.Item2), Wood);
+        if (Kit.Available) KitVillageProps(over);
+        var st = Group(over, -9, 8);
+        if (Kit.Available)
+        {
+            float sy = JsonUtil.F(Kit.Cfg.GetProperty("props"), "stallYaw", 0f) * Mathf.Pi / 180f;
+            Kit.Add(st, Kit.Str("props", "stall"), new Vector3(.6f, 0, .3f), sy);
+            Kit.Add(st, Kit.Str("props", "barrelApples"), new Vector3(-2.3f, 0, .6f), 0, 1.1f);
+            Kit.Add(st, Kit.Str("props", "fruit"), new Vector3(-2.2f, 0, -.5f), .4f, 1.2f);
+            var cb = new StaticBody3D { Position = new Vector3(0, .5f, .3f), CollisionLayer = 1 }; cb.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(3.6f, 1f, 1f) } }); st.AddChild(cb);
+        }
+        else
+        {
+        foreach (var s in new[] { (-1.8f, -1f), (1.8f, -1f), (-1.8f, 1f), (1.8f, 1f) }) Box(st, new Vector3(.2f, 2.8f, .2f), new Vector3(s.Item1, 1.4f, s.Item2), Wood);
         Box(st, new Vector3(4.4f, .15f, 3f), new Vector3(0, 2.85f, 0), Cloth); Solid(st, new Vector3(3.6f, .9f, .9f), new Vector3(0, .5f, .3f), Wood); Box(st, new Vector3(3.6f, .1f, .9f), new Vector3(0, .97f, .3f), Cloth);
-        var fg = Group(over, 24, 2); Solid(fg, new Vector3(2.4f, 1.3f, 2f), new Vector3(0, .65f, 0), Stone); Box(fg, new Vector3(1.1f, .6f, .6f), new Vector3(2, .8f, 0), Metal); Box(fg, new Vector3(.5f, 3f, .5f), new Vector3(-.6f, 2.4f, -.5f), Stone); Fire(fg, new Vector3(.2f, 1.45f, 0), 1.4f, 16f);
+        }
+        var fg = Group(over, 24, 2); Solid(fg, new Vector3(2.4f, 1.3f, 2f), new Vector3(0, .65f, 0), Stone);
+        if (Kit.Available) { Kit.Add(fg, Kit.Str("props", "anvil"), new Vector3(2, 0, 0), Mathf.Pi / 2, 1f, true); Kit.Add(fg, Kit.Str("props", "workbench"), new Vector3(-.4f, 0, -2.1f), 0, 1f, true); Kit.Add(fg, Kit.Str("props", "barrel"), new Vector3(-2f, 0, 1f), 0, 1.1f, true); Kit.Add(fg, Kit.Str("props", "weaponStand"), new Vector3(3.6f, 0, -1.4f), -.5f, 1f, true); }
+        else Box(fg, new Vector3(1.1f, .6f, .6f), new Vector3(2, .8f, 0), Metal); Box(fg, new Vector3(.5f, 3f, .5f), new Vector3(-.6f, 2.4f, -.5f), Stone); Fire(fg, new Vector3(.2f, 1.45f, 0), 1.4f, 16f);
         var wm = Group(over, 26, -18); var tower = new StaticBody3D { CollisionLayer = 1 }; tower.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 1.7f, BottomRadius = 2.7f, Height = 9f, RadialSegments = 10 }, MaterialOverride = Wall, Position = new Vector3(0, 4.5f, 0) });
         tower.AddChild(new CollisionShape3D { Shape = new CylinderShape3D { Radius = 2.4f, Height = 9f }, Position = new Vector3(0, 4.5f, 0) }); wm.AddChild(tower);
         wm.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 0f, BottomRadius = 3.1f, Height = 3f, RadialSegments = 10 }, MaterialOverride = Roof, Position = new Vector3(0, 10.5f, 0) });
@@ -109,7 +162,18 @@ public static class Builder
         foreach (var p in new[] { (-11f, 0f), (11, 0), (0, -12), (3.5f, 13), (-22, -2), (22, 12), (30, 10), (-30, 6) }) Lamp(over, p.Item1, p.Item2);
         foreach (var p in new[] { (-20f, -14f), (21, -22), (-22, 16), (15, 25) }) { Crate(over, p.Item1, p.Item2, 1.1f); Crate(over, p.Item1 + 1.3f, p.Item2 + .4f, .8f); Barrel(over, p.Item1 - 1, p.Item2 + 1); }
         for (int i = 0; i < 4; i++) { var hb = Group(over, -24 + i * 1.8f, 20 + (i % 2) * .8f, 0, .4f); hb.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = .9f, BottomRadius = .9f, Height = .8f, RadialSegments = 8 }, MaterialOverride = Hay }); }
-        for (int i = 0; i < 10; i++) foreach (var zz in new[] { -4.2f, 4.2f }) Box(over, new Vector3(.15f, 1.1f, .15f), World.OnGround(30 + i * 1.6f, 10 + zz, .5f), Wood);
+        if (Kit.Available) { for (int i = 0; i < 7; i++) foreach (var zz in new[] { -4.2f, 4.2f }) Kit.Add(over, Kit.Str("props", "fence"), World.OnGround(31.03f + i * 2.06f, 10 + zz, -.02f)); }
+        else for (int i = 0; i < 10; i++) foreach (var zz in new[] { -4.2f, 4.2f }) Box(over, new Vector3(.15f, 1.1f, .15f), World.OnGround(30 + i * 1.6f, 10 + zz, .5f), Wood);
+    }
+    /// <summary>Extra village dressing from the kits: a wagon by the hay, benches and a table on the plaza edge, buckets and sacks by doors.</summary>
+    static void KitVillageProps(Node3D over)
+    {
+        void At(string key, float x, float z, float yaw = 0, float s = 1, bool solid = true) => Kit.Add(over, Kit.Str("props", key), World.OnGround(x, z, -.02f), yaw, s, solid);
+        At("wagon", -26.5f, 23.5f, 1.2f);
+        At("bench", 5.5f, -5.5f, .6f); At("bench", -6f, -5.2f, -.6f);
+        At("table", 9.5f, 3.5f, 1.3f); At("bench", 10.6f, 3f, 1.3f, 1f);
+        At("bucket", 1.9f, 1.2f, 0, 1.2f, false); At("bag", -21f, -13f, .5f, 1f, false); At("bag", 20.2f, -21f, 2f, 1f, false);
+        At("cauldron", 8.4f, 5.6f, 0, .9f);
     }
     static void Lamp(Node parent, float x, float z)
     {
@@ -126,8 +190,14 @@ public static class Builder
         for (int i = 0; i < 3; i++) g.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = .08f, BottomRadius = .08f, Height = .9f }, MaterialOverride = Wood, Position = new Vector3(0, .25f, 0), Rotation = new Vector3(0, i * 2.1f, 1.2f) });
         Fire(g, new Vector3(0, .5f, 0), 1.2f, 14f);
     }
-    static void Crate(Node parent, float x, float z, float s) { Solid(parent, new Vector3(s, s, s), World.OnGround(x, z, s / 2), Wood, R(0, 3)); }
-    static void Barrel(Node parent, float x, float z) { var b = new StaticBody3D { Position = World.OnGround(x, z, .47f), CollisionLayer = 1 }; b.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = .45f, BottomRadius = .45f, Height = .95f, RadialSegments = 10 }, MaterialOverride = Wood }); b.AddChild(new CollisionShape3D { Shape = new CylinderShape3D { Radius = .45f, Height = .95f } }); parent.AddChild(b); }
+    static void Crate(Node parent, float x, float z, float s)
+    {
+        float yaw = R(0, 3);   // always draw the number, so the seed sequence (and every later placement) stays the same
+        if (Kit.Available) Kit.Add(parent, Kit.Str("props", "crate"), World.OnGround(x, z, -.02f), yaw, s / .9f, true);
+        else Solid(parent, new Vector3(s, s, s), World.OnGround(x, z, s / 2), Wood, yaw);
+    }
+    static void Barrel(Node parent, float x, float z) {
+        if (Kit.Available) { Kit.Add(parent, Kit.Str("props", "barrel"), World.OnGround(x, z, -.02f), x, 1.15f, true); return; } var b = new StaticBody3D { Position = World.OnGround(x, z, .47f), CollisionLayer = 1 }; b.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = .45f, BottomRadius = .45f, Height = .95f, RadialSegments = 10 }, MaterialOverride = Wood }); b.AddChild(new CollisionShape3D { Shape = new CylinderShape3D { Radius = .45f, Height = .95f } }); parent.AddChild(b); }
 
     // ---------------------------------------------------------------- Arena
     public static StaticBody3D? GateBody; static Node3D? _portcullis;
@@ -156,6 +226,8 @@ public static class Builder
         _portcullis = new Node3D { Position = new Vector3(-24, 5.2f, 0) }; g.AddChild(_portcullis);
         for (int i = -2; i <= 2; i++) Box(_portcullis, new Vector3(.16f, 5f, .16f), new Vector3(0, 2.5f, i * .95f), Metal);
         for (int j = 1; j <= 4; j++) Box(_portcullis, new Vector3(.12f, .12f, 4.6f), new Vector3(0, j * 1.1f, 0), Metal);
+        if (Kit.Available) foreach (var (k, lx, lz, yw) in new[] { ("weaponStand", -35f, 6.5f, Mathf.Pi / 2), ("dummy", -36f, -6.5f, Mathf.Pi / 2), ("dummy", -38f, -8f, 1.2f) })
+            Kit.Add(g, Kit.Str("props", k), new Vector3(lx, World.GroundAt(ap.X + lx, ap.Z + lz) - H - .02f, lz), yw, 1f, true);
         GateBody = new StaticBody3D { Position = new Vector3(-24, 2.5f, 0), CollisionLayer = 1 }; GateBody.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(.5f, 5f, 5f) }, Disabled = true }); g.AddChild(GateBody);
         // crowd (static)
         var cm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseColors = true, Mesh = new CapsuleMesh { Radius = .28f, Height = 1.0f, RadialSegments = 6, Rings = 2 } };
@@ -308,7 +380,8 @@ void fragment(){
         foreach (var c in camps)
         {
             int lvl = Game.LevelAt(c.x, c.z, c.realm);
-            if (c.realm == 0) { Campfire(over, c.x, c.z); var tent = Group(over, c.x + 3, c.z + 2, R(0, Tau)); tent.AddChild(new MeshInstance3D { Mesh = new PrismMesh { Size = new Vector3(3, 2.2f, 3.4f) }, MaterialOverride = Cloth, Position = new Vector3(0, 1.1f, 0) }); }
+            if (c.realm == 0) { Campfire(over, c.x, c.z); var tent = Group(over, c.x + 3, c.z + 2, R(0, Tau)); tent.AddChild(new MeshInstance3D { Mesh = new PrismMesh { Size = new Vector3(3, 2.2f, 3.4f) }, MaterialOverride = Cloth, Position = new Vector3(0, 1.1f, 0) });
+                if (Kit.Available) { Kit.Add(over, Kit.Str("props", "barrel"), World.OnGround(c.x - 2.4f, c.z - 2.6f, -.02f), c.x, 1.1f); Kit.Add(over, Kit.Str("props", "crate"), World.OnGround(c.x - 1.3f, c.z - 3.1f, -.02f), c.z, 1f); Kit.Add(over, Kit.Str("props", "bag"), World.OnGround(c.x + 1.2f, c.z - 2.4f, -.02f), c.x + c.z); } }
             for (int i = 0; i < c.kind.Length; i++) { float a = i / (float)c.kind.Length * Tau + R(0, 1), rr = R(2.5f, 6f); SpawnOW(over, c.kind[i], c.x + Mathf.Cos(a) * rr, c.z + Mathf.Sin(a) * rr, lvl + (i == 0 && c.kind.Length < 4 ? 1 : 0)); }
         }
         for (int i = 0; i < 5; i++) SpawnOW(over, "wolf", -54 + R(-6, 6), 30 + R(-6, 6), 1 + (i % 2));

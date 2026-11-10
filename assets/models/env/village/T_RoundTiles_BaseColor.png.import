@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://daqxxnem1r6rb"
-path="res://.godot/imported/T_Hair_2_BaseColor_png.png-79bbbda75ac342465c38647c92988b86.ctex"
+uid="uid://cq1iufjgfypeq"
+path="res://.godot/imported/T_RoundTiles_BaseColor.png-da2b4114ca4778a8dce61523589404f8.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/models/char/T_Hair_2_BaseColor_png.png"
-dest_files=["res://.godot/imported/T_Hair_2_BaseColor_png.png-79bbbda75ac342465c38647c92988b86.ctex"]
+source_file="res://assets/models/env/village/T_RoundTiles_BaseColor.png"
+dest_files=["res://.godot/imported/T_RoundTiles_BaseColor.png-da2b4114ca4778a8dce61523589404f8.ctex"]
 
 [params]
 

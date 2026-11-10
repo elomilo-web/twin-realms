@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bdal8lrnsi4lo"
-path="res://.godot/imported/T_Hair_1_BaseColor_png.png-80f483e1cef20acb2a9926c41d7d443f.ctex"
+uid="uid://cpfw3g4joernx"
+path="res://.godot/imported/T_WoodTrim_BaseColor.png-076cf88164234b370e78c557d335ecbb.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/models/char/T_Hair_1_BaseColor_png.png"
-dest_files=["res://.godot/imported/T_Hair_1_BaseColor_png.png-80f483e1cef20acb2a9926c41d7d443f.ctex"]
+source_file="res://assets/models/env/village/T_WoodTrim_BaseColor.png"
+dest_files=["res://.godot/imported/T_WoodTrim_BaseColor.png-076cf88164234b370e78c557d335ecbb.ctex"]
 
 [params]
 
