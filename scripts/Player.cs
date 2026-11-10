@@ -311,7 +311,7 @@ public partial class Player : CharacterBody3D, IDamageable
         }
         if (best != null)
         {
-            Prompt = "[E] " + best.Prompt;
+            Prompt = "[" + Inputs.KeyOf(Inputs.Use) + "] " + best.Prompt;
             if (Input.IsActionJustPressed(Inputs.Use)) best.Interact();
         }
     }
@@ -371,7 +371,7 @@ public partial class Player : CharacterBody3D, IDamageable
         _glow.LightEnergy = Mathf.Lerp(_glow.LightEnergy, dark * Feel.GlowEnergy, 1f - Mathf.Exp(-3f * dt)); _glow.OmniRange = Feel.GlowRange; _glow.Visible = _glow.LightEnergy > .02f;
 
         // ---- attack input: tap = light, hold = power (fires on release)
-        bool lmb = captured && Input.IsMouseButtonPressed(MouseButton.Left);
+        bool lmb = captured && Input.IsActionPressed(Inputs.Attack);   // left mouse by default (Settings > Controls)
         if (lmb) _lmbHold = _lmbPrev ? _lmbHold + dt : 0f;
         if (!lmb && _lmbPrev)
         {
@@ -382,7 +382,7 @@ public partial class Player : CharacterBody3D, IDamageable
         if (_hasQueue) { _queueT -= dt; if (_queueT <= 0) _hasQueue = false; else if (_atkT <= 0 && TryAttack(_queuePower)) _hasQueue = false; }
 
         // ---- block
-        bool wantBlock = captured && HasShield && Input.IsMouseButtonPressed(MouseButton.Right) && _atkT <= 0 && _rollT <= 0 && _stagger <= 0 && _castT <= 0 && St > 0 && !Mounted;
+        bool wantBlock = captured && HasShield && Input.IsActionPressed(Inputs.Guard) && _atkT <= 0 && _rollT <= 0 && _stagger <= 0 && _castT <= 0 && St > 0 && !Mounted;
         if (wantBlock && !_blocking) _blockT = 0;
         _blocking = wantBlock;
         if (_blocking) { _blockT += dt; _modelYaw = camYaw; }

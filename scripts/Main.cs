@@ -10,7 +10,10 @@ public partial class Main : Node3D
     public override void _Ready()
     {
         GD.Print("[MAIN] scene start"); Inputs.Setup(); Game.Root = this; Dungeon.Active = false; Arenas.Active = false; World.Realm = 0; World.RealmT = 0; Ui.InGame = false;
+        bool testing = Observer.Wanted() || Bot.Wanted() || MpBot.Wanted() != null;
+        if (testing) Game.SetPath = "user://test_settings.json";
         Game.LoadSettings();
+        if (testing) Inputs.ResetAll(false);   // test bots press the default keys
         AddChild(new Sfx { Name = "Sfx" });
         AddChild(new Net { Name = "Net" });
         var ui = new Ui { Name = "Ui" }; AddChild(ui);
@@ -52,7 +55,7 @@ public partial class Main : Node3D
         AddChild(new Hud { Name = "Hud" });
         AddChild(new Ambient { Name = "Ambient" });
         Ui.InGame = true; Input.MouseMode = Input.MouseModeEnum.Captured;
-        Ui.Banner(World.GetPoi("village")?.Name ?? "Oakhaven", "I pack, K skill tree, L skills, J quests, Tab lock on");
+        Ui.Banner(World.GetPoi("village")?.Name ?? "Oakhaven", $"{Inputs.KeyOf(Inputs.Pack)} pack, {Inputs.KeyOf(Inputs.Tree)} skill tree, {Inputs.KeyOf(Inputs.SkillsUi)} skills, {Inputs.KeyOf(Inputs.Journal)} quests, {Inputs.KeyOf(Inputs.Lock)} lock on");
         if (Game.TreeRefunded) { Game.TreeRefunded = false; Ui.Note("The skill tree has grown five times larger. Your tree points were refunded: press K.", new Color(1f, .85f, .4f)); }
         Game.Save();
     }

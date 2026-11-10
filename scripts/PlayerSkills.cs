@@ -24,7 +24,7 @@ public partial class Player
     void TryCast(int slot)
     {
         var D = Game.D; if (slot >= D.Bar.Length) return; var id = D.Bar[slot];
-        if (string.IsNullOrEmpty(id) || !D.Skills.ContainsKey(id) || Skills.Get(id) == null) { Ui.Note($"No skill on key {slot + 1}. Press L to set one.", new Color(.7f, .8f, 1)); return; }
+        if (string.IsNullOrEmpty(id) || !D.Skills.ContainsKey(id) || Skills.Get(id) == null) { Ui.Note($"No skill on key {Inputs.KeyOf("spell" + (slot + 1))}. Press {Inputs.KeyOf(Inputs.SkillsUi)} to set one.", new Color(.7f, .8f, 1)); return; }
         if (Dead || Busy || _rollT > 0 || _stagger > 0) return;
         if (Mounted) { Ui.Note("You cannot use skills while mounted", new Color(0.7f, 0.8f, 1)); return; }
         if (CdOf(id) > 0) return;

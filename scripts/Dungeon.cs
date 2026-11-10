@@ -22,14 +22,61 @@ public static class Dungeon
         return _doc.RootElement.GetProperty("themes").GetProperty(key);
     }
 
+    // ---- party dungeons: everyone in a party shares one instance. Same seed and level on every machine build the same rooms and
+    // monsters; the "owner" (whoever opened that floor, or the next member inside if they leave) runs the monsters, the others mirror them.
+    public static int Inst, Seed; public static long Owner;
+    public static readonly List<Enemy?> NetList = new();   // this floor's monsters in spawn order (same order on every machine)
+    public static bool Shared => Active && Inst != 0 && Net.Active;
+    public static bool IsOwner => Shared && Owner == Net.MyId;
+    static int _forceLvl;
+
+    /// <summary>A dungeon door or the descend pad. In a party the host hands out the party's shared instance; solo it is private.</summary>
     public static void Enter(string key, int depth)
+    {
+        if (Net.Active && Net.I!.MyParty is { } pt && pt.Members.Count >= 2) { Net.I.DunRequest(key, depth, Active); return; }
+        Go(key, depth, 0, 0, 0, 0);
+    }
+    /// <summary>Joins (or opens) the party's instance: the seed and monster level come from the host.</summary>
+    public static void EnterShared(string key, int depth, int seed, int lvl, long owner, int inst) => Go(key, depth, seed, lvl, owner, inst);
+
+    /// <summary>The member running the monsters left: the new owner's mirrored monsters come to life where they stand.</summary>
+    public static void SetOwner(int seed, long owner)
+    {
+        if (!Active || seed != Seed) return; Owner = owner; bool me = owner == Net.MyId;
+        foreach (var e in NetList) if (e != null && GodotObject.IsInstanceValid(e)) e.Puppet = !me;
+        if (me) Ui.Note("You now lead the dungeon's monsters (your friend left)", Ui.Dim);
+    }
+    /// <summary>The connection ended while inside a party dungeon: keep playing it alone (our copies of the monsters come to life).</summary>
+    public static void Detach()
+    {
+        if (Inst == 0) return; Inst = 0; Owner = 0;
+        foreach (var e in NetList) if (e != null && GodotObject.IsInstanceValid(e)) e.Puppet = false;
+    }
+    /// <summary>Owner: a boss called adds; give them the next index so everyone's copy matches.</summary>
+    public static void Register(Enemy e)
+    {
+        if (!IsOwner) return; e.NetIdx = NetList.Count; NetList.Add(e);
+        Net.I?.DunSpawn(e.NetIdx, e.Type, e.Level, e.GlobalPosition);
+    }
+    /// <summary>Member: the owner's boss called adds; make our mirrored copy.</summary>
+    public static void SpawnPuppet(int idx, string type, int lvl, Vector3 pos)
+    {
+        if (Root == null || !GodotObject.IsInstanceValid(Root)) return;
+        var e = new Enemy { Type = type, Level = lvl, Summoned = true, FromDungeon = true, NoLeash = true, AnyRealm = true, Puppet = true, NetIdx = idx };
+        Root.AddChild(e); e.GlobalPosition = pos;
+        while (NetList.Count <= idx) NetList.Add(null); NetList[idx] = e;
+    }
+
+    static void Go(string key, int depth, int seed, int lvl, long owner, int inst)
     {
         var w = World.I; if (w == null || Player.Instance == null) return;
         var poi = World.GetPoi(key);
         if (!Active) { if (!Net.Active) World.ForceRealm(0); if (Player.Instance.Mounted) Player.Instance.ToggleMount(true); if (poi != null) { var dir = new Vector2(-poi.Door.X, -poi.Door.Z).Normalized(); _ret = World.OnGround(poi.Door.X + dir.X * 7f, poi.Door.Z + dir.Y * 7f, 0.6f); } else _ret = new Vector3(0, 3, 9); }
         else Teardown();
         Key = key; Depth = depth; Active = true;
+        Inst = inst; Owner = owner; _forceLvl = lvl; Seed = seed != 0 ? seed : (int)(GD.Randi() & 0x3fffffff) + 1;
         Generate(key, depth, poi?.Lvl ?? 3);
+        if (inst != 0) Ui.Note(owner == Net.MyId ? "Party dungeon: your party can follow you in through any dungeon door" : $"You joined your party's dungeon (monster level {lvl})", Ui.Gold);
         w.SetOverworldActive(false);
         var th = Theme(key);
         w.SetDungeonLook(true, JsonUtil.Hex(th.GetProperty("torch").GetInt32()).Darkened(0.55f).Lerp(new Color(.35f, .38f, .45f), .35f));
@@ -43,7 +90,7 @@ public static class Dungeon
     public static void Leave(bool died)
     {
         if (!Active) return;
-        Teardown(); Active = false;
+        Teardown(); Active = false; Inst = 0; Owner = 0;
         var w = World.I; w?.SetDungeonLook(false); w?.SetOverworldActive(true);
         if (Net.Active && World.Realm != Net.I!.Realm) World.ForceRealm(Net.I.Realm);   // the lobby may have shifted while we were below
         if (Player.Instance != null) { if (died) Player.Instance.Revive(_ret); else Player.Instance.Teleport(_ret, 0f); }
@@ -54,7 +101,7 @@ public static class Dungeon
     static void Teardown()
     {
         if (Root != null && GodotObject.IsInstanceValid(Root)) Root.QueueFree();
-        Root = null; _boss = null; Enemy.CurrentBoss = null;
+        Root = null; _boss = null; Enemy.CurrentBoss = null; NetList.Clear();
         foreach (var n in Game.Root!.GetTree().GetNodesInGroup("projectiles")) n.QueueFree();
     }
 
@@ -62,7 +109,7 @@ public static class Dungeon
 
     static void Generate(string key, int depth, int poiLvl)
     {
-        var th = Theme(key); int seed = Math.Abs(key.GetHashCode() * 31 + depth * 977 + (int)(Game.PlayTime));
+        var th = Theme(key); int seed = Seed;   // shared floors use the host's seed so every machine builds the same rooms
         var ri = Rng(seed); var rf = new Random(seed + 1); float rnd() => (float)rf.NextDouble();
         var grid = new bool[GW * GH]; _rooms = new();
         for (int t = 0; t < 60 && _rooms.Count < 9; t++)
@@ -156,7 +203,8 @@ public static class Dungeon
         var er = _rooms[0]; MakePad(new Vector3((er.Cx + .5f) * Tile, 0, (er.Cz + .5f) * Tile), false, new Color(.5f, .88f, 1f));
         // enemies and chests
         // monsters scale to the hero: your level + 2 on the first floor, +1 per floor below (data/progression.json); poiLvl is kept for older callers
-        _baseLvl = Progression.DungeonLevel(Game.D.Level, depth); _depth = depth; _mrng = new Random(seed + 7); var mobs = new List<string>(); foreach (var m in th.GetProperty("mobs").EnumerateArray()) mobs.Add(m.GetString() ?? "skeleton");
+        // party: average party level + 3 (from the host); solo: your level + 2
+        _baseLvl = _forceLvl > 0 ? _forceLvl : Progression.DungeonLevel(Game.D.Level, depth); _depth = depth; _mrng = new Random(seed + 7); var mobs = new List<string>(); foreach (var m in th.GetProperty("mobs").EnumerateArray()) mobs.Add(m.GetString() ?? "skeleton");
         string bossType = th.GetProperty("boss").GetString() ?? "golem";
         for (int i = 1; i < _rooms.Count; i++)
         {
@@ -293,6 +341,7 @@ public static class Dungeon
         var mods = new List<MobMod>(); var gear = Progression.GearFor(_depth); if (gear != null) mods.Add(gear);
         mods.AddRange(Progression.RollUpgrades(_depth, EnemyDb.Get(type).Boss, _mrng));
         var e = new Enemy { Type = type, Level = Math.Max(1, lvl), FromDungeon = true, NoLeash = true, AnyRealm = true, Mods = mods, Position = new Vector3(x, 0.4f, z) };
+        if (Inst != 0) { e.NetIdx = NetList.Count; e.Puppet = Owner != Net.MyId; NetList.Add(e); }
         Root!.AddChild(e); return e;
     }
     static void MakeChest(float x, float z, float bonus, int lvl) => Root!.AddChild(new Chest { Id = "dc" + GD.Randi(), Level = lvl, Bonus = bonus, Position = new Vector3(x, 0, z) });

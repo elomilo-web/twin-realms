@@ -25,7 +25,11 @@ public partial class RemoteHero : Node3D, IDamageable, IInteractable
     public bool CanInteract => Net.Active && !Dead && Visible;
     public void Interact() => Ui.I?.OpenPlayerMenu(Peer);
     /// <summary>Only the host's enemies call this; the friend's own game applies the hit to their hero.</summary>
-    public void TakeHit(HitInfo h) { if (Net.IsHost) Net.I!.HitPeer(Peer, h); }
+    public void TakeHit(HitInfo h)
+    {
+        if (Dungeon.IsOwner && Zone == Net.MyZone) Net.I!.HitPeerDun(Peer, h);   // our party dungeon's monsters hit a friend on this floor
+        else if (Net.IsHost && Zone == 0) Net.I!.HitPeer(Peer, h);
+    }
 
     public override void _Ready()
     {
@@ -71,8 +75,8 @@ public partial class RemoteHero : Node3D, IDamageable, IInteractable
     public override void _Process(double delta)
     {
         float dt = (float)delta;
-        // only drawn when both of us are out in the overworld (dungeons and the arena are private instances)
-        bool show = _p != null && Zone == 0 && Net.MyZone == 0;
+        // drawn when we are both in the overworld or on the same floor of our party's dungeon (private dungeons and the arena are solo)
+        bool show = _p != null && Zone == Net.MyZone && (Zone == 0 || Zone >= 1000);
         if (Visible != show) Visible = show;
         if (!show || _p == null) return;
         var p = _p; float k = 1f - Mathf.Exp(-14f * dt);

@@ -112,11 +112,12 @@ public partial class HudCanvas : Control
         if (p.Prompt != "" && !Ui.AnyOpen)
         {
             // interaction prompt in a glass pill: [E] key chip + action
-            string act = p.Prompt.StartsWith("[E] ") ? p.Prompt[4..] : p.Prompt; int pf = fs(1.25f);
-            float aw = F.GetStringSize(act, HorizontalAlignment.Left, -1, pf).X, kw = pf * 1.6f, tot = kw + 10 + aw + 24, x0 = sz.X / 2 - tot / 2, y0 = sz.Y * .62f - pf;
+            string ek = Inputs.KeyOf(Inputs.Use), pre = "[" + ek + "] ";
+            string act = p.Prompt.StartsWith(pre) ? p.Prompt[pre.Length..] : p.Prompt; int pf = fs(1.25f);
+            float aw = F.GetStringSize(act, HorizontalAlignment.Left, -1, pf).X, kw = Mathf.Max(pf * 1.6f, F.GetStringSize(ek, HorizontalAlignment.Left, -1, pf).X + pf * .6f), tot = kw + 10 + aw + 24, x0 = sz.X / 2 - tot / 2, y0 = sz.Y * .62f - pf;
             Glass(new Rect2(x0, y0, tot, pf * 1.7f));
             DrawRect(new Rect2(x0 + 6, y0 + 5, kw, pf * 1.7f - 10), UiTheme.Accent with { A = .85f });
-            Txt(new Vector2(x0 + 6, y0 + pf * 1.2f), "E", pf, new Color("04111f"), HorizontalAlignment.Center, kw);
+            Txt(new Vector2(x0 + 6, y0 + pf * 1.2f), ek, pf, new Color("04111f"), HorizontalAlignment.Center, kw);
             Txt(new Vector2(x0 + kw + 16, y0 + pf * 1.2f), act, pf, Colors.White);
         }
         // hotbar bottom-left: 6 skills (keys 1-6, set in the Skills menu, L) + 2 potions
@@ -133,10 +134,10 @@ public partial class HudCanvas : Control
             string icon, key; float cd = 0, cdMax = 1; bool dim = false; string cnt = "";
             if (i < 6)
             {
-                var id = i < d.Bar.Length ? d.Bar[i] : null; var sk = string.IsNullOrEmpty(id) ? null : Skills.Get(id!); icon = sk != null ? Icons.ForSkill(sk) : ""; key = (i + 1).ToString();
+                var id = i < d.Bar.Length ? d.Bar[i] : null; var sk = string.IsNullOrEmpty(id) ? null : Skills.Get(id!); icon = sk != null ? Icons.ForSkill(sk) : ""; key = Inputs.KeyOf("spell" + (i + 1));
                 if (sk != null) { var sc = Skills.Compute(id!); cd = p.CdOf(id); cdMax = p.CdMaxOf(id); dim = p.Mp < sc.Mp || p.St < sc.St; cnt = sc.Mp > 0 ? $"{sc.Mp:0}" : $"{sc.St:0}"; }
             }
-            else { bool hp = i == 6; icon = hp ? "hp" : "mp"; key = hp ? "H" : "G"; cnt = (hp ? d.HpPot : d.MpPot).ToString(); dim = (hp ? d.HpPot : d.MpPot) <= 0; }
+            else { bool hp = i == 6; icon = hp ? "hp" : "mp"; key = Inputs.KeyOf(hp ? Inputs.PotHp : Inputs.PotMp); cnt = (hp ? d.HpPot : d.MpPot).ToString(); dim = (hp ? d.HpPot : d.MpPot) <= 0; }
             // vector icon (scripts/Icons.cs), dimmed when unaffordable; radial cooldown sweep with seconds left
             if (icon != "") Icons.Draw(this, icon, r.GetCenter() + new Vector2(0, -ss * .02f), ss * .68f, dim ? .35f : 1f);
             if (cd > 0)
@@ -184,7 +185,7 @@ public partial class HudCanvas : Control
             Glass(new Rect2(x, y, w, f * 2.6f), false);
             bool lead = party != null && party.Leader == id;
             Txt(new Vector2(x + 8, y + f + 3), (lead ? "* " : "") + p.Name, f, party != null ? new Color(.6f, 1f, .65f) : Colors.White);
-            Txt(new Vector2(x + 8, y + f + 3), p.Zone == 1 ? "dungeon" : p.Zone == 2 ? "arena" : $"Lv {p.Level}", Mathf.Max(10, f - 3), UiTheme.Dim, HorizontalAlignment.Right, w - 16);
+            Txt(new Vector2(x + 8, y + f + 3), Net.InDungeonZone(p.Zone) ? "dungeon" : p.Zone == 2 ? "arena" : $"Lv {p.Level}", Mathf.Max(10, f - 3), UiTheme.Dim, HorizontalAlignment.Right, w - 16);
             float hf = Mathf.Clamp(p.Hp / Mathf.Max(1, p.MaxHp), 0, 1);
             SlantBar(new Rect2(x + 8, y + f + 9, w - 16, 6), hf, hf > .5f ? new Color("5be37d") : hf > .25f ? new Color("f2d14b") : new Color("ff5a4f"), 4, 0);
             y += f * 2.6f + 5;

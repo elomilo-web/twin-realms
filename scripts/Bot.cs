@@ -371,6 +371,29 @@ public partial class Bot : Node
             Check("xp curve is easy early and gets harder", n1 <= 60 && n2 > n1 && rising && n20 > n10 * 3, $"need L1 {n1}, L2 {n2}, L10 {n10}, L20 {n20}");
             var t = new PlayerStats { Level = 1, AttrPts = 0, SkillPts = 0, RankPts = 0 }; int ups = t.GainXp(Progression.XpNeed(1));
             Check("level up gives 3 attribute, 1 skill, 2 skill tree points", ups == 1 && t.Level == 2 && t.AttrPts == 3 && t.RankPts == 1 && t.SkillPts == 2, $"attr {t.AttrPts}, skill {t.RankPts}, tree {t.SkillPts}");
+            // party rules: 90% of the experience split between members; parties find a little more
+            Check("party experience: 90% split evenly", Progression.PartyShare(100, 1) == 100 && Progression.PartyShare(100, 2) == 45 && Progression.PartyShare(100, 3) == 30, $"solo 100, duo {Progression.PartyShare(100, 2)}, trio {Progression.PartyShare(100, 3)}");
+            Check("party dungeon level = average party level + 3", Progression.PartyDungeonLevel(5.5f, 1) == 9 && Progression.PartyDungeonLevel(4, 2) == 8, $"{Progression.PartyDungeonLevel(5.5f, 1)}, {Progression.PartyDungeonLevel(4, 2)}");
+            // join codes round-trip for home and internet addresses
+            bool codesOk = true; foreach (var (ip, port) in new[] { ("192.168.1.20", 24565), ("10.0.0.5", 24565), ("203.0.113.254", 40000), ("255.255.255.255", 65535) })
+                codesOk &= JoinCode.TryRead(JoinCode.Make(ip, port), out var rip, out var rp) && rip == ip && rp == port;
+            Check("join codes turn back into the address and port", codesOk && !JoinCode.TryRead("hello", out _, out _), JoinCode.Make("192.168.1.20", 24565));
+            await Task.CompletedTask;
+        });
+
+        await Step("controls", async () =>
+        {
+            // rebind jump to J: Journal (on J) swaps to Space; then back to defaults
+            var j = new InputEventKey { PhysicalKeycode = Key.J };
+            string? swapped = Inputs.Rebind(Inputs.Jump, j);
+            bool moved = Inputs.Current(Inputs.Jump) is InputEventKey k1 && k1.PhysicalKeycode == Key.J && Inputs.Current(Inputs.Journal) is InputEventKey k2 && k2.PhysicalKeycode == Key.Space;
+            Check("a key can be rebound and a clash swaps", moved && swapped == "Journal" && Inputs.KeyOf(Inputs.Jump) == "J", $"jump {Inputs.KeyOf(Inputs.Jump)}, journal {Inputs.KeyOf(Inputs.Journal)}");
+            var press = new InputEventKey { PhysicalKeycode = Key.J, Pressed = true };
+            Check("the new key triggers the action (and only that one)", InputMap.EventIsAction(press, Inputs.Jump) && !InputMap.EventIsAction(press, Inputs.Journal));
+            Inputs.Rebind(Inputs.Attack, new InputEventMouseButton { ButtonIndex = MouseButton.Xbutton1 }); bool mouseOk = Inputs.KeyOf(Inputs.Attack) == "Mouse 4";
+            Inputs.ResetAll(); bool reset = Inputs.KeyOf(Inputs.Jump) == "Space" && Inputs.KeyOf(Inputs.Journal) == "J" && Inputs.KeyOf(Inputs.Attack) == "LMB" && Game.Set.Binds.Count == 0;
+            Check("mouse buttons bind too, and reset restores the defaults", mouseOk && reset);
+            Ui.I!.OpenControls(); await Wait(0.3f); Check("controls menu opens", Ui.I.PanelName == "controls"); await Shot("18_controls"); Ui.I.Close(); await Wait(0.1f);
             await Task.CompletedTask;
         });
 

@@ -11,7 +11,7 @@ First time only: the export templates must be installed (`%APPDATA%\Godot\export
 
 ## Play together
 1. The host picks a hero on the title screen, then **Multiplayer > Host a game**. Windows asks to allow Twin Realms through the firewall: allow it (both Private and Public if you are unsure).
-2. The friend picks their hero, **Multiplayer**, types the host's address, **Join**.
+2. The host opens Esc > **Multiplayer**, presses **Copy** next to the internet join code (or the Same Wi-Fi code) and sends it. The friend picks their hero, **Multiplayer**, **Paste**, **Join**.
 3. Addresses: same Wi-Fi uses the home address the host's menu shows (192.168.x.x). Over the internet see `docs/MULTIPLAYER.md` (UPnP, port forwarding UDP 24565, or Tailscale / Radmin VPN, which is the easiest).
 
 ## Saves
@@ -19,7 +19,11 @@ First time only: the export templates must be installed (`%APPDATA%\Godot\export
 - Older single-hero saves load into slot 1 automatically.
 - Return to title (Esc > Quit to title) saves and goes back to the character select screen.
 
+## Controls
+- Settings > **Controls** (title screen or Esc menu): click an action, press the new key or mouse button. A key that is already used swaps over. Reset to defaults puts everything back. Saved in settings.json on each computer.
+
 ## What to try
+- Party up (walk to your friend, E, Invite), then both use any dungeon door: you share one dungeon. Monsters are your average level + 3. Each kill gives each of you an equal share of 90% of its experience, and each of you gets your own loot.
 - Levels 1 to 5 come quickly; later levels take much longer (curve in `data/progression.json`).
 - Each level: 3 attribute points (Esc > Character), 1 skill point (L), 2 skill tree points (K).
 - Dungeons: monsters are your level + 2 (+1 per floor deeper), wear a gear tier and roll upgrades (Frenzied, Venomous, Searing, Stalwart...). Blue glow = one upgrade, gold glow = two or more. They give more experience and better loot.

@@ -32,6 +32,7 @@ public partial class Net
     public void DropLoot(Vector3 pos, int level, float chance, float bonus, int gold, float potChance, long killer)
     {
         var rec = Recipients(killer, pos); var party = PartyOf(killer); string mode = party?.Loot ?? "solo";
+        if (rec.Count > 1) chance = Mathf.Min(1f, chance * Progression.PartyDropMul);   // parties find a little more
         if (gold > 0)
         {
             if (rec.Count > 1) { int each = Mathf.CeilToInt(gold / (float)rec.Count); foreach (var r in rec) Give(r, new LootData { Gold = each }, "shared gold"); }
@@ -303,19 +304,70 @@ public partial class Net
     /// <summary>Asks the home router (UPnP) to forward the port so friends over the internet can reach us. Runs in the background.</summary>
     void OpenRouterPort(int port)
     {
-        UpnpStatus = "Asking your router to open the port ...";
+        UpnpStatus = "Asking your router to open the port ..."; PublicAddress = "";
         var t = new System.Threading.Thread(() =>
         {
             try
             {
                 var u = new Upnp(); int r = u.Discover(2000, 2, "InternetGatewayDevice");
-                if (r != (int)Upnp.UpnpResult.Success || u.GetGateway() == null || !u.GetGateway().IsValidGateway()) { UpnpStatus = "Your router did not answer (UPnP off). Friends on the internet need a port forward or a VPN; see the help below."; return; }
+                if (r != (int)Upnp.UpnpResult.Success || u.GetGateway() == null || !u.GetGateway().IsValidGateway()) { UpnpStatus = $"Your router did not answer (UPnP is off), so the internet code only works after you forward UDP port {port} to this computer, or use a VPN (help below)."; PublicAddress = LookUpPublicAddress(); return; }
                 int a = u.AddPortMapping(port, port, "Twin Realms", "UDP");
                 PublicAddress = u.QueryExternalAddress();
-                UpnpStatus = a == (int)Upnp.UpnpResult.Success ? $"Router port {port} opened. Internet address: {PublicAddress}" : $"Router refused to open the port ({(Upnp.UpnpResult)a}). Internet address: {PublicAddress}";
+                if (!IsPublic(PublicAddress)) PublicAddress = LookUpPublicAddress();
+                UpnpStatus = a == (int)Upnp.UpnpResult.Success ? $"Router port {port} opened: friends over the internet can join with your internet code." : $"Router refused to open the port ({(Upnp.UpnpResult)a}). Forward UDP {port} by hand or use a VPN (help below).";
             }
             catch (Exception e) { UpnpStatus = "Router check failed: " + e.Message; }
+            if (PublicAddress == "" || !IsPublic(PublicAddress)) PublicAddress = LookUpPublicAddress();
+            if (PublicAddress != "" && IsSharedByProvider(PublicAddress)) UpnpStatus += " Your internet provider shares one address between many homes (CGNAT), so direct joining over the internet will not work: use Tailscale or Radmin VPN.";
         }) { IsBackground = true };
         t.Start();
+    }
+
+    /// <summary>The router did not tell us our internet address: ask a public "what is my IP" service (one small HTTPS request).</summary>
+    static string LookUpPublicAddress()
+    {
+        foreach (var url in new[] { "https://api.ipify.org", "https://icanhazip.com" })
+        {
+            try
+            {
+                using var c = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+                string ip = c.GetStringAsync(url).GetAwaiter().GetResult().Trim();
+                if (System.Net.IPAddress.TryParse(ip, out var a) && a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork) return ip;
+            }
+            catch { }
+        }
+        return "";
+    }
+    static bool IsPublic(string ip)
+    {
+        if (!System.Net.IPAddress.TryParse(ip, out var a) || a.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork) return false;
+        var b = a.GetAddressBytes();
+        return !(b[0] == 10 || b[0] == 127 || b[0] == 0 || (b[0] == 172 && b[1] >= 16 && b[1] <= 31) || (b[0] == 192 && b[1] == 168) || (b[0] == 169 && b[1] == 254) || IsSharedByProvider(ip));
+    }
+    static bool IsSharedByProvider(string ip) { var p = ip.Split('.'); return p.Length == 4 && p[0] == "100" && int.TryParse(p[1], out int x) && x >= 64 && x <= 127; }
+}
+
+/// <summary>
+/// Join codes: the host's address and port packed into 10 letters and digits (like "4K7QM-2XH9D"), so a friend can type or paste
+/// a short code instead of an IP address and port. Same Wi-Fi: the home code; over the internet: the internet code.
+/// </summary>
+public static class JoinCode
+{
+    const string A = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";   // no I, L, O, U: nothing to misread
+    public static string Make(string ip, int port)
+    {
+        var p = ip.Split('.'); if (p.Length != 4) return "";
+        ulong v = 0; foreach (var s in p) { if (!byte.TryParse(s, out var b)) return ""; v = (v << 8) | b; }
+        v = (v << 16) | (ushort)port;
+        var c = new char[10]; for (int i = 9; i >= 0; i--) { c[i] = A[(int)(v & 31)]; v >>= 5; }
+        return new string(c, 0, 5) + "-" + new string(c, 5, 5);
+    }
+    public static bool TryRead(string code, out string ip, out int port)
+    {
+        ip = ""; port = 0; var s = code.Trim().ToUpperInvariant().Replace("-", "").Replace(" ", "").Replace('O', '0').Replace('I', '1').Replace('L', '1');
+        if (s.Length != 10) return false; ulong v = 0;
+        foreach (var ch in s) { int k = A.IndexOf(ch); if (k < 0) return false; v = (v << 5) | (uint)k; }
+        port = (int)(v & 0xffff); v >>= 16; ip = $"{(v >> 24) & 255}.{(v >> 16) & 255}.{(v >> 8) & 255}.{v & 255}";
+        return port > 0;
     }
 }

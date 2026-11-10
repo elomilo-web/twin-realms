@@ -14,9 +14,10 @@ public partial class Ui
 
     const string HelpText =
         "How friends connect:\n" +
-        "  Same house or Wi-Fi: they type one of your home addresses (it usually starts with 192.168 or 10.).\n" +
-        "  Over the internet: the game asks your router to open the port by itself (UPnP). If that fails, forward UDP port " + "24565" + " to this computer in your router settings, " +
-        "or have everyone install a free virtual network such as Tailscale, ZeroTier or Radmin VPN and use the address it shows.\n" +
+        "  Host a game, press Copy next to a join code and send it (Discord, text). Your friend pastes it under Join a friend.\n" +
+        "  Same house or Wi-Fi: use the Same Wi-Fi code.\n" +
+        "  Over the internet: use the internet code. The game asks your router to open the port by itself (UPnP). If the menu says that failed, forward UDP port " + "24565" + " to this computer in your router settings, " +
+        "or have both of you install a free virtual network such as Tailscale or Radmin VPN (easiest when the router cannot be changed) and use the Same Wi-Fi / VPN code it shows.\n" +
         "Everyone keeps their own hero: level, skills, pack and home storage come along and are saved on their own computer.";
 
     public void OpenMultiplayer()
@@ -50,9 +51,16 @@ public partial class Ui
         else
         {
             var jr = new HBoxContainer(); jr.AddThemeConstantOverride("separation", 8); v.AddChild(jr);
-            Lbl("Address", 15, Dim, jr); var addr = new LineEdit { Text = _joinAddr, PlaceholderText = "the host's address", CustomMinimumSize = new Vector2(260, 34) }; jr.AddChild(addr); addr.TextChanged += s => _joinAddr = s;
-            Lbl("Port", 15, Dim, jr); var jp = new LineEdit { Text = _port, CustomMinimumSize = new Vector2(110, 34) }; jr.AddChild(jp); jp.TextChanged += s => _port = s;
-            jr.AddChild(Btn("Join", () => { int p = int.TryParse(_port, out var x) ? x : Net.DefaultPort; Net.LastNote = ""; OnJoin?.Invoke(_joinAddr, p); OpenMultiplayer(); }));
+            Lbl("Join code or address", 15, Dim, jr); var addr = new LineEdit { Text = _joinAddr, PlaceholderText = "e.g. 4K7QM-2XH9D or 192.168.1.20", CustomMinimumSize = new Vector2(280, 34) }; jr.AddChild(addr); addr.TextChanged += s => _joinAddr = s;
+            jr.AddChild(Btn("Paste", () => { _joinAddr = DisplayServer.ClipboardGet().Trim(); OpenMultiplayer(); }, true));
+            Lbl("Port", 15, Dim, jr); var jp = new LineEdit { Text = _port, CustomMinimumSize = new Vector2(90, 34) }; jr.AddChild(jp); jp.TextChanged += s => _port = s;
+            jr.AddChild(Btn("Join", () =>
+            {
+                int p = int.TryParse(_port, out var x) ? x : Net.DefaultPort; string a = _joinAddr.Trim(); Net.LastNote = "";
+                if (JoinCode.TryRead(a, out var ip, out var cp)) { a = ip; p = cp; }   // a join code carries the address and port
+                OnJoin?.Invoke(a, p); OpenMultiplayer();
+            }));
+            Row(v, "Paste the join code your friend copied from their Multiplayer menu (the port box is only needed when typing an address).", Dim, 13);
             v.AddChild(Btn("Refresh status", OpenMultiplayer, true));
         }
         Row(v, HelpText, Dim, 13);
@@ -64,8 +72,20 @@ public partial class Ui
         Row(v, Net.IsHost ? "You are hosting. The world, its enemies, loot, the party chest and duels run on your computer." : "You are in a friend's world. Your hero and pack are saved on your computer.", Colors.White, 15);
         if (Net.IsHost)
         {
-            var addrs = Net.LocalAddresses();
-            Row(v, $"Home address{(addrs.Count == 1 ? "" : "es")}: {string.Join(",  ", addrs)}    Port: {_port}", UiTheme.Highlight, 15);
+            var addrs = Net.LocalAddresses(); int port = Net.HostPort;
+            // join codes: friends paste a short code instead of typing an address and port
+            Lbl("JOIN CODES (send one to your friend)", 15, UiTheme.Accent, v);
+            void CodeRow(string label, string ip)
+            {
+                var h = new HBoxContainer(); h.AddThemeConstantOverride("separation", 10); v.AddChild(h);
+                Lbl(label, 15, Dim, h).CustomMinimumSize = new Vector2(250, 0);
+                string code = JoinCode.Make(ip, port); var cl = Lbl(code, 22, UiTheme.Highlight, h); cl.CustomMinimumSize = new Vector2(190, 0);
+                h.AddChild(Btn("Copy", () => { DisplayServer.ClipboardSet(code); Note("Copied " + code + ". Paste it to your friend.", Gold); }, true));
+                Lbl($"({ip}:{port})", 13, Dim, h);
+            }
+            if (Net.PublicAddress != "") CodeRow("Over the internet:", Net.PublicAddress);
+            else Row(v, "Finding your internet address ... press Refresh in a moment.", Dim, 14);
+            foreach (var a in addrs) CodeRow("Same Wi-Fi / VPN:", a);
             if (Net.UpnpStatus != "") Row(v, Net.UpnpStatus, Net.UpnpStatus.StartsWith("Router port") ? new Color(.6f, 1f, .7f) : new Color(1f, .8f, .55f), 14);
         }
         // ---- players
@@ -75,7 +95,7 @@ public partial class Ui
         foreach (var id in ids)
         {
             var p = net.Players[id]; bool self = id == me, party = net.SameParty(me, id);
-            string where = p.Zone == 1 ? "in a dungeon" : p.Zone == 2 ? "in the arena" : "in the world";
+            string where = p.Zone >= 1000 ? "in the party dungeon" : p.Zone == 1 ? "in a dungeon" : p.Zone == 2 ? "in the arena" : "in the world";
             Lbl(p.Name + (self ? " (you)" : "") + (id == 1 ? "  [host]" : ""), 16, self ? UiTheme.Highlight : party ? new Color(.55f, 1f, .6f) : Colors.White, grid).CustomMinimumSize = new Vector2(230, 0);
             Lbl($"Lv {p.Level} {Races.Get(p.Race).Name} {Classes.Get(p.Class).Name}", 14, Dim, grid).CustomMinimumSize = new Vector2(250, 0);
             Lbl(where + (party ? ", party" : ""), 14, Dim, grid).CustomMinimumSize = new Vector2(150, 0);
@@ -87,7 +107,7 @@ public partial class Ui
         // ---- party
         var pt = net.MyParty;
         Lbl("PARTY", 15, UiTheme.Accent, v);
-        if (pt == null) Row(v, "You are not in a party. Invite someone above: party members share experience, kill credit and gold, and the leader chooses how item drops are shared.", Dim, 14);
+        if (pt == null) Row(v, "You are not in a party. Invite someone above. A party shares one dungeon (any dungeon door takes you to where your party is; monsters are the party's average level + 3), splits 90% of each kill's experience evenly between members nearby, finds slightly more loot, and splits gold.", Dim, 14);
         else
         {
             var names = new List<string>(); foreach (var m in pt.Members) names.Add(net.NameOf(m) + (m == pt.Leader ? " (leader)" : ""));
@@ -100,7 +120,7 @@ public partial class Ui
             }
             v.AddChild(Btn("Leave party", () => net.LeaveParty(), true));
         }
-        Row(v, "Gold from party kills is split evenly. Drops reserved for someone become free for all after a minute. Personal loot is only visible to its owner.", Dim, 13);
+        Row(v, "Gold from party kills is split evenly. Drops reserved for someone become free for all after a minute. Personal loot is only visible to its owner. In party dungeons everyone always gets their own personal loot.", Dim, 13);
         // ---- leave
         var bot = new HBoxContainer(); bot.AddThemeConstantOverride("separation", 8); v.AddChild(bot);
         bot.AddChild(Btn("Refresh", OpenMultiplayer, true));

@@ -353,14 +353,16 @@ public partial class Ui : CanvasLayer
         v.AddChild(Btn("Resume", Close)); v.AddChild(Btn("Character (attributes)", OpenCharacterPanel)); v.AddChild(Btn("Save game", () => { Game.Save(); Note("Game saved", Gold); }));
         v.AddChild(Btn("Multiplayer" + (Net.Active ? $" ({Net.I!.Players.Count} online)" : ""), OpenMultiplayer));
         v.AddChild(Btn("Settings", OpenSettings)); v.AddChild(Btn("Quit to title", () => { GD.Print("[UI] quit to title"); Game.Save(); Net.I?.Shutdown(); GetTree().Paused = false; InGame = false; GetTree().ReloadCurrentScene(); }));
-        Row(v, "Controls: WASD move, Shift sprint, Space jump, C roll, LMB strike (hold for power), RMB guard, 1-6 skills, Tab lock on (again: next target), Q release, H/G potions, E interact, R shift realm, T horse, I pack, J journal, M map, K skill tree, L skills.", Dim, 14);
+        string K(string a) => Inputs.KeyOf(a);
+        Row(v, $"Controls (change them in Settings > Controls): {K(Inputs.Forward)}{K(Inputs.Left)}{K(Inputs.Back)}{K(Inputs.Right)} move, {K(Inputs.Sprint)} sprint, {K(Inputs.Jump)} jump, {K(Inputs.Roll)} roll, {K(Inputs.Attack)} strike (hold for power), {K(Inputs.Guard)} guard, {K(Inputs.Spell1)}-{K("spell6")} skills, {K(Inputs.Lock)} lock on (again: next target), {K(Inputs.Unlock)} release, {K(Inputs.PotHp)}/{K(Inputs.PotMp)} potions, {K(Inputs.Use)} interact, {K(Inputs.Realm)} shift realm, {K(Inputs.Mount)} horse, {K(Inputs.Pack)} pack, {K(Inputs.Journal)} journal, {K(Inputs.Map)} map, {K(Inputs.Tree)} skill tree, {K(Inputs.SkillsUi)} skills.", Dim, 14);
     }
     public void OpenSettings()
     {
-        var v = Frame("settings", "Settings", new Vector2(520, 380), OpenSettings); var s = Game.Set;
+        var v = Frame("settings", "Settings", new Vector2(520, 420), OpenSettings); var s = Game.Set;
         void Slider(string n, float val, float min, float max, Action<float> set) { var h = new HBoxContainer(); v.AddChild(h); var l = Lbl(n, 17, Colors.White, h); l.CustomMinimumSize = new Vector2(150, 0); var sl = new HSlider { MinValue = min, MaxValue = max, Step = 0.05, Value = val, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, CustomMinimumSize = new Vector2(250, 24) }; h.AddChild(sl); sl.ValueChanged += x => { set((float)x); Game.SaveSettings(); }; }
         Slider("Master volume", s.Master, 0, 1, x => s.Master = x); Slider("Effects", s.Sfx, 0, 1, x => s.Sfx = x); Slider("Ambient", s.Ambient, 0, 1, x => s.Ambient = x); Slider("Mouse sensitivity", s.Sens, 0.2f, 3, x => s.Sens = x);
         var cb = new CheckBox { Text = "Invert Y", ButtonPressed = s.InvertY, FocusMode = Control.FocusModeEnum.None }; cb.Toggled += on => { s.InvertY = on; Game.SaveSettings(); }; v.AddChild(cb);
+        v.AddChild(Btn("Controls (change keys)", OpenControls));
         v.AddChild(Btn(InGame ? "Back" : "Done", () => { if (InGame) OpenPause(); else ShowTitle(); }));
     }
 

@@ -22,7 +22,7 @@ if ($mode -eq "bot") {
   $h = Start-Process -FilePath $godot -ArgumentList "--path", ".", "--", "--mp-host" -RedirectStandardOutput mp_host_log.txt -RedirectStandardError mp_host_err.txt -PassThru -WindowStyle Normal
   Start-Sleep -Seconds 6
   & $godot --path . -- --mp-join 2>&1 | ForEach-Object { "$_" } | Out-File -Encoding utf8 mp_join_log.txt
-  if (-not $h.WaitForExit(90000)) { $h.Kill(); "HOST TIMED OUT" }
+  if (-not $h.WaitForExit(240000)) { $h.Kill(); "HOST TIMED OUT" }
   foreach ($s in "host", "join") {
     if (Test-Path "bot_out/mp_$s.txt") { "--- $s"; Get-Content "bot_out/mp_$s.txt" | Select-String "FAIL|passed" } else { "NO REPORT from $s (see mp_${s}_log.txt)" }
   }

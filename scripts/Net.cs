@@ -12,7 +12,12 @@ public class PeerInfo
     public Dictionary<string, Item?> Eq = new(); public int Party; public int Zone; public float Hp = 1, MaxHp = 1;
 }
 /// <summary>A party: members share kills, experience and gold; the leader picks how item drops are shared.</summary>
-public class PartyInfo { public int Id; public long Leader; public string Loot = "personal"; public int Rr; public List<long> Members = new(); }
+public class PartyInfo
+{
+    public int Id; public long Leader; public string Loot = "personal"; public int Rr; public List<long> Members = new();
+    // the party's shared dungeon (DunKey empty when nobody is inside): which dungeon, floor, seed, monster level and who runs the monsters
+    public string DunKey = ""; public int DunDepth, DunSeed, DunLvl; public long DunOwner;
+}
 
 /// <summary>
 /// Drop-in co-op over the internet or a home network (Godot ENet, UDP port 24565 by default).
@@ -31,10 +36,14 @@ public partial class Net : Node
     public static bool IsClient => Active && !I!._server;
     public static long MyId => Active ? I!._myId : 1;
     /// <summary>0 overworld, 1 a dungeon, 2 the arena. Heroes are only drawn and only interact when they share a zone.</summary>
-    public static int MyZone => Dungeon.Active ? 1 : Arenas.Active ? 2 : 0;
+    public static int MyZone => Dungeon.Active ? (Dungeon.Inst != 0 ? DunZone(Dungeon.Inst) : 1) : Arenas.Active ? 2 : 0;
+    /// <summary>Zone number of a party's shared dungeon (1 is a private dungeon).</summary>
+    public static int DunZone(int partyId) => 1000 + partyId;
+    public static bool InDungeonZone(int zone) => zone == 1 || zone >= 1000;
     public static string Status = "";
     public static bool AutoAccept;                 // the multiplayer bot accepts every invite and duel
     public static string LastNote = "";            // shown on the title screen after a disconnect
+    public static int HostPort = DefaultPort;      // the port we are hosting on (put into the join codes)
 
     ENetMultiplayerPeer? _peer; bool _live, _server; long _myId = 1; Action? _onWelcome;
     public readonly Dictionary<long, PeerInfo> Players = new();
@@ -75,7 +84,7 @@ public partial class Net : Node
         Shutdown();
         var p = new ENetMultiplayerPeer(); var err = p.CreateServer(port, MaxPlayers, Channels);
         if (err != Error.Ok) { Status = $"Could not host on port {port} ({err}). Is another game already using it?"; return false; }
-        Multiplayer.MultiplayerPeer = p; _peer = p; _live = true; _server = true; _myId = 1;
+        Multiplayer.MultiplayerPeer = p; _peer = p; _live = true; _server = true; _myId = 1; HostPort = port;
         Players.Clear(); Parties.Clear(); Players[1] = MeInfo(); Realm = World.Realm;
         LoadPartyChest();
         Status = $"Hosting on port {port}. Friends join with one of your addresses below.";
@@ -103,7 +112,7 @@ public partial class Net : Node
         _peer = null; _live = false; _server = false; _myId = 1; Players.Clear(); Parties.Clear(); Duel = null;
         foreach (var h in Heroes.Values) if (IsInstanceValid(h)) h.QueueFree(); Heroes.Clear();
         foreach (var l in LootNodes.Values) if (IsInstanceValid(l)) l.QueueFree(); LootNodes.Clear(); _lootRecs.Clear();
-        ClearProxies();
+        ClearProxies(); Dungeon.Detach();
         if (World.I != null) foreach (var e in World.NetEnemies) if (IsInstanceValid(e)) e.Puppet = false;
     }
 
@@ -227,7 +236,9 @@ public partial class Net : Node
         {
             _snapT -= dt; if (_snapT <= 0) { _snapT = .1f; SendEnemySnapshots(); }
             _worldT -= dt; if (_worldT <= 0) { _worldT = 2f; Broadcast(MethodName.R_World, World.TimeOfDay, Realm); TickLoot(2f); }
+            _dunT -= dt; if (_dunT <= 0) { _dunT = .5f; HostTickDungeons(); }
         }
+        if (Dungeon.IsOwner) { _dunSnapT -= dt; if (_dunSnapT <= 0) { _dunSnapT = .1f; SendDungeonSnapshots(); } }
         TickDuel(dt);
     }
 
@@ -296,6 +307,7 @@ public partial class Net : Node
     {
         var TS = Game.TS;
         var f = new float[] { raw, h.Knock, h.Stun, h.Up, h.From.X, h.From.Y, h.From.Z, TS["armorPen"], TS["armorPenP"], TS["magicPen"], TS["magicPenP"], h.Crit ? 1 : 0 };
+        if (e.FromDungeon) { if (Dungeon.Shared && !Dungeon.IsOwner) RpcId(Dungeon.Owner, MethodName.R_DunHit, Dungeon.Seed, e.NetIdx, f, h.Type, statuses); return; }
         if (e.DuelPeer != 0) { RpcId(e.DuelPeer, MethodName.R_DuelHit, f, h.Type, statuses); return; }
         RpcId(1, MethodName.R_EnemyHit, e.NetIdx, f, h.Type, statuses);
     }
@@ -321,7 +333,11 @@ public partial class Net : Node
         foreach (var (id, c, d, p) in l) sb.Append(id).Append(':').Append(c.ToString(ci)).Append(':').Append(d.ToString(ci)).Append(':').Append(p.ToString(ci)).Append(';');
         return sb.ToString();
     }
-    public void SendEnemyStun(Enemy e, float t) { if (e.DuelPeer == 0 && e.NetIdx >= 0) RpcId(1, MethodName.R_EnemyStun, e.NetIdx, t); }
+    public void SendEnemyStun(Enemy e, float t)
+    {
+        if (e.FromDungeon) { if (Dungeon.Shared && !Dungeon.IsOwner) RpcId(Dungeon.Owner, MethodName.R_DunStun, Dungeon.Seed, e.NetIdx, t); return; }
+        if (e.DuelPeer == 0 && e.NetIdx >= 0) RpcId(1, MethodName.R_EnemyStun, e.NetIdx, t);
+    }
     [Rpc(MultiplayerApi.RpcMode.AnyPeer)] void R_EnemyStun(int idx, float t) { if (_server && idx >= 0 && idx < World.NetEnemies.Count && IsInstanceValid(World.NetEnemies[idx])) World.NetEnemies[idx].Stun(Mathf.Min(t, 2f)); }
 
     /// <summary>Host: one of our enemies hit a friend's hero. Their game applies it to their hero (their armour, block, parry and evade).</summary>
@@ -358,7 +374,7 @@ public partial class Net : Node
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Unreliable, TransferChannel = 4)]
     void R_Shot(string kind, Vector3 pos, Vector3 vel, float life, bool big, float aoe, int zone)
     {
-        if (zone != 0 || MyZone != 0 || Game.Root == null || Player.Instance == null) return;
+        if (zone != MyZone || (zone != 0 && zone < 1000) || Game.Root == null || Player.Instance == null) return;   // overworld, or the same party dungeon
         var p = Projectile.Spawn(kind, 'x', pos, vel, 0, life, false, false, 0, big); p.NoNet = true;
     }
 
@@ -378,7 +394,8 @@ public partial class Net : Node
     /// <summary>Host: hands out experience, kill counts, quest progress and materials for a shared overworld kill.</summary>
     public void KillRewards(Enemy e, int xp, long killer, string mats)
     {
-        var rec = Recipients(killer, e.GlobalPosition); int share = rec.Count > 1 ? Mathf.RoundToInt(xp * .8f) : xp;
+        // party kill: 90% of the experience (data/progression.json "party") split evenly between the members nearby
+        var rec = Recipients(killer, e.GlobalPosition); int share = Progression.PartyShare(xp, rec.Count);
         foreach (var r in rec)
         {
             string m = r == killer ? mats : "";

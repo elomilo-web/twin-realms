@@ -63,14 +63,19 @@ public partial class MpBot : Node
             int meshes = 0; if (fh != null) foreach (var _ in fh.FindChildren("*", "MeshInstance3D", true, false)) meshes++;
             Check("the friend's hero has a body and gear", meshes > 15, $"{meshes} mesh parts");
             if (fh != null) { P.Teleport(fh.GlobalPosition + new Vector3(3.5f, .5f, 3.5f), 0f); Face(fh.GlobalPosition + Vector3.Up); await Wait(1f); await Shot("mp_host_sees_friend"); P.Teleport(World.OnGround(0, 9, .6f), 0f); }
+            // the lobby with the join codes to send to friends
+            await Until(() => Net.PublicAddress != "", 8f);
+            Ui.I!.OpenMultiplayer(); await Wait(.5f); await Shot("mp_host_lobby"); Ui.I.Close();
+            Check("the lobby shows join codes", Net.LocalAddresses().Count > 0 && JoinCode.Make(Net.LocalAddresses()[0], Port) != "", Net.PublicAddress != "" ? "internet address found" : "no internet address (offline?)");
             // the client drives the rest; keep our hero alive until the duel, then let the duel play out
             float t = 0;
-            while (!_joinDone && t < 240f)
+            while ((!_joinDone || (_dunStarted && !_hostDunDone)) && t < 300f)
             {
                 if (N.Duel == null) { P.Hp = Game.D.MaxHp(); }
                 await Wait(.25f); t += .25f;
             }
             Check("the friend finished their tests", _joinDone);
+            Check("the party dungeon tests ran", _dunStarted && _hostDunDone);
             Check("the friend's hits reached our enemies", N.Stats.GetValueOrDefault("remoteHits") > 0, $"{N.Stats.GetValueOrDefault("remoteHits")} hits");
             Check("the friend's kill was credited by the host", N.Stats.GetValueOrDefault("remoteKills") > 0);
             Check("a party was formed", N.Stats.GetValueOrDefault("parties") > 0);
@@ -85,6 +90,45 @@ public partial class MpBot : Node
     }
     [Rpc(MultiplayerApi.RpcMode.AnyPeer)] void R_Done() { _joinDone = true; }
 
+    // ---- party dungeon (the joiner asks us to follow it in)
+    bool _hostDunFought, _hostDunDone, _dunStarted;
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer)] void R_HostDungeon() { if (!_dunStarted) { _dunStarted = true; _ = HostDungeon(); } }
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer)] void R_HostDunFought() { _hostDunFought = true; }
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer)] void R_HostDunDone() { _hostDunDone = true; }
+    async Task HostDungeon()
+    {
+        try
+        {
+            Game.D.Eq["weapon"] = new Item { Name = "Bot Blade", Slot = "weapon", Wt = "sword", Dmg = 140 };
+            int xp0 = Game.D.Xp + Game.D.Level * 100000, kills0 = Game.D.Kills;
+            Dungeon.Enter("warrens", 1);   // a different door on purpose: we still join the party's dungeon
+            bool sh = await Until(() => Dungeon.Shared, 8f);
+            Check("we join the friend's party dungeon (any door leads to it)", sh && !Dungeon.IsOwner && Dungeon.Key == "barrow", $"key {Dungeon.Key}, owner {Dungeon.Owner}");
+            int pup = 0; foreach (var e in Dungeon.NetList) if (e != null && e.Puppet) pup++;
+            Check("its monsters mirror the friend's", pup > 0 && pup == Dungeon.NetList.Count, $"{pup}/{Dungeon.NetList.Count}");
+            Check("monster snapshots arrive from the friend", await Until(() => N.Stats.GetValueOrDefault("dunSnaps") > 0, 6f));
+            await Shot("mp_host_party_dungeon");
+            Enemy? m = null; float md = 1e9f; foreach (var e in Dungeon.NetList) if (e != null && !e.Dead && !e.Def.Boss) { float d = e.GlobalPosition.DistanceTo(P.GlobalPosition); if (d < md) { md = d; m = e; } }
+            if (m != null)
+            {
+                float t = 0; while (t < 25f && !m.Dead) { var d = m.GlobalPosition - P.GlobalPosition; d.Y = 0; if (d.Length() > 2.4f) P.Teleport(m.GlobalPosition - d.Normalized() * 1.7f + new Vector3(0, .5f, 0), Util.YawTo(d.X, d.Z)); Face(m.GlobalPosition + Vector3.Up); Mouse(true); await Wait(.08f); Mouse(false); await Wait(.15f); t += .23f; }
+                Check("our hits kill a monster the friend runs", m.Dead, $"{m.Def.N}, {t:0.0} s");
+            }
+            await Until(() => Game.D.Kills > kills0 && Game.D.Xp + Game.D.Level * 100000 > xp0, 5f);
+            Check("we get kill credit and an experience share in the party dungeon", Game.D.Kills > kills0 && Game.D.Xp + Game.D.Level * 100000 > xp0, $"kills {kills0} -> {Game.D.Kills}");
+            RpcId(Net.I!.Players.Count > 1 ? FriendId() : 1, MethodName.R_HostDunFought);
+            bool took = await Until(() => Dungeon.IsOwner, 30f);
+            int live = 0; foreach (var e in Dungeon.NetList) if (e != null && !e.Puppet) live++;
+            Check("when the friend leaves we take over the monsters", took && live == Dungeon.NetList.Count, $"owner {Dungeon.Owner}, {live} running here");
+            Dungeon.Leave(false);
+        }
+        catch (Exception e) { Check("host dungeon script threw", false, e.Message); }
+        _hostDunDone = true; if (Net.Active) RpcId(FriendId(), MethodName.R_HostDunDone);
+    }
+    long FriendId() { foreach (var id in N.Players.Keys) if (id != Net.MyId) return id; return 1; }
+    /// <summary>Waits for a condition while keeping our hero alive (dungeon monsters keep fighting while we wait).</summary>
+    async Task<bool> Heal(Func<bool> f, float timeout) { float t = 0; while (t < timeout) { if (Player.Instance != null) P.Hp = Game.D.MaxHp(); if (f()) return true; await Wait(.2f); t += .2f; } return f(); }
+
     // ================================================================== client
     async Task RunJoin()
     {
@@ -94,7 +138,10 @@ public partial class MpBot : Node
             Game.NewGame("ranger", "JoinBot", "elf"); Game.D.Eq["weapon"] = new Item { Name = "Bot Blade", Slot = "weapon", Wt = "sword", Dmg = 140 };
             Game.D.Eq["head"] = Items.Roll(5, 1, "head"); Game.D.Eq["armor"] = Items.Roll(5, 1, "armor");
             bool started = false;
-            N.Join("127.0.0.1", Port, () => { ((Main)Game.Root!).JoinWorld(); started = true; });
+            // join the way a friend does: with a join code (it carries the address and port)
+            string code = JoinCode.Make("127.0.0.1", Port); bool decoded = JoinCode.TryRead(code.ToLowerInvariant(), out var ip, out var jport);
+            Check("a join code carries the address and port", decoded && ip == "127.0.0.1" && jport == Port, $"{code} -> {ip}:{jport}");
+            N.Join(ip, jport, () => { ((Main)Game.Root!).JoinWorld(); started = true; });
             bool ok = await Until(() => started && Player.Instance != null, 40f);
             Check("joins the host's world", ok, Net.Status);
             if (!ok) { Finish(); return; }
@@ -178,6 +225,33 @@ public partial class MpBot : Node
             World.ShiftCd = 0; World.TryShiftRealm();
             Check("our shift request turns the whole world", await Until(() => World.Realm == 1, 5f));
             await Wait(2.5f); World.ShiftCd = 0; World.TryShiftRealm(); await Until(() => World.Realm == 0, 6f);
+
+            // ---- party dungeon: we open it (we run its monsters), the host follows us in, both fight, we leave and the host takes over
+            N.Stats.Clear();
+            Dungeon.Enter("barrow", 1);
+            bool sh = await Until(() => Dungeon.Shared, 8f);
+            Check("a party member opens a shared party dungeon", sh && Dungeon.IsOwner, $"shared {Dungeon.Shared}, zone {Net.MyZone}");
+            if (sh)
+            {
+                int hostLvl = N.Players.GetValueOrDefault(1)?.Level ?? 1, want = Progression.PartyDungeonLevel((Game.D.Level + hostLvl) / 2f, 1), wrong = 0;
+                foreach (var e in Dungeon.NetList) if (e != null && !e.Def.Boss && e.Level != want && e.Level != want + 1) wrong++;
+                Check("party dungeon level = average party level + 3", wrong == 0 && Dungeon.NetList.Count > 0, $"levels {Game.D.Level} and {hostLvl}, monsters {want}, wrong {wrong}");
+                RpcId(1, MethodName.R_HostDungeon);
+                bool hostIn = await Heal(() => N.HeroOf(1) is { Visible: true } h && h.Zone == Net.MyZone, 15f);
+                Check("the host follows us into the same dungeon and is drawn there", hostIn);
+                if (hostIn) { var hp = N.HeroOf(1)!.GlobalPosition; P.Teleport(hp + new Vector3(2.5f, .5f, 3f), 0f); Face(hp + Vector3.Up); await Wait(.8f); await Shot("mp_join_party_dungeon"); }
+                // we kill a monster: it is ours to decide, the host gets an equal share
+                Enemy? m = null; float md = 1e9f; foreach (var e in Dungeon.NetList) if (e != null && !e.Dead && !e.Def.Boss) { float d = e.GlobalPosition.DistanceTo(P.GlobalPosition); if (d < md) { md = d; m = e; } }
+                if (m != null)
+                {
+                    float t = 0; while (t < 25f && !m.Dead) { P.Hp = Game.D.MaxHp(); var d = m.GlobalPosition - P.GlobalPosition; d.Y = 0; if (d.Length() > 2.4f) P.Teleport(m.GlobalPosition - d.Normalized() * 1.7f + new Vector3(0, .5f, 0), Util.YawTo(d.X, d.Z)); Face(m.GlobalPosition + Vector3.Up); Mouse(true); await Wait(.08f); Mouse(false); await Wait(.15f); t += .23f; }
+                    Check("we kill a party dungeon monster and everyone inside is paid", m.Dead && N.Stats.GetValueOrDefault("dunKills") > 0, $"{m.Def.N} lv {m.Level}, {t:0.0} s");
+                }
+                Check("the host's hits reach the monsters we run", await Heal(() => N.Stats.GetValueOrDefault("dunRemoteHits") > 0, 25f), $"{N.Stats.GetValueOrDefault("dunRemoteHits")} hits");
+                await Heal(() => _hostDunFought, 30f);
+                Dungeon.Leave(false); Check("we leave; the host stays inside", !Dungeon.Active);
+                await Until(() => _hostDunDone, 30f);   // the host takes over the monsters, then reports
+            }
             Game.Save();
         }
         catch (Exception e) { Check("join script threw", false, e.Message + " " + e.StackTrace); }

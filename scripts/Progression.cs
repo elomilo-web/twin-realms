@@ -21,6 +21,11 @@ public static class Progression
     static float _xb = 40, _xl = 20, _xq = 6, _xc = .15f;
     public static int AttrPerLevel = 3, RankPerLevel = 1, TreePerLevel = 2;
     public static int DunOffset = 2, DunPerDepth = 1, DunBoss = 1;
+    public static float PartyXpPool = .9f, PartyDropMul = 1.15f; public static int PartyDunOffset = 3;
+    /// <summary>Each member's share of a party kill's experience: the pool split evenly (solo: all of it).</summary>
+    public static int PartyShare(int xp, int members) { Load(); return members > 1 ? Math.Max(1, (int)Math.Round(xp * PartyXpPool / members)) : xp; }
+    /// <summary>Monster level of a party's shared dungeon: average party level + offset, deeper floors add more.</summary>
+    public static int PartyDungeonLevel(float avgLevel, int depth) { Load(); return Math.Max(1, (int)Math.Round(avgLevel) + PartyDunOffset + DunPerDepth * Math.Max(0, depth - 1)); }
     static float _upBase = 1, _upPerDepth = .5f; static int _upMax = 4, _upBoss = 2;
     public static readonly List<MobMod> Gear = new(), Upgrades = new();
 
@@ -30,6 +35,7 @@ public static class Progression
         var r = JsonUtil.Load("res://data/progression.json").RootElement;
         if (r.TryGetProperty("xp", out var x)) { _xb = JsonUtil.F(x, "base", _xb); _xl = JsonUtil.F(x, "lin", _xl); _xq = JsonUtil.F(x, "quad", _xq); _xc = JsonUtil.F(x, "cube", _xc); }
         if (r.TryGetProperty("levelUp", out var l)) { AttrPerLevel = (int)JsonUtil.F(l, "attr", 3); RankPerLevel = (int)JsonUtil.F(l, "rank", 1); TreePerLevel = (int)JsonUtil.F(l, "tree", 2); }
+        if (r.TryGetProperty("party", out var pa)) { PartyXpPool = JsonUtil.F(pa, "xpPool", .9f); PartyDropMul = JsonUtil.F(pa, "dropMul", 1.15f); PartyDunOffset = (int)JsonUtil.F(pa, "dungeonOffset", 3); }
         if (!r.TryGetProperty("dungeon", out var d)) return;
         DunOffset = (int)JsonUtil.F(d, "levelOffset", 2); DunPerDepth = (int)JsonUtil.F(d, "perDepth", 1); DunBoss = (int)JsonUtil.F(d, "bossBonus", 1);
         if (d.TryGetProperty("gear", out var g)) foreach (var e in g.EnumerateArray()) Gear.Add(Mod(e));

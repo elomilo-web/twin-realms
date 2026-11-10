@@ -9,6 +9,7 @@ public class Settings
 {
     public float Master = 0.8f, Sfx = 0.8f, Ambient = 0.6f, Sens = 1f;
     public bool InvertY = false;
+    public Dictionary<string, string> Binds = new();   // rebound controls: action -> "k:keycode" / "m:button" (older settings files: empty = defaults)
 }
 
 /// <summary>Global game state, saving and cross-system helpers.</summary>
@@ -23,7 +24,7 @@ public static class Game
     public static event Action? Changed;        // fired when saved data changes (UI refresh)
 
     public static string SavePath = "user://save.json";   // the self-test bots use their own files so they never touch your hero
-    const string SetPath = "user://settings.json";
+    public static string SetPath = "user://settings.json";   // the test bots use their own file so they never change your controls
     static readonly JsonSerializerOptions Opt = new() { IncludeFields = true, WriteIndented = false };
 
     /// <summary>All permanent modifiers: skill tree nodes + race bonuses + class passive. Everything reads them through Game.TS.</summary>
@@ -125,7 +126,8 @@ public static class Game
             if (f != null) Set = JsonSerializer.Deserialize<Settings>(f.GetAsText(), Opt) ?? new Settings();
         }
         catch { Set = new Settings(); }
-        Sfx.ApplyVolumes();
+        Set.Binds ??= new();
+        Sfx.ApplyVolumes(); Inputs.ApplyBinds();
     }
     public static void SaveSettings()
     {

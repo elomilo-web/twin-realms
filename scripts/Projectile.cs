@@ -20,7 +20,8 @@ public partial class Projectile : Node3D
     {
         var p = new Projectile { Kind = kind, Own = own, Vel = vel, Dmg = dmg, Life = life, Crit = crit, Pierce = pierce, Aoe = aoe, Big = big };
         Game.Root!.AddChild(p); p.GlobalPosition = pos;
-        if (own != 'x' && Net.Active && Net.MyZone == 0 && (own == 'p' || Net.IsHost)) Net.I!.Shot(kind, pos, vel, life, big, aoe);   // everyone in the zone sees it fly
+        // everyone in the zone sees it fly: the overworld (host's foes) or our party dungeon (the owner's foes)
+        if (own != 'x' && Net.Active && ((Net.MyZone == 0 && (own == 'p' || Net.IsHost)) || (Net.MyZone >= 1000 && (own == 'p' || Dungeon.IsOwner)))) Net.I!.Shot(kind, pos, vel, life, big, aoe);
         return p;
     }
     public bool NoNet;   // Own 'x': a picture of someone else's shot; it hits nothing
@@ -149,6 +150,7 @@ public partial class Projectile : Node3D
     {
         bool overworldFoe = Source != null && IsInstanceValid(Source) ? !Source.FromDungeon && !Source.Arena : Net.MyZone == 0;
         if (Net.Active && overworldFoe) { foreach (var h in Net.WorldHeroes()) yield return h; yield break; }
+        if (Dungeon.IsOwner && Source != null && IsInstanceValid(Source) && Source.FromDungeon) { foreach (var h in Net.DungeonHeroes()) yield return h; yield break; }
         var pl = Player.Instance; if (pl != null && !pl.Dead) yield return pl;
     }
 }

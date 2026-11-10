@@ -406,9 +406,12 @@ public partial class Enemy : CharacterBody3D, IDamageable
         var D = Game.D; var p = Player.Instance;
         // shared overworld kill in multiplayer: the host pays the killer and their party (experience, quests, materials, loot by party rules)
         bool shared = Net.IsHost && NetIdx >= 0 && !Arena && !FromDungeon;
+        // party dungeon: the member running the monsters pays everyone on the floor (Net.DunKill)
+        bool dshared = FromDungeon && Dungeon.IsOwner && NetIdx >= 0, netKill = shared || dshared;
+        if (dshared) RespawnTime = 1e9f;   // keep the dead body (hidden) so its index stays valid for friends who arrive later
         long killer = _lastPeer < 0 ? Net.MyId : _lastPeer;
         float lvlF = Level < D.Level - 4 ? 0.5f : 1f;
-        int xp = Mathf.RoundToInt(Def.Xp * (1 + 0.12f * (Level - 1)) * (shared ? 1f : lvlF) * (Summoned ? 0.3f : 1f) * _xpMul);
+        int xp = Mathf.RoundToInt(Def.Xp * (1 + 0.12f * (Level - 1)) * (netKill ? 1f : lvlF) * (Summoned ? 0.3f : 1f) * _xpMul);
         if (DefOverride != null) xp = 0;
         Fx.Burst(GlobalPosition + Vector3.Up, Def.Kind == "wraith" ? new Color(0.7f, 0.4f, 1f) : new Color(0.8f, 0.2f, 0.2f), 16, 5f, 0.6f);
         var mats = new System.Text.StringBuilder();
@@ -416,14 +419,16 @@ public partial class Enemy : CharacterBody3D, IDamageable
             foreach (var kv in Def.Drops)
             {
                 int lo = kv.Value.Length > 0 ? kv.Value[0] : 1, hi = kv.Value.Length > 1 ? kv.Value[1] : lo, n = GD.RandRange(lo, hi);
-                if (shared) mats.Append(kv.Key).Append(':').Append(n).Append(';'); else GatherDb.Give(kv.Key, n, GlobalPosition);
+                if (netKill) mats.Append(kv.Key).Append(':').Append(n).Append(';'); else GatherDb.Give(kv.Key, n, GlobalPosition);
             }
-        if (shared) Net.I!.KillRewards(this, xp, killer, mats.ToString());
+        bool lootable = !Summoned && DefOverride == null && !Def.NoLoot;
+        int gold = GD.RandRange(2 + Level, 6 + Level * 2) * (Def.Boss ? 12 : 1);
+        float chance = Def.Boss ? 1f : Arena ? .12f : .2f + (Def.Realm == 1 ? .06f : 0f) + .06f * UpgradeCount(), bonus = (Def.Boss ? 2 : 0) + (Def.Realm == 1 ? 1 : 0) + _lootBonus;
+        if (dshared) { Net.I!.DunKill(this, xp, killer, mats.ToString(), lootable, gold, chance, bonus, Def.Boss ? .6f : .07f); lootable = false; }
+        else if (shared) Net.I!.KillRewards(this, xp, killer, mats.ToString());
         else { D.Kills++; if (xp > 0 && p != null) p.AddXp(xp, GlobalPosition); }
-        if (!Summoned && DefOverride == null && !Def.NoLoot)
+        if (lootable)
         {
-            int gold = GD.RandRange(2 + Level, 6 + Level * 2) * (Def.Boss ? 12 : 1);
-            float chance = Def.Boss ? 1f : Arena ? .12f : .2f + (Def.Realm == 1 ? .06f : 0f) + .06f * UpgradeCount(), bonus = (Def.Boss ? 2 : 0) + (Def.Realm == 1 ? 1 : 0) + _lootBonus;
             if (shared)
             {
                 Net.I!.DropLoot(GlobalPosition, Level, chance, bonus, gold, Def.Boss ? .6f : .07f, killer);
@@ -437,7 +442,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         }
         _lastPeer = -1;
         if (Arena) Arenas.OnEnemyDown(this);
-        else if (!shared) Quests.OnKill(Type, Def.Realm, Def.Boss);
+        else if (!netKill) Quests.OnKill(Type, Def.Realm, Def.Boss);
         if (Def.Boss) { Ui.Banner(Def.N, "has fallen"); Sfx.Play("level"); if (FromDungeon) Dungeon.OnBossDown(this); }
         if (!Arena && !Summoned && !FromDungeon && RespawnTime <= 0) RespawnTime = Def.Boss ? 600f : 260f;
         Game.Save();
@@ -654,9 +659,9 @@ public partial class Enemy : CharacterBody3D, IDamageable
     Node3D? PickHero()
     {
         var me = Player.Instance;
-        if (!Net.Active || Puppet || Arena || FromDungeon) return me;
+        if (!Net.Active || Puppet || Arena || (FromDungeon && !Dungeon.Shared)) return me;
         Node3D? best = null; float bd = float.MaxValue;
-        foreach (var h in Net.WorldHeroes()) { float d = h.GlobalPosition.DistanceSquaredTo(GlobalPosition); if (d < bd) { bd = d; best = h; } }
+        foreach (var h in FromDungeon ? Net.DungeonHeroes() : Net.WorldHeroes()) { float d = h.GlobalPosition.DistanceSquaredTo(GlobalPosition); if (d < bd) { bd = d; best = h; } }
         return best ?? me;
     }
 
@@ -680,8 +685,9 @@ public partial class Enemy : CharacterBody3D, IDamageable
     void PuppetDie()
     {
         _state = State.Dead; _deadT = 0; CollisionLayer = 0; _label.Visible = false; Hp = 0;
-        if (CurrentBoss == this) CurrentBoss = null; RespawnTime = 1e9f;
+        if (CurrentBoss == this) CurrentBoss = null; RespawnTime = 1e9f; if (_aura != null) _aura.Visible = false;
         Fx.Burst(GlobalPosition + Vector3.Up, Def.Kind == "wraith" ? new Color(0.7f, 0.4f, 1f) : new Color(0.8f, 0.2f, 0.2f), 16, 5f, 0.6f);
+        if (FromDungeon && Def.Boss) { Ui.Banner(Def.N, "has fallen"); Sfx.Play("level"); Dungeon.OnBossDown(this); }   // party dungeon: the way down opens for everyone
     }
     /// <summary>Client puppet: glide toward the host's position and heading; legs follow the actual speed.</summary>
     void PuppetMove(float dt)
@@ -713,7 +719,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
             var a = i == 0 ? 1f : -1f;
             var pos = GlobalPosition + new Vector3(a * 3f, 0.3f, 2f);
             var e = new Enemy { Type = Def.Summon, Level = Mathf.Max(1, Level - 1), Summoned = true, FromDungeon = FromDungeon, Position = pos, Owner_ = this };
-            GetParent().AddChild(e); _summoned++;
+            GetParent().AddChild(e); _summoned++; if (FromDungeon) Dungeon.Register(e);
             Fx.Burst(pos + Vector3.Up, new Color(0.6f, 0.3f, 0.9f), 14, 4f);
         }
         Ui.Note(Def.N + " calls for aid!", new Color(1, 0.6f, 0.4f));
