@@ -1,0 +1,945 @@
+{
+ "_help": "Models made by tools/kit_gen (original, CC0). Path: res://assets/models/kit/<group>/<name>.glb. size = width, height, depth in metres.",
+ "models": {
+  "nature": {
+   "tree_round_a": {
+    "tris": 1984,
+    "size": [
+     4.16,
+     5.69,
+     4.4
+    ]
+   },
+   "tree_round_b": {
+    "tris": 1984,
+    "size": [
+     5.7,
+     6.58,
+     5.31
+    ]
+   },
+   "tree_autumn": {
+    "tris": 1984,
+    "size": [
+     4.68,
+     5.46,
+     4.45
+    ]
+   },
+   "tree_blossom_pink": {
+    "tris": 2452,
+    "size": [
+     3.92,
+     4.76,
+     4.19
+    ]
+   },
+   "tree_blossom_white": {
+    "tris": 2452,
+    "size": [
+     4.2,
+     4.8,
+     4.29
+    ]
+   },
+   "tree_pine_a": {
+    "tris": 200,
+    "size": [
+     4.42,
+     6.24,
+     4.28
+    ]
+   },
+   "tree_pine_b": {
+    "tris": 200,
+    "size": [
+     5.37,
+     7.71,
+     5.24
+    ]
+   },
+   "tree_pine_snow": {
+    "tris": 200,
+    "size": [
+     4.41,
+     6.21,
+     4.21
+    ]
+   },
+   "tree_dead": {
+    "tris": 136,
+    "size": [
+     1.77,
+     4.3,
+     1.42
+    ]
+   },
+   "bush_a": {
+    "tris": 1280,
+    "size": [
+     1.44,
+     0.8,
+     1.19
+    ]
+   },
+   "bush_flower_pink": {
+    "tris": 2000,
+    "size": [
+     1.22,
+     0.81,
+     1.46
+    ]
+   },
+   "bush_flower_blue": {
+    "tris": 2000,
+    "size": [
+     1.35,
+     0.81,
+     1.27
+    ]
+   },
+   "bush_shadow": {
+    "tris": 1280,
+    "size": [
+     1.3,
+     0.81,
+     1.35
+    ]
+   },
+   "grass_tuft": {
+    "tris": 27,
+    "size": [
+     0.36,
+     0.59,
+     0.45
+    ]
+   },
+   "grass_tall": {
+    "tris": 33,
+    "size": [
+     0.44,
+     0.93,
+     0.42
+    ]
+   },
+   "grass_shadow": {
+    "tris": 27,
+    "size": [
+     0.54,
+     0.57,
+     0.28
+    ]
+   },
+   "flower_white": {
+    "tris": 1491,
+    "size": [
+     0.3,
+     0.49,
+     0.48
+    ]
+   },
+   "flower_blue": {
+    "tris": 1491,
+    "size": [
+     0.3,
+     0.49,
+     0.48
+    ]
+   },
+   "flower_red": {
+    "tris": 1491,
+    "size": [
+     0.3,
+     0.49,
+     0.48
+    ]
+   },
+   "flower_gold": {
+    "tris": 1491,
+    "size": [
+     0.3,
+     0.49,
+     0.48
+    ]
+   },
+   "rock_a": {
+    "tris": 320,
+    "size": [
+     1.31,
+     0.78,
+     1.03
+    ]
+   },
+   "rock_b": {
+    "tris": 320,
+    "size": [
+     1.67,
+     0.71,
+     1.23
+    ]
+   },
+   "rock_tall": {
+    "tris": 320,
+    "size": [
+     0.96,
+     1.9,
+     0.97
+    ]
+   },
+   "boulder": {
+    "tris": 320,
+    "size": [
+     3.2,
+     1.95,
+     2.52
+    ]
+   },
+   "cliff_spires": {
+    "tris": 960,
+    "size": [
+     4.58,
+     4.05,
+     2.0
+    ]
+   },
+   "crystal_cyan": {
+    "tris": 440,
+    "size": [
+     1.06,
+     1.4,
+     1.24
+    ]
+   },
+   "crystal_violet": {
+    "tris": 440,
+    "size": [
+     1.16,
+     1.4,
+     1.11
+    ]
+   },
+   "crystal_gold": {
+    "tris": 416,
+    "size": [
+     1.08,
+     1.0,
+     1.09
+    ]
+   },
+   "mushroom_red": {
+    "tris": 270,
+    "size": [
+     0.5,
+     0.45,
+     0.6
+    ]
+   },
+   "mushroom_glow": {
+    "tris": 270,
+    "size": [
+     0.5,
+     0.45,
+     0.6
+    ]
+   },
+   "stump": {
+    "tris": 170,
+    "size": [
+     0.97,
+     0.6,
+     0.98
+    ]
+   },
+   "log": {
+    "tris": 108,
+    "size": [
+     2.02,
+     0.54,
+     0.55
+    ]
+   },
+   "reeds": {
+    "tris": 208,
+    "size": [
+     0.56,
+     1.5,
+     0.54
+    ]
+   },
+   "lilypads": {
+    "tris": 110,
+    "size": [
+     1.19,
+     0.11,
+     0.94
+    ]
+   }
+  },
+  "village": {
+   "house_cottage": {
+    "tris": 516,
+    "size": [
+     5.56,
+     5.53,
+     5.0
+    ]
+   },
+   "house_town_blue": {
+    "tris": 936,
+    "size": [
+     6.46,
+     8.41,
+     5.7
+    ]
+   },
+   "house_town_teal": {
+    "tris": 852,
+    "size": [
+     5.26,
+     7.27,
+     5.9
+    ]
+   },
+   "house_shop": {
+    "tris": 988,
+    "size": [
+     6.66,
+     8.49,
+     6.17
+    ]
+   },
+   "house_inn_lit": {
+    "tris": 936,
+    "size": [
+     8.26,
+     9.17,
+     6.3
+    ]
+   },
+   "house_hut": {
+    "tris": 432,
+    "size": [
+     4.16,
+     4.3,
+     4.0
+    ]
+   },
+   "windmill": {
+    "tris": 304,
+    "size": [
+     7.6,
+     9.4,
+     4.03
+    ]
+   },
+   "well": {
+    "tris": 284,
+    "size": [
+     2.16,
+     3.11,
+     2.0
+    ]
+   },
+   "market_stall_red": {
+    "tris": 416,
+    "size": [
+     3.05,
+     2.32,
+     1.82
+    ]
+   },
+   "market_stall_blue": {
+    "tris": 416,
+    "size": [
+     3.05,
+     2.32,
+     1.82
+    ]
+   },
+   "bridge_stone": {
+    "tris": 492,
+    "size": [
+     8.37,
+     2.98,
+     3.3
+    ]
+   },
+   "waystone": {
+    "tris": 224,
+    "size": [
+     2.6,
+     4.44,
+     2.6
+    ]
+   },
+   "street_lamp": {
+    "tris": 236,
+    "size": [
+     0.96,
+     2.6,
+     0.4
+    ]
+   },
+   "signpost": {
+    "tris": 56,
+    "size": [
+     2.16,
+     2.3,
+     0.67
+    ]
+   },
+   "fence": {
+    "tris": 84,
+    "size": [
+     2.13,
+     1.05,
+     0.13
+    ]
+   },
+   "bench": {
+    "tris": 48,
+    "size": [
+     1.6,
+     0.97,
+     0.54
+    ]
+   },
+   "barrel": {
+    "tris": 140,
+    "size": [
+     0.8,
+     1.0,
+     0.76
+    ]
+   },
+   "crate": {
+    "tris": 84,
+    "size": [
+     0.96,
+     0.92,
+     0.96
+    ]
+   }
+  },
+  "castle": {
+   "castle_wall": {
+    "tris": 168,
+    "size": [
+     4.0,
+     5.8,
+     1.5
+    ]
+   },
+   "castle_wall_low": {
+    "tris": 168,
+    "size": [
+     4.0,
+     3.8,
+     1.2
+    ]
+   },
+   "castle_tower": {
+    "tris": 534,
+    "size": [
+     5.02,
+     15.66,
+     5.03
+    ]
+   },
+   "castle_tower_tall": {
+    "tris": 534,
+    "size": [
+     4.56,
+     19.25,
+     4.57
+    ]
+   },
+   "castle_tower_open": {
+    "tris": 336,
+    "size": [
+     5.47,
+     7.15,
+     5.48
+    ]
+   },
+   "castle_gatehouse": {
+    "tris": 744,
+    "size": [
+     9.54,
+     10.95,
+     2.94
+    ]
+   },
+   "castle_keep": {
+    "tris": 2898,
+    "size": [
+     12.43,
+     23.95,
+     12.43
+    ]
+   },
+   "castle_stairs": {
+    "tris": 120,
+    "size": [
+     2.0,
+     5.0,
+     5.0
+    ]
+   },
+   "banner_blue": {
+    "tris": 80,
+    "size": [
+     1.09,
+     3.5,
+     0.24
+    ]
+   },
+   "banner_red": {
+    "tris": 80,
+    "size": [
+     1.09,
+     3.5,
+     0.24
+    ]
+   }
+  },
+  "dungeon": {
+   "dun_floor_a": {
+    "tris": 204,
+    "size": [
+     4.0,
+     0.14,
+     4.0
+    ]
+   },
+   "dun_floor_b": {
+    "tris": 204,
+    "size": [
+     4.0,
+     0.14,
+     4.0
+    ]
+   },
+   "dun_floor_rune": {
+    "tris": 360,
+    "size": [
+     4.0,
+     0.16,
+     4.0
+    ]
+   },
+   "dun_wall": {
+    "tris": 180,
+    "size": [
+     4.08,
+     4.0,
+     0.73
+    ]
+   },
+   "dun_wall_torch": {
+    "tris": 240,
+    "size": [
+     4.08,
+     4.0,
+     1.08
+    ]
+   },
+   "dun_wall_torch_blue": {
+    "tris": 240,
+    "size": [
+     4.08,
+     4.0,
+     1.08
+    ]
+   },
+   "dun_doorway": {
+    "tris": 188,
+    "size": [
+     4.0,
+     4.0,
+     1.09
+    ]
+   },
+   "dun_pillar": {
+    "tris": 160,
+    "size": [
+     1.24,
+     4.0,
+     1.24
+    ]
+   },
+   "dun_pillar_broken": {
+    "tris": 112,
+    "size": [
+     2.07,
+     1.7,
+     1.64
+    ]
+   },
+   "dun_stairs": {
+    "tris": 96,
+    "size": [
+     4.0,
+     4.0,
+     4.0
+    ]
+   },
+   "dun_gate": {
+    "tris": 270,
+    "size": [
+     3.0,
+     3.5,
+     0.3
+    ]
+   },
+   "dun_spikes": {
+    "tris": 172,
+    "size": [
+     2.0,
+     0.78,
+     2.0
+    ]
+   },
+   "chest_wood": {
+    "tris": 168,
+    "size": [
+     1.04,
+     0.81,
+     0.71
+    ]
+   },
+   "chest_rare": {
+    "tris": 188,
+    "size": [
+     1.04,
+     0.81,
+     0.8
+    ]
+   },
+   "chest_epic": {
+    "tris": 188,
+    "size": [
+     1.04,
+     0.81,
+     0.8
+    ]
+   },
+   "brazier": {
+    "tris": 272,
+    "size": [
+     0.92,
+     1.79,
+     0.92
+    ]
+   },
+   "brazier_blue": {
+    "tris": 272,
+    "size": [
+     0.92,
+     1.79,
+     0.92
+    ]
+   },
+   "altar": {
+    "tris": 84,
+    "size": [
+     3.2,
+     2.7,
+     2.24
+    ]
+   },
+   "rune_obelisk": {
+    "tris": 76,
+    "size": [
+     1.3,
+     4.0,
+     1.3
+    ]
+   },
+   "rune_obelisk_violet": {
+    "tris": 76,
+    "size": [
+     1.3,
+     4.0,
+     1.3
+    ]
+   },
+   "portal_ring": {
+    "tris": 280,
+    "size": [
+     3.52,
+     3.71,
+     1.2
+    ]
+   },
+   "portal_ring_violet": {
+    "tris": 280,
+    "size": [
+     3.52,
+     3.71,
+     1.2
+    ]
+   },
+   "sarcophagus": {
+    "tris": 60,
+    "size": [
+     1.3,
+     1.2,
+     2.6
+    ]
+   }
+  },
+  "weapons": {
+   "sword_knight": {
+    "tris": 304,
+    "size": [
+     0.26,
+     1.28,
+     0.08
+    ]
+   },
+   "sword_azure": {
+    "tris": 320,
+    "size": [
+     0.26,
+     1.33,
+     0.08
+    ]
+   },
+   "sword_ember": {
+    "tris": 400,
+    "size": [
+     0.3,
+     1.23,
+     0.08
+    ]
+   },
+   "sword_verdant": {
+    "tris": 304,
+    "size": [
+     0.26,
+     1.21,
+     0.08
+    ]
+   },
+   "sword_shadow": {
+    "tris": 320,
+    "size": [
+     0.26,
+     1.31,
+     0.08
+    ]
+   },
+   "greatsword_sun": {
+    "tris": 320,
+    "size": [
+     0.48,
+     1.96,
+     0.08
+    ]
+   },
+   "katana": {
+    "tris": 220,
+    "size": [
+     0.15,
+     1.28,
+     0.11
+    ]
+   },
+   "rapier": {
+    "tris": 400,
+    "size": [
+     0.2,
+     1.28,
+     0.16
+    ]
+   },
+   "dagger": {
+    "tris": 388,
+    "size": [
+     0.16,
+     0.59,
+     0.08
+    ]
+   },
+   "axe": {
+    "tris": 206,
+    "size": [
+     0.34,
+     1.1,
+     0.08
+    ]
+   },
+   "axe_double": {
+    "tris": 230,
+    "size": [
+     0.59,
+     1.1,
+     0.08
+    ]
+   },
+   "warhammer": {
+    "tris": 220,
+    "size": [
+     0.35,
+     1.21,
+     0.24
+    ]
+   },
+   "spear": {
+    "tris": 114,
+    "size": [
+     0.28,
+     2.35,
+     0.06
+    ]
+   },
+   "bow_wood": {
+    "tris": 364,
+    "size": [
+     0.22,
+     1.24,
+     0.04
+    ]
+   },
+   "bow_spirit": {
+    "tris": 372,
+    "size": [
+     0.25,
+     1.24,
+     0.04
+    ]
+   },
+   "staff_azure": {
+    "tris": 376,
+    "size": [
+     0.33,
+     2.0,
+     0.1
+    ]
+   },
+   "staff_ember": {
+    "tris": 376,
+    "size": [
+     0.33,
+     2.0,
+     0.1
+    ]
+   },
+   "wand_star": {
+    "tris": 190,
+    "size": [
+     0.13,
+     0.54,
+     0.04
+    ]
+   },
+   "wand_frost": {
+    "tris": 190,
+    "size": [
+     0.13,
+     0.54,
+     0.04
+    ]
+   },
+   "shield_round": {
+    "tris": 288,
+    "size": [
+     0.72,
+     0.72,
+     0.13
+    ]
+   },
+   "shield_kite": {
+    "tris": 144,
+    "size": [
+     0.6,
+     0.91,
+     0.09
+    ]
+   }
+  },
+  "armor": {
+   "helm_knight": {
+    "tris": 248,
+    "size": [
+     0.32,
+     0.44,
+     0.31
+    ]
+   },
+   "circlet_winged": {
+    "tris": 204,
+    "size": [
+     0.57,
+     0.22,
+     0.3
+    ]
+   },
+   "hat_mage": {
+    "tris": 248,
+    "size": [
+     0.6,
+     0.43,
+     0.6
+    ]
+   },
+   "hat_mage_red": {
+    "tris": 248,
+    "size": [
+     0.6,
+     0.43,
+     0.6
+    ]
+   },
+   "crown": {
+    "tris": 312,
+    "size": [
+     0.26,
+     0.15,
+     0.29
+    ]
+   },
+   "hood_ranger": {
+    "tris": 104,
+    "size": [
+     0.33,
+     0.33,
+     0.43
+    ]
+   },
+   "pauldron_plate": {
+    "tris": 488,
+    "size": [
+     0.27,
+     0.15,
+     0.23
+    ]
+   },
+   "pauldron_spiked": {
+    "tris": 420,
+    "size": [
+     0.27,
+     0.24,
+     0.23
+    ]
+   },
+   "cape_red": {
+    "tris": 208,
+    "size": [
+     0.74,
+     1.07,
+     0.22
+    ]
+   },
+   "cape_blue": {
+    "tris": 208,
+    "size": [
+     0.74,
+     1.07,
+     0.22
+    ]
+   }
+  }
+ }
+}
