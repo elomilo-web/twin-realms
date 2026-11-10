@@ -12,6 +12,23 @@
   "outlineColor": "2a1c1f",
   "outlineAlpha": 0.75
  },
+ "genshin": {
+  "_help": "Genshin-style shader on characters (Genshin.cs, assets/shaders/genshin_*.gdshader). enabled false = back to the plain toon look.",
+  "enabled": true,
+  "outline": true,
+  "outlineWidth": 1.8,
+  "outlineMaxWidth": 0.012,
+  "outlineFade": 60,
+  "outlineColor": "52333a",
+  "shadowThreshold": 0.5,
+  "shadowFeather": 0.015,
+  "receiveShadows": 1.0,
+  "ambient": 0.55,
+  "rim": 0.35,
+  "rimWidth": 0.28,
+  "hairHighlight": 0.35,
+  "metalHighlight": 0.8
+ },
  "env": {
   "exposure": 1.05,
   "white": 7.0,

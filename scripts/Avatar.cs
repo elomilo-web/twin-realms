@@ -45,8 +45,8 @@ public partial class Avatar : Node3D
             if (c is MeshInstance3D mi)
             {
                 if (mi.Name.ToString().Contains("Eye") && !mi.Name.ToString().Contains("brow")) { if (ap.GlowEyes) Tint(mi, null, ap.Eyes, 2.5f); continue; }
-                if (mi.Name.ToString().Contains("brow")) { Tint(mi, null, ap.Hair.Darkened(.2f), 0, true); continue; }
-                Tint(mi, null, ap.Skin, 0, true);   // flat skin colour reads best under the toon shader and follows the race
+                if (mi.Name.ToString().Contains("brow")) { Tint(mi, null, ap.Hair.Darkened(.2f), 0, true, 0, Genshin.Kind.Hair); continue; }
+                Tint(mi, null, ap.Skin, 0, true, 0, Genshin.Kind.Skin);   // flat skin colour reads best under the toon shader and follows the race
             }
         // hair, picked from the list by the seed so a hero always keeps the same style
         var hl = L(Cfg.GetProperty("hair"), _sex); if (hl.Count > 0)
@@ -62,7 +62,7 @@ public partial class Avatar : Node3D
     }
 
     /// <summary>Copies a material and recolours it. flat = drop the texture and use the colour as is. grow pushes clothing out along its normals so the body never shows through.</summary>
-    static void Tint(MeshInstance3D mi, Color? mul, Color? set, float glow = 0, bool flat = false, float grow = 0)
+    static void Tint(MeshInstance3D mi, Color? mul, Color? set, float glow = 0, bool flat = false, float grow = 0, Genshin.Kind kind = Genshin.Kind.Cloth)
     {
         for (int s = 0; s < (mi.Mesh?.GetSurfaceCount() ?? 0); s++)
         {
@@ -74,7 +74,7 @@ public partial class Avatar : Node3D
             if (glow > 0) { d.EmissionEnabled = true; d.Emission = set ?? d.AlbedoColor; d.EmissionEnergyMultiplier = glow; }
             d.NormalEnabled = false;   // the toon look does not use normal maps
             if (grow > 0) { d.Grow = true; d.GrowAmount = grow; }
-            Toon.Apply(d); mi.SetSurfaceOverrideMaterial(s, d);
+            Toon.Apply(d); mi.SetSurfaceOverrideMaterial(s, Genshin.From(d, kind));   // characters get the Genshin-style shader (Genshin.cs)
         }
     }
 
@@ -99,7 +99,8 @@ public partial class Avatar : Node3D
                     }
                 psk.RemoveChild(mi); mi.Owner = null; _sk.AddChild(mi); mi.Skeleton = new NodePath(".."); mi.Skin = skin;
                 float grow = slot == "hair" ? 0f : .006f;
-                if (tint != null) Tint(mi, flat ? null : tint, flat ? tint : null, 0, flat, grow); else Tint(mi, null, null, 0, false, grow);
+                var kind = slot == "hair" ? Genshin.Kind.Hair : Genshin.Kind.Cloth;
+                if (tint != null) Tint(mi, flat ? null : tint, flat ? tint : null, 0, flat, grow, kind); else Tint(mi, null, null, 0, false, grow, kind);
                 res.Add(mi);
             }
         inst.QueueFree();

@@ -542,6 +542,7 @@ void fragment(){
         // day fades out over a long twilight (sun from +0.25 to -0.12 elevation); dusk peaks as the sun touches the horizon
         float day = Smooth(-0.12f, 0.25f, elev), dusk = 1f - Smooth(0f, 0.3f, Mathf.Abs(elev - 0.02f));
         Night = (1 - day) * (1 - RealmT) + RealmT * 0.7f;
+        Genshin.SetNight(Night);   // characters switch to their cooler night shadow colours
         Sun.RotationDegrees = new Vector3(-Mathf.RadToDeg(Mathf.Asin(Mathf.Clamp(Mathf.Abs(elev) * 0.9f + 0.1f, 0.06f, 1f))), Mathf.RadToDeg(ang) + 90f, 0);
         var dayCol = new Color(1f, .95f, .86f).Lerp(new Color(1f, .55f, .3f), dusk); var moon = new Color(.55f, .62f, 1f); var shadowCol = new Color(.6f, .35f, .9f);
         Sun.LightColor = dayCol.Lerp(moon, Smooth(.35f, 0f, day)).Lerp(shadowCol, RealmT);

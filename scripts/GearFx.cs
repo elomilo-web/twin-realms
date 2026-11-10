@@ -50,6 +50,12 @@ public static class GearFx
         {
             for (int s = 0; s < (mi.Mesh?.GetSurfaceCount() ?? 0); s++)
             {
+                if (mi.GetActiveMaterial(s) is ShaderMaterial gm && Genshin.Is(gm))
+                {   // character parts already use the Genshin shader: keep it, add the glow on top
+                    var g = Genshin.WithPass(gm, edgeMat, t.Emit > 0 && weapon ? col : null, t.Emit);
+                    if (mi.MaterialOverride != null) { mi.MaterialOverride = g; break; }
+                    mi.SetSurfaceOverrideMaterial(s, g); continue;
+                }
                 if (mi.GetActiveMaterial(s) is not BaseMaterial3D b) continue;
                 var d = (BaseMaterial3D)b.Duplicate(); Toon.Apply(d);
                 if (t.Emit > 0 && weapon) { d.EmissionEnabled = true; d.Emission = col; d.EmissionEnergyMultiplier = t.Emit; }   // armor only gets the edge glow, so it keeps its colours
