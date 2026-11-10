@@ -25,6 +25,15 @@ window/stretch/aspect="expand"
 
 project/assembly_name="TwinRealms"
 
+[importer_defaults]
+
+texture={
+"process/size_limit": 1024
+}
+wav={
+"compress/mode": 2
+}
+
 [physics]
 
 3d/physics_engine="Jolt Physics"

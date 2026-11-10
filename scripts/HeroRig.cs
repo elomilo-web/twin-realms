@@ -8,7 +8,7 @@ namespace TwinRealms;
 public class Appearance
 {
     public Color Skin = new(.88f, .71f, .56f), Hair = new(.32f, .2f, .1f), Tunic = new(.58f, .16f, .17f), Pants = new(.27f, .22f, .2f), Cape = new(.18f, .22f, .4f), Eyes = new(.08f, .1f, .14f);
-    public float Height = 1f, Bulk = 1f; public bool PointyEars, Tusks, Beard, Horns, GlowEyes;
+    public float Height = 1f, Bulk = 1f; public bool PointyEars, Tusks, Beard, Horns, GlowEyes, Female;
 }
 
 /// <summary>

@@ -358,16 +358,16 @@ public partial class Ui : CanvasLayer
     }
     public void OpenSettings()
     {
-        var v = Frame("settings", "Settings", new Vector2(520, 420), OpenSettings); var s = Game.Set;
+        var v = Frame("settings", "Settings", new Vector2(520, 455), OpenSettings); var s = Game.Set;
         void Slider(string n, float val, float min, float max, Action<float> set) { var h = new HBoxContainer(); v.AddChild(h); var l = Lbl(n, 17, Colors.White, h); l.CustomMinimumSize = new Vector2(150, 0); var sl = new HSlider { MinValue = min, MaxValue = max, Step = 0.05, Value = val, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, CustomMinimumSize = new Vector2(250, 24) }; h.AddChild(sl); sl.ValueChanged += x => { set((float)x); Game.SaveSettings(); }; }
-        Slider("Master volume", s.Master, 0, 1, x => s.Master = x); Slider("Effects", s.Sfx, 0, 1, x => s.Sfx = x); Slider("Ambient", s.Ambient, 0, 1, x => s.Ambient = x); Slider("Mouse sensitivity", s.Sens, 0.2f, 3, x => s.Sens = x);
+        Slider("Master volume", s.Master, 0, 1, x => s.Master = x); Slider("Effects", s.Sfx, 0, 1, x => s.Sfx = x); Slider("Ambient", s.Ambient, 0, 1, x => s.Ambient = x); Slider("Music", s.Music, 0, 1, x => s.Music = x); Slider("Mouse sensitivity", s.Sens, 0.2f, 3, x => s.Sens = x);
         var cb = new CheckBox { Text = "Invert Y", ButtonPressed = s.InvertY, FocusMode = Control.FocusModeEnum.None }; cb.Toggled += on => { s.InvertY = on; Game.SaveSettings(); }; v.AddChild(cb);
         v.AddChild(Btn("Controls (change keys)", OpenControls));
         v.AddChild(Btn(InGame ? "Back" : "Done", () => { if (InGame) OpenPause(); else ShowTitle(); }));
     }
 
     // ---------------------------------------------------------------- title
-    static string _pickClass = "warrior", _pickRace = "human", _pickName = "Hero";
+    static string _pickClass = "warrior", _pickRace = "human", _pickName = "Hero", _pickBody = "male";
     static bool _slotInit; static int _confirmDelete = -1;
 
     /// <summary>Title = character select: three hero slots that live in the same save file. Pick one to play, host or join with; empty slots create a new hero.</summary>
@@ -435,6 +435,9 @@ public partial class Ui : CanvasLayer
         // ---- races
         var rc = new VBoxContainer { CustomMinimumSize = new Vector2(190, 0) }; cols.AddChild(rc); Lbl("RACE", 15, UiTheme.Accent, rc);
         foreach (var r in Races.All) { string id = r.Id; var b = Btn(r.Name, () => { _pickRace = id; ShowCreate(); }); if (id == _pickRace) b.AddThemeColorOverride("font_color", UiTheme.Highlight); rc.AddChild(b); }
+        Lbl("BODY", 15, UiTheme.Accent, rc);
+        var bodies = new HBoxContainer(); rc.AddChild(bodies);
+        foreach (var (id, label) in new[] { ("male", "Male"), ("female", "Female") }) { var b = Btn(label, () => { _pickBody = id; ShowCreate(); }); b.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; if (id == _pickBody) b.AddThemeColorOverride("font_color", UiTheme.Highlight); bodies.AddChild(b); }
         // ---- classes
         var cc = new VBoxContainer { CustomMinimumSize = new Vector2(330, 0) }; cols.AddChild(cc); Lbl("CLASS", 15, UiTheme.Accent, cc);
         var grid = new GridContainer { Columns = 2 }; grid.AddThemeConstantOverride("h_separation", 6); grid.AddThemeConstantOverride("v_separation", 4); cc.AddChild(grid);

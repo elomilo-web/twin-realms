@@ -96,11 +96,28 @@ public partial class Npc : Node3D, IInteractable
     {
         AddToGroup("interact");
         var rg = new System.Random(Id.GetHashCode());
-        BuildBody(rg);
+        if (Avatar.Available) BuildAvatar(rg); else BuildBody(rg);
         var shape = new StaticBody3D { CollisionLayer = 1 }; shape.AddChild(new CollisionShape3D { Shape = new CapsuleShape3D { Radius = .4f, Height = 1.8f }, Position = new Vector3(0, .9f, 0) }); AddChild(shape);
         AddChild(new Label3D { Text = NpcName, FontSize = 34, OutlineSize = 8, PixelSize = 0.005f, Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, Position = new Vector3(0, 2.25f, 0), Modulate = new Color(1f, .95f, .7f),
             VisibilityRangeEnd = 24f, VisibilityRangeEndMargin = 4f, VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self });
         _phase = (float)rg.NextDouble() * 6f;
+    }
+
+    // ---- villager as a character model: outfit and idle by role (data/avatar.json "npcs"), body and colours from the id
+    Avatar? _av;
+    void BuildAvatar(System.Random rg)
+    {
+        string role = NpcName.StartsWith("Guard") ? "guard" : Role;
+        var skins = new[] { new Color(.96f, .82f, .7f), new Color(.86f, .66f, .5f), new Color(.62f, .44f, .32f), new Color(.98f, .86f, .78f) };
+        var hairs = new[] { new Color(.15f, .1f, .06f), new Color(.45f, .3f, .15f), new Color(.8f, .65f, .38f), new Color(.68f, .68f, .7f), new Color(.55f, .22f, .1f) };
+        bool female = role != "guard" && role != "arena" && role != "smith" && rg.Next(2) == 0;
+        var ap = new Appearance { Female = female, Skin = skins[rg.Next(skins.Length)], Hair = hairs[Id == "maren" ? 3 : rg.Next(hairs.Length)], Beard = !female && rg.Next(4) == 0 };
+        _av = new Avatar { Name = "Avatar" }; AddChild(_av); _av.Build(ap, Id + NpcName);
+        var cfg = Avatar.Npc(role) ?? Avatar.Npc("talk");
+        Color? tint = cfg is { } c && Avatar.Str(c, "tint") != "" ? Color.FromHtml(Avatar.Str(c, "tint")) : Color.FromHsv((float)rg.NextDouble(), .35f, .95f);
+        string wt = cfg is { } c2 ? Avatar.Str(c2, "weapon") : "";
+        _av.Dress(cfg is { } c3 ? Avatar.Outfit(c3) : _ => null, wt == "" ? "none" : wt, tint.Value, tint);
+        _av.Play(cfg is { } c4 ? Avatar.Str(c4, "idle", "idle") : "idle");
     }
 
     // ---- villager body: legs, tunic, belt, arms with hands, head with hair, eyes and nose, plus gear by role. Upper body sways while idle.
@@ -161,7 +178,7 @@ public partial class Npc : Node3D, IInteractable
     {
         var p = Player.Instance; if (p == null) return; _t += (float)delta;
         var d = p.GlobalPosition - GlobalPosition; if (d.Length() < 8f) Rotation = new Vector3(0, Mathf.LerpAngle(Rotation.Y, Util.YawTo(d.X, d.Z), 0.08f), 0);
-        if (d.Length() > 40f) return;
+        if (d.Length() > 40f || _av != null) return;   // the model breathes through its idle clip
         // idle life: breathing, a slow weight shift, arms drifting
         float b = Mathf.Sin(_t * 1.6f + _phase), w = Mathf.Sin(_t * .45f + _phase);
         _upper.Position = new Vector3(0, .86f + b * .008f, 0); _upper.Rotation = new Vector3(b * .015f, 0, w * .035f);

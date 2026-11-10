@@ -8,7 +8,7 @@ namespace TwinRealms;
 /// <summary>What everyone in the lobby knows about one player (sent by the host as the "roster").</summary>
 public class PeerInfo
 {
-    public long Id; public string Name = "Hero", Race = "human", Class = "warrior"; public int Level = 1;
+    public long Id; public string Name = "Hero", Race = "human", Class = "warrior", Body = "male"; public int Level = 1;
     public Dictionary<string, Item?> Eq = new(); public int Party; public int Zone; public float Hp = 1, MaxHp = 1;
 }
 /// <summary>A party: members share kills, experience and gold; the leader picks how item drops are shared.</summary>
@@ -75,7 +75,7 @@ public partial class Net : Node
     public PeerInfo MeInfo()
     {
         var d = Game.D; var p = Player.Instance;
-        return new PeerInfo { Id = MyId, Name = d.Name, Race = d.Race, Class = d.Class, Level = d.Level, Eq = new Dictionary<string, Item?>(d.Eq), Zone = MyZone, Hp = p?.Hp ?? d.MaxHp(), MaxHp = d.MaxHp(), Party = Players.GetValueOrDefault(MyId)?.Party ?? 0 };
+        return new PeerInfo { Id = MyId, Name = d.Name, Race = d.Race, Class = d.Class, Body = d.Body, Level = d.Level, Eq = new Dictionary<string, Item?>(d.Eq), Zone = MyZone, Hp = p?.Hp ?? d.MaxHp(), MaxHp = d.MaxHp(), Party = Players.GetValueOrDefault(MyId)?.Party ?? 0 };
     }
 
     /// <summary>Starts hosting this world. Friends join with your address and the port.</summary>

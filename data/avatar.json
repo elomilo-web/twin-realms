@@ -1,0 +1,86 @@
+{
+  "_help": "Character models (scripts/Avatar.cs). Bodies, hair and outfit parts share one skeleton, so gear parts deform with the body. Gear is matched by keywords in the item name (first match wins). 'parts' are outfit glTF names in assets/models/outfit ({s} = Male/Female). 'tint' multiplies the part colours. 'proc' = no model yet, a procedural shape is used. Weapons: model is grip-at-origin, blade along +Z; 'len' is the length in metres. Trinkets are never shown.",
+  "bodies": {
+    "male": "res://assets/models/char/Superhero_Male_FullBody.gltf",
+    "female": "res://assets/models/char/Superhero_Female_FullBody.gltf"
+  },
+  "height": 1.82,
+  "hair": {
+    "male": ["Hair_SimpleParted", "Hair_Buzzed", "Hair_Long"],
+    "female": ["Hair_Long", "Hair_Buns", "Hair_BuzzedFemale", "Hair_SimpleParted"],
+    "beard": "Hair_Beard"
+  },
+  "anims": ["res://assets/models/anim/UAL2_Standard.glb", "res://assets/models/anim/AL_Standard.fbx"],
+  "_animsHelp": "The game loads assets/models/anim/clips.res (only the clips listed under 'clips'). After changing 'clips', rebuild it: godot --headless --path . -- --bake-anims. The source files above are not exported. animPelvis = hip height of the animation rig.",
+  "animPelvis": 0.9167,
+  "default": { "armor": ["{s}_Peasant_Body", "{s}_Peasant_Legs"], "feet": ["{s}_Peasant_Feet"], "hands": [] },
+  "armor": [
+    { "match": ["Robe"], "parts": ["{s}_Peasant_Body", "{s}_Peasant_Legs"], "tint": "class" },
+    { "match": ["Plate", "Cuirass"], "parts": ["{s}_Ranger_Body", "{s}_Ranger_Legs", "{s}_Ranger_Acc_Pauldron"], "tint": "c9d2dc" },
+    { "match": ["Hauberk"], "parts": ["{s}_Ranger_Body", "{s}_Ranger_Legs"], "tint": "a9b2bd" },
+    { "match": [""], "parts": ["{s}_Ranger_Body", "{s}_Ranger_Legs"] }
+  ],
+  "head": [
+    { "match": ["Hood"], "parts": ["{s}_Ranger_Head_Hood"], "hideHair": true },
+    { "match": ["Greathelm"], "proc": "greathelm", "hideHair": true },
+    { "match": ["Helm"], "proc": "helm", "hideHair": true },
+    { "match": ["Cap"], "proc": "cap", "hideHair": true },
+    { "match": [""], "proc": "circlet" }
+  ],
+  "hands": [
+    { "match": ["Wraps"], "parts": ["{s}_Peasant_Arms"] },
+    { "match": ["Gauntlets"], "parts": ["{s}_Ranger_Arms"], "tint": "c9d2dc" },
+    { "match": [""], "parts": ["{s}_Ranger_Arms"] }
+  ],
+  "feet": [
+    { "match": ["Greaves", "Sabatons"], "parts": ["{s}_Ranger_Feet"], "tint": "c9d2dc" },
+    { "match": [""], "parts": ["{s}_Ranger_Feet"] }
+  ],
+  "partAlias": { "Male_Ranger_Feet": "Male_Ranger_Feet_Boots", "Female_Ranger_Acc_Pauldron": "Female_Ranger_Acc_Pauldrons" },
+  "weapons": {
+    "sword": { "model": "Sword", "len": 0.95 },
+    "greatsword": { "model": "Claymore", "len": 1.4 },
+    "axe": { "model": "Axe", "len": 0.75 },
+    "mace": { "model": "Hammer_Small", "len": 0.72 },
+    "dagger": { "model": "Dagger", "len": 0.42 },
+    "spear": { "model": "Spear", "len": 2.0, "grip": 0.55 },
+    "bow": { "model": "Bow_Wooden", "len": 1.25, "grip": 0.5, "hand": "left" },
+    "wand": { "proc": true },
+    "staff": { "proc": true }
+  },
+  "weaponNames": { "Longsword": "Sword_2", "Falchion": "Sword_Golden", "Zweihander": "Sword_Big", "Executioner": "Sword_Big", "War Axe": "Axe_Double", "Bearded Axe": "Axe_Double", "Warhammer": "Hammer_Double", "Dirk": "Dagger_2", "Kris": "Dagger_2", "Warbow": "Bow_Evil", "Longbow": "Bow_Wooden2", "Recurve Bow": "Bow_Golden", "Glaive": "Scythe" },
+  "shields": { "Kite": "Shield_Heater", "Heater": "Shield_Heater_2", "Tower": "Shield_Heater", "Aegis": "Shield_Celtic_Golden", "Buckler": "Shield_Round_2", "": "Shield_Round" },
+  "shieldSize": 0.62,
+  "hold": {
+    "_help": "Where a held item sits relative to its bone, in model space at rest (T-pose: Y up, +Z forward, the right hand points to -X): position in metres, rotation in degrees. Weapons point their blade along +Z. Tuned by eye.",
+    "right": { "pos": [-0.08, -0.025, 0.0], "rot": [0, 0, 90] },
+    "left": { "pos": [0.08, -0.025, 0.0], "rot": [0, 0, 90] },
+    "shield": { "pos": [0.13, 0.07, 0.0], "rot": [-90, 0, 0] },
+    "cape": { "pos": [0.0, 0.12, -0.14], "rot": [0, 0, 0] }
+  },
+  "clips": {
+    "_help": "Animation clip names (from the two Universal Animation Libraries) used for each action. A list = combo steps in order.",
+    "idle": "Idle", "idleArmed": "Sword_Idle", "idleShield": "Idle_Shield", "walk": "Walk", "run": "Jog_Fwd", "sprint": "Sprint",
+    "jump": "Jump", "fall": "Jump", "land": "Jump_Land", "roll": "Roll", "die": "Death01", "hit": "Hit_Chest", "block": "Sword_Block",
+    "cast": "Spell_Simple_Shoot", "channel": "Spell_Simple_Idle", "shoot": "Spell_Simple_Shoot",
+    "melee": ["Sword_Regular_A", "Sword_Regular_B", "Sword_Regular_C"], "heavy": ["Sword_Attack", "Sword_Regular_B", "Sword_Regular_C"],
+    "power": "Sword_Regular_Combo", "powerHeavy": "Melee_Hook", "unarmed": ["Punch_Jab", "Punch_Cross"],
+    "talk": "Idle_Talking", "guard": "Idle_FoldArms", "smith": "TreeChopping", "sit": "Sitting_Idle", "cheer": "Yes"
+  },
+  "npcs": {
+    "_help": "Role -> outfit (as item-like names, matched like gear) and idle clip.",
+    "guard": { "armor": "Plate", "head": "Helm", "hands": "Gauntlets", "feet": "Greaves", "weapon": "spear", "idle": "guard" },
+    "arena": { "armor": "Plate", "head": "Greathelm", "hands": "Gauntlets", "feet": "Greaves", "weapon": "greatsword", "idle": "guard" },
+    "smith": { "armor": "Leather", "hands": "Gloves", "feet": "Boots", "weapon": "mace", "idle": "smith" },
+    "shop": { "idle": "talk" },
+    "quest": { "armor": "Robe", "idle": "talk", "tint": "5a6fa8" },
+    "talk": { "idle": "talk" }
+  },
+  "enemies": {
+    "_help": "Humanoid enemy types drawn with the character model (others stay procedural). tint colours the outfit.",
+    "bandit": { "body": "male", "armor": "Leather", "head": "Hood", "hands": "Gloves", "feet": "Boots", "weapon": "sword", "tint": "6b5a4a" },
+    "archer": { "body": "female", "armor": "Leather", "head": "Hood", "feet": "Boots", "weapon": "bow", "tint": "4f6b45" },
+    "brute": { "body": "male", "armor": "Robe", "hands": "Wraps", "weapon": "mace", "skin": "8fa36a", "tint": "5b4636" },
+    "warchief": { "body": "male", "armor": "Plate", "head": "Greathelm", "hands": "Gauntlets", "feet": "Greaves", "weapon": "greatsword", "tint": "7a3a32" }
+  }
+}

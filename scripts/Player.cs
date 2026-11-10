@@ -57,6 +57,12 @@ public partial class Player : CharacterBody3D, IDamageable
     {
         _rig = new HeroRig { Name = "Model" }; AddChild(_rig); _model = _rig;
         _rig.Build(Races.Look(Game.D));
+        if (Avatar.Available)
+        {
+            // the drawn hero: base body + separate gear models. HeroRig stays as the invisible pose source (hand targets, look-at).
+            var ap = Races.Look(Game.D); _av = new Avatar { Name = "Avatar", Scale = new Vector3(1 / ap.Bulk, 1 / ap.Height, 1 / ap.Bulk) };
+            _rig.AddChild(_av); _av.Build(ap, Game.D.Name); _av.AddCape(ap.Cape); HideRig();
+        }
         _trail = new SwordTrail(); AddChild(_trail);
         // a soft light around the hero that grows in the dark (night, Shadow realm, dungeons)
         _glow = new OmniLight3D { LightColor = new Color(1f, .86f, .65f), OmniRange = 9f, LightEnergy = 0f, ShadowEnabled = false, Position = new Vector3(0, 2.3f, .3f), LightSpecular = .1f };
@@ -78,7 +84,17 @@ public partial class Player : CharacterBody3D, IDamageable
         if (sig == _gearSig) return; _gearSig = sig;
         _rig.ApplyGear(d);
         _trail.Base = _rig.BladeBase; _trail.Tip = _rig.BladeTip; _trail.Col = Weapons.Get(d.WType()).Trail;
+        if (_av != null)
+        {
+            HideRig();
+            _av.Dress(s => d.Eq.GetValueOrDefault(s), d.WType(), Classes.Get(d.Class).Tunic);
+            if (_av.BladeTip != null) { _trail.Base = _av.BladeBase; _trail.Tip = _av.BladeTip; }
+            if (d.Weapon is { } wi && GearFx.Get(wi.Elem) is { } el) _trail.Col = el.Col;   // elemental weapons swing in their element's colour
+        }
     }
+    Avatar? _av; int _atkSerial, _avAtk, _castSerial, _avCast; bool _avRolling;
+    /// <summary>Hides the procedural hero meshes when the model is drawn (HeroRig still runs for hand targets).</summary>
+    void HideRig() { void H(Node n) { foreach (var c in n.GetChildren()) { if (c == _av) continue; if (c is GeometryInstance3D g) g.Visible = false; H(c); } } H(_rig); }
     bool HasShield => Game.D.Eq.GetValueOrDefault("shield") != null && Weapons.Get(Game.D.WType()).Hands < 2;
     WeaponDef W => Weapons.Get(Game.D.WType());
     bool Ranged => W.Ranged;
@@ -213,7 +229,7 @@ public partial class Player : CharacterBody3D, IDamageable
         // each weapon type has its own combo chain (data/weapons.json); power attacks reset it
         if (!power) _combo = _comboT > 0 ? (_combo + 1) % w.Combo.Count : 0; else _combo = 0;
         _atk = power ? w.Power : w.Combo[Mathf.Min(_combo, w.Combo.Count - 1)];
-        _atkPower = power; _atkDur = _atk.Dur / (Game.D.AtkSpeed() * w.Speed); _atkT = _atkDur; _hitDone = false; _comboT = _atkDur + 0.55f;
+        _atkPower = power; _atkDur = _atk.Dur / (Game.D.AtkSpeed() * w.Speed); _atkT = _atkDur; _hitDone = false; _comboT = _atkDur + 0.55f; _atkSerial++;
         float camYaw = Rig?.Yaw ?? _modelYaw; float face = camYaw;
         var tgt = Targeting.Current;
         if (tgt != null) { var d = tgt.GlobalPosition - GlobalPosition; face = Util.YawTo(d.X, d.Z); }
@@ -251,6 +267,7 @@ public partial class Player : CharacterBody3D, IDamageable
             float dmg = D.WpnDmg() * (float)GD.RandRange(0.9, 1.1) * mult * (crit ? D.CritMult() : 1f);
             var hi = new HitInfo { Damage = dmg, From = GlobalPosition, Knock = knock, Stun = stun, Up = up, Crit = crit, Attacker = this, IsPlayer = true, Kind = _atkPower ? "power" : fin ? "combo" : "light" };
             foreach (var kv in w.OnHit) hi.With(kv.Key, kv.Value * (fin || _atkPower ? 1.5f : 1f));
+            if (GearFx.Get(D.Weapon?.Elem) is { } el && el.Status != "") hi.With(el.Status, el.Proc * (fin || _atkPower ? 1.5f : 1f));   // elemental weapon
             e.TakeHit(hi); if (crit) TriggerAuto("crit");
             hits++;
         }
@@ -336,7 +353,8 @@ public partial class Player : CharacterBody3D, IDamageable
         if (Dead)
         {
             _deadT += dt; v.X = v.Z = 0; Velocity = v; MoveAndSlide();
-            _model.Rotation = new Vector3(Mathf.Lerp(0, -Mathf.Pi / 2, Mathf.Clamp(_deadT / 0.5f, 0, 1)), _modelYaw, 0);
+            if (_av != null) _av.Play("die", .15f);   // the model has a death clip; the procedural hero tips over
+            else _model.Rotation = new Vector3(Mathf.Lerp(0, -Mathf.Pi / 2, Mathf.Clamp(_deadT / 0.5f, 0, 1)), _modelYaw, 0);
             if (_deadT > 3f && !Arenas.Active) Respawner.PlayerDied();
             return;
         }
@@ -479,6 +497,7 @@ public partial class Player : CharacterBody3D, IDamageable
         float breath = Mathf.Sin(_idleT * 2.2f) * Feel.Breath * (1f - amt);                      // idle breathing
         float lean = Feel.Lean * amt * amt;                                                       // forward lean grows with speed
         float roll = _rollT > 0 ? (1f - _rollT / RollTime) * Mathf.Tau : 0f;
+        if (_av != null) { roll = 0; bob = breath = crouch = 0; }   // the model's clips do the roll, bob and crouch
         _model.Rotation = new Vector3(roll, _modelYaw, 0);
         _model.Position = new Vector3(0, (Mounted ? 0.9f : 0f) + bob + breath - crouch * .12f, 0);
         _horse.Rotation = new Vector3(0, _modelYaw, 0);
@@ -528,6 +547,7 @@ public partial class Player : CharacterBody3D, IDamageable
         // cape streams back with speed and flutters
         _capeX = Mathf.Lerp(_capeX, -(.05f + amt * .75f + Mathf.Sin(_idleT * 7f) * .05f * amt + (_rollT > 0 ? .4f : 0) + (!floor ? .5f : 0)), 1f - Mathf.Exp(-6f * dt));
         _rig.Cape.Rotation = new Vector3(_capeX + spineLean, 0, 0);
+        if (_av?.Cape != null) _av.Cape.Rotation = new Vector3(-_capeX * .8f, 0, 0);   // the model's back is +Z of the old rig's
         // swing trail during the cutting part of a melee attack: weapon colour, gold for power attacks, hot orange for finishers
         if (atk && !w.Ranged)
         {
@@ -535,5 +555,26 @@ public partial class Player : CharacterBody3D, IDamageable
             _trail.Col = _atkPower ? new Color(1f, .8f, .35f) : _atk.Finisher ? w.Trail.Lerp(new Color(1f, .45f, .2f), .6f) : w.Trail;
         }
         else _trail.Emit = false;
+        AnimateAvatar(hv, floor, atk);
+    }
+
+    /// <summary>Picks the model's clip from the hero's state (data/avatar.json "clips"). Attacks and casts are stretched to their real duration.</summary>
+    void AnimateAvatar(float hv, bool floor, bool atk)
+    {
+        var a = _av; if (a == null) return; var w = W;
+        bool rolling = _rollT > 0; bool rollStart = rolling && !_avRolling; _avRolling = rolling;
+        if (Mounted) { a.Play("sit"); return; }
+        if (rolling) { a.Play("roll", .06f, RollTime, rollStart); return; }
+        if (_stagger > 0) { a.Play("hit", .05f); return; }
+        if (atk)
+        {
+            bool fresh = _atkSerial != _avAtk; _avAtk = _atkSerial;
+            string key = w.Ranged ? (w.LeftHand ? "shoot" : "cast") : _atkPower ? (w.Hands > 1 ? "powerHeavy" : "power") : w.Hands > 1 ? "heavy" : "melee";
+            a.Play(key, .06f, _atkDur, fresh, Mathf.Max(0, _combo - 1)); return;
+        }
+        if (_castT > 0) { bool fresh = _castSerial != _avCast; _avCast = _castSerial; a.Play("cast", .08f, _castDur, fresh); return; }
+        if (_blocking) { a.Play("block", .1f); return; }
+        if (a.Busy && floor && (a.Cur.Contains("Sword") || a.Cur.Contains("Spell") || a.Cur.Contains("Punch") || a.Cur.Contains("Melee"))) return;   // let a swing finish
+        a.Move(hv, floor, Game.D.Weapon != null, HasShield);
     }
 }

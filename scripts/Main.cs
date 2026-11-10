@@ -9,6 +9,7 @@ public partial class Main : Node3D
 
     public override void _Ready()
     {
+        if (System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--bake-anims") >= 0) { Avatar.Bake(); GetTree().Quit(); return; }   // tools: rebuild assets/models/anim/clips.res
         GD.Print("[MAIN] scene start"); Inputs.Setup(); Game.Root = this; Dungeon.Active = false; Arenas.Active = false; World.Realm = 0; World.RealmT = 0; Ui.InGame = false;
         bool testing = Observer.Wanted() || Bot.Wanted() || MpBot.Wanted() != null;
         if (testing) Game.SetPath = "user://test_settings.json";
@@ -17,10 +18,10 @@ public partial class Main : Node3D
         AddChild(new Sfx { Name = "Sfx" });
         AddChild(new Net { Name = "Net" });
         var ui = new Ui { Name = "Ui" }; AddChild(ui);
-        Ui.OnNew = (cls, name, race) => { Game.NewGame(cls, name, race); Game.D.PosX = 0; Game.D.PosZ = 9; Begin(); };
+        Ui.OnNew = (cls, name, race) => { Game.NewGame(cls, name, race); Game.D.Body = Ui.PickedBody; Game.D.PosX = 0; Game.D.PosZ = 9; Begin(); };
         Ui.OnContinue = () => { if (!Game.Load()) Game.NewGame("warrior", "Hero"); Begin(); };   // plays the hero in Game.Slot (chosen on the character select screen)
         // multiplayer from the title: bring the saved hero (or the one picked on the title screen)
-        void Hero() { if (!Game.HasSave() || !Game.Load()) { Game.NewGame(Ui.PickedClass, Ui.PickedName, Ui.PickedRace); Game.D.PosX = 0; Game.D.PosZ = 9; } }
+        void Hero() { if (!Game.HasSave() || !Game.Load()) { Game.NewGame(Ui.PickedClass, Ui.PickedName, Ui.PickedRace); Game.D.Body = Ui.PickedBody; Game.D.PosX = 0; Game.D.PosZ = 9; } }
         Ui.OnHost = port => { Hero(); Begin(); Net.I!.Host(port); };
         Ui.OnJoin = (addr, port) => { Hero(); Net.I!.Join(addr, port, JoinWorld); };
         if (Observer.Wanted() || Bot.Wanted()) Game.SavePath = "user://test_save.json";
@@ -47,6 +48,7 @@ public partial class Main : Node3D
         if (_started) return; _started = true;
         GetNodeOrNull("TitleCam")?.QueueFree(); GetNodeOrNull("TitleEnv")?.QueueFree();
         Game.RecalcTree();
+        AddChild(new Toon { Name = "Toon" });   // first, so every mesh built after it gets the toon look
         var world = new World { Name = "World" }; AddChild(world);
         float px = Game.D.PosX, pz = Game.D.PosZ; var pos = World.OnGround(px, pz, 0.6f);
         var player = new Player { Name = "Player", Position = pos };

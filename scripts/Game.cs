@@ -7,7 +7,7 @@ namespace TwinRealms;
 
 public class Settings
 {
-    public float Master = 0.8f, Sfx = 0.8f, Ambient = 0.6f, Sens = 1f;
+    public float Master = 0.8f, Sfx = 0.8f, Ambient = 0.6f, Music = 0.5f, Sens = 1f;
     public bool InvertY = false;
     public Dictionary<string, string> Binds = new();   // rebound controls: action -> "k:keycode" / "m:button" (older settings files: empty = defaults)
 }

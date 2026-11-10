@@ -42,7 +42,7 @@ public static class Races
     public static Appearance Look(PlayerStats d)
     {
         var src = Get(d.Race).Look; var c = Classes.Get(d.Class);
-        return new Appearance { Skin = src.Skin, Hair = src.Hair, Eyes = src.Eyes, Height = src.Height, Bulk = src.Bulk, PointyEars = src.PointyEars, Tusks = src.Tusks, Beard = src.Beard, Horns = src.Horns, GlowEyes = src.GlowEyes,
+        return new Appearance { Skin = src.Skin, Hair = src.Hair, Eyes = src.Eyes, Height = src.Height, Bulk = src.Bulk, PointyEars = src.PointyEars, Tusks = src.Tusks, Beard = src.Beard, Horns = src.Horns, GlowEyes = src.GlowEyes, Female = d.Body == "female",
             Tunic = c.Tunic, Cape = c.Cape, Pants = c.Tunic.Darkened(.6f).Lerp(new Color(.25f, .2f, .18f), .5f) };
     }
 }

@@ -173,7 +173,8 @@ public partial class World : Node3D
             AdjustmentEnabled = true, AdjustmentContrast = LF("contrast", 1.12f), AdjustmentSaturation = LF("saturation", 1.2f), AdjustmentBrightness = LF("brightness", 1f),
         };
         Env = new WorldEnvironment { Environment = _env }; AddChild(Env);
-        Sun = new DirectionalLight3D { ShadowEnabled = true, DirectionalShadowMaxDistance = 140f, LightEnergy = 1.2f, LightAngularDistance = .6f };
+        // crisp shadows suit the toon look; soft (PCSS) shadows add sampling noise that toon banding turns into a checker pattern
+        Sun = new DirectionalLight3D { ShadowEnabled = true, DirectionalShadowMaxDistance = 140f, LightEnergy = 1.2f, LightAngularDistance = LF("sunSoftness", 0f) };
         AddChild(Sun);
     }
 

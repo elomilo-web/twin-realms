@@ -36,7 +36,13 @@ Procedural tile grid (40x40, 4 m tiles, 6 m walls), rooms joined by corridors. T
 Gate opens when you step in. Wave Survival: escalating waves with streak multiplier. Shadow Duel: fight a clone of your own hero with your gear and skills.
 
 ## Art direction (target)
-Stylised-realistic, like Two Worlds 2 and Skyrim's softer palettes, not photoreal. PBR materials, volumetric fog, soft shadows, day/night cycle, strong silhouette readability. Buildings: timber frame, plaster, shingle roofs, stone bases. Dungeons: carved stone, braziers, rubble, banners.
+Changed 2026-11-09: an anime look in the spirit of Genshin Impact. Every mesh gets toon lighting (flat light/shadow bands), a soft rim light and screen-space outlines (`scripts/Toon.cs`, `data/look.json` "toon"), crisp shadows and a bright, saturated grade, so assets from different packs read as one project. Assets are CC0 only, preferring Quaternius for cohesion; anything without an asset stays procedural until one exists.
+Characters: a plain base body (male or female, chosen at creation, skin coloured by race) and every piece of gear as a separate asset on the same skeleton: armor, gloves, boots, hood/helmet, weapons, shields and back pieces (cape). Trinkets, amulets and rings are not drawn. New heroes start in simple clothes.
+Gear glow: few models, many looks. Items can carry an element (fire, frost, storm, venom, holy, shadow) and glow in its colour, or in their rarity colour; the glow grows from none (common) to a breathing edge glow with light and sparks (legendary). Elemental weapons can inflict their element's status.
+Buildings: timber frame, plaster, shingle roofs, stone bases. Dungeons: carved stone, braziers, rubble, banners.
+
+## Audio
+Calm and peaceful: soft piano/harp music (Minecraft-like, with long quiet gaps), nature ambience (birds, crickets, breeze, wind in the Shadow realm), gentle sound effects. Effects without a recording use soft synthesised bells in one key. Sources in `assets/ASSETS.md`.
 
 ## Not in scope (yet)
 Multiplayer, voice acting, full-body IK, large cities.

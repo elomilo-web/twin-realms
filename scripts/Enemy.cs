@@ -97,6 +97,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
             Add(new SphereMesh { Radius = r * 0.6f, Height = r * 1.2f }, ghost, new Vector3(0, 2.3f, 0));
             Add(new BoxMesh { Size = new Vector3(0.12f, 0.1f, 0.1f) }, glow, new Vector3(0.15f, 2.35f, -r * 0.5f)); Add(new BoxMesh { Size = new Vector3(0.12f, 0.1f, 0.1f) }, glow, new Vector3(-0.15f, 2.35f, -r * 0.5f));
         }
+        else if (Avatar.Available && Avatar.Foe(Type) is { } fc) BuildAvatar(fc, s);
         else BuildHumanoid(r, s, col, main, dark, glow);
         BakeParts();
         float labelY = quad ? r * 2.6f : dragon ? 6.2f : 2.2f * s;
@@ -485,7 +486,8 @@ public partial class Enemy : CharacterBody3D, IDamageable
         if (_state == State.Dead)
         {
             _deadT += dt;
-            _body.Rotation = new Vector3(Mathf.Lerp(0, Mathf.Pi / 2, Mathf.Clamp(_deadT / 0.5f, 0, 1)), 0, 0);
+            if (_av == null) _body.Rotation = new Vector3(Mathf.Lerp(0, Mathf.Pi / 2, Mathf.Clamp(_deadT / 0.5f, 0, 1)), 0, 0);
+            AnimateAvatar();
             // dissolve: after the fall the body releases motes of light, then sinks, shrinks and fades away
             const float D0 = 1.4f, D1 = 2.8f;
             if (_deadT - dt < D0 && _deadT >= D0 && Visible)
@@ -653,7 +655,39 @@ public partial class Enemy : CharacterBody3D, IDamageable
             _legPh = Mathf.Wrap(_legPh + hs * dt * 2.2f / Mathf.Max(0.25f, Def.R), 0, Mathf.Tau);
             for (int i = 0; i < _legs.Count; i++) { float ph = _legPh + ((i == 0 || i == 3) ? 0 : Mathf.Pi); _legs[i].Rotation = new Vector3(Mathf.Sin(ph) * 0.65f * amt, 0, 0); }
         }
+        AnimateAvatar();
     }
+
+    // ------------------------------------------------------------------ character model (humanoid foes listed in data/avatar.json "enemies")
+    Avatar? _av;
+    void BuildAvatar(System.Text.Json.JsonElement fc, float s)
+    {
+        float k = JsonUtil.F(fc, "scale", 1f);
+        var ap = new Appearance { Female = Avatar.Str(fc, "body") == "female", Skin = Avatar.Str(fc, "skin") != "" ? Color.FromHtml(Avatar.Str(fc, "skin")) : new Color(.86f, .66f, .5f), Hair = new Color(.18f, .12f, .08f) };
+        if (Realm_() == 1) ap.Skin = ap.Skin.Lerp(new Color(.55f, .45f, .7f), .5f);   // Shadow-realm foes are tinted like the realm
+        // s = the type's size from enemies.json, k = an extra factor from avatar.json
+        _av = new Avatar { Name = "Avatar", Scale = Vector3.One * k * s }; _body.AddChild(_av); _av.Build(ap, Type + GetInstanceId());
+        var tint = Avatar.Str(fc, "tint") != "" ? Color.FromHtml(Avatar.Str(fc, "tint")) : (Color?)null;
+        string wt = Avatar.Str(fc, "weapon", "sword");
+        _av.Dress(Avatar.Outfit(fc), wt, tint ?? Colors.White, tint);
+    }
+    /// <summary>Clip from the AI state: wind-up plays the attack (stretched to the wind-up), stagger a hit, death the death clip.</summary>
+    void AnimateAvatar()
+    {
+        if (_av == null) return;
+        float hs = new Vector2(Velocity.X, Velocity.Z).Length();
+        switch (_state)
+        {
+            case State.Dead: _av.Play("die", .1f); return;
+            case State.Wind: _av.Play(Def.Ranged != null ? "shoot" : Def.Slam ? "powerHeavy" : "melee", .1f, Mathf.Max(.3f, Def.Wind / .6f), _av.Cur == "" || !_av.Busy && _windStart, _swing); _windStart = false; return;
+            case State.Stagger: _av.Play("hit", .05f); return;
+        }
+        if (_state != State.Recover) { _windStart = true; if (_state == State.Chase && _av.Busy) return; }
+        if (_av.Busy) return;
+        _av.Move(hs, true, true, false);
+        if (_state == State.Recover) _swing++;
+    }
+    bool _windStart = true; int _swing;
 
     // ------------------------------------------------------------------ multiplayer
     Node3D? PickHero()

@@ -10,7 +10,7 @@ public partial class Ui
     /// <summary>Title screen hooks set by Main: host with your hero, or join a friend's address.</summary>
     public static Action<int>? OnHost; public static Action<string, int>? OnJoin;
     static string _joinAddr = "127.0.0.1", _port = Net.DefaultPort.ToString();
-    public static string PickedClass => _pickClass; public static string PickedRace => _pickRace; public static string PickedName => _pickName;
+    public static string PickedClass => _pickClass; public static string PickedRace => _pickRace; public static string PickedName => _pickName; public static string PickedBody => _pickBody;
 
     const string HelpText =
         "How friends connect:\n" +

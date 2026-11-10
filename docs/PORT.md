@@ -1,5 +1,16 @@
 ﻿# Port status
 
+**Art + audio overhaul (2026-11-09), in progress.** Goal: one cohesive Genshin-like look, gear as separate assets on plain base bodies, calm audio.
+Backup before the overhaul: `../twin-realms-backup-2026-11-09.zip` (git is not installed on this PC).
+- Done: `scripts/Toon.cs` (toon lighting + rim on every StandardMaterial3D, screen-space outlines; tune in `data/look.json` "toon"). Brighter grading in look.json.
+- Done: audio rewrite in `scripts/Sfx.cs`: file-based sfx with variants (`assets/audio/sfx/<id>_<n>`), soft synthesised bells as fallback, ambience layers (birds/crickets/breeze/shadow wind/dungeon), Minecraft-style music with quiet gaps, new Music volume slider. Old drones removed. Sources in `assets/ASSETS.md`.
+- Done: characters (`scripts/Avatar.cs`, `data/avatar.json`). Hero, remote heroes, villagers and humanoid foes (bandit, archer, brute, warchief) are Quaternius base bodies + separate outfit parts bound to the same skeleton; weapons/shields are separate models in the hand bones; cape is a back piece on the spine. New heroes start in simple peasant clothes. Body triangles under clothing are removed per outfit (the free outfits were made for a slimmer body). Helmets (helm/greathelm/cap/circlet), wand, staff and race features (ears, tusks, horns) are procedural until models exist. HeroRig still runs invisibly for hand targets. 27 clips baked into `assets/models/anim/clips.res` (rebuild with `-- --bake-anims` after editing "clips").
+- Done: gear glow (`scripts/GearFx.cs`, `data/gear_fx.json`): items roll an element by rarity (fire/frost/storm/venom/holy/shadow); colour = element or rarity; edge glow grows with rarity, epic/legendary weapons add a light and sparks; elemental weapons can inflict their status and swing in their colour. Trinkets are never drawn.
+- New: body choice (male/female) on the create screen (`PlayerStats.Body`, sent to friends). `--observe --quick` = character shots only (about a minute).
+- Size: release zip measured at 96.3 MB (limit 100). Texture import limit 1024 px, WAV → QOA. The environment packs will need budget: drop the 4.7 MB Champ de tournesol mp3 or split the download if needed.
+- Next: environment (Stylized Nature + Medieval Village + Fantasy Props MegaKits are downloaded in ~/Downloads/Quaternius, all CC0). Then models for helmets/staff/wand/cape, and goblins/skeletons/animals (no CC0 models yet; still procedural).
+- Verified: build OK, observer (full and quick) OK with no engine errors, bot 79/79.
+
 The whole browser game has been ported to Godot C# in one pass. It builds cleanly and runs on Godot 4.7.2 .NET (Windows).
 
 **Self-test bot (2026-11-08):** `tools/bot.sh` passes 42/42 checks, 10 runs in a row, with no engine errors. Fixes this session (all in `scripts/Bot.cs` plus one HUD line; no gameplay logic changed):

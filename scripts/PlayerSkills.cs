@@ -37,9 +37,9 @@ public partial class Player
         if (WeaponKinds.Contains(k.Kind) && !W.Ranged)
         {
             // weapon skills reuse the weapon's power swing as the body motion; the skill fires at its impact frame
-            _atk = k.Kind == "spin" ? W.Combo[^1] : W.Power; _atkPower = true; _atkDur = Mathf.Max(.25f, c.Cast); _atkT = _atkDur; _hitDone = false; _atkSkill = c; _spinBase = _modelYaw;
+            _atk = k.Kind == "spin" ? W.Combo[^1] : W.Power; _atkPower = true; _atkDur = Mathf.Max(.25f, c.Cast); _atkT = _atkDur; _hitDone = false; _atkSkill = c; _spinBase = _modelYaw; _atkSerial++;
         }
-        else { _castSkill = c; _castT = _castDur = Mathf.Max(.12f, c.Cast); _atkT = 0; _fired = false; }
+        else { _castSkill = c; _castT = _castDur = Mathf.Max(.12f, c.Cast); _atkT = 0; _fired = false; _castSerial++; }
         Sfx.Play(k.Type == "physical" ? "swing" : k.Type == "frost" ? "ice" : k.Type == "lightning" ? "zap" : "fire");
     }
     void StartCd(string id, float cd) { _skillCd[id] = cd; _skillCdMax[id] = cd; }

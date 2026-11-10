@@ -1,0 +1,444 @@
+using System;
+using System.Collections.Generic;
+using System.Text.Json;
+using Godot;
+
+namespace TwinRealms;
+
+/// <summary>
+/// A character built from the Quaternius universal rig (data/avatar.json): a plain base body (male or female, skin coloured
+/// by race), hair, and every equipped piece as a separate asset bound to the same skeleton, so gear moves with the body.
+/// Weapons and shields are separate models held in the hand bones; items without a model yet fall back to procedural shapes.
+/// Trinkets are never shown. Animations come from the Universal Animation Libraries, merged once per body.
+/// The model faces -Z like the rest of the game.
+/// </summary>
+public partial class Avatar : Node3D
+{
+    // ------------------------------------------------------------------ data
+    static JsonDocument? _doc;
+    static JsonElement Cfg { get { _doc ??= JsonUtil.Load("res://data/avatar.json"); return _doc.RootElement; } }
+    static string S(JsonElement e, string k, string d = "") => e.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? d : d;
+    static List<string> L(JsonElement e, string k) { var l = new List<string>(); if (e.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.Array) foreach (var x in v.EnumerateArray()) l.Add(x.GetString() ?? ""); return l; }
+    const string OutfitDir = "res://assets/models/outfit/", HairDir = "res://assets/models/hair/", WeaponDir = "res://assets/models/weapons/";
+
+    public Node3D Body = null!; public bool Female; public Appearance Look = new();
+    Skeleton3D _sk = null!; AnimationPlayer _ap = null!; string _sex = "male";
+    readonly Dictionary<string, List<Node>> _slot = new();
+    readonly Dictionary<string, BoneAttachment3D> _att = new();
+    readonly List<Node> _hair = new();
+    public Node3D? BladeBase, BladeTip; public bool HasModel;
+
+    static bool? _ok;
+    /// <summary>True when the character models are installed (otherwise callers keep their procedural bodies).</summary>
+    public static bool Available => _ok ??= ResourceLoader.Exists(S(Cfg.GetProperty("bodies"), "male"));
+
+    // ------------------------------------------------------------------ body
+    public void Build(Appearance ap, string seed)
+    {
+        Look = ap; Female = ap.Female; _sex = Female ? "female" : "male";
+        var ps = GD.Load<PackedScene>(S(Cfg.GetProperty("bodies"), _sex));
+        Body = ps.Instantiate<Node3D>(); Body.Name = "Body"; AddChild(Body);
+        Body.Rotation = new Vector3(0, Mathf.Pi, 0);   // glTF faces +Z, the game faces -Z
+        Body.Scale = new Vector3(ap.Bulk, ap.Height, ap.Bulk);
+        _sk = (Skeleton3D)Body.FindChild("Skeleton3D", true, false)!;
+        foreach (var c in _sk.GetChildren())
+            if (c is MeshInstance3D mi)
+            {
+                if (mi.Name.ToString().Contains("Eye") && !mi.Name.ToString().Contains("brow")) { if (ap.GlowEyes) Tint(mi, null, ap.Eyes, 2.5f); continue; }
+                if (mi.Name.ToString().Contains("brow")) { Tint(mi, null, ap.Hair.Darkened(.2f), 0, true); continue; }
+                Tint(mi, null, ap.Skin, 0, true);   // flat skin colour reads best under the toon shader and follows the race
+            }
+        // hair, picked from the list by the seed so a hero always keeps the same style
+        var hl = L(Cfg.GetProperty("hair"), _sex); if (hl.Count > 0)
+        {
+            int h = Math.Abs(seed.GetHashCode()) % hl.Count;
+            _hair.AddRange(AddPart(HairDir + hl[h] + ".gltf", "hair", ap.Hair, true));
+            if (ap.Beard && !Female) _hair.AddRange(AddPart(HairDir + S(Cfg.GetProperty("hair"), "beard") + ".gltf", "hair", ap.Hair, true));
+        }
+        RaceFeatures(ap);
+        _ap = new AnimationPlayer { Name = "Anim" }; Body.AddChild(_ap); _ap.RootNode = new NodePath("..");
+        _ap.AddAnimationLibrary("", Library(_sex, _sk));
+        HasModel = true; Play("idle");
+    }
+
+    /// <summary>Copies a material and recolours it. flat = drop the texture and use the colour as is. grow pushes clothing out along its normals so the body never shows through.</summary>
+    static void Tint(MeshInstance3D mi, Color? mul, Color? set, float glow = 0, bool flat = false, float grow = 0)
+    {
+        for (int s = 0; s < (mi.Mesh?.GetSurfaceCount() ?? 0); s++)
+        {
+            if (mi.GetActiveMaterial(s) is not BaseMaterial3D b) continue;
+            var d = (BaseMaterial3D)b.Duplicate();
+            if (flat && set != null) { d.AlbedoTexture = null; d.AlbedoColor = set.Value; }
+            else if (set != null) d.AlbedoColor = set.Value;
+            if (mul != null) d.AlbedoColor = d.AlbedoColor * mul.Value;
+            if (glow > 0) { d.EmissionEnabled = true; d.Emission = set ?? d.AlbedoColor; d.EmissionEnergyMultiplier = glow; }
+            d.NormalEnabled = false;   // the toon look does not use normal maps
+            if (grow > 0) { d.Grow = true; d.GrowAmount = grow; }
+            Toon.Apply(d); mi.SetSurfaceOverrideMaterial(s, d);
+        }
+    }
+
+    /// <summary>Loads an outfit/hair glTF and moves its skinned meshes onto our skeleton (bound by bone name).</summary>
+    List<Node> AddPart(string path, string slot, Color? tint = null, bool flat = false)
+    {
+        var res = new List<Node>();
+        if (!ResourceLoader.Exists(path)) { GD.PrintErr("[AVATAR] missing part " + path); return res; }
+        var inst = GD.Load<PackedScene>(path).Instantiate<Node3D>();
+        var psk = (Skeleton3D?)inst.FindChild("Skeleton3D", true, false);
+        if (_sk == null) { GD.PrintErr("[AVATAR] AddPart before Build: " + path); inst.QueueFree(); return res; }
+        if (psk != null)
+            foreach (var c in psk.GetChildren())
+            {
+                if (c is not MeshInstance3D mi) continue;
+                var skin = mi.Skin?.Duplicate() as Skin;
+                if (skin != null)
+                    for (int i = 0; i < skin.GetBindCount(); i++)
+                    {
+                        string bn = skin.GetBindName(i)?.ToString() ?? ""; int bb = skin.GetBindBone(i);
+                        if (bn == "" && bb >= 0 && bb < psk.GetBoneCount()) skin.SetBindName(i, psk.GetBoneName(bb));   // bind by name, not index
+                    }
+                psk.RemoveChild(mi); mi.Owner = null; _sk.AddChild(mi); mi.Skeleton = new NodePath(".."); mi.Skin = skin;
+                float grow = slot == "hair" ? 0f : .006f;
+                if (tint != null) Tint(mi, flat ? null : tint, flat ? tint : null, 0, flat, grow); else Tint(mi, null, null, 0, false, grow);
+                res.Add(mi);
+            }
+        inst.QueueFree();
+        if (!_slot.TryGetValue(slot, out var l)) _slot[slot] = l = new List<Node>(); l.AddRange(res);
+        return res;
+    }
+
+    void Clear(string slot) { if (_slot.TryGetValue(slot, out var l)) { foreach (var n in l) if (IsInstanceValid(n)) { n.GetParent()?.RemoveChild(n); n.QueueFree(); } l.Clear(); } }
+
+    BoneAttachment3D Att(string bone)
+    {
+        if (_sk == null) throw new InvalidOperationException("Avatar.Build must run before gear is added");
+        if (_att.TryGetValue(bone, out var a)) return a;
+        a = new BoneAttachment3D { Name = "At_" + bone, BoneName = bone }; _sk.AddChild(a); _att[bone] = a; return a;
+    }
+    /// <summary>A holder on a bone whose axes match the model (Y up, +Z forward in glTF space) at rest, offset in model space.</summary>
+    Node3D Holder(string bone, Vector3 posModel, Vector3 rotDeg, string slot)
+    {
+        var at = Att(bone); int bi = _sk.FindBone(bone);
+        var rest = bi >= 0 ? _sk.GetBoneGlobalRest(bi).Basis.Orthonormalized() : Basis.Identity;
+        var want = Basis.FromEuler(rotDeg * (Mathf.Pi / 180f));
+        var h = new Node3D { Name = "Hold_" + slot, Transform = new Transform3D(rest.Inverse() * want, rest.Inverse() * posModel) };
+        at.AddChild(h);
+        if (!_slot.TryGetValue(slot, out var l)) _slot[slot] = l = new List<Node>(); l.Add(h);
+        return h;
+    }
+    static Vector3 V(JsonElement e, string k, Vector3 d) => e.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.Array ? new Vector3(v[0].GetSingle(), v[1].GetSingle(), v[2].GetSingle()) : d;
+
+    // ------------------------------------------------------------------ hide the body under clothes
+    // The free outfits were made for a slimmer body than the free base body, so skin would poke through tight clothes.
+    // After dressing, body triangles that lie under any clothing vertex are removed (cached per outfit), like most games do.
+    MeshInstance3D? _bodyMi; ArrayMesh? _bodyFull;
+    static readonly Dictionary<string, ArrayMesh> _masked = new();
+    void MaskBody()
+    {
+        if (_bodyMi == null) foreach (var c in _sk.GetChildren()) if (c is MeshInstance3D mi && !_slotHas(mi) && !mi.Name.ToString().Contains("Eye") && !mi.Name.ToString().Contains("brow")) { _bodyMi = mi; _bodyFull = mi.Mesh as ArrayMesh; break; }
+        if (_bodyMi == null || _bodyFull == null) return;
+        // cloth vertices bucketed in 3 cm cells; a body vertex is "under cloth" if a cloth vertex is within R of it.
+        // The head slot is left out: hoods are loose, and their face opening would otherwise cut into the face.
+        const float R = .045f; var grid = new Dictionary<Vector3I, List<Vector3>>(); var key = new System.Text.StringBuilder(_sex);
+        foreach (var slot in new[] { "armor", "hands", "feet" })
+            if (_slot.TryGetValue(slot, out var l))
+                foreach (var n in l) if (n is MeshInstance3D mi && mi.Mesh != null && mi.Skin != null)
+                    {
+                        key.Append('|').Append(mi.Mesh.ResourcePath).Append(mi.Name);
+                        for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
+                            foreach (var v in (Vector3[])mi.Mesh.SurfaceGetArrays(s)[(int)Mesh.ArrayType.Vertex])
+                            { var c = Cell(v, R); if (!grid.TryGetValue(c, out var cl)) grid[c] = cl = new List<Vector3>(); cl.Add(v); }
+                    }
+        bool Under(Vector3 p)
+        {
+            var c = Cell(p, R);
+            for (int x = -1; x <= 1; x++) for (int y = -1; y <= 1; y++) for (int z = -1; z <= 1; z++)
+                        if (grid.TryGetValue(c + new Vector3I(x, y, z), out var cl)) foreach (var q in cl) if (q.DistanceSquaredTo(p) < R * R) return true;
+            return false;
+        }
+        string k = key.ToString(); int nb = _sk.FindBone("neck_01");
+        float neckY = nb >= 0 ? _sk.GetBoneGlobalRest(nb).Origin.Y + .02f : 1.5f;
+        if (!_masked.TryGetValue(k, out var masked))
+        {
+            masked = new ArrayMesh();
+            for (int bs = 0; bs < _bodyFull.GetBlendShapeCount(); bs++) masked.AddBlendShape(_bodyFull.GetBlendShapeName(bs));
+            masked.BlendShapeMode = _bodyFull.BlendShapeMode;
+            for (int s = 0; s < _bodyFull.GetSurfaceCount(); s++)
+            {
+                var arr = _bodyFull.SurfaceGetArrays(s); var verts = (Vector3[])arr[(int)Mesh.ArrayType.Vertex]; var idx = (int[])arr[(int)Mesh.ArrayType.Index];
+                bool[] under = new bool[verts.Length];
+                for (int i = 0; i < verts.Length; i++) under[i] = verts[i].Y < neckY && Under(verts[i]);   // never cut the face (collars and scarves sit close to the chin)
+                var keep = new List<int>(idx.Length);
+                for (int t = 0; t + 2 < idx.Length; t += 3) if (!(under[idx[t]] && under[idx[t + 1]] && under[idx[t + 2]])) { keep.Add(idx[t]); keep.Add(idx[t + 1]); keep.Add(idx[t + 2]); }
+                arr[(int)Mesh.ArrayType.Index] = keep.ToArray();
+                for (int ci = (int)Mesh.ArrayType.Custom0; ci <= (int)Mesh.ArrayType.Custom3; ci++) arr[ci] = new Variant();   // unused extra channels; re-adding them needs their packed format
+                var flags = _bodyFull.SurfaceGetFormat(s) & Mesh.ArrayFormat.FlagUse8BoneWeights;   // keep 8-bone skinning if the body uses it
+                masked.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arr, _bodyFull.SurfaceGetBlendShapeArrays(s), null, flags);
+                masked.SurfaceSetMaterial(s, _bodyFull.SurfaceGetMaterial(s));
+            }
+            _masked[k] = masked;
+        }
+        _bodyMi.Mesh = masked;
+    }
+    static Vector3I Cell(Vector3 v, float r) => new(Mathf.FloorToInt(v.X / r), Mathf.FloorToInt(v.Y / r), Mathf.FloorToInt(v.Z / r));
+    bool _slotHas(Node n) { foreach (var l in _slot.Values) if (l.Contains(n)) return true; return false; }
+
+    // ------------------------------------------------------------------ back accessories
+    public Node3D? Cape;
+    /// <summary>A cloth cape on the upper back (procedural until a cape model exists). Rotate Cape about X to let it stream back.</summary>
+    public void AddCape(Color c)
+    {
+        var hold = Cfg.GetProperty("hold").GetProperty("cape");
+        var h = Holder("spine_03", V(hold, "pos", new Vector3(0, .12f, -.14f)), V(hold, "rot", Vector3.Zero), "cape");
+        Cape = new Node3D { Name = "Cape" }; h.AddChild(Cape);
+        var mat = new StandardMaterial3D { AlbedoColor = c, CullMode = BaseMaterial3D.CullModeEnum.Disabled, Roughness = .9f };
+        Cape.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(.44f, .95f, .02f) }, MaterialOverride = mat, Position = new Vector3(0, -.47f, 0) });
+    }
+
+    // ------------------------------------------------------------------ race features (procedural for now)
+    void RaceFeatures(Appearance ap)
+    {
+        if (!ap.PointyEars && !ap.Tusks && !ap.Horns) return;
+        var head = Holder("Head", new Vector3(0, .1f, 0), Vector3.Zero, "race");
+        var skin = new StandardMaterial3D { AlbedoColor = ap.Skin }; var bone = new StandardMaterial3D { AlbedoColor = new Color(.92f, .88f, .76f) };
+        foreach (float s in new[] { -1f, 1f })
+        {
+            if (ap.PointyEars) head.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 0, BottomRadius = .028f, Height = .13f, RadialSegments = 6 }, MaterialOverride = skin, Position = new Vector3(s * .085f, .0f, -.01f), Rotation = new Vector3(-.5f, 0, -s * 1.15f) });
+            if (ap.Tusks) head.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 0, BottomRadius = .012f, Height = .05f, RadialSegments = 5 }, MaterialOverride = bone, Position = new Vector3(s * .028f, -.07f, .085f), Rotation = new Vector3(-.3f, 0, 0) });
+            if (ap.Horns) head.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 0, BottomRadius = .028f, Height = .16f, RadialSegments = 6 }, MaterialOverride = bone, Position = new Vector3(s * .06f, .1f, .0f), Rotation = new Vector3(-.5f, 0, -s * .5f) });
+        }
+    }
+
+    // ------------------------------------------------------------------ gear
+    /// <summary>Finds the gear rule for an item name (first rule whose keyword occurs in the name; "" matches anything).</summary>
+    static JsonElement? Rule(string slot, string name)
+    {
+        if (!Cfg.TryGetProperty(slot, out var list) || list.ValueKind != JsonValueKind.Array) return null;
+        foreach (var r in list.EnumerateArray()) foreach (var k in L(r, "match")) if (k == "" || name.Contains(k)) return r;
+        return null;
+    }
+    string Part(string p)
+    {
+        var name = p.Replace("{s}", Female ? "Female" : "Male");
+        if (Cfg.TryGetProperty("partAlias", out var al) && al.TryGetProperty(name, out var a)) name = a.GetString() ?? name;
+        return OutfitDir + name + ".gltf";
+    }
+    Color? TintOf(JsonElement r, Color classTint)
+    {
+        var t = S(r, "tint"); if (t == "") return null; if (t == "class") return classTint.Lightened(.25f); return Color.FromHtml(t);
+    }
+
+    /// <summary>Dresses the body from equipped items (null = nothing in that slot). classTint colours robes; outfitTint (enemies, NPCs) colours everything.</summary>
+    public void Dress(Func<string, Item?> eq, string wt, Color classTint, Color? outfitTint = null)
+    {
+        foreach (var s in new[] { "armor", "head", "hands", "feet", "weapon", "shield" }) Clear(s);
+        BladeBase = BladeTip = null; bool hideHair = false;
+        foreach (var slot in new[] { "armor", "hands", "feet", "head" })
+        {
+            var it = eq(slot); List<string> parts; Color? tint = null; string proc = "";
+            if (it == null) { parts = L(Cfg.GetProperty("default"), slot); tint = outfitTint; }
+            else
+            {
+                var r = Rule(slot, it.Name); if (r == null) continue;
+                parts = L(r.Value, "parts"); proc = S(r.Value, "proc");
+                var ruleTint = TintOf(r.Value, classTint);
+                tint = ruleTint != null && outfitTint != null ? ruleTint.Value.Lerp(outfitTint.Value, .5f) : ruleTint ?? outfitTint;
+                if (r.Value.TryGetProperty("hideHair", out var hh) && hh.ValueKind == JsonValueKind.True) hideHair = true;
+            }
+            // tints multiply textured cloth, so they are softened toward white to recolour without going muddy or black
+            Color? soft = tint?.Lerp(Colors.White, .35f);
+            var made = new List<Node>(); foreach (var p in parts) made.AddRange(AddPart(Part(p), slot, soft));
+            if (proc != "") made.Add(Helmet(proc, it!));
+            if (it != null) foreach (var n in made) if (n is Node3D n3) GearFx.Apply(n3, it, false);
+        }
+        foreach (var h in _hair) if (h is Node3D h3) h3.Visible = !hideHair;
+        MaskBody();
+        // weapon and shield
+        var w = eq("weapon"); var wcfg = Cfg.GetProperty("weapons");
+        bool twoHanded = Weapons.Get(wt).Hands > 1 || Weapons.Get(wt).LeftHand;
+        if (wcfg.TryGetProperty(wt, out var wc)) HoldWeapon(wt, wc, w);
+        var sh = eq("shield"); if (sh != null && !twoHanded) HoldShield(sh);
+    }
+
+    void HoldWeapon(string wt, JsonElement wc, Item? it)
+    {
+        bool left = S(wc, "hand") == "left"; var hold = Cfg.GetProperty("hold").GetProperty(left ? "left" : "right");
+        var h = Holder(left ? "hand_l" : "hand_r", V(hold, "pos", Vector3.Zero), V(wc, "rot", V(hold, "rot", Vector3.Zero)), "weapon");
+        if (wc.TryGetProperty("proc", out _))
+        {
+            // no model yet: the procedural weapon, turned to point along +Z like the models
+            var turn = new Node3D { Rotation = new Vector3(0, Mathf.Pi, 0) }; h.AddChild(turn);
+            var (b, t) = Weapons.Build(turn, wt, it); BladeBase = b; BladeTip = t; GearFx.Apply(turn, it, true, 0, .9f); return;
+        }
+        string model = S(wc, "model"); if (it != null && Cfg.TryGetProperty("weaponNames", out var wn)) foreach (var p in wn.EnumerateObject()) if (it.Name.Contains(p.Name)) { model = p.Value.GetString() ?? model; break; }
+        float len = JsonUtil.F(wc, "len", 1f), grip = JsonUtil.F(wc, "grip", 0f);
+        var inst = LoadModel(WeaponDir + model + ".fbx", len); if (inst == null) return;
+        inst.Position = new Vector3(0, 0, -grip * len); h.AddChild(inst);
+        BladeBase = new Node3D { Position = new Vector3(0, 0, len * (.25f - grip)) }; BladeTip = new Node3D { Position = new Vector3(0, 0, len * (1 - grip)) };
+        h.AddChild(BladeBase); h.AddChild(BladeTip);
+        GearFx.Apply(h, it, true, -grip * len, len);
+    }
+
+    void HoldShield(Item it)
+    {
+        string model = "Shield_Round"; if (Cfg.TryGetProperty("shields", out var sm)) foreach (var p in sm.EnumerateObject()) if (p.Name == "" || it.Name.Contains(p.Name)) { model = p.Value.GetString() ?? model; if (p.Name != "") break; }
+        var hold = Cfg.GetProperty("hold").GetProperty("shield");
+        var h = Holder("lowerarm_l", V(hold, "pos", Vector3.Zero), V(hold, "rot", Vector3.Zero), "shield");
+        var inst = LoadModel(WeaponDir + model + ".fbx", JsonUtil.F(Cfg, "shieldSize", .62f), true); if (inst == null) return;
+        h.AddChild(inst); GearFx.Apply(h, it, false);
+    }
+
+    /// <summary>Loads a prop model inside a pivot. Weapons: the long axis is turned to point along +Z from the grip (the model's origin)
+    /// and scaled to size metres, whatever axis/units the file used. longest = just scale the largest side to size (shields).</summary>
+    static Node3D? LoadModel(string path, float size, bool longest = false)
+    {
+        if (!ResourceLoader.Exists(path)) { GD.PrintErr("[AVATAR] missing model " + path); return null; }
+        var inst = GD.Load<PackedScene>(path).Instantiate<Node3D>();
+        var box = new Aabb(); bool any = false;
+        void Walk(Node n, Transform3D t)
+        {
+            if (n is MeshInstance3D mi && mi.Mesh != null) { var ab = t * mi.GetAabb(); box = any ? box.Merge(ab) : ab; any = true; }
+            foreach (var c in n.GetChildren()) Walk(c, c is Node3D n3 ? t * n3.Transform : t);
+        }
+        Walk(inst, inst.Transform);   // includes the importer's unit scale and axis turn (FBX meshes come in at x100, Z-up)
+        var pivot = new Node3D { Name = "Model" }; pivot.AddChild(inst);
+        if (!any) return pivot;
+        var sz = box.Size;
+        if (longest) { pivot.Scale = Vector3.One * (size / Mathf.Max(sz.X, Mathf.Max(sz.Y, sz.Z))); return pivot; }
+        int ax = sz.X >= sz.Y && sz.X >= sz.Z ? 0 : sz.Y >= sz.Z ? 1 : 2;
+        float lo = box.Position[ax], hi = box.End[ax]; bool neg = -lo > hi; float len = Mathf.Max(Mathf.Abs(lo), Mathf.Abs(hi));
+        var b = ax == 2 ? Basis.Identity : ax == 1 ? new Basis(Vector3.Right, Mathf.Pi / 2) : new Basis(Vector3.Up, -Mathf.Pi / 2);   // long axis -> +Z
+        if (neg) b = new Basis(Vector3.Up, Mathf.Pi) * b;
+        pivot.Transform = new Transform3D(b.Scaled(Vector3.One * (size / Mathf.Max(.0001f, len))), Vector3.Zero);
+        return pivot;
+    }
+
+    /// <summary>Helmets without a model yet: simple shapes on the head, coloured like the item.</summary>
+    Node3D Helmet(string kind, Item it)
+    {
+        var h = Holder("Head", new Vector3(0, .1f, .01f), Vector3.Zero, "head");
+        var steel = new StandardMaterial3D { AlbedoColor = new Color(.75f, .78f, .84f), Metallic = .6f, Roughness = .4f };
+        var gold = new StandardMaterial3D { AlbedoColor = new Color(.9f, .72f, .32f), Metallic = .7f, Roughness = .35f };
+        var leather = new StandardMaterial3D { AlbedoColor = new Color(.42f, .28f, .16f) };
+        void P(Mesh m, Material mt, Vector3 pos, Vector3? rot = null) => h.AddChild(new MeshInstance3D { Mesh = m, MaterialOverride = mt, Position = pos, Rotation = rot ?? Vector3.Zero });
+        switch (kind)
+        {
+            case "greathelm": P(new CylinderMesh { TopRadius = .135f, BottomRadius = .14f, Height = .25f, RadialSegments = 14 }, steel, new Vector3(0, .0f, 0)); P(new SphereMesh { Radius = .136f, Height = .14f, IsHemisphere = true, RadialSegments = 14, Rings = 4 }, steel, new Vector3(0, .12f, 0)); P(new BoxMesh { Size = new Vector3(.17f, .018f, .02f) }, new StandardMaterial3D { AlbedoColor = new Color(.05f, .05f, .06f) }, new Vector3(0, .02f, .135f)); break;
+            case "helm": P(new SphereMesh { Radius = .128f, Height = .19f, IsHemisphere = true, RadialSegments = 14, Rings = 5 }, steel, new Vector3(0, .02f, -.005f)); P(new CylinderMesh { TopRadius = .13f, BottomRadius = .13f, Height = .03f, RadialSegments = 14 }, gold, new Vector3(0, .02f, -.005f)); P(new BoxMesh { Size = new Vector3(.022f, .09f, .015f) }, steel, new Vector3(0, -.03f, .128f)); break;
+            case "cap": P(new SphereMesh { Radius = .122f, Height = .14f, IsHemisphere = true, RadialSegments = 12, Rings = 4 }, leather, new Vector3(0, .04f, -.01f)); break;
+            default: P(new TorusMesh { InnerRadius = .108f, OuterRadius = .118f, Rings = 18, RingSegments = 4 }, gold, new Vector3(0, .04f, 0), new Vector3(-.12f, 0, 0)); P(new SphereMesh { Radius = .016f, Height = .032f }, new StandardMaterial3D { AlbedoColor = GearFx.ColorOf(it), EmissionEnabled = true, Emission = GearFx.ColorOf(it), EmissionEnergyMultiplier = 1.5f }, new Vector3(0, .055f, .115f)); break;
+        }
+        return h;
+    }
+
+    // ------------------------------------------------------------------ animation
+    static readonly Dictionary<string, AnimationLibrary> _libs = new();
+    const string Baked = "res://assets/models/anim/clips.res";
+    /// <summary>The clips for one body. Uses the small baked library (only the clips the game plays) and scales the pelvis
+    /// height to this body; without it, merges the full source libraries (slow, and they are not exported).</summary>
+    static AnimationLibrary Library(string key, Skeleton3D target)
+    {
+        if (_libs.TryGetValue(key, out var lib)) return lib;
+        int tp = target.FindBone("pelvis"); float tgt = tp >= 0 ? target.GetBoneRest(tp).Origin.Z : 1f;
+        if (ResourceLoader.Exists(Baked) && GD.Load<AnimationLibrary>(Baked) is { } baked)
+        {
+            float k = tgt / JsonUtil.F(Cfg, "animPelvis", .9167f); lib = new AnimationLibrary();
+            foreach (var n in baked.GetAnimationList())
+            {
+                var a = (Animation)baked.GetAnimation(n).Duplicate(true);
+                for (int t = 0; t < a.GetTrackCount(); t++) if (a.TrackGetType(t) == Animation.TrackType.Position3D)
+                        for (int i = 0; i < a.TrackGetKeyCount(t); i++) a.TrackSetKeyValue(t, i, (Vector3)a.TrackGetKeyValue(t, i) * k);
+                lib.AddAnimation(n, a);
+            }
+        }
+        else lib = Merge(tgt, null);
+        GD.Print($"[AVATAR] {key}: {lib.GetAnimationList().Count} clips");
+        _libs[key] = lib; return lib;
+    }
+
+    /// <summary>--bake-anims: merges the source libraries at the animation rig's own hip height and saves only the clips in use.</summary>
+    public static void Bake()
+    {
+        var used = new HashSet<string>();
+        foreach (var p in Cfg.GetProperty("clips").EnumerateObject())
+            if (p.Value.ValueKind == JsonValueKind.String) used.Add(p.Value.GetString()!); else if (p.Value.ValueKind == JsonValueKind.Array) foreach (var x in p.Value.EnumerateArray()) used.Add(x.GetString()!);
+        var lib = Merge(JsonUtil.F(Cfg, "animPelvis", .9167f), used);
+        var err = ResourceSaver.Save(lib, Baked, ResourceSaver.SaverFlags.Compress);
+        GD.Print($"[AVATAR] baked {lib.GetAnimationList().Count} clips to {Baked}: {err}");
+    }
+
+    /// <summary>Both source libraries merged: tracks re-pathed to our skeleton, root motion dropped, only the pelvis keeps its
+    /// position track (scaled to hip height tgt), so limbs keep the body's own proportions. only = keep just these clips.</summary>
+    static AnimationLibrary Merge(float tgt, HashSet<string>? only)
+    {
+        var lib = new AnimationLibrary();
+        foreach (var src in L(Cfg, "anims"))
+        {
+            if (!ResourceLoader.Exists(src)) continue;
+            var inst = GD.Load<PackedScene>(src).Instantiate<Node>();
+            var ap = (AnimationPlayer?)inst.FindChild("AnimationPlayer", true, false) ?? FindAp(inst); var ssk = (Skeleton3D?)inst.FindChild("Skeleton3D", true, false);
+            if (ap == null || ssk == null) { inst.Free(); continue; }
+            bool fbx = src.EndsWith(".fbx", StringComparison.OrdinalIgnoreCase); float unit = fbx ? 100f : 1f;
+            int sp = ssk.FindBone("pelvis"); float k = sp >= 0 ? tgt / (ssk.GetBoneRest(sp).Origin.Z * unit) : 1f;
+            foreach (var name in ap.GetAnimationList())
+            {
+                string clean = name.ToString(); int bar = clean.IndexOf('|'); if (bar >= 0) clean = clean[(bar + 1)..];
+                if (clean.EndsWith("_RM") || clean.Contains("TPose") || lib.HasAnimation(clean) || (only != null && !only.Contains(clean))) continue;
+                var a = (Animation)ap.GetAnimation(name).Duplicate(true);
+                for (int t = a.GetTrackCount() - 1; t >= 0; t--)
+                {
+                    string path = a.TrackGetPath(t).ToString(); int colon = path.IndexOf(':'); string bone = colon >= 0 ? path[(colon + 1)..] : "";
+                    var type = a.TrackGetType(t);
+                    if (bone == "" || bone == "root" || type == Animation.TrackType.Scale3D || (type == Animation.TrackType.Position3D && bone != "pelvis")) { a.RemoveTrack(t); continue; }
+                    a.TrackSetPath(t, "Armature/Skeleton3D:" + bone);
+                    if (type == Animation.TrackType.Position3D)
+                        for (int i = 0; i < a.TrackGetKeyCount(t); i++) a.TrackSetKeyValue(t, i, (Vector3)a.TrackGetKeyValue(t, i) * unit * k);
+                }
+                lib.AddAnimation(clean, a);
+            }
+            inst.Free();
+        }
+        return lib;
+    }
+    static AnimationPlayer? FindAp(Node n) { foreach (var c in n.GetChildren()) { if (c is AnimationPlayer a) return a; if (FindAp(c) is { } x) return x; } return null; }
+
+    public string Cur = "";
+    /// <summary>Clip name for an action key in data/avatar.json "clips" (a list = combo steps).</summary>
+    public static string Clip(string key, int step = 0)
+    {
+        if (!Cfg.GetProperty("clips").TryGetProperty(key, out var v)) return key;
+        if (v.ValueKind == JsonValueKind.Array) { int n = v.GetArrayLength(); return n == 0 ? key : v[step % n].GetString() ?? key; }
+        return v.GetString() ?? key;
+    }
+    /// <summary>Plays an action (clip key or clip name). fit &gt; 0 stretches it to that many seconds; restart replays it.</summary>
+    public void Play(string key, float blend = .18f, float fit = 0, bool restart = false, int step = 0)
+    {
+        if (_ap == null) return; string n = Clip(key, step); if (!_ap.HasAnimation(n)) return;
+        if (n == Cur && !restart && _ap.IsPlaying()) return;
+        float sp = fit > 0 ? (float)_ap.GetAnimation(n).Length / fit : 1f;
+        _ap.Play(n, blend, sp); if (restart) _ap.Seek(0, true); Cur = n;
+    }
+    /// <summary>A one-shot clip (attack, cast, hit) is still running.</summary>
+    public bool Busy => _ap != null && _ap.IsPlaying() && _ap.HasAnimation(Cur) && _ap.GetAnimation(Cur).LoopMode == Animation.LoopModeEnum.None;
+    public float Speed { set { if (_ap != null) _ap.SpeedScale = value; } }
+
+    /// <summary>Walking / running / idle from ground speed (m/s).</summary>
+    public void Move(float speed, bool grounded, bool armed, bool shield)
+    {
+        if (!grounded) { Play("fall", .2f); return; }
+        if (Busy && Cur != Clip("land")) return;
+        Play(speed > 7.5f ? "sprint" : speed > 3.2f ? "run" : speed > .4f ? "walk" : shield ? "idleShield" : armed ? "idleArmed" : "idle", .2f);
+    }
+
+    // ------------------------------------------------------------------ helpers for callers
+    /// <summary>An item-like stand-in for NPC / enemy outfits from data/avatar.json ("armor": "Plate" ...).</summary>
+    public static Func<string, Item?> Outfit(JsonElement o)
+    {
+        var d = new Dictionary<string, Item?>();
+        foreach (var s in new[] { "armor", "head", "hands", "feet", "shield" }) if (S(o, s) != "") d[s] = new Item { Name = S(o, s), Slot = s };
+        return s => d.GetValueOrDefault(s);
+    }
+    public static JsonElement? Npc(string role) => Cfg.GetProperty("npcs").TryGetProperty(role, out var v) ? v : null;
+    public static JsonElement? Foe(string type) => Cfg.GetProperty("enemies").TryGetProperty(type, out var v) ? v : null;
+    public static string Str(JsonElement e, string k, string d = "") => S(e, k, d);
+}

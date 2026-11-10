@@ -51,16 +51,26 @@ public partial class RemoteHero : Node3D, IDamageable, IInteractable
     public void Refresh(PeerInfo p)
     {
         if (_rig == null || !IsInsideTree()) return;
-        var ps = new PlayerStats { Name = p.Name, Race = p.Race, Class = p.Class, Eq = new System.Collections.Generic.Dictionary<string, Item?>(p.Eq) };
-        string look = p.Race + "|" + p.Class;
+        var ps = new PlayerStats { Name = p.Name, Race = p.Race, Class = p.Class, Body = p.Body, Eq = new System.Collections.Generic.Dictionary<string, Item?>(p.Eq) };
+        string look = p.Race + "|" + p.Class + "|" + p.Body;
         if (look != _lookSig)
         {
-            if (_lookSig != "") { _rig.QueueFree(); _rig = new HeroRig { Name = "Model2" }; AddChild(_rig); }   // a rig is built once, so a new look gets a new rig
+            if (_lookSig != "") { _rig.QueueFree(); _rig = new HeroRig { Name = "Model2" }; AddChild(_rig); _av = null; }   // a rig is built once, so a new look gets a new rig
             _lookSig = look; _gearSig = ""; var ap = Races.Look(ps); _rig.Build(ap);
+            if (Avatar.Available) { _av = new Avatar { Name = "Avatar", Scale = new Vector3(1 / ap.Bulk, 1 / ap.Height, 1 / ap.Bulk) }; _rig.AddChild(_av); _av.Build(ap, p.Name); _av.AddCape(ap.Cape); }
             _tag.Position = new Vector3(0, 2.05f * ap.Height + .1f, 0);   // just above the head, for a tall elf or a short dwarf
         }
         string gear = ps.WType(); foreach (var s in PlayerStats.Slots) { var it = ps.Eq.GetValueOrDefault(s); gear += "|" + (it == null ? "-" : it.Name + it.Rar + it.Up); }
-        if (gear != _gearSig) { _gearSig = gear; _rig.ApplyGear(ps); _trail.Base = _rig.BladeBase; _trail.Tip = _rig.BladeTip; }
+        if (gear != _gearSig)
+        {
+            _gearSig = gear; _rig.ApplyGear(ps); _trail.Base = _rig.BladeBase; _trail.Tip = _rig.BladeTip;
+            if (_av != null)
+            {
+                void H(Node n) { foreach (var c in n.GetChildren()) { if (c == _av) continue; if (c is GeometryInstance3D g) g.Visible = false; H(c); } } H(_rig);
+                _av.Dress(s => ps.Eq.GetValueOrDefault(s), ps.WType(), Classes.Get(ps.Class).Tunic); _wt = ps.WType();
+                if (_av.BladeTip != null) { _trail.Base = _av.BladeBase; _trail.Tip = _av.BladeTip; }
+            }
+        }
         bool party = Net.I != null && Net.I.SameParty(Net.MyId, Peer), duel = Net.I?.Duel is { } d && (d.A == Peer || d.B == Peer);
         _tag.Text = $"{p.Name}  Lv {p.Level}" + (party ? "  [party]" : "");
         _tag.Modulate = duel ? new Color(1f, .55f, .4f) : party ? new Color(.55f, 1f, .6f) : new Color(.75f, .9f, 1f);
@@ -94,5 +104,21 @@ public partial class RemoteHero : Node3D, IDamageable, IInteractable
         _rig.Cape.Rotation = new Vector3(p[25] + p[14], 0, 0);
         _trail.Emit = p[26] > .5f; _trail.Col = new Color(p[27], p[28], p[29]);
         _horse.Visible = p[30] > .5f; _horse.Rotation = new Vector3(0, _yaw, 0);
+        if (_av != null) AnimateAvatar(dt, p);
+    }
+
+    // the model is animated from what the pose packet says: movement, swing (trail on), roll, mount, death
+    Avatar? _av; string _wt = "sword"; Vector3 _lastPos; bool _swinging; int _swing;
+    void AnimateAvatar(float dt, float[] p)
+    {
+        var a = _av!; float sp = (GlobalPosition - _lastPos).Length() / Mathf.Max(dt, .001f); _lastPos = GlobalPosition;
+        _rig.Rotation = new Vector3(0, _yaw, 0); _rig.Position = new Vector3(0, p[30] > .5f ? .9f : 0f, 0);
+        bool swing = p[26] > .5f; bool start = swing && !_swinging; _swinging = swing;
+        if (p[31] > .5f) { a.Play("die", .15f); return; }
+        if (p[30] > .5f) { a.Play("sit"); return; }
+        if (Mathf.Abs(p[3]) > .2f) { a.Play("roll", .06f); return; }
+        if (start) { _swing++; a.Play(Weapons.Get(_wt).Hands > 1 ? "heavy" : "melee", .06f, .45f, true, _swing); return; }
+        if (a.Busy) return;
+        a.Move(sp, true, true, false);
     }
 }

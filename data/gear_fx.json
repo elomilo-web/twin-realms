@@ -1,0 +1,20 @@
+{
+  "_help": "Glow on worn gear and weapons (scripts/GearFx.cs). Colour = the item's element if it has one, else its rarity colour. Per rarity (Common..Legendary): edge = fresnel edge glow strength (armor uses armorScale of it), emit = body emission, pulse = how much the glow breathes, light = small light on weapons, sparks = particles per second on weapons. Elements: name word used in item names, colour, and the status a weapon of that element can inflict ('proc' chance per hit). elementChance = chance a weapon/armor of that rarity rolls an element.",
+  "rarity": [
+    { "edge": 0.0, "emit": 0.0, "pulse": 0.0, "light": 0.0, "sparks": 0 },
+    { "edge": 0.35, "emit": 0.0, "pulse": 0.0, "light": 0.0, "sparks": 0 },
+    { "edge": 0.8, "emit": 0.05, "pulse": 0.15, "light": 0.0, "sparks": 0 },
+    { "edge": 1.4, "emit": 0.12, "pulse": 0.3, "light": 0.6, "sparks": 6 },
+    { "edge": 2.2, "emit": 0.25, "pulse": 0.45, "light": 1.1, "sparks": 16 }
+  ],
+  "armorScale": 0.45,
+  "elementChance": [0.0, 0.12, 0.35, 0.65, 1.0],
+  "elements": {
+    "fire": { "word": "Ember", "color": "ff7a2e", "status": "burn", "proc": 0.12 },
+    "frost": { "word": "Frost", "color": "8fe3ff", "status": "chill", "proc": 0.15 },
+    "storm": { "word": "Storm", "color": "c3a8ff", "status": "shock", "proc": 0.12 },
+    "venom": { "word": "Venom", "color": "8dff6a", "status": "poison", "proc": 0.15 },
+    "holy": { "word": "Dawn", "color": "ffe7a0", "status": "judged", "proc": 0.1 },
+    "shadow": { "word": "Umbral", "color": "b45cff", "status": "weaken", "proc": 0.12 }
+  }
+}

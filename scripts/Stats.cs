@@ -9,7 +9,7 @@ public class QuestState { public int S; public int N; }   // S: 0 none, 1 active
 /// <summary>Everything that is saved. Plain public fields (serialised with IncludeFields).</summary>
 public class PlayerStats
 {
-    public string Name = "Hero", Class = "warrior", Race = "human";
+    public string Name = "Hero", Class = "warrior", Race = "human", Body = "male";   // Body: base model (male/female)
     public static readonly string[] Slots = { "weapon", "shield", "head", "armor", "hands", "feet", "trinket" };
     public List<Item> Stash = new();                    // storage chest at home; older saves load with an empty chest
     public Dictionary<string, SkillState> Skills = new(); // learned active skills with rank and socketed supports

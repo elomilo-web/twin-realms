@@ -126,6 +126,7 @@ public partial class Observer : Node
     {
         await Wait(3f); if (Player.Instance == null) { Finish("no player"); return; }
         _cam = new Camera3D { Fov = 70, Far = 700 }; AddChild(_cam);
+        foreach (var a in OS.GetCmdlineUserArgs()) if (a == "--quick") { await Quick(); return; }
         _m["engine_version"] = Engine.GetVersionInfo()["string"]; _m["viewport"] = GetViewport().GetVisibleRect().Size.ToString();
         var errors = new Godot.Collections.Array();
         async Task Safe(string n, Func<Task> f) { try { await f(); } catch (Exception e) { errors.Add(n + ": " + e.Message); GD.PrintErr("[OBSERVE] " + n + " failed: " + e.Message); } }
@@ -271,6 +272,11 @@ public partial class Observer : Node
             await Wait(0.6f); CamAt(pp + new Vector3(.9f, 1.6f, -2.9f), pp + new Vector3(0, 1.15f, 0)); await Wait(0.3f); await Shot("h05_plate_greatsword");
             Set(I("weapon", "Fine Glaive", 1, "spear"), I("head", "Fine Hood", 1), I("armor", "Fine Robe", 1), I("hands", "Fine Wraps", 1), I("feet", "Fine Treads", 1));
             await Wait(0.6f); CamAt(pp + new Vector3(.9f, 1.6f, -2.9f), pp + new Vector3(0, 1.15f, 0)); await Wait(0.3f); await Shot("h06_robe_spear");
+            // elemental glow: a legendary fire sword and an epic frost greatsword
+            { var fw = I("weapon", "Mythic Ember Longsword", 4, "sword"); fw.Elem = "fire"; var fa = I("armor", "Mythic Ember Plate", 4); fa.Elem = "fire"; Set(fw, fa, I("shield", "Runed Kite Shield", 3));
+              await Wait(0.6f); CamAt(pp + new Vector3(.9f, 1.5f, -2.6f), pp + new Vector3(0, 1.1f, 0)); await Wait(0.3f); await Shot("h09_fire_legendary"); }
+            { var gw = I("weapon", "Runed Frost Greatsword", 3, "greatsword"); gw.Elem = "frost"; Set(gw);
+              await Wait(0.6f); CamAt(pp + new Vector3(-1.2f, 1.5f, -2.6f), pp + new Vector3(0, 1.1f, 0)); await Wait(0.3f); await Shot("h10_frost_epic"); }
             Set(I("weapon", "Fine Longbow", 2, "bow")); await Wait(0.5f); Mouse(MouseButton.Left, true); await Wait(0.45f); CamAt(pp + new Vector3(-2.6f, 1.6f, -1.2f), pp + new Vector3(0, 1.3f, 0)); await Shot("h08_bow_draw"); Mouse(MouseButton.Left, false); await Wait(0.8f);
             _cam.Fov = 70; foreach (var kv in keep) Game.D.Eq[kv.Key] = kv.Value; foreach (var s in new[] { "head", "hands", "feet" }) if (!keep.ContainsKey(s)) Game.D.Eq.Remove(s); Game.Notify();
             // lock-on: target the nearest wolf from behind the hero, with the HUD
@@ -286,6 +292,36 @@ public partial class Observer : Node
         });
         await Safe("hitboxes", HitboxAudit);
         _m["errors"] = errors;
+        Finish("ok");
+    }
+
+    /// <summary>--observe --quick: only the character shots (models, gear, glow, a few animation strips). About a minute.</summary>
+    async Task Quick()
+    {
+        SetHud(false);
+        foreach (var (name, npc, enemy, off, look) in new (string, string, string, Vector3, float)[] {
+            ("q01_plaza", "", "", new Vector3(5, 2, 7), 1.5f), ("q02_maren", "maren", "", new Vector3(1.5f, 1.6f, 3), 1.4f), ("q03_brynn", "brynn", "", new Vector3(1.2f, 1.4f, 2.8f), 1.3f),
+            ("q04_bandit", "", "bandit", new Vector3(2, 1.5f, 3.5f), 1.1f), ("q05_brute", "", "brute", new Vector3(3, 2.2f, 5f), 1.6f) })
+        {
+            float x = -4, z = 6;
+            if (npc != "") foreach (var n in GetTree().GetNodesInGroup("interact")) if (n is Npc c && c.Id == npc) { x = c.GlobalPosition.X; z = c.GlobalPosition.Z; }
+            if (enemy != "") { var e = Nearest(enemy); if (e == null) continue; x = e.GlobalPosition.X; z = e.GlobalPosition.Z; e.ProcessMode = ProcessModeEnum.Disabled; }
+            _cam.Fov = 50; await Scene(name, x, z, off, look, .45f);
+        }
+        _cam.Fov = 45; Sky(.45f, 0); P.Teleport(World.OnGround(0, 17, 0.5f), 0f); await Wait(.6f); var pp = P.GlobalPosition;
+        Item I(string slot, string name, int rar, string? wt = null, string? el = null) => new() { Name = name, Slot = slot, Rar = rar, Wt = wt, Def = 5, Dmg = wt != null ? 8 : 0, Elem = el };
+        void Set(params Item[] items) { foreach (var it in items) Game.D.Eq[it.Slot] = it; Game.Notify(); }
+        async Task Front(string n) { CamAt(pp + new Vector3(.9f, 1.5f, -2.8f), pp + new Vector3(0, 1.05f, 0)); await Wait(.4f); await Shot(n); CamAt(pp + new Vector3(-1.6f, 1.6f, 2.2f), pp + new Vector3(0, 1.05f, 0)); await Wait(.3f); await Shot(n + "_back"); }
+        await Front("q10_default");
+        Set(I("weapon", "Fine Longsword", 1, "sword"), I("shield", "Fine Kite Shield", 1), I("armor", "Fine Brigandine", 1), I("hands", "Fine Gloves", 1), I("feet", "Fine Boots", 1), I("head", "Fine Hood", 1)); await Wait(.6f); await Front("q11_leather");
+        Set(I("weapon", "Mythic Ember Executioner", 4, "greatsword", "fire"), I("armor", "Mythic Plate", 4, null, "fire"), I("hands", "Mythic Gauntlets", 4), I("feet", "Mythic Greaves", 4), I("head", "Mythic Greathelm", 4)); await Wait(.6f); await Front("q12_plate_fire");
+        Set(I("weapon", "Runed Frost Spear", 3, "spear", "frost"), I("armor", "Runed Robe", 3, null, "frost"), I("head", "Runed Circlet", 3)); await Wait(.6f); await Front("q13_robe_frost");
+        Set(I("weapon", "Fine Storm Wand", 2, "wand", "storm")); await Wait(.6f); await Front("q14_wand_storm");
+        Set(I("weapon", "Runed Longsword", 3, "sword", "venom"), I("shield", "Runed Aegis", 3, null, "holy")); await Wait(.6f); await Front("q15_sword_venom");
+        _cam.Fov = 70; P.Teleport(World.OnGround(0, 18, 0.5f), 0f); await Wait(.4f);
+        await Strip("q_combo", async () => { for (int i = 0; i < 3; i++) { Mouse(MouseButton.Left, true); await Wait(0.06f); Mouse(MouseButton.Left, false); await Wait(0.2f); } }, 12, 0.07f);
+        await Strip("q_walk", async () => { Press(Inputs.Forward, true); Press(Inputs.Sprint, true); await Wait(0.6f); Press(Inputs.Forward, false); Press(Inputs.Sprint, false); }, 8, 0.1f);
+        await Strip("q_roll", async () => { Press(Inputs.Forward, true); Press(Inputs.Roll, true); await Wait(0.1f); Press(Inputs.Roll, false); await Wait(0.45f); Press(Inputs.Forward, false); });
         Finish("ok");
     }
 

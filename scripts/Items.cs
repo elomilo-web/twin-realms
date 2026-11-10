@@ -21,6 +21,7 @@ public class Item
     public float Mc { get; set; }                    // mana cost reduction
     public bool Two { get; set; }                    // two-handed
     public int Up { get; set; }                      // smith upgrades
+    public string? Elem { get; set; }                // element (data/gear_fx.json): colours the glow; weapons can inflict its status
 
     [JsonIgnore] public int Value => Math.Max(1, (int)Math.Round((Dmg * 4 + Def * 4 + Hp * 0.6 + Mp * 0.6) * (1 + Rar * 0.8)));
     [JsonIgnore] public Color Color => Items.RarityColor(Rar);
@@ -32,6 +33,7 @@ public class Item
         if (Def > 0) p.Add("+" + Def + " def");
         if (Hp > 0) p.Add("+" + Hp + " hp");
         if (Mp > 0) p.Add("+" + Mp + " mp");
+        if (GearFx.Get(Elem) is { } el) p.Add(Slot == "weapon" ? $"{Mathf.RoundToInt(el.Proc * 100)}% {el.Status}" : el.Word.ToLower() + " glow");
         return $"{Name} (L{Lvl}) {string.Join(", ", p)}";
     }
 }
@@ -89,7 +91,8 @@ public static class Items
         string baseName;
         if (slot == "weapon") { var names = _wn.GetValueOrDefault(it.Wt!, new[] { "Weapon" }); baseName = names[Math.Min(names.Length - 1, (int)(GD.Randf() * 5))]; }
         else { var names = _in.GetValueOrDefault(slot, new[] { "Item" }); baseName = names[GD.RandRange(0, names.Length - 1)]; }
-        it.Name = _pre[idx] + " " + baseName + (idx == 4 ? " of the Rift" : "");
+        if (slot != "trinket") it.Elem = GearFx.Roll(idx);
+        it.Name = _pre[idx] + " " + (GearFx.Get(it.Elem) is { } el ? el.Word + " " : "") + baseName + (idx == 4 ? " of the Rift" : "");
         return it;
     }
 }
