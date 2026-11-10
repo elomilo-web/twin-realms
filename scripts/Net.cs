@@ -29,7 +29,7 @@ public class PartyInfo
 public partial class Net : Node
 {
     public static Net? I;
-    public const int DefaultPort = 24565, Protocol = 1, MaxPlayers = 8;
+    public const int DefaultPort = 24565, Protocol = 2, MaxPlayers = 8;   // Protocol 2: beta 1.0 (party dungeons); older builds are told to update
     const int Channels = 8;   // 0 reliable events, 1 poses, 2 enemy snapshots, 3 clock, 4 shots (both sides must open the same number)
     public static bool Active => I != null && I._live;
     public static bool IsHost => Active && I!._server;
@@ -157,7 +157,7 @@ public partial class Net : Node
     void R_Hello(int protocol, string infoJson)
     {
         if (!_server) return; long id = Sender;
-        if (protocol != Protocol) { RpcId(id, MethodName.R_Kick, "The host runs a different version of Twin Realms. Update both games."); return; }
+        if (protocol != Protocol) { RpcId(id, MethodName.R_Kick, $"The host runs a different version of Twin Realms (host: {Game.Version}). Both players need the newest download from the beta folder."); return; }
         if (Players.Count >= MaxPlayers) { RpcId(id, MethodName.R_Kick, "The host's world is full."); return; }
         var info = FromJson<PeerInfo>(infoJson) ?? new PeerInfo(); info.Id = id; info.Party = 0; Players[id] = info;
         var me = Player.Instance; var at = me != null && MyZone == 0 ? me.GlobalPosition : World.OnGround(0, 9, .6f);

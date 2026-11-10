@@ -1,6 +1,7 @@
 # Play testing with a friend
 
 ## Make the game
+0. For a public release use `powershell -File tools/run.ps1 release` instead: it puts `beta/TwinRealms-<version>-Windows.zip` in the repo (see `beta/README.md`).
 1. `powershell -File tools/run.ps1 export`
 2. This builds `build/TwinRealms.exe` (plus `TwinRealms.pck` and a `data_TwinRealms_windows_x86_64` folder) and zips all of it as `TwinRealms-playtest.zip` (about 120 MB).
 3. Send the zip (Google Drive, Discord, a USB stick). Your friend unzips it **anywhere** and runs `TwinRealms.exe`. Nothing else needs installing: .NET is inside the build.

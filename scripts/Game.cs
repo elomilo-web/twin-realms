@@ -23,6 +23,8 @@ public static class Game
     public static bool TreeRefunded;            // set when an old save had its skill tree points refunded
     public static event Action? Changed;        // fired when saved data changes (UI refresh)
 
+    /// <summary>The game version (project.godot application/config/version), shown on the title screen.</summary>
+    public static string Version => ProjectSettings.GetSetting("application/config/version", "dev").AsString();
     public static string SavePath = "user://save.json";   // the self-test bots use their own files so they never touch your hero
     public static string SetPath = "user://settings.json";   // the test bots use their own file so they never change your controls
     static readonly JsonSerializerOptions Opt = new() { IncludeFields = true, WriteIndented = false };

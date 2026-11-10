@@ -1,0 +1,36 @@
+TWIN REALMS - BETA 1.0  (Windows, 64-bit)
+==========================================
+
+START
+  Double-click TwinRealms.exe. Nothing to install.
+  Keep everything in this folder together: the .exe needs TwinRealms.pck and the data_TwinRealms_windows_x86_64 folder.
+  If Windows says "Windows protected your PC": click "More info", then "Run anyway" (the game is not signed yet).
+
+HEROES
+  The title screen has 3 hero slots. Pick an empty slot to create a hero (race, class, name), or press Play on one you made.
+  Esc > Quit to title saves and takes you back to the heroes.
+  Saves live in %APPDATA%\Godot\app_userdata\TwinRealms\ (save.json holds all 3 heroes). Deleting the game folder keeps them.
+
+CONTROLS (change any of them in Settings > Controls)
+  WASD move, Shift sprint, Space jump, C roll
+  Left mouse attack (hold for a power attack), Right mouse guard with a shield
+  1-6 skills, H health potion, G mana potion, E interact, R shift between Light and Shadow, T horse
+  Tab lock on (again: next target), Q release lock-on
+  I pack, J journal, M map, K skill tree, L skills, Esc menu
+
+PLAY WITH A FRIEND
+  Both of you need this same version.
+  Host: Multiplayer > Host a game (allow Twin Realms through the Windows firewall when asked).
+        Then Esc > Multiplayer and press Copy next to a join code. Send it to your friend.
+        "Over the internet" code: friends anywhere.  "Same Wi-Fi / VPN" code: friends in your house.
+  Friend: Multiplayer > Paste > Join.
+  If the host's menu says the router did not open the port: forward UDP port 24565 to the host's computer,
+  or both install Tailscale or Radmin VPN (free) and use the "Same Wi-Fi / VPN" code.
+  Walk up to your friend and press E to invite them to a party: a party shares dungeons, experience and gold.
+
+LEVELLING
+  Each level gives 3 attribute points (Esc > Character), 1 skill point (L) and 2 skill tree points (K).
+  Dungeon monsters are your level + 2 (a party's average level + 3) and get tougher and better equipped on each floor down.
+
+FOUND A BUG?
+  Tell us what you did and what happened. The game's log is in %APPDATA%\Godot\app_userdata\TwinRealms\logs\

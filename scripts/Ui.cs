@@ -381,6 +381,7 @@ public partial class Ui : CanvasLayer
         top.AddChild(Btn("Multiplayer", OpenMultiplayer));
         top.AddChild(Btn("Settings", OpenSettings));
         top.AddChild(Btn("Quit game", () => GetTree().Quit()));
+        Lbl("Version " + Game.Version, 13, Dim, v);
         if (Net.LastNote != "") Row(v, Net.LastNote, new Color(1f, .7f, .5f), 15);
         Lbl("CHOOSE YOUR HERO", 18, UiTheme.Accent, v);
         Row(v, "Three heroes share this save. Click a hero to select it (Multiplayer brings the selected hero), Play to enter the world, or create a hero in an empty slot.", Dim, 14);

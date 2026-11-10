@@ -37,6 +37,23 @@ if ($mode -eq "bot") {
   if (Test-Path TwinRealms-playtest.zip) { Remove-Item TwinRealms-playtest.zip }
   Compress-Archive -Path build/* -DestinationPath TwinRealms-playtest.zip
   "EXPORT_OK  build/TwinRealms.exe  ->  TwinRealms-playtest.zip ($([math]::Round((Get-Item TwinRealms-playtest.zip).Length / 1MB)) MB)"
+} elseif ($mode -eq "release") {
+  # builds the game and puts the download for players in beta/ (one zip, replaced each release; GitHub allows files up to 100 MB)
+  $ver = ((Select-String project.godot -Pattern 'config/version="([^"]+)"').Matches[0].Groups[1].Value) -replace '[^0-9A-Za-z.]+', '-'
+  if (Test-Path build) { Remove-Item -Recurse -Force build }
+  New-Item -ItemType Directory -Force build, beta | Out-Null
+  & $godot --headless --path . --export-release "Windows Desktop" build/TwinRealms.exe 2>&1 | ForEach-Object { "$_" } | Out-File -Encoding utf8 export_log.txt
+  if (-not (Test-Path build/TwinRealms.exe)) { "EXPORT_FAIL: see export_log.txt"; exit 1 }
+  $stage = "build_stage/TwinRealms"; if (Test-Path build_stage) { Remove-Item -Recurse -Force build_stage }
+  New-Item -ItemType Directory -Force $stage | Out-Null; Copy-Item -Recurse build/* $stage
+  Copy-Item beta/HOW_TO_PLAY.txt $stage -ErrorAction SilentlyContinue
+  Get-ChildItem beta -Filter *.zip | Remove-Item
+  $zip = "beta/TwinRealms-$ver-Windows.zip"
+  Compress-Archive -Path build_stage/TwinRealms -DestinationPath $zip -CompressionLevel Optimal
+  Remove-Item -Recurse -Force build_stage
+  $mb = [math]::Round((Get-Item $zip).Length / 1MB, 1)
+  if ($mb -ge 100) { "RELEASE_TOO_BIG: $zip is $mb MB; GitHub refuses files of 100 MB or more"; exit 1 }
+  "RELEASE_OK  $zip ($mb MB)"
 } else {
   & $godot --path . -- --observe 2>&1 | ForEach-Object { "$_" } | Out-File -Encoding utf8 observe_log.txt
   if (Test-Path observe_out/metrics.json) { "OBSERVE_OK" } else { "OBSERVE_FAIL: no metrics written, see observe_log.txt"; exit 1 }
