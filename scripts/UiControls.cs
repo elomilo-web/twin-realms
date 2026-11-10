@@ -10,11 +10,12 @@ public partial class Ui
 
     public void OpenControls()
     {
-        var v = Frame("controls", "Controls", new Vector2(760, 640), OpenControls);
+        var v = Frame("controls", "Settings", new Vector2(760, 600), OpenControls);
+        SettingsTabs(v, "controls");
         Row(v, _capture != null ? "Press the new key or mouse button for \"" + NameOfAction(_capture) + "\" (Esc cancels)." : "Click an action, then press the key or mouse button you want. A key already in use swaps with it.",
             _capture != null ? UiTheme.Highlight : Dim, 15);
         if (_controlsMsg != "") Row(v, _controlsMsg, new Color(1f, .85f, .5f), 14);
-        var scroll = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled, CustomMinimumSize = new Vector2(0, 470) }; v.AddChild(scroll);
+        var scroll = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled, CustomMinimumSize = new Vector2(0, 300) }; v.AddChild(scroll);
         var grid = new GridContainer { Columns = 2, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; grid.AddThemeConstantOverride("h_separation", 18); grid.AddThemeConstantOverride("v_separation", 4); scroll.AddChild(grid);
         foreach (var (id, name) in Inputs.Rebindable)
         {
@@ -28,7 +29,8 @@ public partial class Ui
         }
         var bot = new HBoxContainer(); bot.AddThemeConstantOverride("separation", 10); v.AddChild(bot);
         bot.AddChild(Btn("Reset to defaults", () => { Inputs.ResetAll(); _capture = null; _controlsMsg = "All controls are back to their defaults."; OpenControls(); }));
-        bot.AddChild(Btn(InGame ? "Back" : "Done", () => { _capture = null; _controlsMsg = ""; OpenSettings(); }));
+        bot.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Ignore });
+        var back = Btn(InGame ? "Back" : "Done", () => { _capture = null; _controlsMsg = ""; if (InGame) OpenPause(); else ShowTitle(); }); back.CustomMinimumSize = new Vector2(140, 36); bot.AddChild(back);
     }
     static string NameOfAction(string id) { foreach (var (a, n) in Inputs.Rebindable) if (a == id) return n; return id; }
 

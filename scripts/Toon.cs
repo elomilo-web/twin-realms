@@ -38,9 +38,13 @@ public partial class Toon : Node3D
         mat.SetShaderParameter("width", width); mat.SetShaderParameter("depth_t", depthT); mat.SetShaderParameter("normal_t", normalT);
         mat.SetShaderParameter("fade", fade); mat.SetShaderParameter("line_col", new Color(col, alpha));
         _outline = new MeshInstance3D { Name = "Outline", Mesh = new QuadMesh { Size = new Vector2(2, 2) }, MaterialOverride = mat, ExtraCullMargin = 16384f, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
-        AddChild(_outline);
+        AddChild(_outline); _inst = this; _outline.Visible = _lines;
     }
-    public override void _ExitTree() { if (_on) GetTree().NodeAdded -= OnNode; }
+    public override void _ExitTree() { if (_on) GetTree().NodeAdded -= OnNode; if (_inst == this) _inst = null; }
+
+    static Toon? _inst; static bool _lines = true;
+    /// <summary>Settings > Display > Outlines.</summary>
+    public static void SetOutlines(bool on) { _lines = on; if (_inst != null && IsInstanceValid(_inst._outline)) _inst._outline.Visible = on; }
 
     void Sweep(Node n) { OnNode(n); foreach (var c in n.GetChildren()) Sweep(c); }
     void OnNode(Node n)

@@ -16,7 +16,7 @@ public partial class CameraRig : Node3D
     float _pitch = -0.25f;
     float _shake;
 
-    public void Shake(float amount) => _shake = Mathf.Max(_shake, amount);
+    public void Shake(float amount) => _shake = Mathf.Max(_shake, amount * Game.Set.Shake);
 
     public Camera3D Camera => _cam;
     /// <summary>Horizontal facing of the camera in radians (rig yaw).</summary>
@@ -66,6 +66,7 @@ public partial class CameraRig : Node3D
             var d = t.GlobalPosition - Target.GlobalPosition; d.Y = 0;
             if (d.LengthSquared() > .5f) Rotation = new Vector3(0, Mathf.LerpAngle(Rotation.Y, Util.YawTo(d.X, d.Z), 1f - Mathf.Exp(-Feel.LockTurn * (float)delta)), 0);
         }
+        _cam.Fov = Game.Set.Fov;
         _arm.SpringLength = Mathf.Lerp(_arm.SpringLength, Distance, 1f - Mathf.Exp(-10f * (float)delta));
         _shake = Mathf.Max(0, _shake - (float)delta * 1.2f);
         _cam.HOffset = (float)GD.RandRange(-1.0, 1.0) * _shake * 0.3f;

@@ -9,6 +9,15 @@ public class Settings
 {
     public float Master = 0.8f, Sfx = 0.8f, Ambient = 0.6f, Music = 0.5f, Sens = 1f;
     public bool InvertY = false;
+    // display and game options (Settings > Display / Game); older settings files get these defaults
+    public int WindowMode = 0;            // 0 windowed, 1 fullscreen (borderless), 2 exclusive fullscreen
+    public bool VSync = true;
+    public int MaxFps = 0;                // 0 = no limit
+    public float RenderScale = 1f;        // 3D resolution; the menus and HUD stay sharp
+    public float Fov = 70f;
+    public bool Outlines = true;
+    public bool ShowFps = false;
+    public float Shake = 1f;              // camera shake strength
     public Dictionary<string, string> Binds = new();   // rebound controls: action -> "k:keycode" / "m:button" (older settings files: empty = defaults)
 }
 
@@ -129,7 +138,23 @@ public static class Game
         }
         catch { Set = new Settings(); }
         Set.Binds ??= new();
-        Sfx.ApplyVolumes(); Inputs.ApplyBinds();
+        Sfx.ApplyVolumes(); Inputs.ApplyBinds(); ApplyDisplay();
+    }
+
+    /// <summary>Window mode, vsync, frame cap, 3D resolution and outlines from the settings (field of view and shake are read live by CameraRig).</summary>
+    public static void ApplyDisplay()
+    {
+        Set.RenderScale = Mathf.Clamp(Set.RenderScale, .5f, 1f); Set.Fov = Mathf.Clamp(Set.Fov, 55f, 100f);
+        Engine.MaxFps = Math.Max(0, Set.MaxFps);
+        if (Engine.GetMainLoop() is SceneTree tree) tree.Root.Scaling3DScale = Set.RenderScale;
+        Toon.SetOutlines(Set.Outlines);
+        if (DisplayServer.GetName() == "headless") return;
+        DisplayServer.WindowSetVsyncMode(Set.VSync ? DisplayServer.VSyncMode.Enabled : DisplayServer.VSyncMode.Disabled);
+        var want = Set.WindowMode switch { 1 => DisplayServer.WindowMode.Fullscreen, 2 => DisplayServer.WindowMode.ExclusiveFullscreen, _ => DisplayServer.WindowMode.Windowed };
+        var cur = DisplayServer.WindowGetMode();
+        bool curFull = cur == DisplayServer.WindowMode.Fullscreen || cur == DisplayServer.WindowMode.ExclusiveFullscreen;
+        // leaving a maximised window alone when "windowed" is chosen
+        if (cur != want && (want != DisplayServer.WindowMode.Windowed || curFull)) DisplayServer.WindowSetMode(want);
     }
     public static void SaveSettings()
     {

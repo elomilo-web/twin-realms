@@ -299,6 +299,15 @@ public partial class Bot : Node
             var menus = new (string, Action)[] { ("pack", () => Ui.I!.OpenPack()), ("character", () => Ui.I!.OpenCharacter()), ("journal", () => Ui.I!.OpenJournal()), ("tree", () => Ui.I!.OpenTree()), ("map", () => Ui.I!.OpenMap()), ("pause", () => Ui.I!.OpenPause()), ("settings", () => Ui.I!.OpenSettings()) };
             int n = 5;
             foreach (var (name, open) in menus) { open(); await Wait(0.2f); Check("menu " + name + " opens", Ui.AnyOpen); await Shot($"{n++:00}_menu_{name}"); Ui.I!.Close(); await Wait(0.1f); }
+            // settings tabs open, and display/game options reach the camera, renderer and outline pass
+            bool tabs = true; foreach (var t in new[] { "audio", "display", "game" }) { Ui.I!.OpenSettings(t); await Wait(0.15f); tabs &= Ui.I.PanelName == "settings"; }
+            Ui.I!.OpenControls(); await Wait(0.15f); tabs &= Ui.I.PanelName == "controls"; Ui.I.Close();
+            Check("settings tabs open", tabs);
+            var keep = (Game.Set.Fov, Game.Set.RenderScale, Game.Set.Outlines);
+            Game.Set.Fov = 90; Game.Set.RenderScale = .75f; Game.Set.Outlines = false; Game.ApplyDisplay(); await Wait(0.15f);
+            var cam = GetViewport().GetCamera3D();
+            Check("display settings apply", cam != null && Mathf.IsEqualApprox(cam.Fov, 90f) && Mathf.IsEqualApprox(GetTree().Root.Scaling3DScale, .75f), $"fov {cam?.Fov:0} scale {GetTree().Root.Scaling3DScale:0.00}");
+            (Game.Set.Fov, Game.Set.RenderScale, Game.Set.Outlines) = keep; Game.ApplyDisplay();
         });
 
         await Step("npcs and shop", async () =>

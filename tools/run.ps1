@@ -52,7 +52,7 @@ if ($mode -eq "bot") {
   Compress-Archive -Path build_stage/TwinRealms -DestinationPath $zip -CompressionLevel Optimal
   Remove-Item -Recurse -Force build_stage
   $mb = [math]::Round((Get-Item $zip).Length / 1MB, 1)
-  if ($mb -ge 100) { "RELEASE_TOO_BIG: $zip is $mb MB; GitHub refuses files of 100 MB or more"; exit 1 }
+  if ($mb -ge 100) { "NOTE: $zip is $mb MB. A git push refuses files of 100 MB or more; upload it as a GitHub Release asset instead (2 GB limit)." }
   "RELEASE_OK  $zip ($mb MB)"
 } else {
   & $godot --path . -- --observe 2>&1 | ForEach-Object { "$_" } | Out-File -Encoding utf8 observe_log.txt

@@ -71,6 +71,7 @@ public partial class HudCanvas : Control
         // realm, clock, place and gold sit under the compass (the notes column starts just below the status window)
         float infoY = pad + fs(1.2f) + fs(.5f) + fs(1f) + 12;
         Txt(new Vector2(sz.X / 2 - u * 20, infoY), Dungeon.Active ? $"DEPTH {Dungeon.Depth}" : $"{realm}   {(int)hrs:00}:{(int)((hrs - (int)hrs) * 60):00}   {PlaceName(p.GlobalPosition)}   {d.Gold} G", fs(.95f), World.Realm == 1 ? new Color(.78f, .62f, 1f) : UiTheme.Dim.Lightened(.2f), HorizontalAlignment.Center, u * 40);
+        if (Game.Set.ShowFps) Txt(new Vector2(sz.X - pad - 200, sz.Y - 4), $"{Engine.GetFramesPerSecond():0} FPS", 11, UiTheme.Dim, HorizontalAlignment.Right, 200);
         if (Arenas.Active) Txt(new Vector2(sz.X / 2 - u * 20, infoY + fs(1.2f) + 4), Arenas.Status, fs(1.15f), UiTheme.Highlight, HorizontalAlignment.Center, u * 40);
         // quest tracker, top right
         var aq = Quests.Active();
@@ -254,5 +255,5 @@ public partial class HudCanvas : Control
         DrawArc(c, rad, 0, Mathf.Tau, 48, UiTheme.Accent, 2f); DrawArc(c, rad + 5, -0.5f, 0.5f, 12, UiTheme.Accent, 2f); DrawArc(c, rad + 5, Mathf.Pi - 0.5f, Mathf.Pi + 0.5f, 12, UiTheme.Accent, 2f);
     }
 
-    static string PlaceName(Vector3 p) { Poi? best = null; float bd = 1e9f; foreach (var poi in World.Pois) { float dd = new Vector2(poi.X - p.X, poi.Z - p.Z).Length(); if (dd < poi.R && dd < bd) { bd = dd; best = poi; } } return best?.Name ?? "The Wilds"; }
+    public static string PlaceName(Vector3 p) { Poi? best = null; float bd = 1e9f; foreach (var poi in World.Pois) { float dd = new Vector2(poi.X - p.X, poi.Z - p.Z).Length(); if (dd < poi.R && dd < bd) { bd = dd; best = poi; } } return best?.Name ?? "The Wilds"; }
 }
