@@ -12,3 +12,7 @@ observe_out/
 observe_log.txt
 mp_*_log.txt
 mp_host_err.txt
+build/
+TwinRealms-playtest.zip
+export_log.txt
+exe_*.txt

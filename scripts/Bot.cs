@@ -324,6 +324,21 @@ public partial class Bot : Node
                 Dungeon.Enter(key, 1); await Wait(1.5f); Check($"dungeon {key} active", Dungeon.Active);
                 int mobs = 0; bool boss = false; foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Enemy e && e.FromDungeon) { mobs++; if (e.Def.Boss) boss = true; }
                 Check($"dungeon {key} spawns mobs", mobs > 0, mobs + " mobs"); Check($"dungeon {key} has a boss", boss);
+                if (key == "barrow")
+                {
+                    // monsters are your level + 2 (boss + 1 more) and wear gear plus upgrades on a private copy of their stats
+                    int want = Progression.DungeonLevel(Game.D.Level, 1), badLvl = 0, upg = 0, geared = 0; Enemy? sample = null;
+                    foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Enemy e && e.FromDungeon && !e.Summoned)
+                    {
+                        if (e.Level != want + (e.Def.Boss ? Progression.DunBoss : 0) && !(e.Level == want + 1 && !e.Def.Boss)) badLvl++;
+                        if (e.UpgradeCount() > 0) upg++; if (e.Mods != null && e.Mods.Exists(m => m.Id == "")) geared++; sample ??= e;
+                    }
+                    Check("dungeon monsters scale to hero level + 2", badLvl == 0, $"hero {Game.D.Level}, want {want}, wrong {badLvl}");
+                    Check("dungeon monsters have gear and upgrades", geared == mobs && upg == mobs && sample != null && EnemyDb.Get(sample.Type).Armor < sample.Def.Armor, $"{geared} geared, {upg} upgraded of {mobs}; {sample?.UpgradeLine().Replace("\n", " ")}{sample?.Def.N}");
+                    Dungeon.Enter(key, 4); await Wait(1.0f); int up4 = 0, n4 = 0; foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Enemy e && e.FromDungeon && !e.Summoned && !e.Def.Boss) { n4++; up4 += e.UpgradeCount(); }
+                    Check("deeper floors give more upgrades and better gear", n4 > 0 && up4 > n4 && Progression.GearFor(4)!.Armor > Progression.GearFor(1)!.Armor, $"depth 4: {up4} upgrades on {n4} mobs, gear {Progression.GearFor(4)!.Name}");
+                    Dungeon.Enter(key, 1); await Wait(1.0f);
+                }
                 await Shot("15_dungeon_" + key);
                 if (key == "barrow") { var m = Nearest(x => x.FromDungeon && !x.Def.Boss); if (m != null) { string mt = m.Type; bool d = await Fight(m); if (!d) await Shot("fail_dungeon_mob"); Check("dungeon mob can be killed", d, d ? "" : $"{mt}, hp {(GodotObject.IsInstanceValid(m) ? m.Hp : 0):0}, dist {(GodotObject.IsInstanceValid(m) ? m.GlobalPosition.DistanceTo(P.GlobalPosition) : 0):0.0} m"); } }
                 Dungeon.Leave(false); await Wait(1.0f); Check($"left dungeon {key}", !Dungeon.Active);
@@ -344,6 +359,18 @@ public partial class Bot : Node
         await Step("save and load", async () =>
         {
             int g = Game.D.Gold, lv = Game.D.Level; Game.Save(); bool ok = Game.Load(); Check("save then load", ok && Game.D.Gold == g && Game.D.Level == lv);
+            // three character slots in one save file: a second hero in slot 2 must not touch the first
+            var me = Game.D; string myName = me.Name; int slot0 = Game.Slot;
+            Game.Slot = 1; Game.NewGame("mage", "SlotTwo", "elf"); Game.Save();
+            Game.Slot = slot0; bool back = Game.Load() && Game.D.Name == myName && Game.D.Gold == g;
+            Check("three hero slots share one save", back && Game.Peek(1)?.Name == "SlotTwo" && Game.Peek(2) == null, $"slot1 {Game.Peek(0)?.Name}, slot2 {Game.Peek(1)?.Name}, slot3 {Game.Peek(2)?.Name ?? "empty"}");
+            Game.DeleteSlot(1); Check("deleting a slot keeps the others", Game.Peek(1) == null && Game.Peek(0) != null);
+            // levelling: easy at first, steeper later; each level gives 3 attribute, 1 skill, 2 skill tree points
+            int n1 = Progression.XpNeed(1), n2 = Progression.XpNeed(2), n10 = Progression.XpNeed(10), n20 = Progression.XpNeed(20); bool rising = true;
+            for (int l = 1; l < 40; l++) if (Progression.XpNeed(l + 1) - Progression.XpNeed(l) < Progression.XpNeed(l) - Progression.XpNeed(Math.Max(1, l - 1))) rising = false;
+            Check("xp curve is easy early and gets harder", n1 <= 60 && n2 > n1 && rising && n20 > n10 * 3, $"need L1 {n1}, L2 {n2}, L10 {n10}, L20 {n20}");
+            var t = new PlayerStats { Level = 1, AttrPts = 0, SkillPts = 0, RankPts = 0 }; int ups = t.GainXp(Progression.XpNeed(1));
+            Check("level up gives 3 attribute, 1 skill, 2 skill tree points", ups == 1 && t.Level == 2 && t.AttrPts == 3 && t.RankPts == 1 && t.SkillPts == 2, $"attr {t.AttrPts}, skill {t.RankPts}, tree {t.SkillPts}");
             await Task.CompletedTask;
         });
 

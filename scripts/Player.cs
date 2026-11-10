@@ -94,7 +94,7 @@ public partial class Player : CharacterBody3D, IDamageable
         {
             Hp = Game.D.MaxHp(); Mp = Game.D.MaxMp(); St = Game.D.MaxSt();
             FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.6f, 0), "LEVEL UP " + Game.D.Level, new Color(1, 0.85f, 0.3f), 1.4f);
-            Ui.Banner("Level " + Game.D.Level, "+2 attribute points, +2 skill points"); Sfx.Play("level");
+            Ui.Banner("Level " + Game.D.Level, $"+{Progression.AttrPerLevel * ups} attribute, +{Progression.RankPerLevel * ups} skill, +{Progression.TreePerLevel * ups} skill tree points"); Sfx.Play("level");
             Fx.Ring(GlobalPosition, 4f, new Color(1, 0.85f, 0.3f), 0.7f);
         }
         Game.Notify();

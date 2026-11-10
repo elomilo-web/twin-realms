@@ -202,3 +202,19 @@ Plan: round 1 body, gear, weapons, targeting, glow, dungeons; round 2 damage typ
 - Self-test: tools/run.ps1 mp runs two windows (host 13/13, joiner 17/17). Bots now use their own save files, so tests never touch the player's hero.
 - Mistakes caught: joining froze the network while the world built and the host dropped the friend (longer peer timeout); extra network channels were not opened; puppets without a snapshot slid to the world origin; string hashes differ between runs, so the world fingerprint hashes characters itself.
 - Not done: dungeons and the arena stay private per player; other players' skill effects (novas, zones) are not mirrored yet, only their projectiles and swings.
+
+## Iterations 16 and 17 (2026-11-09, run 6: progression, dungeon scaling, hero slots, playtest build)
+Round 1 (requested features):
+- Levelling curve moved to data/progression.json (scripts/Progression.cs): need = 40 + 20n + 6n^2 + 0.15n^3 (n = level - 1). L1 40, L2 66, L10 815, L20 3615: about 3 kills for level 2, about 25 per level at 10, 75 at 20. Old saves settle extra experience on load.
+- Level up: 3 attribute points, 1 skill point (Skills menu, L), 2 skill tree points (K), from data. Banner, character sheet, Skills menu and HUD now name all three the same way.
+- Dungeons: monster level = hero level + 2, +1 per floor deeper, boss +1 (was the place's fixed level). Every dungeon monster wears the floor's gear tier (Iron-clad 1, Steel-clad 2, Runed 4, Abyssal 6: health, damage, armor, magic resist, loot rarity) and rolls upgrades (Frenzied, Venomous, Searing, Frostbound, Rending, Cursed, Stalwart, Warded, Swift, Brutal): 1 on floor 1, +0.5 per floor, max 4, bosses +2. Upgrades change damage type and on-hit statuses, attack speed, toughness; each adds experience and drop chance. Applied to a private copy of the enemy definition (EnemyDef.Clone) so overworld enemies are untouched.
+- Title screen is now the character select: 3 hero slots in one save file (card per slot: level, race, class, xp bar, gold, kills, deepest floor, weapon, time played; Play, Delete with confirm, Create). New hero picker is its own screen with Back. Quit to title lands here. Multiplayer brings the selected hero. Old single-hero saves migrate to slot 1. Saves are written to a temp file and swapped in, with a .bak of the last save. Quit game button.
+- HUD: the unspent points line overlapped the potion slots (seen in 15_dungeon_barrow); moved to the right of the hotbar.
+Round 2 (playtest readiness and polish):
+- Upgraded dungeon monsters glow in their rarity colour (blue 1 upgrade, gold 2+), name plate shows upgrades and gear tier (d05_dungeon_mob: the dark Shade Hound was invisible before).
+- Export: Windows x64 templates installed; preset exports to build/ with data/*.json included, product name and version, no console window; tools/run.ps1 export builds and zips TwinRealms-playtest.zip (120 MB). docs/PLAYTEST.md for sending it to a friend.
+- Verified the exported .exe itself: self-test bot 72/72, and two exported .exes host/join 13/13 and 17/17.
+- Observer: new shots m_title (character select), m_create, d05_dungeon_mob.
+- Bot 65 -> 72 checks: dungeon level + 2, gear and upgrades on every dungeon monster, deeper floors stronger, 3 slots in one save, delete keeps others, xp curve shape, level-up points.
+- Evidence: fps 113-145 unchanged.
+Next: shared dungeons in multiplayer (party enters the same copy); upgrade visuals on the model (weapon glow by damage type); boss upgrade names on the boss bar; per-hero shared stash option; a .ico for the exe.

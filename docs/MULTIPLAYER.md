@@ -3,7 +3,7 @@
 ## Start a game
 - **Host:** title screen > Multiplayer > Host a game. Or, already in the world: Esc > Multiplayer > Open my world to friends.
 - **Join:** title screen > Multiplayer, type the host's address, then Join. You appear next to the host.
-- Everyone brings their own hero (your saved game, or the race and class picked on the title screen). Level, skills, skill tree, pack and **home storage** come with you and are saved on your own computer.
+- Everyone brings their own hero: the one selected on the character select screen (3 slots), or a new one if that slot is empty. To share the game as an .exe see `docs/PLAYTEST.md`. Level, skills, skill tree, pack and **home storage** come with you and are saved on your own computer.
 
 ## Addresses
 - Same house or Wi-Fi: the host's menu shows a home address (usually 192.168.x.x or 10.x.x.x). Friends type that.

@@ -40,6 +40,14 @@ public class EnemyDef
     public Dictionary<string, float>? Res { get; set; }
     public string DmgType { get; set; } = "physical";
     public Dictionary<string, float>? OnHit { get; set; }   // status id -> chance to apply when this enemy hits the player
+
+    /// <summary>A private copy (the definitions from EnemyDb are shared by every enemy of that type).</summary>
+    public EnemyDef Clone()
+    {
+        var c = (EnemyDef)MemberwiseClone();
+        if (Res != null) c.Res = new(Res); if (OnHit != null) c.OnHit = new(OnHit); if (Drops != null) c.Drops = new(Drops);
+        return c;
+    }
 }
 
 /// <summary>Loads res://data/enemies.json (extracted from the prototype). Stats are never hard-coded in C#.</summary>

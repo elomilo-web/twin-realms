@@ -18,7 +18,7 @@ public partial class Ui
         if (_selSkill == "" || Skills.Get(_selSkill) == null) _selSkill = d.Bar.Length > 0 && !string.IsNullOrEmpty(d.Bar[0]) ? d.Bar[0] : "fire";
         var v = Frame("skills", "Skills", new Vector2(1060, 640), OpenSkills);
         var top = new HBoxContainer(); v.AddChild(top); top.AddThemeConstantOverride("separation", 20);
-        Lbl($"Skill ranks: {d.RankPts}", 18, d.RankPts > 0 ? Gold : Dim, top);
+        Lbl($"Skill points: {d.RankPts}", 18, d.RankPts > 0 ? Gold : Dim, top);
         Lbl("Learn skills, rank them up (+15% damage, more sockets), socket supports, bind to keys 1-6. One rank point per level.", 14, Dim, top);
         var cols = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; cols.AddThemeConstantOverride("separation", 16); v.AddChild(cols);
 

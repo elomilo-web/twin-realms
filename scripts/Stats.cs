@@ -21,6 +21,7 @@ public class PlayerStats
     public int Str = 5, Dex = 5, Vit = 5, Mag = 5;
     public int HpPot = 3, MpPot = 2, BestWave = 0, BestDuel = 0, Deepest = 0;
     public int DuelWins = 0;                              // duels won against friends
+    public float Played = 0;                              // seconds played with this hero
     public bool Horse = false;
     public float PosX = 0, PosZ = 6, Time = 0.33f;
     public Dictionary<string, Item?> Eq = new() { ["weapon"] = null, ["armor"] = null, ["shield"] = null, ["trinket"] = null };
@@ -48,7 +49,7 @@ public class PlayerStats
     public int MaxMp() => (int)Math.Round((50 + Mag * 6 + Level * 2 + EqStat("mp") + TS["mp"]) * (1 + TS["mpP"] / 100f));
     public int MaxSt() => (int)Math.Round(90 + Dex * 3 + TS["st"]);
     public int Defense() => (int)(EqStat("def") + Vit / 2 + TS["def"]);
-    public int XpNeed() => 80 + (Level - 1) * 55 + (Level - 1) * (Level - 1) * 8;
+    public int XpNeed() => Progression.XpNeed(Level);   // curve in data/progression.json
     public float AtkSpeed() => (1 + Dex * .012f) * (1 + TS["aspd"] / 100f);
     public float CritChance() => .05f + Dex * .005f + TS["crit"] / 100f;
     public float CritMult() => 1.8f + TS["critD"] / 100f;
@@ -71,7 +72,8 @@ public class PlayerStats
     public int GainXp(int n)
     {
         Xp += (int)Math.Round(n * (1 + TS["xpP"] / 100f)); int up = 0;
-        while (Xp >= XpNeed()) { Xp -= XpNeed(); Level++; AttrPts += 2; SkillPts += 2; RankPts += 1; up++; }
+        // per level (data/progression.json): attribute points, skill points (Skills menu, RankPts) and skill tree points (SkillPts)
+        while (Xp >= XpNeed()) { Xp -= XpNeed(); Level++; AttrPts += Progression.AttrPerLevel; SkillPts += Progression.TreePerLevel; RankPts += Progression.RankPerLevel; up++; }
         return up;
     }
 }

@@ -277,7 +277,7 @@ public partial class Ui : CanvasLayer
     {
         var d = Game.D; var v = Frame("char", $"{d.Name}  -  Level {d.Level} {Races.Get(d.Race).Name} {Classes.Get(d.Class).Name}", new Vector2(640, 600), OpenCharacterPanel);
         Row(v, $"XP {d.Xp} / {d.XpNeed()}     Kills {d.Kills}     Gold {d.Gold}", Gold);
-        Row(v, $"Attribute points: {d.AttrPts}      Skill points: {d.SkillPts} (K)", d.AttrPts > 0 ? Gold : Dim, 18);
+        Row(v, $"Attribute points: {d.AttrPts}      Skill points: {d.RankPts} (L)      Skill tree points: {d.SkillPts} (K)", d.AttrPts > 0 ? Gold : Dim, 18);
         void Attr(string n, string desc, int val, Action up) { var h = new HBoxContainer(); v.AddChild(h); var l = Lbl($"{n}  {val}   - {desc}", 17, Colors.White, h); l.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; if (d.AttrPts > 0) h.AddChild(Btn("+", () => { d.AttrPts--; up(); Game.Notify(); Sfx.Play("click"); }, true)); }
         Attr("Strength", "melee damage", d.Str, () => d.Str++); Attr("Dexterity", "bow, speed, crit, stamina", d.Dex, () => d.Dex++); Attr("Vitality", "health, defense", d.Vit, () => d.Vit++); Attr("Magic", "mana, spell power", d.Mag, () => d.Mag++);
         Row(v, $"\nHealth {d.MaxHp()}   Mana {d.MaxMp()}   Stamina {d.MaxSt()}\nWeapon damage {d.WpnDmg():0}   Spell power x{d.SpellPow():0.00}   Defense {d.Defense()}\nCrit {d.CritChance() * 100:0}% (x{d.CritMult():0.0})   Attack speed x{d.AtkSpeed():0.00}");
@@ -366,26 +366,78 @@ public partial class Ui : CanvasLayer
 
     // ---------------------------------------------------------------- title
     static string _pickClass = "warrior", _pickRace = "human", _pickName = "Hero";
+    static bool _slotInit; static int _confirmDelete = -1;
+
+    /// <summary>Title = character select: three hero slots that live in the same save file. Pick one to play, host or join with; empty slots create a new hero.</summary>
     public void ShowTitle()
     {
         InGame = false; Input.MouseMode = Input.MouseModeEnum.Visible;
+        if (!_slotInit) { _slotInit = true; Game.Slot = Game.File().Last; }
         var v = Frame("title", "TWIN REALMS", new Vector2(1060, 640), ShowTitle);
         var top = new HBoxContainer(); v.AddChild(top); top.AddThemeConstantOverride("separation", 12);
         Lbl("Two worlds. One hero. Press R to cross between Light and Shadow.", 16, Dim, top).SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        if (Game.HasSave()) top.AddChild(Btn("Continue saved game", () => { CloseNoUnpause(); OnContinue?.Invoke(); }));
         top.AddChild(Btn("Multiplayer", OpenMultiplayer));
         top.AddChild(Btn("Settings", OpenSettings));
+        top.AddChild(Btn("Quit game", () => GetTree().Quit()));
         if (Net.LastNote != "") Row(v, Net.LastNote, new Color(1f, .7f, .5f), 15);
+        Lbl("CHOOSE YOUR HERO", 18, UiTheme.Accent, v);
+        Row(v, "Three heroes share this save. Click a hero to select it (Multiplayer brings the selected hero), Play to enter the world, or create a hero in an empty slot.", Dim, 14);
+        var cards = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; cards.AddThemeConstantOverride("separation", 16); v.AddChild(cards);
+        for (int i = 0; i < Game.MaxSlots; i++)
+        {
+            int slot = i; var p = Game.Peek(slot); bool sel = slot == Game.Slot;
+            var card = new PanelContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, CustomMinimumSize = new Vector2(300, 400), MouseFilter = Control.MouseFilterEnum.Stop };
+            card.AddThemeStyleboxOverride("panel", UiTheme.Box(sel ? UiTheme.ButtonHover : UiTheme.Button, sel ? UiTheme.Highlight : UiTheme.AccentSoft, sel ? 2 : 1, 16, 8, sel ? 8 : 0));
+            card.GuiInput += e => { if (e is InputEventMouseButton mb && mb.Pressed && mb.ButtonIndex == MouseButton.Left && Game.Slot != slot) { Game.Slot = slot; _confirmDelete = -1; Sfx.Play("click"); ShowTitle(); } };
+            cards.AddChild(card);
+            var c = new VBoxContainer(); c.AddThemeConstantOverride("separation", 6); card.AddChild(c);
+            Lbl($"SLOT {slot + 1}" + (sel ? "   - selected" : ""), 14, sel ? UiTheme.Highlight : Dim, c);
+            if (p == null)
+            {
+                Lbl("Empty", 26, Dim, c);
+                Row(c, "No hero here yet.", Dim, 14);
+                c.AddChild(new Control { SizeFlagsVertical = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Ignore });
+                var nb = Btn("Create a hero", () => { Game.Slot = slot; _confirmDelete = -1; ShowCreate(); }); nb.CustomMinimumSize = new Vector2(0, 46); c.AddChild(nb);
+                continue;
+            }
+            Lbl(p.Name, 28, UiTheme.Title, c);
+            Lbl($"Level {p.Level} {Races.Get(p.Race).Name} {Classes.Get(p.Class).Name}", 17, Colors.White, c);
+            var bar = new ProgressBar { MinValue = 0, MaxValue = Math.Max(1, p.XpNeed()), Value = Math.Min(p.Xp, p.XpNeed()), ShowPercentage = false, CustomMinimumSize = new Vector2(0, 6), MouseFilter = Control.MouseFilterEnum.Ignore }; c.AddChild(bar);
+            Row(c, $"XP {p.Xp} / {p.XpNeed()}", Dim, 13);
+            Row(c, $"Gold {p.Gold}     Kills {p.Kills}", Colors.White, 15);
+            Row(c, $"Deepest dungeon floor {p.Deepest}     Best wave {p.BestWave}", Dim, 14);
+            Row(c, $"Weapon: {p.Weapon?.Name ?? "none"}", Dim, 14);
+            Row(c, $"Played {Game.Played(p)}", Dim, 14);
+            c.AddChild(new Control { SizeFlagsVertical = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Ignore });
+            var play = Btn("Play", () => { Game.Slot = slot; _confirmDelete = -1; CloseNoUnpause(); OnContinue?.Invoke(); }); play.CustomMinimumSize = new Vector2(0, 46); c.AddChild(play);
+            var del = Btn(_confirmDelete == slot ? "Really delete " + p.Name + "?" : "Delete", () =>
+            {
+                if (_confirmDelete != slot) { _confirmDelete = slot; ShowTitle(); return; }
+                _confirmDelete = -1; Game.DeleteSlot(slot); Note(p.Name + " was deleted", Dim); ShowTitle();
+            }, true);
+            if (_confirmDelete == slot) del.AddThemeColorOverride("font_color", new Color(1f, .5f, .45f));
+            c.AddChild(del);
+        }
+    }
+
+    /// <summary>New hero for the selected slot: race, class, name.</summary>
+    public void ShowCreate()
+    {
+        InGame = false; Input.MouseMode = Input.MouseModeEnum.Visible;
+        var v = Frame("title", $"NEW HERO - SLOT {Game.Slot + 1}", new Vector2(1060, 640), ShowCreate);
+        var top = new HBoxContainer(); v.AddChild(top); top.AddThemeConstantOverride("separation", 12);
+        Lbl("Pick a race and a class, name your hero, and begin.", 16, Dim, top).SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        top.AddChild(Btn("Back to heroes", ShowTitle));
         var cols = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; cols.AddThemeConstantOverride("separation", 16); v.AddChild(cols);
         // ---- races
         var rc = new VBoxContainer { CustomMinimumSize = new Vector2(190, 0) }; cols.AddChild(rc); Lbl("RACE", 15, UiTheme.Accent, rc);
-        foreach (var r in Races.All) { string id = r.Id; var b = Btn(r.Name, () => { _pickRace = id; ShowTitle(); }); if (id == _pickRace) b.AddThemeColorOverride("font_color", UiTheme.Highlight); rc.AddChild(b); }
+        foreach (var r in Races.All) { string id = r.Id; var b = Btn(r.Name, () => { _pickRace = id; ShowCreate(); }); if (id == _pickRace) b.AddThemeColorOverride("font_color", UiTheme.Highlight); rc.AddChild(b); }
         // ---- classes
         var cc = new VBoxContainer { CustomMinimumSize = new Vector2(330, 0) }; cols.AddChild(cc); Lbl("CLASS", 15, UiTheme.Accent, cc);
         var grid = new GridContainer { Columns = 2 }; grid.AddThemeConstantOverride("h_separation", 6); grid.AddThemeConstantOverride("v_separation", 4); cc.AddChild(grid);
         foreach (var c in Classes.All)
         {
-            string id = c.Id; var b = Btn(c.Name, () => { _pickClass = id; ShowTitle(); }); b.CustomMinimumSize = new Vector2(160, 34);
+            string id = c.Id; var b = Btn(c.Name, () => { _pickClass = id; ShowCreate(); }); b.CustomMinimumSize = new Vector2(160, 34);
             if (id == _pickClass) b.AddThemeColorOverride("font_color", UiTheme.Highlight); grid.AddChild(b);
         }
         // ---- details and start

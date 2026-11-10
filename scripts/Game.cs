@@ -36,7 +36,44 @@ public static class Game
     }
     public static void Notify() => Changed?.Invoke();
 
-    public static bool HasSave() => Godot.FileAccess.FileExists(SavePath);
+    // ---- save file: one file holds up to three heroes (character slots). Older single-hero saves load into slot 1.
+    public const int MaxSlots = 3;
+    public static int Slot;                     // the slot being played (kept across "Quit to title", which reloads the scene)
+    public class SaveFile { public PlayerStats?[] Slots = new PlayerStats?[MaxSlots]; public int Last; }
+    static SaveFile? _file; static string _filePath = "";
+
+    /// <summary>The whole save file (all slots), read once and kept in memory; we are its only writer.</summary>
+    public static SaveFile File()
+    {
+        if (_file != null && _filePath == SavePath) return _file;
+        _filePath = SavePath; _file = new SaveFile();
+        try
+        {
+            using var f = Godot.FileAccess.Open(SavePath, Godot.FileAccess.ModeFlags.Read);
+            if (f == null) return _file;
+            string txt = f.GetAsText(); using var doc = JsonDocument.Parse(txt);
+            if (doc.RootElement.TryGetProperty("Slots", out _)) _file = JsonSerializer.Deserialize<SaveFile>(txt, Opt) ?? new SaveFile();
+            else _file.Slots[0] = JsonSerializer.Deserialize<PlayerStats>(txt, Opt);   // a save from before character slots
+            if (_file.Slots.Length != MaxSlots) Array.Resize(ref _file.Slots, MaxSlots);
+            _file.Last = Math.Clamp(_file.Last, 0, MaxSlots - 1);
+        }
+        catch (Exception e) { GD.PushError("save file unreadable: " + e.Message); }
+        return _file;
+    }
+    public static PlayerStats? Peek(int slot) => slot >= 0 && slot < MaxSlots ? File().Slots[slot] : null;
+    /// <summary>True when the current slot holds a hero.</summary>
+    public static bool HasSave() => Peek(Slot) != null;
+    public static void DeleteSlot(int slot) { var f = File(); f.Slots[slot] = null; WriteFile(f); }
+
+    static void WriteFile(SaveFile file)
+    {
+        // write to a temporary file first, then swap it in, so a crash mid-write never loses all three heroes
+        string tmp = SavePath + ".tmp";
+        using (var f = Godot.FileAccess.Open(tmp, Godot.FileAccess.ModeFlags.Write)) { if (f == null) throw new Exception("cannot write " + tmp); f.StoreString(JsonSerializer.Serialize(file, Opt)); }
+        string a = ProjectSettings.GlobalizePath(tmp), b = ProjectSettings.GlobalizePath(SavePath);
+        if (System.IO.File.Exists(b)) System.IO.File.Copy(b, b + ".bak", true);
+        System.IO.File.Move(a, b, true);
+    }
 
     public static void Save()
     {
@@ -44,8 +81,7 @@ public static class Game
         {
             if (Player.Instance != null && !Dungeon.Active) { D.PosX = Player.Instance.GlobalPosition.X; D.PosZ = Player.Instance.GlobalPosition.Z; }
             D.Time = World.TimeOfDay;
-            using var f = Godot.FileAccess.Open(SavePath, Godot.FileAccess.ModeFlags.Write);
-            f.StoreString(JsonSerializer.Serialize(D, Opt));
+            var file = File(); file.Slots[Slot] = D; file.Last = Slot; WriteFile(file);
         }
         catch (Exception e) { GD.PushError("save failed: " + e.Message); }
     }
@@ -54,11 +90,12 @@ public static class Game
     {
         try
         {
-            using var f = Godot.FileAccess.Open(SavePath, Godot.FileAccess.ModeFlags.Read);
-            if (f == null) return false;
-            var d = JsonSerializer.Deserialize<PlayerStats>(f.GetAsText(), Opt);
+            // a fresh copy from disk so the in-memory slot and the hero being played are never the same object by accident
+            _file = null; var d0 = Peek(Slot); if (d0 == null) return false;
+            var d = JsonSerializer.Deserialize<PlayerStats>(JsonSerializer.Serialize(d0, Opt), Opt);
             if (d == null) return false;
             D = d; TreeDb.Load();
+            D.GainXp(0);   // the levelling curve changed: settle any experience already past the next level
             if (D.TreeVer < TreeDb.Version) { D.SkillPts += D.Tree.Count; D.Tree.Clear(); D.TreeVer = TreeDb.Version; TreeRefunded = true; }   // the tree was rebuilt: refund every point
             Skills.GrantStarting(D); RecalcTree(); return true;
         }
@@ -76,6 +113,9 @@ public static class Game
         Skills.GrantStarting(D); TreeDb.Load(); D.TreeVer = TreeDb.Version;
         PlayTime = 0; RecalcTree();
     }
+
+    /// <summary>Game time is saved per hero (shown on the character select screen).</summary>
+    public static string Played(PlayerStats p) { int m = (int)(p.Played / 60); return m < 60 ? $"{m} min" : $"{m / 60} h {m % 60} min"; }
 
     public static void LoadSettings()
     {

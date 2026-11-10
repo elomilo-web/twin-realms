@@ -28,6 +28,15 @@ if ($mode -eq "bot") {
   }
   $err = Get-Content mp_join_log.txt, mp_host_log.txt, mp_host_err.txt -ErrorAction SilentlyContinue | Select-String "ERROR|Unhandled|Exception"
   if ($err) { "ENGINE ERRORS FOUND"; $err | Select-Object -First 20 }
+} elseif ($mode -eq "export") {
+  # builds the Windows game into build/ and zips it as TwinRealms-playtest.zip (send the zip to a friend; they unzip and run TwinRealms.exe)
+  if (Test-Path build) { Remove-Item -Recurse -Force build }
+  New-Item -ItemType Directory -Force build | Out-Null
+  & $godot --headless --path . --export-release "Windows Desktop" build/TwinRealms.exe 2>&1 | ForEach-Object { "$_" } | Out-File -Encoding utf8 export_log.txt
+  if (-not (Test-Path build/TwinRealms.exe)) { "EXPORT_FAIL: see export_log.txt (are the export templates installed? Godot > Editor > Manage Export Templates)"; exit 1 }
+  if (Test-Path TwinRealms-playtest.zip) { Remove-Item TwinRealms-playtest.zip }
+  Compress-Archive -Path build/* -DestinationPath TwinRealms-playtest.zip
+  "EXPORT_OK  build/TwinRealms.exe  ->  TwinRealms-playtest.zip ($([math]::Round((Get-Item TwinRealms-playtest.zip).Length / 1MB)) MB)"
 } else {
   & $godot --path . -- --observe 2>&1 | ForEach-Object { "$_" } | Out-File -Encoding utf8 observe_log.txt
   if (Test-Path observe_out/metrics.json) { "OBSERVE_OK" } else { "OBSERVE_FAIL: no metrics written, see observe_log.txt"; exit 1 }

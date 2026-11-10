@@ -119,9 +119,14 @@ public partial class HudCanvas : Control
             Txt(new Vector2(x0 + 6, y0 + pf * 1.2f), "E", pf, new Color("04111f"), HorizontalAlignment.Center, kw);
             Txt(new Vector2(x0 + kw + 16, y0 + pf * 1.2f), act, pf, Colors.White);
         }
-        if (d.AttrPts + d.SkillPts > 0) Txt(new Vector2(sz.X / 2 - u * 20, sz.Y - pad - 4), $"Unspent points: {d.AttrPts} attribute (Esc > Character), {d.SkillPts} skill (K)", fs(1f), UiTheme.Highlight, HorizontalAlignment.Center, u * 40);
         // hotbar bottom-left: 6 skills (keys 1-6, set in the Skills menu, L) + 2 potions
         float ss = Mathf.Max(36, u * 4.4f), hx = pad, hy = sz.Y - pad - ss;
+        // unspent points: to the right of the hotbar, never over it
+        if (d.AttrPts + d.SkillPts + d.RankPts > 0)
+        {
+            float ux = hx + 8 * (ss + u * .5f) + u;
+            Txt(new Vector2(ux, hy + ss * .62f),$"Unspent: {d.AttrPts} attribute (Esc > Character), {d.RankPts} skill (L), {d.SkillPts} skill tree (K)", fs(1f), UiTheme.Highlight, HorizontalAlignment.Left, Mathf.Max(100, sz.X - ux - pad));
+        }
         for (int i = 0; i < 8; i++)
         {
             var r = new Rect2(hx + i * (ss + u * .5f), hy, ss, ss); Glass(r, false);

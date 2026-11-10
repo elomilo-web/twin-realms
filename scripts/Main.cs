@@ -15,7 +15,7 @@ public partial class Main : Node3D
         AddChild(new Net { Name = "Net" });
         var ui = new Ui { Name = "Ui" }; AddChild(ui);
         Ui.OnNew = (cls, name, race) => { Game.NewGame(cls, name, race); Game.D.PosX = 0; Game.D.PosZ = 9; Begin(); };
-        Ui.OnContinue = () => { if (!Game.Load()) Game.NewGame("warrior", "Hero"); Begin(); };
+        Ui.OnContinue = () => { if (!Game.Load()) Game.NewGame("warrior", "Hero"); Begin(); };   // plays the hero in Game.Slot (chosen on the character select screen)
         // multiplayer from the title: bring the saved hero (or the one picked on the title screen)
         void Hero() { if (!Game.HasSave() || !Game.Load()) { Game.NewGame(Ui.PickedClass, Ui.PickedName, Ui.PickedRace); Game.D.PosX = 0; Game.D.PosZ = 9; } }
         Ui.OnHost = port => { Hero(); Begin(); Net.I!.Host(port); };
@@ -60,7 +60,7 @@ public partial class Main : Node3D
     public override void _Process(double delta)
     {
         if (!_started) return;
-        float dt = (float)delta; Game.PlayTime += dt; Arenas.Tick(dt);
+        float dt = (float)delta; Game.PlayTime += dt; Game.D.Played += dt; Arenas.Tick(dt);
         _autosave += dt; if (_autosave > 60f && !Arenas.Active) { _autosave = 0; Game.Save(); }
     }
 }

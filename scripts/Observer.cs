@@ -152,6 +152,9 @@ public partial class Observer : Node
             Dungeon.Enter("barrow", 1); await Wait(1.2f); var pp = P.GlobalPosition;
             CamAt(pp + new Vector3(0, 3.5f, 6f), pp + new Vector3(0, 1.5f, 0)); await Wait(0.6f); await Shot("d01_dungeon_start"); Perf("dungeon");
             CamAt(pp + new Vector3(3f, 4.8f, 9f), pp + new Vector3(-2, 1.5f, -6)); await Wait(0.3f); await Shot("d02_dungeon_room");
+            // close-up of an upgraded dungeon monster (name plate shows its upgrades and gear tier)
+            Enemy? dm = null; float best = 1e9f; foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Enemy e && e.FromDungeon && !e.Def.Boss && e.GlobalPosition.DistanceTo(pp) < best) { best = e.GlobalPosition.DistanceTo(pp); dm = e; }
+            if (dm != null) { dm.ProcessMode = ProcessModeEnum.Disabled; var ep = dm.GlobalPosition; CamAt(ep + new Vector3(2.2f, 2.6f, 4.2f), ep + new Vector3(0, 1.6f, 0)); await Wait(0.4f); await Shot("d05_dungeon_mob"); dm.ProcessMode = ProcessModeEnum.Inherit; }
             Dungeon.Leave(false); await Wait(0.6f); Dungeon.Enter("depths", 1); await Wait(1.2f); pp = P.GlobalPosition;
             CamAt(pp + new Vector3(2f, 4f, 8f), pp + new Vector3(0, 1.5f, -4)); await Wait(0.4f); await Shot("d03_depths");
             Dungeon.Leave(false); await Wait(0.6f); Dungeon.Enter("warrens", 1); await Wait(1.2f); pp = P.GlobalPosition;
@@ -175,7 +178,8 @@ public partial class Observer : Node
             for (int i = 0; i < 20; i++) Game.D.Inv.Add(Items.Roll(1 + i / 3, i / 6f));
             var menus = new (string, Action)[] { ("pack", () => Ui.I!.OpenPack()), ("character", () => Ui.I!.OpenCharacter()), ("journal", () => Ui.I!.OpenJournal()), ("tree", () => Ui.I!.OpenTree()), ("map", () => Ui.I!.OpenMap()), ("pause", () => Ui.I!.OpenPause()), ("settings", () => Ui.I!.OpenSettings()), ("skills", () => { LearnAll(); Ui.I!.OpenSkills(); }), ("stash", () => { for (int i = 0; i < 12; i++) Game.D.Stash.Add(Items.Roll(2 + i / 2, i / 4f)); Ui.I!.OpenStash(); }), ("multiplayer", () => Ui.I!.OpenMultiplayer()), ("partychest", () => Ui.I!.OpenPartyChest()), ("totals", () => Ui.I!.OpenTotals()) };
             foreach (var (name, open) in menus) { open(); await Wait(0.4f); await Shot("m_" + name); AuditUi(name, ui); Ui.I!.Close(); await Wait(0.1f); }
-            Ui.I!.ShowTitle(); await Wait(0.4f); await Shot("m_title"); AuditUi("title", ui); Ui.InGame = true; Ui.I.Close(); await Wait(0.1f);
+            Ui.I!.ShowTitle(); await Wait(0.4f); await Shot("m_title"); AuditUi("title", ui);
+            Ui.I.ShowCreate(); await Wait(0.4f); await Shot("m_create"); AuditUi("create", ui); Ui.InGame = true; Ui.I.Close(); await Wait(0.1f);
             Game.D.SkillPts = 30; Ui.I.OpenTree(); await Wait(0.4f); await Shot("m_tree_start"); Ui.I.Close(); await Wait(0.1f);
             // pack with the tooltip open on an item of the same slot as something worn (shows comparison arrows)
             Ui.I!.OpenPack(); await Wait(0.4f);

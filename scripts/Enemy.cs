@@ -14,6 +14,8 @@ public partial class Enemy : CharacterBody3D, IDamageable
     public EnemyDef Def = new();
     public EnemyDef? DefOverride;
     public bool Arena, Summoned, NoLeash, AnyRealm, FromDungeon;
+    public List<MobMod>? Mods;                 // dungeon gear tier and upgrades (data/progression.json); applied to a private copy of Def
+    float _xpMul = 1f, _lootBonus; OmniLight3D? _aura;
     public float Hp, MaxHp, Damage;
     public bool Dead => _state == State.Dead;
     public bool Active { get; private set; } = true;
@@ -36,6 +38,16 @@ public partial class Enemy : CharacterBody3D, IDamageable
     bool _meleeSwing; int _summoned;
 
     public float ScaleF() => _scale;
+    /// <summary>Upgrades rolled in a dungeon (gear tiers have depth > 0 and are not counted).</summary>
+    public int UpgradeCount() { int n = 0; if (Mods != null) foreach (var m in Mods) if (m.Id != "") n++; return n; }
+    /// <summary>"Frenzied, Venomous" plus the gear tier, shown above the name.</summary>
+    public string UpgradeLine()
+    {
+        if (Mods == null || Mods.Count == 0) return "";
+        var up = new List<string>(); string gear = "";
+        foreach (var m in Mods) if (m.Id != "") up.Add(m.Name); else gear = m.Name;
+        return (up.Count > 0 ? string.Join(", ", up) : "") + (gear != "" ? (up.Count > 0 ? "  [" + gear + "]" : "[" + gear + "]") : "") + "\n";
+    }
     public float HeightM() => Def.Kind == "quad" ? Def.R * (2.4f + 0.75f * (LegK() - 1f)) : Def.Kind == "dragon" ? 5f : 1.9f * _scale;
     float LegK() => Def.Look == "deer" ? 1.8f : Def.Look == "rabbit" ? 0.55f : Def.Look == "boar" ? 0.75f : 1f; // leg length relative to a wolf
 
@@ -49,6 +61,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
     public override void _Ready()
     {
         Def = DefOverride ?? EnemyDb.Get(Type);
+        if (DefOverride == null && Mods != null && Mods.Count > 0) Def = Progression.Apply(Def, Mods, out _xpMul, out _lootBonus);
         MaxHp = Hp = DefOverride != null ? Def.Hp : Scaling.EnemyHp(Def.Hp, Level);
         Damage = DefOverride != null ? Def.Dmg : Scaling.EnemyDmg(Def.Dmg, Level);
         if (Def.Reach <= 0) Def.Reach = 2.2f;
@@ -89,12 +102,20 @@ public partial class Enemy : CharacterBody3D, IDamageable
         float labelY = quad ? r * 2.6f : dragon ? 6.2f : 2.2f * s;
         _label = new Label3D
         {
-            Text = Summoned ? "" : (Def.N + (DefOverride != null ? "" : $"  Lv{Level}")), FontSize = 36, OutlineSize = 8, PixelSize = 0.006f, Modulate = Def.Boss ? new Color(1, 0.5f, 0.4f) : new Color(1, 0.88f, 0.7f),
+            Text = Summoned ? "" : (UpgradeLine() + Def.N + (DefOverride != null ? "" : $"  Lv{Level}")), FontSize = 36, OutlineSize = 8, PixelSize = 0.006f,
+            // like loot rarity: upgraded dungeon monsters are blue (one upgrade) or gold (two or more)
+            Modulate = Def.Boss ? new Color(1, 0.5f, 0.4f) : UpgradeCount() >= 2 ? new Color(1f, .82f, .3f) : UpgradeCount() == 1 ? new Color(.55f, .75f, 1f) : new Color(1, 0.88f, 0.7f),
             // depth-tested (no names through walls or hills) and only within a fair distance, fading out
             Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, Position = new Vector3(0, labelY + 0.3f, 0), NoDepthTest = false,
             VisibilityRangeEnd = Def.Boss || dragon ? 90f : 26f, VisibilityRangeEndMargin = 5f, VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self,
         };
         AddChild(_label); if (Proxy) _label.Visible = false;
+        // upgraded dungeon monsters glow in their rarity colour, so they read in dark halls and you can pick your fights
+        if (FromDungeon && UpgradeCount() > 0 && !Def.Boss)
+        {
+            _aura = new OmniLight3D { LightColor = _label.Modulate, OmniRange = 3.4f, LightEnergy = 1.1f + .25f * UpgradeCount(), ShadowEnabled = false, Position = new Vector3(0, Mathf.Min(1.2f, HeightM() * .5f), 0), DistanceFadeEnabled = true, DistanceFadeBegin = 40, DistanceFadeLength = 10 };
+            AddChild(_aura);
+        }
         _yaw = (float)GD.RandRange(0, Mathf.Tau);
         if (Def.Kind == "dragon") _state = State.Sleep;
         if (Arena || Summoned || FromDungeon) { _state = State.Chase; AnyRealm = true; }
@@ -380,14 +401,14 @@ public partial class Enemy : CharacterBody3D, IDamageable
 
     void Die(HitInfo? h)
     {
-        _state = State.Dead; _deadT = 0; CollisionLayer = 0; CollisionMask = 1; _label.Visible = false;
+        _state = State.Dead; _deadT = 0; CollisionLayer = 0; CollisionMask = 1; _label.Visible = false; if (_aura != null) _aura.Visible = false;
         if (CurrentBoss == this) CurrentBoss = null;
         var D = Game.D; var p = Player.Instance;
         // shared overworld kill in multiplayer: the host pays the killer and their party (experience, quests, materials, loot by party rules)
         bool shared = Net.IsHost && NetIdx >= 0 && !Arena && !FromDungeon;
         long killer = _lastPeer < 0 ? Net.MyId : _lastPeer;
         float lvlF = Level < D.Level - 4 ? 0.5f : 1f;
-        int xp = Mathf.RoundToInt(Def.Xp * (1 + 0.12f * (Level - 1)) * (shared ? 1f : lvlF) * (Summoned ? 0.3f : 1f));
+        int xp = Mathf.RoundToInt(Def.Xp * (1 + 0.12f * (Level - 1)) * (shared ? 1f : lvlF) * (Summoned ? 0.3f : 1f) * _xpMul);
         if (DefOverride != null) xp = 0;
         Fx.Burst(GlobalPosition + Vector3.Up, Def.Kind == "wraith" ? new Color(0.7f, 0.4f, 1f) : new Color(0.8f, 0.2f, 0.2f), 16, 5f, 0.6f);
         var mats = new System.Text.StringBuilder();
@@ -402,7 +423,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         if (!Summoned && DefOverride == null && !Def.NoLoot)
         {
             int gold = GD.RandRange(2 + Level, 6 + Level * 2) * (Def.Boss ? 12 : 1);
-            float chance = Def.Boss ? 1f : Arena ? .12f : .2f + (Def.Realm == 1 ? .06f : 0f), bonus = (Def.Boss ? 2 : 0) + (Def.Realm == 1 ? 1 : 0);
+            float chance = Def.Boss ? 1f : Arena ? .12f : .2f + (Def.Realm == 1 ? .06f : 0f) + .06f * UpgradeCount(), bonus = (Def.Boss ? 2 : 0) + (Def.Realm == 1 ? 1 : 0) + _lootBonus;
             if (shared)
             {
                 Net.I!.DropLoot(GlobalPosition, Level, chance, bonus, gold, Def.Boss ? .6f : .07f, killer);

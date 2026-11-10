@@ -30,7 +30,8 @@ public partial class Ui
 
     void OfflinePage(VBoxContainer v)
     {
-        string who = Game.HasSave() && !InGame ? "your saved hero" : InGame ? $"{Game.D.Name}, level {Game.D.Level}" : $"a new {Races.Get(_pickRace).Name} {Classes.Get(_pickClass).Name} named {_pickName}";
+        var sp = Game.Peek(Game.Slot);
+        string who = sp != null && !InGame ? $"{sp.Name}, level {sp.Level} (slot {Game.Slot + 1}; pick another hero on the title screen)" : InGame ? $"{Game.D.Name}, level {Game.D.Level}" : $"a new {Races.Get(_pickRace).Name} {Classes.Get(_pickClass).Name} named {_pickName}";
         Row(v, $"Play together with friends. You bring {who}.", Colors.White, 16);
         if (Net.Status != "") Row(v, Net.Status, UiTheme.Highlight, 15);
         if (Net.LastNote != "") Row(v, Net.LastNote, new Color(1f, .7f, .5f), 15);

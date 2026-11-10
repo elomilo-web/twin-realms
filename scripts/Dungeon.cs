@@ -155,14 +155,15 @@ public static class Dungeon
         // exit pad
         var er = _rooms[0]; MakePad(new Vector3((er.Cx + .5f) * Tile, 0, (er.Cz + .5f) * Tile), false, new Color(.5f, .88f, 1f));
         // enemies and chests
-        _baseLvl = poiLvl + depth - 1; var mobs = new List<string>(); foreach (var m in th.GetProperty("mobs").EnumerateArray()) mobs.Add(m.GetString() ?? "skeleton");
+        // monsters scale to the hero: your level + 2 on the first floor, +1 per floor below (data/progression.json); poiLvl is kept for older callers
+        _baseLvl = Progression.DungeonLevel(Game.D.Level, depth); _depth = depth; _mrng = new Random(seed + 7); var mobs = new List<string>(); foreach (var m in th.GetProperty("mobs").EnumerateArray()) mobs.Add(m.GetString() ?? "skeleton");
         string bossType = th.GetProperty("boss").GetString() ?? "golem";
         for (int i = 1; i < _rooms.Count; i++)
         {
             var r = _rooms[i]; float cx = (r.Cx + .5f) * Tile, cz = (r.Cz + .5f) * Tile;
             if (i == bi)
             {
-                _boss = Spawn(bossType, cx, cz, (int)_baseLvl + 1);
+                _boss = Spawn(bossType, cx, cz, (int)_baseLvl + Progression.DunBoss);
                 if (bossType != "golem") for (int k = 0; k < 2; k++) { var mt = mobs.FindAll(m => m != "brute"); Spawn(mt[ri(0, mt.Count - 1)], cx + (k == 1 ? 6 : -6), cz + 4, (int)_baseLvl); }
                 continue;
             }
@@ -285,9 +286,13 @@ public static class Dungeon
     /// <summary>Dungeon material: not registered for the realm colour shift (dungeons are always in the Light), so it does not pile up in World's list.</summary>
     static StandardMaterial3D DMat(Color c, Color? _ = null, float rough = .9f, float metal = 0f) => new() { AlbedoColor = c, Roughness = rough, Metallic = metal };
 
+    static int _depth = 1; static Random _mrng = new();
+    /// <summary>Every dungeon monster wears the gear tier of this depth and rolls upgrades (more the deeper you go, extra on the boss).</summary>
     static Enemy Spawn(string type, float x, float z, int lvl)
     {
-        var e = new Enemy { Type = type, Level = Math.Max(1, lvl), FromDungeon = true, NoLeash = true, AnyRealm = true, Position = new Vector3(x, 0.4f, z) };
+        var mods = new List<MobMod>(); var gear = Progression.GearFor(_depth); if (gear != null) mods.Add(gear);
+        mods.AddRange(Progression.RollUpgrades(_depth, EnemyDb.Get(type).Boss, _mrng));
+        var e = new Enemy { Type = type, Level = Math.Max(1, lvl), FromDungeon = true, NoLeash = true, AnyRealm = true, Mods = mods, Position = new Vector3(x, 0.4f, z) };
         Root!.AddChild(e); return e;
     }
     static void MakeChest(float x, float z, float bonus, int lvl) => Root!.AddChild(new Chest { Id = "dc" + GD.Randi(), Level = lvl, Bonus = bonus, Position = new Vector3(x, 0, z) });
