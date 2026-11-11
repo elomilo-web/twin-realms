@@ -144,6 +144,11 @@ public static class Icons
                 ci.DrawLine(c + new Vector2(0, -.55f) * s, c + new Vector2(0, .75f) * s, A(new Color(.4f, .43f, .5f)), 1.5f);
                 ci.DrawLine(c + new Vector2(-.45f, .3f) * s, c + new Vector2(.45f, .3f) * s, A(new Color(.45f, .3f, .18f)), Mathf.Max(2f, s * .12f));
                 break;
+            case "cape":
+                Poly(ci, P(c, s, -.42f, -.78f, .42f, -.78f, .62f, .82f, .2f, .7f, 0, .85f, -.2f, .7f, -.62f, .82f), A(new Color(.3f, .4f, .75f)), ol, 2f);
+                ci.DrawLine(c + new Vector2(-.42f, -.62f) * s, c + new Vector2(.42f, -.62f) * s, A(new Color(.85f, .7f, .35f)), Mathf.Max(2f, s * .1f));
+                foreach (float sx in new[] { -.3f, .3f }) ci.DrawCircle(c + new Vector2(sx, -.66f) * s, s * .09f, A(new Color(.95f, .8f, .4f)));
+                break;
             case "trinket":
                 ci.DrawArc(c + new Vector2(0, -.25f) * s, s * .5f, Mathf.Pi * .1f, Mathf.Pi * .9f, 14, A(new Color(.9f, .75f, .35f)), Mathf.Max(1.5f, s * .07f), true);
                 Glow(ci, c + new Vector2(0, .35f) * s, s * .38f, A(new Color(.4f, 1f, .7f)));

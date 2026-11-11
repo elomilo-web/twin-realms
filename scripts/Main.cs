@@ -11,7 +11,7 @@ public partial class Main : Node3D
     {
         if (System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--bake-anims") >= 0) { Avatar.Bake(); GetTree().Quit(); return; }   // tools: rebuild assets/models/anim/clips.res
         GD.Print("[MAIN] scene start"); Inputs.Setup(); Game.Root = this; Dungeon.Active = false; Arenas.Active = false; World.Realm = 0; World.RealmT = 0; Ui.InGame = false;
-        bool testing = Observer.Wanted() || Bot.Wanted() || Shots.Wanted() || MpBot.Wanted() != null;
+        bool testing = Observer.Wanted() || Bot.Wanted() || Shots.Wanted() || FitBot.Wanted() || MpBot.Wanted() != null;
         if (testing) Game.SetPath = "user://test_settings.json";
         Game.LoadSettings();
         if (testing) Inputs.ResetAll(false);   // test bots press the default keys
@@ -25,6 +25,7 @@ public partial class Main : Node3D
         Ui.OnHost = port => { Hero(); Begin(); Net.I!.Host(port); };
         Ui.OnJoin = (addr, port) => { Hero(); Net.I!.Join(addr, port, JoinWorld); };
         if (Observer.Wanted() || Bot.Wanted() || Shots.Wanted()) Game.SavePath = "user://test_save.json";
+        if (FitBot.Wanted()) { AddChild(new FitBot { Name = "FitBot" }); return; }   // gear fit studio: no world, no title
         if (Shots.Wanted()) { Game.NewGame("warrior", "Shots"); Begin(); AddChild(new Shots { Name = "Shots" }); return; }
         if (MpBot.Wanted() is string m) { Game.SavePath = $"user://mp_{m}_save.json"; Net.ChestPath = "user://mp_test_party_chest.json"; }
         if (Observer.Wanted()) { Game.NewGame("warrior", "Observer"); Begin(); AddChild(new Observer { Name = "Observer" }); return; }

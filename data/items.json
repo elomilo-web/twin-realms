@@ -132,6 +132,13 @@
                                    "Boots",
                                    "Greaves",
                                    "Sabatons"
+                               ],
+                      "cape":  [
+                                   "Cloak",
+                                   "Cape",
+                                   "Mantle",
+                                   "Shroud",
+                                   "Drape"
                                ]
                   },
     "prefixes":  [

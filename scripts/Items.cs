@@ -69,7 +69,7 @@ public static class Items
         int idx = x < .55f ? 0 : x < .82f ? 1 : x < .94f ? 2 : x < .985f ? 3 : 4;
         if (GD.Randf() < bonus * .25f && idx < 4) idx++;
         level = Math.Max(1, level);
-        if (slot == null) { float q = GD.Randf(); slot = q < .28f ? "weapon" : q < .44f ? "armor" : q < .55f ? "shield" : q < .67f ? "head" : q < .78f ? "hands" : q < .89f ? "feet" : "trinket"; }
+        if (slot == null) { float q = GD.Randf(); slot = q < .28f ? "weapon" : q < .44f ? "armor" : q < .55f ? "shield" : q < .67f ? "head" : q < .78f ? "hands" : q < .89f ? "feet" : q < .95f ? "cape" : "trinket"; }
         float m = _mult[idx];
         var it = new Item { Slot = slot, Rar = idx, Lvl = level };
         if (slot == "weapon")
@@ -88,6 +88,7 @@ public static class Items
         else if (slot == "head") { it.Def = (int)Math.Floor((1 + level * .6f) * m); it.Mp = (int)Math.Floor(level * 1.5f * m); }
         else if (slot == "hands") { it.Def = (int)Math.Floor((1 + level * .4f) * m); it.Dmg = idx >= 2 ? (int)Math.Floor(level * .4f * m) : 0; }
         else if (slot == "feet") { it.Def = (int)Math.Floor((1 + level * .5f) * m); it.Hp = (int)Math.Floor(level * 1.2f * m); }
+        else if (slot == "cape") { it.Def = (int)Math.Floor((1 + level * .35f) * m); it.Mp = (int)Math.Floor(level * 1.2f * m); }
         else { it.Hp = (int)Math.Floor((6 + level * 3) * m); it.Mp = (int)Math.Floor((4 + level * 2) * m); it.Def = idx >= 2 ? (int)Math.Floor(level * .5f * m) : 0; }
         string baseName;
         if (slot == "weapon") { var names = _wn.GetValueOrDefault(it.Wt!, new[] { "Weapon" }); baseName = names[Math.Min(names.Length - 1, (int)(GD.Randf() * 5))]; }

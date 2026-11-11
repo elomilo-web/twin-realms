@@ -1,5 +1,5 @@
 {
-  "_help": "Character models (scripts/Avatar.cs). Bodies, hair and outfit parts share one skeleton, so gear parts deform with the body. Gear is matched by keywords in the item name (first match wins). 'parts' are outfit glTF names in assets/models/outfit ({s} = Male/Female). 'tint' multiplies the part colours. 'proc' = no model yet, a procedural shape is used. Weapons: model is grip-at-origin, blade along +Z; 'len' is the length in metres. Trinkets are never shown.",
+  "_help": "Character models (scripts/Avatar.cs). Bodies, hair and outfit parts share one skeleton, so gear parts deform with the body. Gear is matched by keywords in the item name (first match wins). 'parts' are outfit glTF names in assets/models/outfit ({s} = Male/Female). 'tint' multiplies the part colours. 'kit' = rigid Twin Realms kit pieces on a bone ({model, bone, pos, rot, scale}, pos/rot like 'hold'; tune with tools/run.ps1 fit-tune). 'proc' = a procedural shape, used when there is no kit piece. Weapons: model is grip-at-origin, blade along +Z; 'len' is the length in metres. Trinkets are never shown.",
   "bodies": {
     "male": "res://assets/models/char/Superhero_Male_FullBody.gltf",
     "female": "res://assets/models/char/Superhero_Female_FullBody.gltf"
@@ -22,10 +22,10 @@
   ],
   "head": [
     { "match": ["Hood"], "parts": ["{s}_Ranger_Head_Hood"], "hideHair": true },
-    { "match": ["Greathelm"], "proc": "greathelm", "hideHair": true },
-    { "match": ["Helm"], "proc": "helm", "hideHair": true },
+    { "match": ["Greathelm"], "proc": "greathelm", "hideHair": true, "kit": [{ "model": "armor/helm_knight", "bone": "Head", "pos": [0, 0.135, 0.02], "scale": 0.88 }] },
+    { "match": ["Helm"], "proc": "helm", "hideHair": true, "kit": [{ "model": "armor/helm_knight", "bone": "Head", "pos": [0, 0.13, -0.03], "scale": 0.95 }] },
     { "match": ["Cap"], "proc": "cap", "hideHair": true },
-    { "match": [""], "proc": "circlet" }
+    { "match": [""], "proc": "circlet", "kit": [{ "model": "armor/circlet_winged", "bone": "Head", "pos": [0, 0.12, 0.01], "scale": 0.8 }] }
   ],
   "hands": [
     { "match": ["Wraps"], "parts": ["{s}_Peasant_Arms"] },
@@ -36,18 +36,23 @@
     { "match": ["Greaves", "Sabatons"], "parts": ["{s}_Ranger_Feet"], "tint": "c9d2dc" },
     { "match": [""], "parts": ["{s}_Ranger_Feet"] }
   ],
+  "cape": [
+    { "_help": "Capes are an equipment slot (no cape when nothing is equipped). Kit capes hang down from their origin on the upper back; the piece swings back as the hero moves (Player). proc = the plain cloth cape, used when no kit piece loads." },
+    { "match": ["Ember", "Umbral", "Shroud"], "proc": "cape", "kit": [{ "model": "armor/cape_red", "bone": "spine_03", "pos": [0, 0.12, -0.17], "rot": [-12, 0, 0], "scale": 0.7 }] },
+    { "match": [""], "proc": "cape", "kit": [{ "model": "armor/cape_blue", "bone": "spine_03", "pos": [0, 0.12, -0.17], "rot": [-12, 0, 0], "scale": 0.7 }] }
+  ],
   "partAlias": { "Male_Ranger_Feet": "Male_Ranger_Feet_Boots", "Female_Ranger_Acc_Pauldron": "Female_Ranger_Acc_Pauldrons" },
   "weapons": {
     "_help": "proc = built by Weapons.Build (the Twin Realms kit models from data/weapons.json kitModels, or the built-in meshes). Remove proc from a type to go back to its Quaternius model below.",
-    "sword": { "proc": true, "model": "Sword", "len": 0.95 },
-    "greatsword": { "proc": true, "model": "Claymore", "len": 1.4 },
-    "axe": { "proc": true, "model": "Axe", "len": 0.75 },
-    "mace": { "proc": true, "model": "Hammer_Small", "len": 0.72 },
+    "sword": { "proc": true, "rot": [14, -8, 34], "model": "Sword", "len": 0.95 },
+    "greatsword": { "proc": true, "rot": [8, -12, 90], "model": "Claymore", "len": 1.4 },
+    "axe": { "proc": true, "rot": [4, -8, 90], "model": "Axe", "len": 0.75 },
+    "mace": { "proc": true, "rot": [6, -16, 90], "model": "Hammer_Small", "len": 0.72 },
     "dagger": { "proc": true, "model": "Dagger", "len": 0.42 },
-    "spear": { "proc": true, "model": "Spear", "len": 2.0, "grip": 0.55 },
-    "bow": { "proc": true, "model": "Bow_Wooden", "len": 1.25, "grip": 0.5, "hand": "left" },
+    "spear": { "proc": true, "rot": [4, -12, 90], "model": "Spear", "len": 2.0, "grip": 0.55 },
+    "bow": { "proc": true, "rot": [0, -14, 90], "model": "Bow_Wooden", "len": 1.25, "grip": 0.5, "hand": "left" },
     "wand": { "proc": true },
-    "staff": { "proc": true }
+    "staff": { "proc": true, "rot": [4, 0, 90] }
   },
   "weaponNames": { "Longsword": "Sword_2", "Falchion": "Sword_Golden", "Zweihander": "Sword_Big", "Executioner": "Sword_Big", "War Axe": "Axe_Double", "Bearded Axe": "Axe_Double", "Warhammer": "Hammer_Double", "Dirk": "Dagger_2", "Kris": "Dagger_2", "Warbow": "Bow_Evil", "Longbow": "Bow_Wooden2", "Recurve Bow": "Bow_Golden", "Glaive": "Scythe" },
   "shields": { "Kite": "Shield_Heater", "Heater": "Shield_Heater_2", "Tower": "Shield_Heater", "Aegis": "Shield_Celtic_Golden", "Buckler": "Shield_Round_2", "": "Shield_Round" },

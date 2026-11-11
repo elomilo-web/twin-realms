@@ -61,7 +61,7 @@ public partial class Player : CharacterBody3D, IDamageable
         {
             // the drawn hero: base body + separate gear models. HeroRig stays as the invisible pose source (hand targets, look-at).
             var ap = Races.Look(Game.D); _av = new Avatar { Name = "Avatar", Scale = new Vector3(1 / ap.Bulk, 1 / ap.Height, 1 / ap.Bulk) };
-            _rig.AddChild(_av); _av.Build(ap, Game.D.Name); _av.AddCape(ap.Cape); HideRig();
+            _rig.AddChild(_av); _av.Build(ap, Game.D.Name); HideRig();   // the cape is an equipment slot now (Avatar.Dress)
         }
         _trail = new SwordTrail(); AddChild(_trail);
         // a soft light around the hero that grows in the dark (night, Shadow realm, dungeons)

@@ -15,6 +15,14 @@ if ($mode -eq "bot") {
   if (Test-Path bot_out/report.txt) { Get-Content bot_out/report.txt | Select-String "FAIL|passed" } else { "NO REPORT: the game crashed before the bot finished. See bot_log.txt"; exit 1 }
   $err = Get-Content bot_log.txt | Select-String "ERROR|SCRIPT ERROR|Unhandled|leaked"
   if ($err) { "ENGINE ERRORS FOUND"; $err | Select-Object -First 20 }
+} elseif ($mode -eq "fit" -or $mode -eq "fit-tune") {
+  # gear fit bot (scripts/FitBot.cs): every weapon, shield and armor piece on mannequins -> bot_out/fit/ (report.txt, pictures, sheet_*.png)
+  # fit-tune also writes bot_out/fit/fit_suggest.json. Extra args go to the game, e.g. tools/run.ps1 fit --only=head
+  $extra = @(); if ($mode -eq "fit-tune") { $extra += "--tune" }; $extra += $args
+  & $godot --path . -- --fit @extra 2>&1 | ForEach-Object { "$_" } | Out-File -Encoding utf8 fit_log.txt
+  if (Test-Path bot_out/fit/report.txt) { Get-Content bot_out/fit/report.txt | Select-String "^(FAIL|WARN|===)|^weapon |^shield:|^head " } else { "NO REPORT: the fit bot crashed. See fit_log.txt"; exit 1 }
+  $err = Get-Content fit_log.txt | Select-String "ERROR|SCRIPT ERROR|Unhandled|Exception"
+  if ($err) { "ENGINE ERRORS FOUND"; $err | Select-Object -First 20 }
 } elseif ($mode -eq "shots") {
   # screenshot tour (scripts/Shots.cs): hero day/night/dungeon, village, kit weapons, every skill -> screenshots/
   if (Test-Path screenshots) { Get-ChildItem screenshots -Filter *.png | Remove-Item }

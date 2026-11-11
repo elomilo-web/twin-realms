@@ -1,0 +1,39 @@
+{
+  "_help": "Gear fit bot (scripts/FitBot.cs; tools/run.ps1 fit / fit-tune). Dresses mannequins in every weapon, shield and armor piece, poses them, measures and photographs. The body is measured as capsules between bones; radii come from each body's own mesh (radiusPercentile of the vertex distances). Distances in metres. Item names come from data/items.json itemNames.",
+  "bodies": ["male", "female"],
+  "weaponRaces": ["human"],
+  "shieldRaces": ["human"],
+  "armorRaces": ["human"],
+  "headRaces": [],
+  "_racesHelp": "an empty list = every race in data/races.json",
+  "radiusPercentile": 0.7,
+  "poses": {
+    "_help": "[clip key from data/avatar.json clips, fraction of the clip, combo step]. Pose sets: checked and photographed (first pose). warn = checked, reported as warnings only (attack swings).",
+    "armed": [["idleArmed", 0.3], ["walk", 0.25], ["run", 0.25], ["run", 0.75], ["block", 0.5]],
+    "shield": [["idleShield", 0.3], ["run", 0.25], ["run", 0.75], ["block", 0.5]],
+    "unarmed": [["idle", 0.3], ["run", 0.25], ["run", 0.75], ["cast", 0.5]],
+    "warn": [["melee", 0.35, 0], ["melee", 0.6, 1], ["power", 0.5]]
+  },
+  "limits": {
+    "clipFrac": 0.04,
+    "clipDepth": 0.035,
+    "gripGap": 0.05,
+    "groundDepth": 0.03,
+    "helmClipFrac": 0.06,
+    "helmGap": 0.04,
+    "shieldGap": 0.08,
+    "capeTilt": 25,
+    "partOffBody": 0.15
+  },
+  "lengths": {
+    "sword": [0.6, 1.6], "greatsword": [1.1, 2.4], "axe": [0.45, 1.4], "mace": [0.4, 1.4], "dagger": [0.2, 0.8],
+    "spear": [1.4, 2.8], "bow": [0.9, 1.7], "wand": [0.15, 0.8], "staff": [1.2, 2.4]
+  },
+  "tune": {
+    "_help": "fit-tune: coordinate search around the current values; it writes bot_out/fit/fit_suggest.json and changes nothing itself.",
+    "rotSteps": [16, 8, 4, 2],
+    "posSteps": [0.02, 0.01, 0.005],
+    "scaleSteps": [0.08, 0.04, 0.02],
+    "stayClose": 0.0004
+  }
+}

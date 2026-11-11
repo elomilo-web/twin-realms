@@ -103,6 +103,7 @@ public partial class HeroRig : Node3D
     /// <summary>Rebuilds every visible piece of equipment from the save data.</summary>
     public void ApplyGear(PlayerStats d)
     {
+        Cape.Visible = d.Eq.GetValueOrDefault("cape") != null;   // capes are an equipment slot
         foreach (var g in _gear) { g.GetParent()?.RemoveChild(g); g.QueueFree(); } _gear.Clear();
         foreach (var c in WeaponR.GetChildren()) { WeaponR.RemoveChild(c); c.QueueFree(); }
         foreach (var c in WeaponL.GetChildren()) { WeaponL.RemoveChild(c); c.QueueFree(); }

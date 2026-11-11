@@ -57,7 +57,7 @@ public partial class RemoteHero : Node3D, IDamageable, IInteractable
         {
             if (_lookSig != "") { _rig.QueueFree(); _rig = new HeroRig { Name = "Model2" }; AddChild(_rig); _av = null; }   // a rig is built once, so a new look gets a new rig
             _lookSig = look; _gearSig = ""; var ap = Races.Look(ps); _rig.Build(ap);
-            if (Avatar.Available) { _av = new Avatar { Name = "Avatar", Scale = new Vector3(1 / ap.Bulk, 1 / ap.Height, 1 / ap.Bulk) }; _rig.AddChild(_av); _av.Build(ap, p.Name); _av.AddCape(ap.Cape); }
+            if (Avatar.Available) { _av = new Avatar { Name = "Avatar", Scale = new Vector3(1 / ap.Bulk, 1 / ap.Height, 1 / ap.Bulk) }; _rig.AddChild(_av); _av.Build(ap, p.Name); }
             _tag.Position = new Vector3(0, 2.05f * ap.Height + .1f, 0);   // just above the head, for a tall elf or a short dwarf
         }
         string gear = ps.WType(); foreach (var s in PlayerStats.Slots) { var it = ps.Eq.GetValueOrDefault(s); gear += "|" + (it == null ? "-" : it.Name + it.Rar + it.Up); }

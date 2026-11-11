@@ -62,12 +62,13 @@ public partial class Avatar : Node3D
     }
 
     /// <summary>Copies a material and recolours it. flat = drop the texture and use the colour as is. grow pushes clothing out along its normals so the body never shows through.</summary>
-    static void Tint(MeshInstance3D mi, Color? mul, Color? set, float glow = 0, bool flat = false, float grow = 0, Genshin.Kind kind = Genshin.Kind.Cloth)
+    static void Tint(MeshInstance3D mi, Color? mul, Color? set, float glow = 0, bool flat = false, float grow = 0, Genshin.Kind kind = Genshin.Kind.Cloth, bool vertexColor = false)
     {
         for (int s = 0; s < (mi.Mesh?.GetSurfaceCount() ?? 0); s++)
         {
             if (mi.GetActiveMaterial(s) is not BaseMaterial3D b) continue;
             var d = (BaseMaterial3D)b.Duplicate();
+            if (vertexColor) d.VertexColorUseAsAlbedo = true;   // kit pieces are coloured per vertex only
             if (flat && set != null) { d.AlbedoTexture = null; d.AlbedoColor = set.Value; }
             else if (set != null) d.AlbedoColor = set.Value;
             if (mul != null) d.AlbedoColor = d.AlbedoColor * mul.Value;
@@ -119,13 +120,58 @@ public partial class Avatar : Node3D
     /// <summary>A holder on a bone whose axes match the model (Y up, +Z forward in glTF space) at rest, offset in model space.</summary>
     Node3D Holder(string bone, Vector3 posModel, Vector3 rotDeg, string slot)
     {
-        var at = Att(bone); int bi = _sk.FindBone(bone);
-        var rest = bi >= 0 ? _sk.GetBoneGlobalRest(bi).Basis.Orthonormalized() : Basis.Identity;
-        var want = Basis.FromEuler(rotDeg * (Mathf.Pi / 180f));
-        var h = new Node3D { Name = "Hold_" + slot, Transform = new Transform3D(rest.Inverse() * want, rest.Inverse() * posModel) };
-        at.AddChild(h);
+        var at = Att(bone);
+        var h = new Node3D { Name = "Hold_" + slot, Transform = HoldXf(_sk, bone, posModel, rotDeg) };
+        h.SetMeta("bone", bone); at.AddChild(h);
         if (!_slot.TryGetValue(slot, out var l)) _slot[slot] = l = new List<Node>(); l.Add(h);
         return h;
+    }
+    /// <summary>The holder's transform relative to its bone for a position and rotation given in model space at rest (see data/avatar.json "hold").</summary>
+    public static Transform3D HoldXf(Skeleton3D sk, string bone, Vector3 posModel, Vector3 rotDeg)
+    {
+        int bi = sk.FindBone(bone);
+        return HoldXf(bi >= 0 ? sk.GetBoneGlobalRest(bi).Basis.Orthonormalized() : Basis.Identity, posModel, rotDeg);
+    }
+    /// <summary>Same, from the bone's rest basis (skeleton space, orthonormalized).</summary>
+    public static Transform3D HoldXf(Basis rest, Vector3 posModel, Vector3 rotDeg)
+    {
+        var want = Basis.FromEuler(rotDeg * (Mathf.Pi / 180f));
+        return new Transform3D(rest.Inverse() * want, rest.Inverse() * posModel);
+    }
+
+    // ------------------------------------------------------------------ for test bots (FitBot)
+    public Skeleton3D? Skel => _sk;
+    /// <summary>The base body mesh (set once the avatar has been dressed).</summary>
+    public MeshInstance3D? BodyMesh => _bodyMi;
+    public IReadOnlyList<Node> SlotNodes(string slot) => _slot.TryGetValue(slot, out var l) ? l : Array.Empty<Node>();
+    /// <summary>Holds an action's clip still at a fraction of its length (0..1), so a pose can be measured or photographed.</summary>
+    public void PoseAt(string key, float frac, int step = 0)
+    {
+        if (_ap == null) return; string n = Clip(key, step); if (!_ap.HasAnimation(n)) n = Clip("idle");
+        if (!_ap.HasAnimation(n)) return;
+        _ap.Play(n, 0); _ap.Seek(_ap.GetAnimation(n).Length * Mathf.Clamp(frac, 0, 1), true); _ap.Pause(); Cur = n;
+    }
+
+    /// <summary>
+    /// Rigid Twin Realms kit pieces (assets/models/kit/&lt;model&gt;.glb) on bones, from a gear rule's "kit" list:
+    /// { "model": "armor/helm_knight", "bone": "Head", "pos": [x,y,z], "rot": [deg], "scale": s or [x,y,z] }. pos/rot are in model space at rest, like "hold".
+    /// </summary>
+    List<Node> KitPieces(JsonElement rule, string slot)
+    {
+        var made = new List<Node>();
+        if (!rule.TryGetProperty("kit", out var list) || list.ValueKind != JsonValueKind.Array) return made;
+        foreach (var k in list.EnumerateArray())
+        {
+            string path = "res://assets/models/kit/" + S(k, "model") + ".glb", bone = S(k, "bone", "Head");
+            if (!ResourceLoader.Exists(path)) { GD.PrintErr("[AVATAR] missing kit piece " + path); continue; }
+            if (_sk.FindBone(bone) < 0) { GD.PrintErr("[AVATAR] no bone " + bone + " for " + path); continue; }
+            var h = Holder(bone, V(k, "pos", Vector3.Zero), V(k, "rot", Vector3.Zero), slot);
+            var sc = k.TryGetProperty("scale", out var sv) && sv.ValueKind == JsonValueKind.Number ? Vector3.One * sv.GetSingle() : V(k, "scale", Vector3.One);
+            var inst = GD.Load<PackedScene>(path).Instantiate<Node3D>(); inst.Scale = sc; h.AddChild(inst);
+            foreach (var n in inst.FindChildren("*", "MeshInstance3D", true, false)) if (n is MeshInstance3D mi) Tint(mi, null, null, vertexColor: true);
+            made.Add(h);
+        }
+        return made;
     }
     static Vector3 V(JsonElement e, string k, Vector3 d) => e.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.Array ? new Vector3(v[0].GetSingle(), v[1].GetSingle(), v[2].GetSingle()) : d;
 
@@ -186,7 +232,7 @@ public partial class Avatar : Node3D
 
     // ------------------------------------------------------------------ back accessories
     public Node3D? Cape;
-    /// <summary>A cloth cape on the upper back (procedural until a cape model exists). Rotate Cape about X to let it stream back.</summary>
+    /// <summary>A plain cloth cape on the upper back: the fallback when an equipped cape has no kit model. Rotate Cape about X to let it stream back.</summary>
     public void AddCape(Color c)
     {
         var hold = Cfg.GetProperty("hold").GetProperty("cape");
@@ -232,15 +278,24 @@ public partial class Avatar : Node3D
     /// <summary>Dresses the body from equipped items (null = nothing in that slot). classTint colours robes; outfitTint (enemies, NPCs) colours everything.</summary>
     public void Dress(Func<string, Item?> eq, string wt, Color classTint, Color? outfitTint = null)
     {
-        foreach (var s in new[] { "armor", "head", "hands", "feet", "weapon", "shield" }) Clear(s);
-        BladeBase = BladeTip = null; bool hideHair = false;
+        foreach (var s in new[] { "armor", "head", "hands", "feet", "weapon", "shield", "cape" }) Clear(s);
+        BladeBase = BladeTip = null; Cape = null; bool hideHair = false;
+        // cape: an equipment slot (none when nothing is equipped)
+        var cp = eq("cape");
+        if (cp != null && Rule("cape", cp.Name) is { } cr)
+        {
+            var kit = KitPieces(cr, "cape");
+            if (kit.Count > 0 && kit[0] is Node3D ch && ch.GetChildCount() > 0) Cape = ch.GetChild<Node3D>(0);   // the piece itself swings about its top (Player)
+            else if (S(cr, "proc") == "cape") AddCape(GearFx.ColorOf(cp));
+            foreach (var n in SlotNodes("cape")) if (n is Node3D n3) GearFx.Apply(n3, cp, false);
+        }
         foreach (var slot in new[] { "armor", "hands", "feet", "head" })
         {
-            var it = eq(slot); List<string> parts; Color? tint = null; string proc = "";
+            var it = eq(slot); List<string> parts; Color? tint = null; string proc = ""; JsonElement? rule = null;
             if (it == null) { parts = L(Cfg.GetProperty("default"), slot); tint = outfitTint; }
             else
             {
-                var r = Rule(slot, it.Name); if (r == null) continue;
+                var r = Rule(slot, it.Name); if (r == null) continue; rule = r;
                 parts = L(r.Value, "parts"); proc = S(r.Value, "proc");
                 var ruleTint = TintOf(r.Value, classTint);
                 tint = ruleTint != null && outfitTint != null ? ruleTint.Value.Lerp(outfitTint.Value, .5f) : ruleTint ?? outfitTint;
@@ -249,7 +304,8 @@ public partial class Avatar : Node3D
             // tints multiply textured cloth, so they are softened toward white to recolour without going muddy or black
             Color? soft = tint?.Lerp(Colors.White, .35f);
             var made = new List<Node>(); foreach (var p in parts) made.AddRange(AddPart(Part(p), slot, soft));
-            if (proc != "") made.Add(Helmet(proc, it!));
+            var kit = rule != null ? KitPieces(rule.Value, slot) : new List<Node>(); made.AddRange(kit);
+            if (proc != "" && kit.Count == 0) made.Add(Helmet(proc, it!));   // the procedural shape only when no kit piece loaded
             if (it != null) foreach (var n in made) if (n is Node3D n3) GearFx.Apply(n3, it, false);
         }
         foreach (var h in _hair) if (h is Node3D h3) h3.Visible = !hideHair;
@@ -436,7 +492,7 @@ public partial class Avatar : Node3D
     public static Func<string, Item?> Outfit(JsonElement o)
     {
         var d = new Dictionary<string, Item?>();
-        foreach (var s in new[] { "armor", "head", "hands", "feet", "shield" }) if (S(o, s) != "") d[s] = new Item { Name = S(o, s), Slot = s };
+        foreach (var s in new[] { "armor", "head", "hands", "feet", "shield", "cape" }) if (S(o, s) != "") d[s] = new Item { Name = S(o, s), Slot = s };
         return s => d.GetValueOrDefault(s);
     }
     public static JsonElement? Npc(string role) => Cfg.GetProperty("npcs").TryGetProperty(role, out var v) ? v : null;
