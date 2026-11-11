@@ -16,6 +16,7 @@ public partial class Player
     Vector3 _moveFrom, _moveTo; float _moveT, _moveDur, _moveArc; SkillCalc? _moveSkill; float _spinLeft, _spinStep; int _spinHits;
 
     public float CdOf(string? id) => id != null && _skillCd.TryGetValue(id, out var v) ? v : 0;
+    public bool Staggered => _stagger > 0; public bool Casting => _castT > 0;
     public float CdMaxOf(string? id) => id != null && _skillCdMax.TryGetValue(id, out var v) ? Mathf.Max(.01f, v) : 1;
     public bool Busy => _castT > 0 || _atkT > 0 || _moveT > 0 || _spinLeft > 0;
 
@@ -101,7 +102,7 @@ public partial class Player
         if (k.Tags.Contains("bow") && D.WType() != "bow") { Ui.Note(k.Name + " needs a bow", new Color(1, .6f, .5f)); return; }
         if (Mp < c.Mp) { Ui.Note("Not enough mana", new Color(0.4f, 0.65f, 1f)); return; }
         if (St < c.St) { Ui.Note("Not enough stamina", new Color(0.6f, 0.9f, .7f)); return; }
-        Mp -= c.Mp; if (c.St > 0) UseStamina(c.St); StartCd(id, c.Cd);
+        Mp -= c.Mp; if (c.St > 0) UseStamina(c.St); StartCd(id, c.Cd); PendCast(id, c.Mp, c.St);
         FaceAim();
         if (WeaponKinds.Contains(k.Kind) && !W.Ranged)
         {
@@ -112,6 +113,23 @@ public partial class Player
         Sfx.Play(k.Type == "physical" ? "swing" : k.Type == "frost" ? "ice" : k.Type == "lightning" ? "zap" : "fire");
     }
     void StartCd(string id, float cd) { _skillCd[id] = cd; _skillCdMax[id] = cd; }
+
+    // A skill pays its cost and starts its cooldown when the key is pressed, but only counts once it actually goes off (the end of the
+    // wind-up for spells, the impact frame for weapon skills). If it is cut short first (a stagger, death, a teleport), the cost comes back
+    // and the cooldown is cleared: a skill that did not cast is not on cooldown.
+    string? _pendId; float _pendMp, _pendSt;
+    void PendCast(string id, float mp, float st) { _pendId = id; _pendMp = mp; _pendSt = st; }
+    void CastWentOff() { _pendId = null; }
+    /// <summary>Stops a spell wind-up or weapon skill in progress; a skill that had not gone off yet is refunded and leaves no cooldown.</summary>
+    public void CancelCast()
+    {
+        if (_pendId != null)
+        {
+            Mp = Mathf.Min(Game.D.MaxMp(), Mp + _pendMp); St = Mathf.Min(Game.D.MaxSt(), St + _pendSt);
+            _skillCd[_pendId] = 0; _skillCdMax[_pendId] = 0; _pendId = null; Game.Notify();
+        }
+        _castT = 0; _castSkill = null; _atkSkill = null; _fired = true;
+    }
     void FaceAim()
     {
         if (Targeting.Current is Enemy t && IsInstanceValid(t)) { var d = t.GlobalPosition - GlobalPosition; _modelYaw = Util.YawTo(d.X, d.Z); }

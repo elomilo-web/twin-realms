@@ -160,6 +160,7 @@ public partial class World : Node3D
         Sfx.I?.SetRealmMix(0);
         TimeOfDay = Game.D.Time;
         UpdateVisuals(0, true);
+        ApplyQuality();
     }
 
     static void LoadLook()
@@ -247,7 +248,7 @@ void sky(){
     float n2 = fbm(uv * 1.3 + sh * 0.12);
     float lit = clamp(0.65 + (n - n2) * 5.0, 0.25, 1.25);
     vec3 cday = mix(vec3(0.6, 0.65, 0.75), vec3(1.05), lit) + dusk_col * dusk * (0.3 + 0.7 * az) * 0.8;
-    vec3 cnight = vec3(0.05, 0.06, 0.11) * (0.5 + lit * 0.5);
+    vec3 cnight = vec3(0.2, 0.25, 0.36) * (0.55 + lit * 0.5);   // dusty blue night clouds
     vec3 ccol = mix(cday, cnight, night);
     ccol = mix(ccol, vec3(0.3, 0.1, 0.4) * (0.5 + lit * 0.6), realm_t);
     col = mix(col, ccol, cl * 0.92);
@@ -653,7 +654,50 @@ void fragment(){
             var centre = new Vector3(-Half + (key.Item1 + .5f) * C, 0, -Half + (key.Item2 + .5f) * C);
             var mm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseColors = cols != null, Mesh = mesh, InstanceCount = idx.Count };
             for (int j = 0; j < idx.Count; j++) { var t = list[idx[j]]; t.Origin -= centre; mm.SetInstanceTransform(j, t); if (cols != null) mm.SetInstanceColor(j, cols[idx[j]]); }
-            Over.AddChild(new MultiMeshInstance3D { Multimesh = mm, Position = centre, VisibilityRangeEnd = visEnd, VisibilityRangeEndMargin = 12f });
+            var mmi = new MultiMeshInstance3D { Multimesh = mm, Position = centre, VisibilityRangeEnd = visEnd, VisibilityRangeEndMargin = 12f };
+            Over.AddChild(mmi); Scenery.Add((mmi, visEnd));
+        }
+    }
+
+    /// <summary>What the open ground is at a point, for footsteps: grass, leaves (forest floor), dirt (roads), sand, snow or stone (the plaza).</summary>
+    public static string SurfaceAt(float x, float z, float h)
+    {
+        if (Mathf.Abs(x) >= Half || Mathf.Abs(z) >= Half) return Lands.StepSurface(x, z, h);
+        if (x * x + z * z < 9.2f * 9.2f) return "stone";                         // Oakhaven plaza cobbles
+        if (RoadDist(x, z) < 2.8f) return "dirt";
+        if (h < 1.9f) return "sand";
+        if (h > 52f) return "snow";
+        if (Fbm(x * .02f + 3, z * .02f + 9, 3) > .56f && h < 40f) return "leaves";   // the same noise that makes the forest floor
+        return h > 38f ? "stone" : "grass";
+    }
+
+    /// <summary>Tree, rock and bush patches with their own draw distance; the view distance setting scales it.</summary>
+    static readonly List<(MultiMeshInstance3D n, float end)> Scenery = new();
+
+    /// <summary>
+    /// Settings > Display: graphics quality preset and view distance. Low: no bounce light, haze or SSAO, short soft shadows, FXAA;
+    /// Medium: SSAO, 4K shadows, 2x MSAA; High: bounce light, haze, TAA; Ultra: also screen-space indirect light, 8K shadows to 260 m, 4x MSAA.
+    /// </summary>
+    public void ApplyQuality()
+    {
+        var s = Game.Set; int q = s.Quality; float dist = s.ViewDist;
+        _env.SdfgiEnabled = q >= 2 && LF("gi", 1f) > 0; _env.SsilEnabled = q >= 3 && LF("ssil", 1f) > 0; _env.SsaoEnabled = q >= 1;
+        _env.VolumetricFogEnabled = q >= 2 && LF("volFog", .004f) > 0; _env.GlowEnabled = true;
+        Sun.DirectionalShadowMaxDistance = Mathf.Min(dist, q switch { 0 => 80f, 1 => 140f, 2 => 200f, _ => LF("shadowDistance", 260f) });
+        Sun.DirectionalShadowMode = q == 0 ? DirectionalLight3D.ShadowMode.Parallel2Splits : DirectionalLight3D.ShadowMode.Parallel4Splits;
+        RenderingServer.DirectionalShadowAtlasSetSize(q switch { 0 => 2048, 1 => 4096, _ => 8192 }, true);
+        RenderingServer.DirectionalSoftShadowFilterSetQuality(q switch { 0 => RenderingServer.ShadowQuality.Hard, 1 => RenderingServer.ShadowQuality.SoftLow, 2 => RenderingServer.ShadowQuality.SoftMedium, _ => RenderingServer.ShadowQuality.SoftHigh });
+        var vp = GetViewport();
+        vp.Msaa3D = q switch { 0 => Viewport.Msaa.Disabled, 1 or 2 => Viewport.Msaa.Msaa2X, _ => Viewport.Msaa.Msaa4X };
+        vp.UseTaa = q >= 2; vp.ScreenSpaceAA = q <= 1 ? Viewport.ScreenSpaceAAEnum.Fxaa : Viewport.ScreenSpaceAAEnum.Disabled;
+        vp.MeshLodThreshold = q switch { 0 => 4f, 1 => 2f, 2 => 1f, _ => .5f };
+        // view distance: the camera far plane, and tree/rock patches fade out before it (scaled from their own range)
+        foreach (var c in GetTree().Root.FindChildren("*", "Camera3D", true, false)) if (c is Camera3D cam) cam.Far = Mathf.Max(dist + 200f, 600f);
+        float k = dist / 1200f;
+        for (int i = Scenery.Count - 1; i >= 0; i--)
+        {
+            var (n, end) = Scenery[i]; if (!IsInstanceValid(n)) { Scenery.RemoveAt(i); continue; }
+            n.VisibilityRangeEnd = Mathf.Min(end * Mathf.Clamp(k, .3f, 1.6f), dist);
         }
     }
 
@@ -688,7 +732,7 @@ void fragment(){
         Genshin.SetNight(Night);   // characters switch to their cooler night shadow colours
         Sun.RotationDegrees = new Vector3(-Mathf.RadToDeg(Mathf.Asin(Mathf.Clamp(Mathf.Abs(elev) * 0.9f + 0.1f, 0.06f, 1f))), Mathf.RadToDeg(ang) + 90f, 0);
         // warm sunlight, more golden while the sun is low (morning and evening), orange at dusk (data/look.json sunNoon / sunLow / sunDusk)
-        var dayCol = LC("sunNoon", "fff1dc").Lerp(LC("sunLow", "ffc98a"), 1f - Smooth(.12f, .6f, elev)).Lerp(LC("sunDusk", "ff8c4a"), dusk); var moon = new Color(.55f, .62f, 1f); var shadowCol = new Color(.6f, .35f, .9f);
+        var dayCol = LC("sunNoon", "fff1dc").Lerp(LC("sunLow", "ffc98a"), 1f - Smooth(.12f, .6f, elev)).Lerp(LC("sunDusk", "ff8c4a"), dusk); var moon = LC("moonColor", "9fb2dc"); var shadowCol = new Color(.6f, .35f, .9f);
         Sun.LightColor = dayCol.Lerp(moon, Smooth(.35f, 0f, day)).Lerp(shadowCol, RealmT);
         Sun.LightEnergy = Mathf.Lerp(LF("sunNight", .22f), LF("sunDay", 1.55f), day) * (1 - RealmT * 0.45f) * (1f - dusk * .25f * day);
         var top = LC("nightTop", "02040d").Lerp(LC("dayTop", "2a64b8"), day).Lerp(LC("duskTop", "2d2f6e"), dusk * .55f).Lerp(LC("shadowTop", "0d0318"), RealmT);

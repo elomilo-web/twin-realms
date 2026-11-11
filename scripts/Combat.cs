@@ -18,7 +18,10 @@ public class HitInfo
     public List<(string id, float chance, float durMul, float pow)>? Statuses;
     public float Leech;        // % of damage returned as health (skill supports)
     public float Execute;      // +% damage against targets below 35% health
-    public bool NoText;        // damage-over-time ticks use their own small numbers
+    public bool NoText;
+    /// <summary>The blow staggers the hero: pushes them, plays the flinch and interrupts what they are doing. Only abilities set it (slams, blasts, skills that stun or knock back);
+    /// ordinary attacks just deal damage. A hit with Stun above 0 staggers too.</summary>
+    public bool Stagger;        // damage-over-time ticks use their own small numbers
     // multiplayer: a friend's hit forwarded to the host (their bonuses already applied, their penetration carried along), or a duel hit
     public bool Remote, Duel; public long Peer; public float APen, APenP, MPen, MPenP;
     public HitInfo With(string id, float chance, float durMul = 1, float pow = 0) { (Statuses ??= new()).Add((id, chance, durMul, pow)); return this; }

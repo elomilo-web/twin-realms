@@ -91,7 +91,10 @@ public partial class Ui
                 Choice(list, "VSync", "Matches the screen's refresh rate and stops tearing.", OffOn, s.VSync ? 1 : 0, i => s.VSync = i == 1, true);
                 Choice(list, "Frame limit", "Caps frames per second to save power.", new[] { "None", "30", "60", "120", "144" }, Math.Max(0, Array.IndexOf(FpsCaps, s.MaxFps)), i => s.MaxFps = FpsCaps[i], true);
                 SliderRow(list, "3D resolution", "Lower it for more speed. Menus and text stay sharp.", s.RenderScale, .5f, 1f, .05f, Pct, x => s.RenderScale = x, true);
-                Choice(list, "Outlines", "The soft ink lines around shapes (part of the toon look).", OffOn, s.Outlines ? 1 : 0, i => s.Outlines = i == 1, true);
+                Choice(list, "Graphics quality", "Lighting, shadows, smoothing and detail. Lower it for more frames per second.", new[] { "Low", "Medium", "High", "Ultra" }, s.Quality, i => s.Quality = i, true);
+                SliderRow(list, "View distance", "How far you can see. Trees and scenery fade out before it. Shorter is faster.", s.ViewDist, 300f, 3000f, 50f, x => $"{x:0} m", x => s.ViewDist = x, true);
+                SliderRow(list, "Grass", "How much grass grows around you. Lower it for more speed.", s.Grass, 0f, 1f, .05f, Pct, x => s.Grass = x, true);
+                Choice(list, "Outlines", "Ink lines around shapes (a cartoon look).", OffOn, s.Outlines ? 1 : 0, i => s.Outlines = i == 1, true);
                 Choice(list, "Show FPS", "Frames per second in the bottom-right corner.", OffOn, s.ShowFps ? 1 : 0, i => s.ShowFps = i == 1, true);
                 break;
             case "game":
@@ -113,7 +116,7 @@ public partial class Ui
             var def = new Settings();
             switch (_setTab)
             {
-                case "display": s.WindowMode = def.WindowMode; s.VSync = def.VSync; s.MaxFps = def.MaxFps; s.RenderScale = def.RenderScale; s.Outlines = def.Outlines; s.ShowFps = def.ShowFps; break;
+                case "display": s.WindowMode = def.WindowMode; s.VSync = def.VSync; s.MaxFps = def.MaxFps; s.RenderScale = def.RenderScale; s.Outlines = def.Outlines; s.ShowFps = def.ShowFps; s.Quality = def.Quality; s.ViewDist = def.ViewDist; s.Grass = def.Grass; break;
                 case "game": s.Sens = def.Sens; s.InvertY = def.InvertY; s.Fov = def.Fov; s.Shake = def.Shake; break;
                 default: s.Master = def.Master; s.Music = def.Music; s.Ambient = def.Ambient; s.Sfx = def.Sfx; break;
             }

@@ -76,7 +76,8 @@ public partial class Player : CharacterBody3D, IDamageable
         {
             // the drawn hero: base body + separate gear models. HeroRig stays as the invisible pose source (hand targets, look-at).
             var ap = Races.Look(Game.D); _av = new Avatar { Name = "Avatar", Scale = new Vector3(1 / ap.Bulk, 1 / ap.Height, 1 / ap.Bulk) };
-            _rig.AddChild(_av); _av.Build(ap, Game.D.Name); HideRig(); _feet = FootPlant.Attach(_av, GetRid());   // feet on slopes   // the cape is an equipment slot now (Avatar.Dress)
+            _rig.AddChild(_av); _av.Build(ap, Game.D.Name); HideRig(); _feet = FootPlant.Attach(_av, GetRid());   // feet on slopes
+            if (_feet != null) _feet.Stepped = at => { float sp = new Vector2(Velocity.X, Velocity.Z).Length(); if (sp > .6f && IsOnFloor() && !Mounted) Sfx.Step(at, this, sp); };   // footsteps on the real footfalls   // the cape is an equipment slot now (Avatar.Dress)
         }
         _trail = new SwordTrail(); AddChild(_trail);
         // a soft light around the hero that grows in the dark (night, Shadow realm, dungeons)
@@ -174,11 +175,17 @@ public partial class Player : CharacterBody3D, IDamageable
         {
             Sfx.Play("hurt");
             // the blow lands on the body: a real shove, a stagger long enough for the hit clip, a spark where it struck
-            if (away.LengthSquared() > 0.001f) _hitKb += away.Normalized() * h.Knock * .9f;
-            _stagger = Mathf.Max(_stagger, h.IsProjectile ? .2f : h.Knock >= 8f ? .55f : .35f); _hurtSerial++;
             var hitDir = toSrc.LengthSquared() > .001f ? toSrc.Normalized() : Vector3.Forward;
-            SpellFx.Play("hit_spark", GlobalPosition + new Vector3(0, 1.25f, 0) + hitDir * .3f, h.Knock >= 8f ? 1.6f : 1.1f);
-            _atkT = 0; _castT = 0; _castSkill = null; _atkSkill = null;
+            // only abilities (slams, blasts, skills that stun or knock back) stagger: a shove, the flinch clip, and whatever the hero was doing is interrupted.
+            // Ordinary blows just hurt: the spark shows where they struck, attacks and casts carry on.
+            bool stagger = h.Stagger || h.Stun > 0;
+            if (stagger)
+            {
+                if (away.LengthSquared() > 0.001f) _hitKb += away.Normalized() * h.Knock * .9f;
+                _stagger = Mathf.Max(_stagger, Mathf.Max(h.Stun, h.Knock >= 8f ? .55f : .35f)); _hurtSerial++;
+                _atkT = 0; CancelCast();
+            }
+            SpellFx.Play("hit_spark", GlobalPosition + new Vector3(0, 1.25f, 0) + hitDir * .3f, stagger ? 1.6f : 1f);
         }
         if (TS.Has("manaShield") && Mp > 0) { float m = Mathf.Min(Mp, dmg * 0.35f); Mp -= m; dmg -= m; }
         if (TS["thorns"] > 0 && h.Attacker is Enemy te && !h.IsProjectile && te.GlobalPosition.DistanceTo(GlobalPosition) < 6f)
@@ -188,7 +195,8 @@ public partial class Player : CharacterBody3D, IDamageable
         // the attacker's on-hit statuses (tenacity shortens them), then "when hit" triggers
         if (h.Statuses != null) foreach (var (id, chance, durMul, pow) in h.Statuses) if (GD.Randf() < chance) Statuses.Add(id, durMul, pow, h.Damage, TS["tenacity"]);
         TriggerAuto("hit");
-        Rig?.Shake(0.18f); Feel.HitStop(Feel.Taken);
+        bool hard = h.Stagger || h.Stun > 0;
+        Rig?.Shake(hard ? 0.18f : 0.07f); if (hard) Feel.HitStop(Feel.Taken);
         FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.1f, 0), "-" + final, h.Type is "physical" or "" ? new Color(1, 0.4f, 0.35f) : Dmg.TypeColor(h.Type).Lerp(new Color(1, .3f, .3f), .3f));
         if (Hp <= 0 && !DuelSave())
         {
@@ -203,7 +211,7 @@ public partial class Player : CharacterBody3D, IDamageable
 
     void Die()
     {
-        Dead = true; Hp = 0; _deadT = 0; _atkT = 0; _blocking = false; if (Mounted) ToggleMount(true);
+        CancelCast(); Dead = true; Hp = 0; _deadT = 0; _atkT = 0; _blocking = false; if (Mounted) ToggleMount(true);
         Sfx.Play("die");
         if (Arenas.Active) Arenas.OnPlayerDeath();
     }
@@ -220,7 +228,7 @@ public partial class Player : CharacterBody3D, IDamageable
 
     public void Teleport(Vector3 pos, float yaw = 0f)
     {
-        GlobalPosition = pos; Velocity = Vector3.Zero; _kb = Vector3.Zero; _hitKb = Vector3.Zero; _walkV = Vector3.Zero;
+        GlobalPosition = pos; Velocity = Vector3.Zero; _kb = Vector3.Zero; _hitKb = Vector3.Zero; _walkV = Vector3.Zero; if (_castT > 0 || _atkSkill != null) CancelCast();
         if (Rig != null) { Rig.GlobalPosition = pos + new Vector3(0, 1.6f, 0); Rig.Rotation = new Vector3(0, yaw, 0); }
         _modelYaw = yaw;
     }
@@ -488,7 +496,7 @@ public partial class Player : CharacterBody3D, IDamageable
         if (_atkT > 0)
         {
             _atkT -= dt; float prog = 1f - _atkT / _atkDur; var a = _atk ?? W.Combo[0];
-            if (!_hitDone && prog >= a.Hit) { _hitDone = true; if (_atkSkill != null) FireWeaponSkill(_atkSkill); else if (Ranged) FireWeapon(); else ResolveMelee(a); }
+            if (!_hitDone && prog >= a.Hit) { _hitDone = true; if (_atkSkill != null) { CastWentOff(); FireWeaponSkill(_atkSkill); } else if (Ranged) FireWeapon(); else ResolveMelee(a); }
             if (Ranged) _modelYaw = Targeting.Current != null ? Util.YawTo(Targeting.Current.GlobalPosition.X - GlobalPosition.X, Targeting.Current.GlobalPosition.Z - GlobalPosition.Z) : camYaw;
             else
             {
@@ -500,7 +508,7 @@ public partial class Player : CharacterBody3D, IDamageable
         if (_castT > 0)
         {
             _castT -= dt; _modelYaw = camYaw;
-            if (!_fired && _castT <= 0 && _castSkill != null) { _fired = true; var cs = _castSkill; _castSkill = null; Execute(cs); }
+            if (!_fired && _castT <= 0 && _castSkill != null) { _fired = true; var cs = _castSkill; _castSkill = null; CastWentOff(); Execute(cs); }
         }
 
         // ---- movement

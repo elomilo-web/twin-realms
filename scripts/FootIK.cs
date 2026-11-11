@@ -13,8 +13,10 @@ public partial class FootPlant : SkeletonModifier3D
 {
     public Node3D TargetL = null!, TargetR = null!, PoleL = null!, PoleR = null!, Root = null!;
     public TwoBoneIK3D Ik = null!; public Rid Exclude; public bool Enabled = true;
-    public float MaxDrop = .4f, MaxLift = .5f, Smooth = 14f;
-    int _pel = -1, _fl, _fr, _cl, _cr; float _drop, _w;
+    public float MaxDrop = .4f, MaxLift = .5f, Smooth = 14f, Plant = .09f, BobDamp = .6f;
+    int _pel = -1, _fl, _fr, _cl, _cr; float _drop, _w, _ankle = -1, _pelAvg = -99; bool _upL, _upR;
+    /// <summary>A foot touched down in the animation (where, on the ground). Footstep sounds hang off this.</summary>
+    public System.Action<Vector3>? Stepped;
 
     public override void _ProcessModificationWithDelta(double delta)
     {
@@ -35,14 +37,30 @@ public partial class FootPlant : SkeletonModifier3D
         }
         Transform3D FootW(int b) => sg * sk.GetBoneGlobalPose(b);
         var fl = FootW(_fl); var fr = FootW(_fr);
-        // each foot keeps its animated height above the flat floor, now above the real ground under it
-        float gl = Mathf.Clamp(Ground(fl.Origin) - baseY, -MaxDrop, MaxLift), gr = Mathf.Clamp(Ground(fr.Origin) - baseY, -MaxDrop, MaxLift);
-        // the hips go down as far as the lower foot must reach (never up: the capsule already stands on the highest point)
-        float want = Mathf.Min(0, Mathf.Min(gl, gr));
+        // bounce damping: the jog clip throws the hips 22 cm up each stride (both feet leave the floor). Take most of the rise above the
+        // hips' running average off the whole body, feet included, so the hero runs low and the feet come back to the ground sooner.
+        float pelY = (sg * sk.GetBoneGlobalPose(_pel)).Origin.Y - baseY;
+        _pelAvg = _pelAvg < -50 ? pelY : Mathf.Lerp(_pelAvg, pelY, 1f - Mathf.Exp(-2.5f * dt));
+        float bob = -Mathf.Max(0, pelY - _pelAvg) * BobDamp;
+        fl.Origin.Y += bob; fr.Origin.Y += bob;
+        // ankle height when standing (the rest pose): a foot this close to the floor is on the floor
+        if (_ankle < 0) { var rest = sg * sk.GetBoneGlobalRest(_fl); _ankle = Mathf.Clamp(rest.Origin.Y - baseY, .03f, .2f); }
+        // each foot: the real ground under it and its animated lift off the flat floor. A foot within Plant of the floor is pinned flat
+        // on the ground (the clips wobble a few cm and their stance feet hover); higher up it keeps the lift, less Plant (blended in).
+        float grL = Mathf.Clamp(Ground(fl.Origin) - baseY, -MaxDrop, MaxLift), grR = Mathf.Clamp(Ground(fr.Origin) - baseY, -MaxDrop, MaxLift);
+        float Lift(float animY) { float l = animY - baseY - _ankle; return l <= Plant ? 0 : l - Plant * Mathf.Clamp(1.5f - l / (Plant * 4f), 0, 1); }
+        float tyL = baseY + grL + _ankle + Lift(fl.Origin.Y), tyR = baseY + grR + _ankle + Lift(fr.Origin.Y);
+        // footfalls: a foot that was up comes down onto the floor (with a little hysteresis so a hovering foot does not chatter)
+        float lL = fl.Origin.Y - baseY - _ankle, lR = fr.Origin.Y - baseY - _ankle;
+        if (_upL && lL < Plant * .6f) { _upL = false; Stepped?.Invoke(new Vector3(fl.Origin.X, baseY + grL, fl.Origin.Z)); } else if (lL > Plant * 1.4f) _upL = true;
+        if (_upR && lR < Plant * .6f) { _upR = false; Stepped?.Invoke(new Vector3(fr.Origin.X, baseY + grR, fr.Origin.Z)); } else if (lR > Plant * 1.4f) _upR = true;
+        float gl = tyL - fl.Origin.Y, gr = tyR - fr.Origin.Y;   // how far each foot target moves from the animated foot
+        // the hips go down as far as a foot must reach (never up: the capsule already stands on the highest point)
+        float want = Mathf.Max(-MaxDrop, Mathf.Min(0, Mathf.Min(gl, gr)));
         _drop = Mathf.Lerp(_drop, want, 1f - Mathf.Exp(-Smooth * dt));
         var pp = sk.GetBonePosePosition(_pel); int par = sk.GetBoneParent(_pel);
         var parentBasis = (sg.Basis * (par >= 0 ? sk.GetBoneGlobalPose(par).Basis : Basis.Identity));
-        sk.SetBonePosePosition(_pel, pp + parentBasis.Inverse() * new Vector3(0, _drop * _w, 0));
+        sk.SetBonePosePosition(_pel, pp + parentBasis.Inverse() * new Vector3(0, (_drop + bob) * _w, 0));
 
         TargetL.GlobalTransform = new Transform3D(fl.Basis, fl.Origin + new Vector3(0, gl, 0));
         TargetR.GlobalTransform = new Transform3D(fr.Basis, fr.Origin + new Vector3(0, gr, 0));
@@ -68,7 +86,7 @@ public partial class FootPlant : SkeletonModifier3D
         }
         fp.Ik = ik;
         using var doc = JsonUtil.Load("res://data/feel.json"); var cfg = doc.RootElement;
-        if (cfg.TryGetProperty("footIK", out var f)) { fp.MaxDrop = JsonUtil.F(f, "maxDrop", fp.MaxDrop); fp.MaxLift = JsonUtil.F(f, "maxLift", fp.MaxLift); fp.Smooth = JsonUtil.F(f, "smooth", fp.Smooth); if (f.TryGetProperty("enabled", out var en) && en.ValueKind == System.Text.Json.JsonValueKind.False) { fp.QueueFree(); ik.QueueFree(); return null; } }
+        if (cfg.TryGetProperty("footIK", out var f)) { fp.MaxDrop = JsonUtil.F(f, "maxDrop", fp.MaxDrop); fp.MaxLift = JsonUtil.F(f, "maxLift", fp.MaxLift); fp.Smooth = JsonUtil.F(f, "smooth", fp.Smooth); fp.Plant = JsonUtil.F(f, "plant", fp.Plant); fp.BobDamp = JsonUtil.F(f, "bobDamp", fp.BobDamp); if (f.TryGetProperty("enabled", out var en) && en.ValueKind == System.Text.Json.JsonValueKind.False) { fp.QueueFree(); ik.QueueFree(); return null; } }
         return fp;
     }
 }

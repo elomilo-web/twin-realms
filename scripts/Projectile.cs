@@ -151,7 +151,7 @@ public partial class Projectile : Node3D
         else if (Aoe > 0)
         {
             Fx.Burst(to, new Color(1, 0.4f, 0.1f), 24, 6f, 0.6f, 0.2f);
-            foreach (var hero in Heroes()) if (hero.GlobalPosition.DistanceTo(to) < Aoe) ((IDamageable)hero).TakeHit(new HitInfo { Damage = Dmg, From = to, Knock = 5f, NoBlock = true });
+            foreach (var hero in Heroes()) if (hero.GlobalPosition.DistanceTo(to) < Aoe) ((IDamageable)hero).TakeHit(new HitInfo { Damage = Dmg, From = to, Knock = 5f, NoBlock = true, Stagger = true });
         }
         QueueFree();
     }

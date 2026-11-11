@@ -1,4 +1,4 @@
-﻿# Assets (CC0 only; record source and license for each)
+# Assets (CC0 only; record source and license for each)
 
 All files below are CC0 1.0 (public domain). No attribution is required; credits are kept here anyway.
 
@@ -36,6 +36,12 @@ All from ambientCG (ambientcg.com), CC0 1.0, 1K JPG. Colour map kept for each, t
 | `rock_col.jpg`, `rock_nrm.jpg` | Rock030 | steep slopes, mountains |
 | `sand_col.jpg` | Ground054 | shore, packed dirt on roads |
 | `forest_col.jpg` | Ground048 | forest floor under trees |
+
+## Footsteps (`audio/sfx/step_*`), played by `Sfx.Step` on each footfall, picked by the ground under the foot
+| Files | Source | License |
+|---|---|---|
+| `step_soft_1-6` (grass, sand, snow at lower pitch) and `step_stone_1-6` | "Fantozzi's Footsteps (Grass/Sand & Stone)", Fantozzi, https://opengameart.org/content/fantozzis-footsteps-grasssand-stone | CC0 |
+| `step_wood_1-3`, `step_leaves_1-2`, `step_dirt_1`, `step_gravel_1` | "Different steps on wood, stone, leaves, gravel and mud", TinyWorlds (kdd), https://opengameart.org/content/different-steps-on-wood-stone-leaves-gravel-and-mud | CC0 |
 
 ## Music (`audio/music/`), played by `Sfx.cs` with long quiet gaps between songs
 | File | Title / author | Source |

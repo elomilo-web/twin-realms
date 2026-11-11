@@ -114,14 +114,56 @@ public partial class Sfx : Node
     /// <summary>Per-sound loudness (1 = as recorded). Pickup and the wand's zap were far too loud next to everything else.</summary>
     static readonly Dictionary<string, float> Gain = new() { ["pickup"] = .3f, ["zap"] = .35f, ["coin"] = .6f };
 
-    public static void Play(string id, float vol = 1f)
+    public static void Play(string id, float vol = 1f) => Play(id, vol, 1f);
+    /// <summary>Plays a sound at a pitch (1 = as recorded, a little random spread is added).</summary>
+    public static void Play(string id, float vol, float pitch)
     {
         if (I == null) return;
         vol *= Gain.GetValueOrDefault(id, 1f);
         bool file = Files.TryGetValue(id, out var l) && l.Count > 0;
         var stream = file ? l![(int)(GD.Randi() % (uint)l.Count)] : Gen(id);
         foreach (var p in I._pool)
-            if (!p.Playing) { p.Stream = stream; p.VolumeDb = Mathf.LinearToDb(Game.Set.Sfx * vol * 0.7f + 0.0001f); p.PitchScale = 0.95f + GD.Randf() * 0.1f; p.Play(); return; }
+            if (!p.Playing) { p.Stream = stream; p.VolumeDb = Mathf.LinearToDb(Game.Set.Sfx * vol * 0.7f + 0.0001f); p.PitchScale = pitch * (0.95f + GD.Randf() * 0.1f); p.Play(); return; }
+    }
+
+    // ------------------------------------------------------------------ footsteps
+    /// <summary>
+    /// A soft footstep for the ground at p: grass, forest floor, dirt road, sand, snow, stone (plazas, castles, sea bridges, dungeons) or wood
+    /// (river and rope bridges, stilt decks). The collider under the foot decides built ground; open ground asks the terrain.
+    /// Quiet on purpose; louder when running. Numbers: Steps table below.
+    /// </summary>
+    public static void Step(Vector3 p, Node3D who, float speed)
+    {
+        if (I == null || Game.Set.Sfx <= 0) return;
+        string kind = StepKind(p, who); StepCount++;
+        var (id, pitch, vol) = kind switch
+        {
+            "stone" => ("step_stone", 1f, .55f), "wood" => ("step_wood", 1f, .5f), "leaves" => ("step_leaves", 1.05f, .32f), "dirt" => ("step_dirt", 1.1f, .4f),
+            "sand" => ("step_soft", .92f, .55f), "snow" => ("step_soft", .68f, .6f), _ => ("step_soft", 1.18f, .32f),   // grass: the soft steps, lighter
+        };
+        vol *= Mathf.Lerp(.75f, 1.15f, Mathf.Clamp((speed - 1f) / 5f, 0, 1));
+        Play(id, vol, pitch);
+    }
+    public static string LastStep = ""; public static int StepCount;
+    static string StepKind(Vector3 p, Node3D who)
+    {
+        if (Dungeon.Active) return LastStep = "stone";
+        // what is under the foot: a building, bridge or deck, or the terrain
+        var q = PhysicsRayQueryParameters3D.Create(p + Vector3.Up * .6f, p + Vector3.Down * .6f, 1);
+        if (who is CollisionObject3D co) q.Exclude = new Godot.Collections.Array<Rid> { co.GetRid() };
+        var hit = who.GetWorld3D().DirectSpaceState.IntersectRay(q);
+        if (hit.Count > 0 && hit["collider"].As<Node>() is { } n && n.Name != "Terrain")
+        {
+            for (Node? x = n; x != null; x = x.GetParent())
+            {
+                string nm = x.Name;
+                if (nm.Contains("RiverBridge") || nm.Contains("RopeBridge") || nm.Contains("Stilt")) return LastStep = "wood";
+                if (nm.StartsWith("Bridge_") || nm == "Dungeon") return LastStep = "stone";
+                if (nm == "Overworld") break;
+            }
+            return LastStep = "stone";
+        }
+        return LastStep = World.SurfaceAt(p.X, p.Z, p.Y);
     }
 
     // ------------------------------------------------------------------ ambience

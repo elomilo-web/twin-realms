@@ -15,7 +15,11 @@ public class Settings
     public int MaxFps = 0;                // 0 = no limit
     public float RenderScale = 1f;        // 3D resolution; the menus and HUD stay sharp
     public float Fov = 70f;
-    public bool Outlines = true;
+    public bool Outlines = false;          // the ink lines around shapes (off: too cartoony; settings files from before version 1 are switched off once)
+    public int Quality = 3;                // graphics preset: 0 low, 1 medium, 2 high, 3 ultra (lighting, shadows, anti-aliasing, detail)
+    public float ViewDist = 1200f;         // metres: how far the camera draws, trees and scenery fade before it
+    public float Grass = 1f;               // grass amount 0..1 (0 = none)
+    public int SetVer = 0;
     public bool ShowFps = false;
     public float Shake = 1f;              // camera shake strength
     public Dictionary<string, string> Binds = new();   // rebound controls: action -> "k:keycode" / "m:button" (older settings files: empty = defaults)
@@ -138,6 +142,7 @@ public static class Game
         }
         catch { Set = new Settings(); }
         Set.Binds ??= new();
+        if (Set.SetVer < 1) { Set.Outlines = false; Set.SetVer = 1; }   // the outline look was retired (too cartoony)
         Sfx.ApplyVolumes(); Inputs.ApplyBinds(); ApplyDisplay();
     }
 
@@ -148,6 +153,8 @@ public static class Game
         Engine.MaxFps = Math.Max(0, Set.MaxFps);
         if (Engine.GetMainLoop() is SceneTree tree) tree.Root.Scaling3DScale = Set.RenderScale;
         Toon.SetOutlines(Set.Outlines);
+        Set.Quality = Math.Clamp(Set.Quality, 0, 3); Set.ViewDist = Mathf.Clamp(Set.ViewDist, 300f, 3000f); Set.Grass = Mathf.Clamp(Set.Grass, 0f, 1f);
+        World.I?.ApplyQuality(); Flora.ApplyQuality();
         if (DisplayServer.GetName() == "headless") return;
         DisplayServer.WindowSetVsyncMode(Set.VSync ? DisplayServer.VSyncMode.Enabled : DisplayServer.VSyncMode.Disabled);
         var want = Set.WindowMode switch { 1 => DisplayServer.WindowMode.Fullscreen, 2 => DisplayServer.WindowMode.ExclusiveFullscreen, _ => DisplayServer.WindowMode.Windowed };

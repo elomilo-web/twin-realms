@@ -246,6 +246,18 @@ public static class Lands
         return m.Grass * (1 - sf.sand) * (1 - sf.snow * .9f) * (1 - sf.ash);
     }
 
+    /// <summary>Open ground under a footstep on the lands and sky islands: snow, sand, dirt (roads, ash), leaves (forest floor), stone (towns, rock) or grass.</summary>
+    public static string StepSurface(float x, float z, float h)
+    {
+        foreach (var s in Sky) if (h > s.Y - 30 && new Vector2(x - s.X, z - s.Z).Length() < s.R + 4) return new Vector2(x - s.X, z - s.Z).Length() < 10 && s.Temple ? "stone" : "grass";
+        var L = LandAt(x, z); if (L == null) return "stone";   // bridges and piers out at sea
+        foreach (var p in L.Places) if ((p.Kind is "city" or "castle" or "ruins" or "tombs") && new Vector2(x - p.X, z - p.Z).Length() < p.R * .9f) return "stone";
+        var sf = Surface(L, x, z, h, 1f);
+        if (sf.snow > .5f) return "snow"; if (sf.road > .5f || sf.ash > .5f) return "dirt"; if (sf.sand > .5f) return "sand";
+        if (sf.rock > .5f || h > L.SnowLine) return "stone"; if (sf.forest > .45f) return "leaves";
+        return "grass";
+    }
+
     /// <summary>The region name at a point: a land, the sky islands, the home island or the sea.</summary>
     public static string RegionAt(Vector3 p)
     {
@@ -472,7 +484,7 @@ public static class Lands
 
     static void BuildPlace(Land L, Place p, Node3D parent)
     {
-        var g = new Node3D { Name = p.Id, Position = new Vector3(p.X, p.H, p.Z) }; parent.AddChild(g);
+        var g = new Node3D { Name = (p.Kind == "stilts" ? "Stilt_" : "") + p.Id, Position = new Vector3(p.X, p.H, p.Z) }; parent.AddChild(g);
         switch (p.Kind)
         {
             case "city": City(L, p, g); break;

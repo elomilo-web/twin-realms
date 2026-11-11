@@ -392,6 +392,23 @@ public partial class Bot : Node
             d.Bar = keepBar; Game.Notify(); await Wait(2f);
         });
 
+        await Step("hits only stagger from abilities; an interrupted cast is not on cooldown", async () =>
+        {
+            var d = Game.D; var keepBar = (string[])d.Bar.Clone(); d.Bar[0] = "fire"; Heal(); await Wait(1.2f);
+            var src = P.GlobalPosition + new Vector3(0, 0, -1.5f);
+            Press("spell1", true); await Wait(.05f); Press("spell1", false); await Wait(.08f);
+            bool casting = P.Casting; float mp0 = P.Mp;
+            P.TakeHit(new HitInfo { Damage = 3, From = src, Knock = 4f }); await Wait(.05f);
+            Check("a basic blow does not stagger or interrupt a cast", casting && !P.Staggered && (P.Casting || P.CdOf("fire") > 0), $"casting {casting}, staggered {P.Staggered}");
+            await Wait(1.5f); Heal(); await Wait(.8f);
+            Press("spell1", true); await Wait(.05f); Press("spell1", false); await Wait(.08f);
+            float mpCast = P.Mp; bool cd0 = P.CdOf("fire") > 0;
+            P.TakeHit(new HitInfo { Damage = 3, From = src, Knock = 9f, Stagger = true }); await Wait(.05f);
+            Check("an ability blow staggers", P.Staggered);
+            Check("an interrupted cast is refunded and leaves no cooldown", cd0 && P.CdOf("fire") <= 0 && P.Mp > mpCast, $"cd before {cd0}, cd now {P.CdOf("fire"):0.00}, mana {mpCast:0} -> {P.Mp:0}");
+            d.Bar = keepBar; Game.Notify(); await Wait(1f);
+        });
+
         await Step("basic attack chains", async () =>
         {
             var d = Game.D; var keepW = d.Eq.GetValueOrDefault("weapon"); var keepS = d.Eq.GetValueOrDefault("shield");

@@ -76,6 +76,7 @@ public partial class Shots : Node
         if (OS.GetCmdlineUserArgs().Contains("--combat")) { await CombatCheck(); return; }
         if (OS.GetCmdlineUserArgs().Contains("--lands")) { await LandsTour(); return; }
         if (OS.GetCmdlineUserArgs().Contains("--menus")) { await MenuShots(); return; }
+        if (OS.GetCmdlineUserArgs().Contains("--perf")) { await PerfCheck(); return; }
         if (OS.GetCmdlineUserArgs().Contains("--hands"))
         {
             // which hand each clip reaches out with (model space: -Z is forward, +X is the model's left after the 180 turn)
@@ -119,6 +120,8 @@ public partial class Shots : Node
         P.Teleport(World.OnGround(-46, 34, .5f), 2.2f); Cam(2.2f + Mathf.Pi, 4.2f); await Wait(1.5f); await Shot("field_hero");
         P.Teleport(World.OnGround(30, -40, .5f), -.6f); Cam(-.6f + Mathf.Pi, 4.2f); await Wait(1.5f); await Shot("field_hero_2");
         World.TimeOfDay = .69f; P.Teleport(World.OnGround(-46, 34, .5f), 2.2f); Cam(2.2f + Mathf.Pi, 4.2f); await Wait(1.5f); await Shot("field_hero_evening");
+        World.TimeOfDay = .02f; P.Teleport(World.OnGround(-46, 34, .5f), 2.2f); Cam(2.2f + Mathf.Pi, 4.2f); await Wait(2f); await Shot("field_hero_night");
+        Free(World.OnGround(0, 46, 20f), World.OnGround(0, 0, 0)); await Wait(1.5f); await Shot("village_night"); Free(null);
         World.TimeOfDay = .45f; P.Teleport(plaza, Mathf.Pi);
         if (OS.GetCmdlineUserArgs().Contains("--look")) return;   // just the hero, village and nature (to compare the look)
 
@@ -135,6 +138,22 @@ public partial class Shots : Node
         await Shot("hero_dungeon");
         Cam(-.9f, 4.5f); await Wait(.8f); await Shot("hero_dungeon_side");
         Hud(true);
+    }
+
+    /// <summary>Frames per second for each graphics preset and two view distances, in the fields looking over the village (vsync off).</summary>
+    async Task PerfCheck()
+    {
+        DisplayServer.WindowSetVsyncMode(DisplayServer.VSyncMode.Disabled); Engine.MaxFps = 0;
+        World.TimeOfDay = .45f; P.Teleport(World.OnGround(-46, 34, .5f), 2.2f); Cam(2.2f + Mathf.Pi, 4.2f); await Wait(2f);
+        var keep = (Game.Set.Quality, Game.Set.ViewDist, Game.Set.Grass);
+        foreach (var (q, dist, grass) in new[] { (3, 1200f, 1f), (2, 1200f, 1f), (1, 900f, .6f), (0, 600f, .3f), (3, 3000f, 1f) })
+        {
+            Game.Set.Quality = q; Game.Set.ViewDist = dist; Game.Set.Grass = grass; Game.ApplyDisplay(); await Wait(2.5f);
+            int f0 = Engine.GetFramesDrawn(); ulong t0 = Time.GetTicksMsec(); await Wait(3f);
+            float fps = (Engine.GetFramesDrawn() - f0) / ((Time.GetTicksMsec() - t0) / 1000f);
+            Say($"perf quality {new[] { "Low", "Medium", "High", "Ultra" }[q]}, view {dist:0} m, grass {grass * 100:0}%: {fps:0} fps"); await Shot($"perf_q{q}_{dist:0}");
+        }
+        (Game.Set.Quality, Game.Set.ViewDist, Game.Set.Grass) = keep; Game.ApplyDisplay();
     }
 
     /// <summary>The progression menus (skills, modifier tree, passive tree, character), at the default window size and with a mid-game hero.</summary>
@@ -321,7 +340,7 @@ public partial class Shots : Node
         {
             var av = new Avatar(); Game.Root!.AddChild(av); av.GlobalPosition = World.OnGround(-60, -60, 0); av.Build(new Appearance(), "feel"); await Wait(.3f);
             var s2 = av.Skel!; int al = s2.FindBone("foot_l"), ar = s2.FindBone("foot_r"), pel = s2.FindBone("pelvis");
-            foreach (var key in new[] { "walk", "run", "sprint" })
+            foreach (var key in new[] { "walk", "run", "sprint", "idle", "idleArmed", "idleShield" })
             {
                 string clip = Avatar.Clip(key); float len = av.ClipLength(clip); if (len <= 0) continue;
                 float back = 0, minY = 9, maxPel = -9, minPel = 9; Vector3? prev = null; int prevFoot = -1; const int N = 60;
@@ -347,7 +366,7 @@ public partial class Shots : Node
             foreach (var dd in new[] { Vector3.Forward, Vector3.Back, Vector3.Left, Vector3.Right })
             {
                 float h0 = World.GroundAt(x, z), h1 = World.GroundAt(x + dd.X * 20, z + dd.Z * 20), gr = (h0 - h1) / 20f;
-                if (gr > best && gr < .7f && World.GroundAt(x, z) > 2f) { best = gr; slopeTop = World.OnGround(x, z, .5f); slopeDir = dd; }
+                if (gr > best && gr < .7f && World.GroundAt(x, z) > 2f && World.FreeSpot(x, z, 8f) && World.FreeSpot(x + dd.X * 20, z + dd.Z * 20, 8f)) { best = gr; slopeTop = World.OnGround(x, z, .5f); slopeDir = dd; }
             }
         Say($"feel: slope found, grade {best:0.00} ({Mathf.RadToDeg(Mathf.Atan(best)):0} deg)");
 
@@ -356,7 +375,11 @@ public partial class Shots : Node
             P.Teleport(start, Util.YawTo(dir.X, dir.Z)); Cam(Util.YawTo(dir.X, dir.Z), 5f); await Wait(.6f);
             Input.ActionPress(Inputs.Forward); if (sprint) Input.ActionPress(Inputs.Sprint); await Wait(.5f);
             int n = 0, air = 0, fall = 0, sn = 0, lastFoot = -1; float skate = 0, gapSum = 0, gapMax = 0, sinkMax = 0; Vector3 lastLow = Vector3.Zero; var slides = new List<float>();
-            var t = 0f; _stDz = 0; _stDt = 0;
+            var t = 0f; _stDz = 0; _stDt = 0; int steps0 = Sfx.StepCount;
+            // the lower foot against the ground, read right after the foot IK solved
+            var fpR = P.Av!.Skel!.GetNodeOrNull<FootPlant>("FootPlant"); float ikSum = 0, ikMax = 0; int ikN = 0;
+            void IkRead() { var a = Foot(fl); var b = Foot(fr); var low = a.Y < b.Y ? a : b; float g = low.Y - World.GroundAt(low.X, low.Z) - .09f; ikSum += Mathf.Abs(g); ikMax = Mathf.Max(ikMax, g); ikN++; }
+            if (fpR != null) fpR.Ik.ModificationProcessed += IkRead;
             while (t < secs)
             {
                 await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame); float dt = (float)GetProcessDeltaTime(); t += dt; n++;
@@ -366,6 +389,9 @@ public partial class Shots : Node
                 gapSum += Mathf.Abs(g); gapMax = Mathf.Max(gapMax, g); sinkMax = Mathf.Max(sinkMax, -g);
                 { var la = P.Av!.ToLocal(a); var lb = P.Av!.ToLocal(b); if (n > 1) { _stDz += la.Y < lb.Y ? la.Z - _pl.Z : lb.Z - _pr.Z; _stDt += dt; } _pl = la; _pr = lb; }   // the lower foot (on the ground): its backward travel
             }
+            if (fpR != null) fpR.Ik.ModificationProcessed -= IkRead;
+            Say($"feel {label}: {(Sfx.StepCount - steps0) / secs:0.0} footsteps/s on {Sfx.LastStep}");
+            Say($"feel {label}: lower foot after IK: gap avg {ikSum / Mathf.Max(1, ikN) * 100:0} cm, max {ikMax * 100:0} cm");
             var hv = new Vector2(P.Velocity.X, P.Velocity.Z).Length(); float hv0 = hv;
             Say($"feel {label}: speed {hv:0.0} m/s, clip {P.AvClip}, stance foot moves back {_stDz / Mathf.Max(.01f, _stDt):0.0} m/s (skate {hv0 - _stDz / Mathf.Max(.01f, _stDt):+0.0;-0.0} m/s), off floor {air * 100 / Mathf.Max(1, n)}% of frames, fall clip {fall * 100 / Mathf.Max(1, n)}%, foot gap avg {gapSum / n * 100:0} cm (float max {gapMax * 100:0}, sink max {sinkMax * 100:0})");
             // stopping
@@ -394,6 +420,18 @@ public partial class Shots : Node
                 Free(mid + side * 3.4f + Vector3.Up * 1.1f, mid + Vector3.Up * .5f); await Wait(.6f);
                 await Shot("feel_slope_ik_" + (ik ? "on" : "off")); Free(null); if (fp != null) fp.Ik.Active = true;
             }
+        }
+        {   // standing still on flat ground: how much each ankle rises and sinks during the idle clip, after the IK (it should stay put)
+            foreach (bool armed in new[] { true, false })
+            {
+                Game.D.Eq["weapon"] = armed ? new Item { Name = "Sword", Slot = "weapon", Wt = "sword" } : null; Game.D.Eq["shield"] = null; Game.Notify();
+                P.Teleport(armed ? flat : World.OnGround(slopeTop.X + 30, slopeTop.Z + 30, .4f), 0); await Wait(1f);
+                var fp = P.Av!.Skel!.GetNodeOrNull<FootPlant>("FootPlant"); float lo = 9, hi = -9, loR = 9, hiR = -9; int k = 0;
+                void Read() { var a = Foot(fl); var b = Foot(fr); float ga = a.Y - World.GroundAt(a.X, a.Z), gb = b.Y - World.GroundAt(b.X, b.Z); lo = Mathf.Min(lo, ga); hi = Mathf.Max(hi, ga); loR = Mathf.Min(loR, gb); hiR = Mathf.Max(hiR, gb); k++; }
+                if (fp != null) fp.Ik.ModificationProcessed += Read; await Wait(3f); if (fp != null) fp.Ik.ModificationProcessed -= Read;
+                Say($"feel idle {(armed ? "armed" : "unarmed")} ({P.AvClip}): ankle above ground left {lo * 100:0}..{hi * 100:0} cm, right {loR * 100:0}..{hiR * 100:0} cm over {k} frames");
+            }
+            Game.D.Eq["weapon"] = new Item { Name = "Sword", Slot = "weapon", Wt = "sword" }; Game.Notify();
         }
         await Run("flat jog", flat, Vector3.Forward, false, 2f);
         await Run("flat sprint", flat, Vector3.Forward, true, 2f);

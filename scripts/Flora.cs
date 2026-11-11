@@ -175,7 +175,7 @@ void fragment(){
     }
 
     // ---------------------------------------------------------------- build
-    public class Layer { public string Key = ""; public int Per; public float Range, MinH, MaxH, S0 = 1, S1 = 1; public Color[] Cols = { Colors.Green }; public bool ForestOnly, Shadows, Flat, Grass; public JsonElement E; public Mesh Mesh = null!; public Material Mat = null!; }
+    public class Layer { public string Key = ""; public int Per; public float Range, MinH, MaxH, S0 = 1, S1 = 1; public Color[] Cols = { Colors.Green }; public bool ForestOnly, Shadows, Flat, Grass; public int BasePer; public float BaseRange; public JsonElement E; public Mesh Mesh = null!; public Material Mat = null!; }
     public static readonly List<Layer> Layers = new();
     public static float Chunk = 32f; static int _seed = 4242;
     /// <summary>The grass clump and its material (sky islands scatter the same grass).</summary>
@@ -207,7 +207,22 @@ void fragment(){
         var bush = L("bush", "size"); bush.Mesh = Bush(); bush.Mat = Mat(0.04f, 1f); bush.Shadows = true; if (bush.Per > 0) Layers.Add(bush);
         var stone = L("stone", "size"); stone.Mesh = new SphereMesh { Radius = 1, Height = 1.3f, RadialSegments = 6, Rings = 3 }; stone.Flat = true;
         var sMat = World.Mat(new Color(.55f, .54f, .52f), new Color(.2f, .17f, .26f), 1f); sMat.VertexColorUseAsAlbedo = true; stone.Mat = sMat; if (stone.Per > 0) Layers.Add(stone);
+        foreach (var l in Layers) { l.BasePer = l.Per; l.BaseRange = l.Range; }
         parent.AddChild(new FloraField { Name = "Flora" });
+        ApplyQuality();
+    }
+
+    /// <summary>Settings > Display: grass amount and the quality preset thin the grass and pull its draw distance in; the field rebuilds around the camera.</summary>
+    public static void ApplyQuality()
+    {
+        if (Layers.Count == 0) return;
+        int q = Game.Set.Quality; float amt = Game.Set.Grass, dens = q switch { 0 => .45f, 1 => .65f, 2 => .85f, _ => 1f }, reach = q switch { 0 => .55f, 1 => .7f, 2 => .85f, _ => 1f };
+        foreach (var l in Layers)
+        {
+            l.Per = l.Grass ? (int)(l.BasePer * amt * dens) : l.BasePer; l.Range = l.BaseRange * reach;
+            if (l.Mat is ShaderMaterial sm && l.Grass) sm.SetShaderParameter("range", l.Range);
+        }
+        FloraField.I?.Reset();
     }
 
     /// <summary>One chunk of ground cover: every layer scattered with a seed of its own (the same on every machine and every visit).</summary>
@@ -259,10 +274,18 @@ void fragment(){
 /// <summary>Streams the ground cover: keeps the chunks within reach of the camera built, nearest first, and frees the ones left behind.</summary>
 public partial class FloraField : Node3D
 {
+    public static FloraField? I;
     readonly Dictionary<(int, int), Node3D> _chunks = new();
     readonly List<(int, int)> _want = new();
     float _reach;
-    public override void _Ready() { foreach (var l in Flora.Layers) _reach = Mathf.Max(_reach, l.Range); _reach += Flora.Chunk * .75f; }
+    public override void _Ready() { I = this; Reset(); }
+    public override void _ExitTree() { if (I == this) I = null; }
+    /// <summary>Drops every chunk and works out the reach again (after a quality change).</summary>
+    public void Reset()
+    {
+        foreach (var c in _chunks.Values) c.QueueFree(); _chunks.Clear();
+        _reach = 0; foreach (var l in Flora.Layers) if (l.Per > 0) _reach = Mathf.Max(_reach, l.Range); _reach += Flora.Chunk * .75f;
+    }
 
     public override void _Process(double delta)
     {

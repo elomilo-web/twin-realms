@@ -601,7 +601,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
                         else if (dist - 0.4f <= Def.Reach + 0.5f)
                         {
                             if (Def.Slam) { Fx.Ring(GlobalPosition + Vector3.Up * 0.1f, Def.Reach + 0.8f, new Color(1, 0.5f, 0.2f)); if (pl is Player) Player.Instance?.Rig?.Shake(0.2f); }
-                            ((IDamageable)pl!).TakeHit(OnHit(new HitInfo { Damage = Damage, From = GlobalPosition, Knock = Def.Slam ? 9f : 4f, Attacker = this }));
+                            ((IDamageable)pl!).TakeHit(OnHit(new HitInfo { Damage = Damage, From = GlobalPosition, Knock = Def.Slam ? 9f : 4f, Stagger = Def.Slam, Attacker = this }));
                         }
                     }
                     _state = State.Recover; _timer = Def.Cd * 0.6f;
