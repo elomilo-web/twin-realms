@@ -8,6 +8,7 @@ namespace TwinRealms;
 public class Settings
 {
     public float Master = 0.8f, Sfx = 0.8f, Ambient = 0.6f, Music = 0.5f, Sens = 1f;
+    public float Steps = 0.7f, UiVol = 0.7f;   // footsteps and interface sounds (older settings files get these defaults)
     public bool InvertY = false;
     // display and game options (Settings > Display / Game); older settings files get these defaults
     public int WindowMode = 0;            // 0 windowed, 1 fullscreen (borderless), 2 exclusive fullscreen

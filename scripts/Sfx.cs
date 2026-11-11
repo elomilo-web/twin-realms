@@ -115,6 +115,9 @@ public partial class Sfx : Node
     static readonly Dictionary<string, float> Gain = new() { ["pickup"] = .3f, ["zap"] = .35f, ["coin"] = .6f };
 
     public static void Play(string id, float vol = 1f) => Play(id, vol, 1f);
+    /// <summary>Which volume slider a sound follows: Footsteps (step_*), Interface (menu clicks, level-ups, coins, pickups, portals) or Combat and spells (everything else).</summary>
+    static readonly HashSet<string> UiSounds = new() { "click", "level", "coin", "pickup", "portal", "shift" };
+    static float Channel(string id) => id.StartsWith("step_") ? Game.Set.Steps : UiSounds.Contains(id) ? Game.Set.UiVol : Game.Set.Sfx;
     /// <summary>Plays a sound at a pitch (1 = as recorded, a little random spread is added).</summary>
     public static void Play(string id, float vol, float pitch)
     {
@@ -123,7 +126,7 @@ public partial class Sfx : Node
         bool file = Files.TryGetValue(id, out var l) && l.Count > 0;
         var stream = file ? l![(int)(GD.Randi() % (uint)l.Count)] : Gen(id);
         foreach (var p in I._pool)
-            if (!p.Playing) { p.Stream = stream; p.VolumeDb = Mathf.LinearToDb(Game.Set.Sfx * vol * 0.7f + 0.0001f); p.PitchScale = pitch * (0.95f + GD.Randf() * 0.1f); p.Play(); return; }
+            if (!p.Playing) { p.Stream = stream; p.VolumeDb = Mathf.LinearToDb(Channel(id) * vol * 0.7f + 0.0001f); p.PitchScale = pitch * (0.95f + GD.Randf() * 0.1f); p.Play(); return; }
     }
 
     // ------------------------------------------------------------------ footsteps
@@ -134,7 +137,7 @@ public partial class Sfx : Node
     /// </summary>
     public static void Step(Vector3 p, Node3D who, float speed)
     {
-        if (I == null || Game.Set.Sfx <= 0) return;
+        if (I == null || Game.Set.Steps <= 0) return;
         string kind = StepKind(p, who); StepCount++;
         var (id, pitch, vol) = kind switch
         {

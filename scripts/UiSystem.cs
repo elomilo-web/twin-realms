@@ -107,7 +107,9 @@ public partial class Ui
                 SliderRow(list, "Master volume", "Everything at once.", s.Master, 0, 1, .05f, Pct, x => s.Master = x);
                 SliderRow(list, "Music", "Calm songs with long quiet gaps between them.", s.Music, 0, 1, .05f, Pct, x => s.Music = x);
                 if (Sfx.AmbienceOn) SliderRow(list, "Ambience", "Birds, crickets, wind and dungeon air.", s.Ambient, 0, 1, .05f, Pct, x => s.Ambient = x);
-                SliderRow(list, "Effects", "Swings, spells, coins and menus. Let go of the slider to hear a sample.", s.Sfx, 0, 1, .05f, Pct, x => s.Sfx = x, false, "coin");
+                SliderRow(list, "Combat and spells", "Swings, hits, spells, arrows and monsters. Let go of the slider to hear a sample.", s.Sfx, 0, 1, .05f, Pct, x => s.Sfx = x, false, "fire");
+                SliderRow(list, "Footsteps", "Your steps on grass, stone, wood, sand and snow.", s.Steps, 0, 1, .05f, Pct, x => s.Steps = x, false, "step_soft");
+                SliderRow(list, "Interface", "Menu clicks, level-ups, coins and pickups.", s.UiVol, 0, 1, .05f, Pct, x => s.UiVol = x, false, "coin");
                 break;
         }
         var bot = new HBoxContainer(); bot.AddThemeConstantOverride("separation", 10); v.AddChild(bot);
@@ -118,7 +120,7 @@ public partial class Ui
             {
                 case "display": s.WindowMode = def.WindowMode; s.VSync = def.VSync; s.MaxFps = def.MaxFps; s.RenderScale = def.RenderScale; s.Outlines = def.Outlines; s.ShowFps = def.ShowFps; s.Quality = def.Quality; s.ViewDist = def.ViewDist; s.Grass = def.Grass; break;
                 case "game": s.Sens = def.Sens; s.InvertY = def.InvertY; s.Fov = def.Fov; s.Shake = def.Shake; break;
-                default: s.Master = def.Master; s.Music = def.Music; s.Ambient = def.Ambient; s.Sfx = def.Sfx; break;
+                default: s.Master = def.Master; s.Music = def.Music; s.Ambient = def.Ambient; s.Sfx = def.Sfx; s.Steps = def.Steps; s.UiVol = def.UiVol; break;
             }
             Game.SaveSettings(); Game.ApplyDisplay(); OpenSettings();
         }, true));

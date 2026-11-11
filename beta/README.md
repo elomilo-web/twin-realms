@@ -1,9 +1,9 @@
-# Twin Realms: Beta 1.0 download
+# Twin Realms: beta download
 
 A third-person open-world action RPG. Play it on Windows without installing anything.
 
 ## Download and play
-1. Click **`TwinRealms-1.0-beta-Windows.zip`** in this folder, then the **Download** button (top right of the file view; "Download raw file").
+1. Open the **[Releases page](https://github.com/elomilo-web/twin-realms/releases)** and download the newest **`TwinRealms-...-Windows.zip`** under *Assets*. (The game is too big to keep in the repository: GitHub allows files up to 100 MB.)
 2. Right-click the downloaded zip > **Extract All...**
 3. Open the extracted `TwinRealms` folder and double-click **`TwinRealms.exe`**.
    - Windows may show "Windows protected your PC" because the game is not signed: click **More info** > **Run anyway**.
@@ -34,5 +34,5 @@ Both players need the **same version**. The host shares a **join code** from the
 ## For the developer: making a new release
 1. Change `config/version` in `project.godot` (and `Net.Protocol` in `scripts/Net.cs` if old and new games cannot play together).
 2. `powershell -File tools/run.ps1 bot` and `powershell -File tools/run.ps1 mp` must pass.
-3. `powershell -File tools/run.ps1 release` replaces the zip in this folder (it refuses if the zip reaches GitHub's 100 MB limit).
-4. Update "What's in" above, commit and push.
+3. Write the notes in `tools/release_notes.md`, commit and push.
+4. `powershell -File tools/run.ps1 publish` builds the game and uploads it as a GitHub Release `v<version>` (pre-release) on the current branch. The zip itself is never committed.

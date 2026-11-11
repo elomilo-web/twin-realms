@@ -20,3 +20,4 @@ build_stage/
 __pycache__/
 shots_log.txt
 fit_log.txt
+beta/*.zip

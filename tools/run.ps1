@@ -1,6 +1,8 @@
 # PowerShell version of tools/bot.sh and tools/observe.sh, for Windows machines without bash.
 #   powershell -File tools/run.ps1 bot       -> builds, runs the self-test bot, prints FAIL lines and the total
 #   powershell -File tools/run.ps1 observe   -> builds, runs the observer, writes observe_out/
+#   powershell -File tools/run.ps1 release   -> exports the Windows game and zips it into beta/ (the zip is not committed)
+#   powershell -File tools/run.ps1 publish   -> release, then uploads the zip as a GitHub Release v<version> (notes: tools/release_notes.md)
 # Set $env:GODOT to your Godot .NET console executable if it is not at the default path below.
 param([string]$mode = "bot")
 $ErrorActionPreference = "Continue"
@@ -54,7 +56,7 @@ if ($mode -eq "bot") {
   if (Test-Path TwinRealms-playtest.zip) { Remove-Item TwinRealms-playtest.zip }
   Compress-Archive -Path build/* -DestinationPath TwinRealms-playtest.zip
   "EXPORT_OK  build/TwinRealms.exe  ->  TwinRealms-playtest.zip ($([math]::Round((Get-Item TwinRealms-playtest.zip).Length / 1MB)) MB)"
-} elseif ($mode -eq "release") {
+} elseif ($mode -eq "release" -or $mode -eq "publish") {
   # builds the game and puts the download for players in beta/ (one zip, replaced each release; GitHub allows files up to 100 MB)
   $ver = ((Select-String project.godot -Pattern 'config/version="([^"]+)"').Matches[0].Groups[1].Value) -replace '[^0-9A-Za-z.]+', '-'
   if (Test-Path build) { Remove-Item -Recurse -Force build }
@@ -69,8 +71,30 @@ if ($mode -eq "bot") {
   Compress-Archive -Path build_stage/TwinRealms -DestinationPath $zip -CompressionLevel Optimal
   Remove-Item -Recurse -Force build_stage
   $mb = [math]::Round((Get-Item $zip).Length / 1MB, 1)
-  if ($mb -ge 100) { "NOTE: $zip is $mb MB. A git push refuses files of 100 MB or more; upload it as a GitHub Release asset instead (2 GB limit)." }
   "RELEASE_OK  $zip ($mb MB)"
+  if ($mode -eq "publish") {
+    # upload the zip as a GitHub Release (2 GB per file, so the 100 MB git limit does not apply). Uses the GitHub login git already has
+    # (Windows Credential Manager); the release is tagged v<version> on the current branch and marked as a pre-release.
+    # Release notes: tools/release_notes.md if it exists. Extra arg: the branch/commit to tag (default: the current branch).
+    $git = (Get-Command git -ErrorAction SilentlyContinue).Source
+    if (-not $git) { $git = Get-ChildItem "$env:LOCALAPPDATA\GitHubDesktop\app-*\resources\app\git\cmd\git.exe" | Select-Object -Last 1 -ExpandProperty FullName }
+    $remote = & $git remote get-url origin; $repo = ($remote -replace '^https://github.com/', '' -replace '\.git$', '')
+    $cred = "protocol=https`nhost=github.com`n`n" | & $git credential fill 2>$null
+    $token = ($cred | Where-Object { $_ -like "password=*" }) -replace '^password=', ''
+    if (-not $token) { "PUBLISH_FAIL: no saved GitHub login. Push once from a normal terminal to sign in."; exit 1 }
+    $h = @{ Authorization = "Bearer $token"; Accept = "application/vnd.github+json"; "User-Agent" = "twin-realms-release" }
+    $branch = if ($args.Count -gt 0) { $args[0] } else { (& $git branch --show-current) }
+    $tag = "v" + $ver
+    $notes = if (Test-Path tools/release_notes.md) { Get-Content -Raw tools/release_notes.md } else { "Twin Realms $ver for Windows. Download the zip below, extract it and run TwinRealms.exe." }
+    $old = $null; try { $old = Invoke-RestMethod -Headers $h "https://api.github.com/repos/$repo/releases/tags/$tag" } catch {}
+    if ($old) { "Replacing the existing release $tag"; Invoke-RestMethod -Method Delete -Headers $h "https://api.github.com/repos/$repo/releases/$($old.id)" | Out-Null; try { Invoke-RestMethod -Method Delete -Headers $h "https://api.github.com/repos/$repo/git/refs/tags/$tag" | Out-Null } catch {} }
+    $body = @{ tag_name = $tag; target_commitish = $branch; name = "Twin Realms $($ver -replace '-', ' ')"; body = $notes; prerelease = $true } | ConvertTo-Json
+    $rel = Invoke-RestMethod -Method Post -Headers $h -ContentType "application/json; charset=utf-8" -Body ([Text.Encoding]::UTF8.GetBytes($body)) "https://api.github.com/repos/$repo/releases"
+    $name = Split-Path $zip -Leaf
+    $up = Invoke-RestMethod -Method Post -Headers $h -ContentType "application/zip" -InFile $zip -TimeoutSec 3600 "https://uploads.github.com/repos/$repo/releases/$($rel.id)/assets?name=$name"
+    "PUBLISH_OK  $($rel.html_url)"
+    "DOWNLOAD    $($up.browser_download_url)"
+  }
 } else {
   & $godot --path . -- --observe 2>&1 | ForEach-Object { "$_" } | Out-File -Encoding utf8 observe_log.txt
   if (Test-Path observe_out/metrics.json) { "OBSERVE_OK" } else { "OBSERVE_FAIL: no metrics written, see observe_log.txt"; exit 1 }

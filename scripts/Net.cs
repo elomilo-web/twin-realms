@@ -29,7 +29,7 @@ public class PartyInfo
 public partial class Net : Node
 {
     public static Net? I;
-    public const int DefaultPort = 24565, Protocol = 2, MaxPlayers = 8;   // Protocol 2: beta 1.0 (party dungeons); older builds are told to update
+    public const int DefaultPort = 24565, Protocol = 3, MaxPlayers = 8;   // Protocol 3: beta 1.1 (the wider world, modifier tree); older builds are told to update
     const int Channels = 8;   // 0 reliable events, 1 poses, 2 enemy snapshots, 3 clock, 4 shots (both sides must open the same number)
     public static bool Active => I != null && I._live;
     public static bool IsHost => Active && I!._server;

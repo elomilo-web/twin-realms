@@ -274,7 +274,7 @@ void fragment(){
 /// <summary>Streams the ground cover: keeps the chunks within reach of the camera built, nearest first, and frees the ones left behind.</summary>
 public partial class FloraField : Node3D
 {
-    public static FloraField? I;
+    public static FloraField? I; public static double MaxMs;   // longest frame spent building grass (diagnostics)
     readonly Dictionary<(int, int), Node3D> _chunks = new();
     readonly List<(int, int)> _want = new();
     float _reach;
@@ -304,8 +304,12 @@ public partial class FloraField : Node3D
         {
             _want.Sort((a, b) => D2(a, p, C).CompareTo(D2(b, p, C)));
             // a few per frame; many at once after a teleport (nothing built near the camera yet)
-            int budget = _want.Count > 60 || D2(_want[0], p, C) < (C * 1.5f) * (C * 1.5f) ? 24 : 3;
-            for (int i = 0; i < _want.Count && i < budget; i++) { var k = _want[i]; var n = Flora.BuildChunk(k.Item1, k.Item2); AddChild(n); _chunks[k] = n; }
+            // a time budget per frame, not a count: one chunk of dense grass can take several milliseconds, and a long stall
+            // (dozens of chunks after a teleport) froze the game long enough to drop multiplayer connections
+            double budgetMs = D2(_want[0], p, C) < (C * 1.5f) * (C * 1.5f) ? 12 : 4;
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            for (int i = 0; i < _want.Count && (i == 0 || sw.Elapsed.TotalMilliseconds < budgetMs); i++) { var k = _want[i]; var n = Flora.BuildChunk(k.Item1, k.Item2); AddChild(n); _chunks[k] = n; }
+            if (sw.Elapsed.TotalMilliseconds > MaxMs) MaxMs = sw.Elapsed.TotalMilliseconds;
         }
         // drop chunks well behind the reach
         float drop = (_reach + C * 1.5f) * (_reach + C * 1.5f);

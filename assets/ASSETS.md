@@ -48,7 +48,6 @@ All from ambientCG (ambientcg.com), CC0 1.0, 1K JPG. Colour map kept for each, t
 |---|---|---|
 | `day/jrpg_piano.mp3` | "JRPG Piano", Joth | https://opengameart.org/content/jrpg-piano |
 | `day/a_new_town.mp3` | "A New Town", The Cynic Project / cynicmusic | https://opengameart.org/content/a-new-town-rpg-theme |
-| `day/champ_de_tournesol.mp3` | "Champ de tournesol", Komiku | https://opengameart.org/content/champ-de-tournesol |
 | `night/contemplation.mp3` | "Contemplation" | https://opengameart.org/content/contemplation-0 |
 | `night/deep_blue_piano.wav` | "Yoiyami Core Theme â€“ Deep Blue Ambient Piano", Yoiyami (converted to mono 22 kHz) | https://opengameart.org/content/yoiyami-core-theme-%E2%80%93-deep-blue-ambient-piano |
 | `night/budding_of_consciousness.wav` | "The Budding of Consciousness", Yoiyami (mono 22 kHz) | https://opengameart.org/content/the-budding-of-consciousness-%E2%80%93-cc0-ambient-minimalist-theme-yoiyami-blue-series-%E2%80%93-no4 |
