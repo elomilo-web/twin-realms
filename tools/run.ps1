@@ -79,7 +79,9 @@ if ($mode -eq "bot") {
     $git = (Get-Command git -ErrorAction SilentlyContinue).Source
     if (-not $git) { $git = Get-ChildItem "$env:LOCALAPPDATA\GitHubDesktop\app-*\resources\app\git\cmd\git.exe" | Select-Object -Last 1 -ExpandProperty FullName }
     $remote = & $git remote get-url origin; $repo = ($remote -replace '^https://github.com/', '' -replace '\.git$', '')
-    $cred = "protocol=https`nhost=github.com`n`n" | & $git credential fill 2>$null
+    # (fed from a file: a PowerShell pipe adds a byte-order mark and git then rejects the request)
+    $q = Join-Path $env:TEMP "tr_credq.txt"; [IO.File]::WriteAllText($q, "protocol=https`nhost=github.com`n`n")
+    $cred = cmd /c "`"$git`" credential fill < `"$q`"" 2>$null; Remove-Item $q -ErrorAction SilentlyContinue
     $token = ($cred | Where-Object { $_ -like "password=*" }) -replace '^password=', ''
     if (-not $token) { "PUBLISH_FAIL: no saved GitHub login. Push once from a normal terminal to sign in."; exit 1 }
     $h = @{ Authorization = "Bearer $token"; Accept = "application/vnd.github+json"; "User-Agent" = "twin-realms-release" }
