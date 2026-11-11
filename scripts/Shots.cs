@@ -118,6 +118,16 @@ public partial class Shots : Node
     {
         var spot = World.OnGround(1.5f, 6f, .5f); World.TimeOfDay = .45f;
         Game.D.Eq["weapon"] = new Item { Name = "Sword", Slot = "weapon", Wt = "sword" }; Game.Notify();
+        // start-up: what plays in the first moments after pressing forward, from idle and right after an attack
+        foreach (bool afterAtk in new[] { false, true })
+        {
+            P.Teleport(spot, 0); Cam(0, 5f); await Wait(1f);
+            if (afterAtk) { Input.ActionPress(Inputs.Attack); await Wait(.05f); Input.ActionRelease(Inputs.Attack); await Wait(.1f); }
+            Input.ActionPress(Inputs.Forward); var log = new List<string>(); float t0 = 0;
+            for (int i = 0; i < 10; i++) { await Wait(.06f); t0 += .06f; log.Add($"{t0:0.00}s {new Vector2(P.Velocity.X, P.Velocity.Z).Length():0.0}m/s {P.AvClip}"); }
+            Input.ActionRelease(Inputs.Forward);
+            Say($"move start {(afterAtk ? "after attack" : "from idle")}: " + string.Join(" | ", log)); await Wait(.6f);
+        }
         var dirs = new (string n, string[] keys)[] { ("fwd", new[] { Inputs.Forward }), ("back", new[] { Inputs.Back }), ("left", new[] { Inputs.Left }), ("right", new[] { Inputs.Right }),
             ("fwd_left", new[] { Inputs.Forward, Inputs.Left }), ("back_right", new[] { Inputs.Back, Inputs.Right }) };
         foreach (bool locked in new[] { false, true })

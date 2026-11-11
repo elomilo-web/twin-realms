@@ -512,9 +512,11 @@ public partial class Avatar : Node3D
     public void Move(float speed, bool grounded, bool armed, bool shield, bool back = false)
     {
         if (!grounded) { Play("fall", .2f); return; }
-        if (Busy && Cur != Clip("land")) return;
         bool moving = speed > .4f;
-        Play(speed > 7.5f && !back ? "sprint" : speed > 3.2f ? "run" : moving ? "walk" : shield ? "idleShield" : armed ? "idleArmed" : "idle", .2f, 0, false, 0, back && moving);
+        if (Busy && Cur != Clip("land") && !moving) return;   // a one-shot clip runs on only while standing
+        // quick blend into motion so the feet start with the body; slower between gaits and back to idle
+        bool fromStill = Cur == Clip("idle") || Cur == Clip("idleArmed") || Cur == Clip("idleShield") || Busy;
+        Play(speed > 7.5f && !back ? "sprint" : speed > 3.2f ? "run" : moving ? "walk" : shield ? "idleShield" : armed ? "idleArmed" : "idle", moving && fromStill ? .07f : .2f, 0, false, 0, back && moving);
     }
 
     // ------------------------------------------------------------------ helpers for callers

@@ -69,7 +69,8 @@ public partial class CameraRig : Node3D
         _cam.Fov = Game.Set.Fov;
         _arm.SpringLength = Mathf.Lerp(_arm.SpringLength, Distance, 1f - Mathf.Exp(-10f * (float)delta));
         _shake = Mathf.Max(0, _shake - (float)delta * 1.2f);
-        _cam.HOffset = (float)GD.RandRange(-1.0, 1.0) * _shake * 0.3f;
-        _cam.VOffset = (float)GD.RandRange(-1.0, 1.0) * _shake * 0.3f;
+        // over the right shoulder, so the aim point at screen centre is not hidden behind the hero (data/feel.json camera.shoulder)
+        _cam.HOffset = Feel.Shoulder + (float)GD.RandRange(-1.0, 1.0) * _shake * 0.3f;
+        _cam.VOffset = Feel.ShoulderUp + (float)GD.RandRange(-1.0, 1.0) * _shake * 0.3f;
     }
 }

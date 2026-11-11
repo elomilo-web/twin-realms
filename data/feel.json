@@ -32,7 +32,9 @@
                  "range":  10
              },
     "camera":  {
-                   "_comment":  "lockTurn: how fast the camera swings to a locked target (per second).",
-                   "lockTurn":  6
+                   "_comment":  "lockTurn: how fast the camera swings to a locked target (per second). shoulder / shoulderUp: metres the view sits right of and above the hero, so the aim point is not behind them.",
+                   "lockTurn":  6,
+                   "shoulder":  0.65,
+                   "shoulderUp":  0.25
                }
 }

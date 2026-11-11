@@ -227,7 +227,8 @@ public partial class Player : CharacterBody3D, IDamageable
     {
         if (Targeting.Current is Enemy lt && IsInstanceValid(lt) && !lt.Dead) return (lt.GlobalPosition + new Vector3(0, lt.HeightM() * .55f, 0), lt);
         if (Rig == null) return (GlobalPosition + new Vector3(0, 1.4f, 0) + new Vector3(-Mathf.Sin(_modelYaw), 0, -Mathf.Cos(_modelYaw)) * maxDist, null);
-        var cam = Rig.Camera; var from = cam.GlobalPosition; var dir = -cam.GlobalTransform.Basis.Z;
+        // the screen-centre ray (includes the over-the-shoulder offset)
+        var cam = Rig.Camera; var mid = cam.GetViewport().GetVisibleRect().Size / 2f; var from = cam.ProjectRayOrigin(mid); var dir = cam.ProjectRayNormal(mid);
         var q = PhysicsRayQueryParameters3D.Create(from, from + dir * maxDist, 3);
         q.Exclude = new Godot.Collections.Array<Rid> { GetRid() };
         var hit = GetWorld3D().DirectSpaceState.IntersectRay(q);
@@ -476,7 +477,14 @@ public partial class Player : CharacterBody3D, IDamageable
             bool sprint = Input.IsActionPressed(Inputs.Sprint) && St > 1f && dir.LengthSquared() > 0.01f && _atkT <= 0 && !_blocking && !Mounted;
             float speed = (sprint ? 8.4f : 5.2f) * moveMul;
             if (Mounted) speed = 10.5f * moveMul;
-            if (_atkT > 0 || _castT > 0) speed *= 0.3f;
+            if (_atkT > 0 && !Ranged && _atk != null)
+            {
+                // melee: feet planted until the blow lands (lunges move the body themselves); after it, moving cancels the recovery
+                float prog = 1f - _atkT / _atkDur;
+                if (prog < _atk.Hit) speed = 0;
+                else if (dir.LengthSquared() > .01f && _hitDone && _spinLeft <= 0) _atkT = 0;
+            }
+            else if (_atkT > 0 || _castT > 0) speed *= 0.3f;
             if (_blocking) speed *= 0.5f;
             if (_backpedal) speed *= 0.75f;   // backing away from a locked foe is slower
             speed *= Statuses.SpeedMul;
@@ -621,7 +629,8 @@ public partial class Player : CharacterBody3D, IDamageable
         }
         if (_castT > 0) { bool fresh = _castSerial != _avCast; _avCast = _castSerial; a.Play("cast", .08f, _castDur, fresh); return; }
         if (_blocking) { a.Play("block", .1f); return; }
-        if (a.Busy && floor && (a.Cur.Contains("Sword") || a.Cur.Contains("Spell") || a.Cur.Contains("Punch") || a.Cur.Contains("Melee"))) return;   // let a swing finish
+        // let a finished swing play out only while standing still; once the hero moves, the legs take over at once (no sliding)
+        if (hv < .8f && a.Busy && floor && (a.Cur.Contains("Sword") || a.Cur.Contains("Spell") || a.Cur.Contains("Punch") || a.Cur.Contains("Melee"))) return;
         a.Move(hv, floor, Game.D.Weapon != null, HasShield, _backpedal);
     }
 }
