@@ -56,3 +56,6 @@ Sounds with no file (hit, hurt, fire, zap, level, portal, shift, die) use soft s
 
 ## Shader
 `scripts/Toon.cs` — toon lighting + screen-space outline, written for this project (no third-party code).
+
+## Twin Realms kit (`models/kit/`, `textures/kit/`, `shaders/`)
+Original work made for this game by `tools/kit_gen/` (code-generated, CC0). 164 models, 36 spell animation sheets (`vfx/flipbooks/`), 8 eye textures (painted over Quaternius `T_Eye_Brown.png`, CC0), water and character shaders. See `docs/kit/README.md`.
