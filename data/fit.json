@@ -27,7 +27,7 @@
   },
   "lengths": {
     "sword": [0.6, 1.6], "greatsword": [1.1, 2.4], "axe": [0.45, 1.4], "mace": [0.4, 1.4], "dagger": [0.2, 0.8],
-    "spear": [1.4, 2.8], "bow": [0.9, 1.7], "wand": [0.15, 0.8], "staff": [1.2, 2.4]
+    "spear": [1.4, 2.8], "bow": [0.9, 1.7], "wand": [0.15, 0.9], "staff": [1.2, 2.4]
   },
   "tune": {
     "_help": "fit-tune: coordinate search around the current values; it writes bot_out/fit/fit_suggest.json and changes nothing itself.",

@@ -300,7 +300,7 @@ public partial class FitBot : Node
     }
 
     // ------------------------------------------------------------------ run
-    sealed class Result { public Case C = null!; public BodyModel Bm = null!; public List<Snap> Snaps = new(); public Dictionary<string, List<Held>> Held = new(); }
+    sealed class Result { public bool Failed; public Case C = null!; public BodyModel Bm = null!; public List<Snap> Snaps = new(); public Dictionary<string, List<Held>> Held = new(); }
     readonly List<Result> _results = new(); readonly HashSet<string> _sane = new();
 
     async Task Run()
@@ -443,7 +443,7 @@ public partial class FitBot : Node
             GetViewport().GetTexture().GetImage().SavePng(_dir + file);
             if (!_shots.TryGetValue(c.Cat, out var l)) _shots[c.Cat] = l = new(); l.Add(file);
         }
-        if (_tune) _results.Add(r);
+        r.Failed = verdict == "FAIL"; if (_tune) _results.Add(r);
         foreach (var av in new[] { a, b, d }) av.QueueFree();
         await Frames(1);
     }
@@ -507,6 +507,33 @@ public partial class FitBot : Node
             Say($"weapon {grp.Key}: rot {rot0} -> {best}  score {s0:0.000} -> {s1:0.000}");
         }
         outp["weapons"] = wout;
+
+        // per kit model, for models that still fail with their type's hold: rotation, then a small position shift (avatar.json weapons.<type>.models.<model>)
+        var mout = new Dictionary<string, object>();
+        foreach (var grp in _results.Where(r => r.C.Cat == "weapon" && r.C.Name.Contains('/')).GroupBy(r => r.C.Name))
+        {
+            if (!grp.Any(r => r.Failed)) continue;
+            string wt = grp.First().C.Wt, model = grp.Key[(grp.Key.IndexOf('/') + 1)..];
+            bool left = wt == "bow"; var (pos0, rot0) = Avatar.WeaponHold(wt, model);
+            float Score(Vector3 pos, Vector3 rot)
+            {
+                float sum = 0;
+                foreach (var r in grp) foreach (var h in r.Held["weapon"])
+                {
+                    var xf = Avatar.HoldXf(h.Rest, pos, rot); var skip = WeaponSkip(h.Bone, Weapons.Get(wt).Hands > 1 || left);
+                    foreach (var sn in r.Snaps.Where(s => !s.Warn)) { var m = Measure(r.Bm, sn, h, xf, 1, skip); sum += m.Frac + m.Depth * 8 + m.Ground * 4; }
+                    // keep the grip in the hand: the item's nearest point must stay close to the hand
+                    float gap = h.Local.Min(v => (xf * v).Length()), gap0 = h.Local.Min(v => (h.Xf * v).Length());   // nearest point to the hand bone, now and as held
+                    sum += Mathf.Max(0, gap - gap0 - .02f) * 20;
+                }
+                return sum + close * (rot - rot0).Length() + close * 100 * (pos - pos0).Length();
+            }
+            var (rot, s0, _) = Search(rot0, x => Score(pos0, x), rotSteps, 3);
+            var (pos, _, s2) = Search(pos0, x => Score(x, rot), posSteps, 3);
+            mout[$"{wt}/{model}"] = new { pos = Arr(pos), rot = Arr(rot), was_pos = Arr(pos0), was_rot = Arr(rot0), score_before = Mathf.Snapped(s0, .001f), score_after = Mathf.Snapped(s2, .001f) };
+            Say($"model {wt}/{model}: pos {pos0} -> {pos}, rot {rot0} -> {rot}  score {s0:0.000} -> {s2:0.000}");
+        }
+        outp["models"] = mout;
 
         // shield hold
         var shields = _results.Where(r => r.C.Cat == "shield").ToList();

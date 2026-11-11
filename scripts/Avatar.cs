@@ -321,7 +321,8 @@ public partial class Avatar : Node3D
     void HoldWeapon(string wt, JsonElement wc, Item? it)
     {
         bool left = S(wc, "hand") == "left"; var hold = Cfg.GetProperty("hold").GetProperty(left ? "left" : "right");
-        var h = Holder(left ? "hand_l" : "hand_r", V(hold, "pos", Vector3.Zero), V(wc, "rot", V(hold, "rot", Vector3.Zero)), "weapon");
+        var (hp, hr) = WeaponHold(wt, Weapons.KitModelFor(wt, it).Model);
+        var h = Holder(left ? "hand_l" : "hand_r", hp, hr, "weapon");
         if (wc.TryGetProperty("proc", out _))
         {
             // no model yet: the procedural weapon, turned to point along +Z like the models
@@ -335,6 +336,19 @@ public partial class Avatar : Node3D
         BladeBase = new Node3D { Position = new Vector3(0, 0, len * (.25f - grip)) }; BladeTip = new Node3D { Position = new Vector3(0, 0, len * (1 - grip)) };
         h.AddChild(BladeBase); h.AddChild(BladeTip);
         GearFx.Apply(h, it, true, -grip * len, len);
+    }
+
+    /// <summary>
+    /// Where a weapon sits in the hand (model space at rest): data/avatar.json hold.right/left, the type's "rot", and a per-model
+    /// override in weapons.&lt;type&gt;.models.&lt;kit model&gt; { pos, rot } (orbs and tomes need a different grip than wands).
+    /// </summary>
+    public static (Vector3 pos, Vector3 rot) WeaponHold(string wt, string model)
+    {
+        var w = Cfg.GetProperty("weapons"); if (!w.TryGetProperty(wt, out var wc)) return (Vector3.Zero, Vector3.Zero);
+        var hold = Cfg.GetProperty("hold").GetProperty(S(wc, "hand") == "left" ? "left" : "right");
+        var pos = V(hold, "pos", Vector3.Zero); var rot = V(wc, "rot", V(hold, "rot", Vector3.Zero));
+        if (model != "" && wc.TryGetProperty("models", out var ms) && ms.TryGetProperty(model, out var m)) { pos = V(m, "pos", pos); rot = V(m, "rot", rot); }
+        return (pos, rot);
     }
 
     void HoldShield(Item it)

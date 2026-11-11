@@ -53,7 +53,14 @@
     "dagger": { "proc": true, "model": "Dagger", "len": 0.42 },
     "spear": { "proc": true, "rot": [4, -12, 90], "model": "Spear", "len": 2.0, "grip": 0.55 },
     "bow": { "proc": true, "rot": [0, -14, 90], "model": "Bow_Wooden", "len": 1.25, "grip": 0.5, "hand": "left" },
-    "wand": { "proc": true },
+    "wand": { "proc": true, "models": {
+      "_help": "per kit model holds (from tools/run.ps1 fit-tune 'models'): orbs and tomes are held differently from a wand",
+      "scepter": { "pos": [-0.08, 0.015, -0.01], "rot": [-12, 0, 86] },
+      "wand_star": { "pos": [-0.08, -0.01, 0], "rot": [-16, 20, 90] },
+      "tome_azure": { "rot": [38, 0, 90] },
+      "tome_crimson": { "rot": [32, -22, 58] },
+      "orb_catalyst": { "pos": [-0.08, -0.01, 0], "rot": [-40, 30, 110] },
+      "orb_catalyst_ember": { "pos": [-0.095, -0.025, 0], "rot": [-48, 34, 122] } } },
     "staff": { "proc": true, "rot": [4, 0, 90] }
   },
   "weaponNames": { "Longsword": "Sword_2", "Falchion": "Sword_Golden", "Zweihander": "Sword_Big", "Executioner": "Sword_Big", "War Axe": "Axe_Double", "Bearded Axe": "Axe_Double", "Warhammer": "Hammer_Double", "Dirk": "Dagger_2", "Kris": "Dagger_2", "Warbow": "Bow_Evil", "Longbow": "Bow_Wooden2", "Recurve Bow": "Bow_Golden", "Glaive": "Scythe" },
