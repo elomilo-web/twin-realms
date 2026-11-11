@@ -143,7 +143,7 @@ public partial class Bot : Node
             // knock-up from a mace power attack
             Game.D.Eq["weapon"] = new Item { Name = "Bot mace", Slot = "weapon", Wt = "mace", Dmg = 1 }; Game.Notify(); Heal();
             var sp2 = World.OnGround(-90, -80, .5f); P.Teleport(sp2, 0f); var b = new Enemy { Type = "brute", Level = 30, AnyRealm = true, NoLeash = true, Position = sp2 + new Vector3(0, 0, -2.2f) }; Game.Root!.AddChild(b); await Wait(0.3f); b.Stun(5f);
-            float y0 = b.GlobalPosition.Y, yMax = y0; Face(b.GlobalPosition); Mouse(MouseButton.Left, true); await Wait(0.5f); Mouse(MouseButton.Left, false);
+            float y0 = b.GlobalPosition.Y, yMax = y0; Face(b.GlobalPosition); Mouse(MouseButton.Right, true); await Wait(0.1f); Mouse(MouseButton.Right, false);   // heavy: right mouse, fires after its gather
             for (int i = 0; i < 20; i++) { await Wait(0.05f); if (GodotObject.IsInstanceValid(b)) yMax = Mathf.Max(yMax, b.GlobalPosition.Y); }
             Check("power slam knocks a foe up", yMax > y0 + 0.3f, $"rose {yMax - y0:0.00} m");
             // lock-on picks the brute in front of the camera, then Q releases

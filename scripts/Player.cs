@@ -33,6 +33,7 @@ public partial class Player : CharacterBody3D, IDamageable
     float _atkT, _atkDur, _comboT, _blockT, _queueT, _castT, _castDur; bool _queuePower, _hasQueue;
     int _combo; bool _atkPower, _hitDone, _blocking, _fired;
     ulong _noStMsg;
+    float _heavyT; const float HeavyGather = .25f;   // heavy attack: seconds between pressing and the swing
     AttackStep? _step;   // the basic-attack chain step being swung (data/attacks.json)
     public AttackStep? CurrentStep => _step; public int ComboIndex => _combo;
     float _undyReady; Item? _shownWeapon; string _shownType = "";
@@ -236,7 +237,16 @@ public partial class Player : CharacterBody3D, IDamageable
         return (from + dir * maxDist, null);
     }
 
-    Vector3 MuzzlePos() => GlobalPosition + new Vector3(0, 1.45f + (Mounted ? 0.9f : 0f), 0) + new Vector3(-Mathf.Sin(_modelYaw), 0, -Mathf.Cos(_modelYaw)) * 0.6f;
+    /// <summary>
+    /// Where shots and spells leave from: the casting hand. Every ranged clip (spell cast, bow aim and release) reaches out with the
+    /// left hand, and bows and wands are held in it, so it is the left hand a little ahead of the fingers.
+    /// </summary>
+    Vector3 MuzzlePos()
+    {
+        var fw = new Vector3(-Mathf.Sin(_modelYaw), 0, -Mathf.Cos(_modelYaw));
+        if (_av != null && !Mounted && _av.HandPos(true) is { } h && h.DistanceTo(GlobalPosition) < 2.5f) return h + fw * .25f;
+        return GlobalPosition + new Vector3(0, 1.45f + (Mounted ? 0.9f : 0f), 0) + fw * 0.6f;
+    }
 
     // ------------------------------------------------------------------ attacks
     bool TryAttack(bool power)
@@ -423,14 +433,13 @@ public partial class Player : CharacterBody3D, IDamageable
         _glow.LightEnergy = Mathf.Lerp(_glow.LightEnergy, dark * Feel.GlowEnergy, 1f - Mathf.Exp(-3f * dt)); _glow.OmniRange = Feel.GlowRange; _glow.Visible = _glow.LightEnergy > .02f;
 
         // ---- attack input: tap = light, hold = power (fires on release)
-        bool lmb = captured && Input.IsActionPressed(Inputs.Attack);   // left mouse by default (Settings > Controls)
-        if (lmb) _lmbHold = _lmbPrev ? _lmbHold + dt : 0f;
-        if (!lmb && _lmbPrev)
-        {
-            bool power = _lmbHold >= 0.35f;
-            if (!TryAttack(power)) { _hasQueue = true; _queuePower = power; _queueT = 0.3f; }
-        }
-        _lmbPrev = lmb;
+        // attack (left mouse): tap = next step of the chain, hold = keep swinging the chain.
+        // heavy (right mouse): pressing starts a short gather; the heavy attack fires by itself when it ends (not on release)
+        bool lmb = captured && Input.IsActionPressed(Inputs.Attack);
+        if (captured && Input.IsActionJustPressed(Inputs.Attack)) { if (!TryAttack(false)) { _hasQueue = true; _queuePower = false; _queueT = 0.3f; } }
+        else if (lmb && !_hasQueue && _atkT <= 0 && _heavyT <= 0) TryAttack(false);   // held: the chain on repeat
+        if (captured && Input.IsActionJustPressed(Inputs.Heavy) && _heavyT <= 0 && !Dead) { _heavyT = HeavyGather; FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.1f, 0), "Heavy", new Color(1f, .8f, .45f), .35f); }
+        if (_heavyT > 0) { _heavyT -= dt; if (_heavyT <= 0 && !TryAttack(true)) { _hasQueue = true; _queuePower = true; _queueT = 0.3f; } }
         if (_hasQueue) { _queueT -= dt; if (_queueT <= 0) _hasQueue = false; else if (_atkT <= 0 && TryAttack(_queuePower)) _hasQueue = false; }
 
         // ---- block
@@ -624,6 +633,13 @@ public partial class Player : CharacterBody3D, IDamageable
         if (atk)
         {
             bool fresh = _atkSerial != _avAtk; _avAtk = _atkSerial;
+            if (w.Id == "bow" && _atk != null)
+            {
+                // bow: draw (aim) through the wind-up, then the release at the shot
+                float prog = 1f - _atkT / Mathf.Max(.01f, _atkDur);
+                if (prog < _atk.Hit) a.Play("aim", fresh ? .08f : .12f); else a.Play("shoot", .04f, Mathf.Max(.15f, _atkT), a.Cur != Avatar.Clip("shoot"));
+                return;
+            }
             string key = w.Ranged ? (w.LeftHand ? "shoot" : "cast") : _atkPower ? (w.Hands > 1 ? "powerHeavy" : "power") : w.Hands > 1 ? "heavy" : "melee";
             a.Play(key, .06f, _atkDur, fresh, _step != null ? _step.AnimStep : Mathf.Max(0, _combo - 1)); return;
         }

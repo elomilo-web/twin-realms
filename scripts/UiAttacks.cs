@@ -21,7 +21,7 @@ public partial class Ui
         var v = Frame("attacks", "Basic Attacks", new Vector2(1100, 660), () => OpenAttacks(null));
         var top = new HBoxContainer(); v.AddChild(top); top.AddThemeConstantOverride("separation", 20);
         Lbl($"Skill points: {d.RankPts}", 18, d.RankPts > 0 ? Gold : Dim, top);
-        Lbl($"The equipped weapon's attack runs on {Inputs.KeyOf(Inputs.Attack)}: taps walk the chain left to right, then start over. Hold for the power attack.", 14, Dim, top);
+        Lbl($"The equipped weapon's attack runs on {Inputs.KeyOf(Inputs.Attack)}: taps walk the chain left to right, holding keeps it going. {Inputs.KeyOf(Inputs.Heavy)} is the heavy attack.", 14, Dim, top);
         void Did(string? err) { if (err != null) Note(err, new Color(1, .55f, .5f)); else { Sfx.Play("click"); Game.Notify(); } OpenAttacks(null); }
         var cols = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; cols.AddThemeConstantOverride("separation", 16); v.AddChild(cols);
 
@@ -56,7 +56,7 @@ public partial class Ui
             row.AddChild(Btn("Remove", () => Did(Attacks.SetChain(w, pos, null)), true));
         }
         var pw = Attacks.Resolve(wd, 0, true);
-        Lbl($"Power attack (hold): x{pw.Def.Dmg:0.00} dmg" + (pw.Def.Stun > 0 ? $", stun {pw.Def.Stun:0.##}s" : ""), 14, Dim, mid);
+        Lbl($"Heavy attack ({Inputs.KeyOf(Inputs.Heavy)}): x{pw.Def.Dmg:0.00} dmg" + (pw.Def.Stun > 0 ? $", stun {pw.Def.Stun:0.##}s" : ""), 14, Dim, mid);
         Lbl($"MODIFIERS  {b.Mods.Count}/{Attacks.Sockets(b.Rank)}", 15, UiTheme.Accent, mid);
         if (b.Mods.Count == 0) Lbl("Empty: socket a modifier from the right.", 14, Dim, mid);
         foreach (var mid2 in b.Mods.ToList())

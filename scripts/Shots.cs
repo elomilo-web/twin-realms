@@ -72,6 +72,20 @@ public partial class Shots : Node
         if (OS.GetCmdlineUserArgs().Contains("--weapons")) { await WeaponRow(); return; }   // just the weapon audit and the hero holding each type
         if (OS.GetCmdlineUserArgs().Contains("--move")) { await MoveCheck(); return; }
         if (OS.GetCmdlineUserArgs().Contains("--fxdrift")) { await FxDrift(); return; }
+        if (OS.GetCmdlineUserArgs().Contains("--hands"))
+        {
+            // which hand each clip reaches out with (model space: -Z is forward, +X is the model's left after the 180 turn)
+            var av = new Avatar(); Game.Root!.AddChild(av); av.GlobalPosition = World.OnGround(-60, -60, 0); av.Build(new Appearance(), "hands"); await Wait(.3f);
+            foreach (var clip in new[] { "Spell_Simple_Shoot", "Spell_Simple_Idle", "Pistol_Aim_Neutral", "Pistol_Shoot", "OverhandThrow", "Idle" })
+                foreach (float fr in new[] { .3f, .6f })
+                {
+                    av.PoseAt(clip, fr); await Wait(.05f); var sk = av.Skel!;
+                    Vector3 H(string b) => av.ToLocal(sk.GlobalTransform * sk.GetBoneGlobalPose(sk.FindBone(b)).Origin);
+                    var l = H("hand_l"); var r = H("hand_r");
+                    Say($"hands {clip}@{fr}: left {l.X:0.00},{l.Y:0.00},{l.Z:0.00}  right {r.X:0.00},{r.Y:0.00},{r.Z:0.00}  (more negative Z = further forward)");
+                }
+            return;
+        }
 
         // ---- the hero: day, night (plaza, lamps lit), close up, facing the camera
         var plaza = World.OnGround(1.5f, 6f, .5f);

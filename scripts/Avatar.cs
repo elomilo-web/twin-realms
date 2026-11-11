@@ -142,6 +142,12 @@ public partial class Avatar : Node3D
 
     // ------------------------------------------------------------------ for test bots (FitBot)
     public Skeleton3D? Skel => _sk;
+    /// <summary>World position of a hand (where spells and shots leave from), or null before the body is built.</summary>
+    public Vector3? HandPos(bool left)
+    {
+        if (_sk == null) return null; int b = _sk.FindBone(left ? "hand_l" : "hand_r"); if (b < 0) return null;
+        return _sk.GlobalTransform * _sk.GetBoneGlobalPose(b).Origin;
+    }
     /// <summary>The base body mesh (set once the avatar has been dressed).</summary>
     public MeshInstance3D? BodyMesh => _bodyMi;
     public IReadOnlyList<Node> SlotNodes(string slot) => _slot.TryGetValue(slot, out var l) ? l : Array.Empty<Node>();

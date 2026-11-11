@@ -53,14 +53,13 @@
     "dagger": { "proc": true, "model": "Dagger", "len": 0.42 },
     "spear": { "proc": true, "rot": [4, -12, 90], "model": "Spear", "len": 2.0, "grip": 0.55 },
     "bow": { "proc": true, "rot": [0, -14, 90], "model": "Bow_Wooden", "len": 1.25, "grip": 0.5, "hand": "left" },
-    "wand": { "proc": true, "models": {
-      "_help": "per kit model holds (from tools/run.ps1 fit-tune 'models'): orbs and tomes are held differently from a wand",
-      "scepter": { "pos": [-0.08, 0.015, -0.01], "rot": [-12, 0, 86] },
-      "wand_star": { "pos": [-0.08, -0.01, 0], "rot": [-16, 20, 90] },
-      "tome_azure": { "rot": [38, 0, 90] },
-      "tome_crimson": { "rot": [32, -22, 58] },
-      "orb_catalyst": { "pos": [-0.08, -0.01, 0], "rot": [-40, 30, 110] },
-      "orb_catalyst_ember": { "pos": [-0.095, -0.025, 0], "rot": [-48, 34, 122] } } },
+    "wand": { "proc": true, "hand": "left", "models": {
+      "_help": "per kit model holds in the left hand (tools/run.ps1 fit-tune, models)",
+      "scepter": { "rot": [-6, 0, 90] },
+      "tome_azure": { "rot": [26, 4, 78] },
+      "tome_crimson": { "rot": [24, 12, 74] },
+      "orb_catalyst": { "pos": [0.08, -0.015, 0.02], "rot": [4, -32, 112] },
+      "orb_catalyst_ember": { "pos": [0.08, -0.005, 0.01], "rot": [8, -32, 106] } } },
     "staff": { "proc": true, "rot": [4, 0, 90] }
   },
   "weaponNames": { "Longsword": "Sword_2", "Falchion": "Sword_Golden", "Zweihander": "Sword_Big", "Executioner": "Sword_Big", "War Axe": "Axe_Double", "Bearded Axe": "Axe_Double", "Warhammer": "Hammer_Double", "Dirk": "Dagger_2", "Kris": "Dagger_2", "Warbow": "Bow_Evil", "Longbow": "Bow_Wooden2", "Recurve Bow": "Bow_Golden", "Glaive": "Scythe" },
@@ -77,7 +76,7 @@
     "_help": "Animation clip names (from the two Universal Animation Libraries) used for each action. A list = combo steps in order.",
     "idle": "Idle", "idleArmed": "Sword_Idle", "idleShield": "Idle_Shield", "walk": "Walk", "run": "Jog_Fwd", "sprint": "Sprint",
     "jump": "Jump", "fall": "Jump", "land": "Jump_Land", "roll": "Roll", "die": "Death01", "hit": "Hit_Chest", "block": "Sword_Block",
-    "cast": "Spell_Simple_Shoot", "channel": "Spell_Simple_Idle", "shoot": "Spell_Simple_Shoot",
+    "cast": "Spell_Simple_Shoot", "channel": "Spell_Simple_Idle", "shoot": "Pistol_Shoot", "aim": "Pistol_Aim_Neutral",
     "melee": ["Sword_Regular_A", "Sword_Regular_B", "Sword_Regular_C"], "heavy": ["Sword_Attack", "Sword_Regular_B", "Sword_Regular_C"],
     "power": "Sword_Regular_Combo", "powerHeavy": "Melee_Hook", "unarmed": ["Punch_Jab", "Punch_Cross"],
     "talk": "Idle_Talking", "guard": "Idle_FoldArms", "smith": "TreeChopping", "sit": "Sitting_Idle", "cheer": "Yes"

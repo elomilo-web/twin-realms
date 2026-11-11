@@ -13,7 +13,7 @@ HEROES
 
 CONTROLS (change any of them in Settings > Controls)
   WASD move, Shift sprint, Space jump, C roll
-  Left mouse attack (hold for a power attack), Right mouse guard with a shield
+  Left mouse attack (hold to keep your chain going), Right mouse heavy attack, F guard with a shield, O basic attack chains
   1-6 skills, H health potion, G mana potion, E interact, R shift between Light and Shadow, T horse
   Tab lock on (again: next target), Q release lock-on
   I pack, J journal, M map, K skill tree, L skills, Esc menu

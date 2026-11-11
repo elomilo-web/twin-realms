@@ -15,13 +15,13 @@ public static class Inputs
     public const string PotHp = "pot_hp", PotMp = "pot_mp", Use = "interact", Realm = "realm", Mount = "mount";
     public const string Pack = "ui_pack", Journal = "ui_journal", Map = "ui_map", Tree = "ui_tree";
     public const string Lock = "lock_on", Unlock = "lock_off", SkillsUi = "ui_skills", AttacksUi = "ui_attacks";
-    public const string Attack = "attack", Guard = "guard";
+    public const string Attack = "attack", Guard = "guard", Heavy = "heavy_attack";
 
     /// <summary>Actions shown in the Controls menu, in order, with their names.</summary>
     public static readonly (string id, string name)[] Rebindable =
     {
         (Forward, "Move forward"), (Back, "Move back"), (Left, "Move left"), (Right, "Move right"),
-        (Sprint, "Sprint"), (Jump, "Jump"), (Roll, "Roll"), (Attack, "Attack (hold for power)"), (Guard, "Guard with shield"),
+        (Sprint, "Sprint"), (Jump, "Jump"), (Roll, "Roll"), (Attack, "Attack (hold to keep the chain going)"), (Heavy, "Heavy attack"), (Guard, "Guard with shield"),
         (Spell1, "Skill 1"), (Spell2, "Skill 2"), (Spell3, "Skill 3"), (Spell4, "Skill 4"), ("spell5", "Skill 5"), ("spell6", "Skill 6"),
         (PotHp, "Health potion"), (PotMp, "Mana potion"), (Use, "Interact"), (Realm, "Shift realm"), (Mount, "Horse"),
         (Lock, "Lock on / next target"), (Unlock, "Release lock-on"),
@@ -39,7 +39,7 @@ public static class Inputs
         Bind(PotHp, Key.H); Bind(PotMp, Key.G); Bind(Use, Key.E); Bind(Realm, Key.R); Bind(Mount, Key.T);
         Bind(Pack, Key.I); Bind(Journal, Key.J); Bind(Map, Key.M); Bind(Tree, Key.K);
         Bind(Lock, Key.Tab); Bind(Unlock, Key.Q); Bind(SkillsUi, Key.L); Bind(AttacksUi, Key.O);
-        BindMouse(Attack, MouseButton.Left); BindMouse(Guard, MouseButton.Right);
+        BindMouse(Attack, MouseButton.Left); BindMouse(Heavy, MouseButton.Right); Bind(Guard, Key.F);
         InputMap.ActionAddEvent(Lock, new InputEventMouseButton { ButtonIndex = MouseButton.Middle });   // extra default, dropped once rebound
         ApplyBinds();
     }
