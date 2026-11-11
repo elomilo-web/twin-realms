@@ -87,7 +87,7 @@ public partial class Projectile : Node3D
                 var d = e.GlobalPosition - to; float dy = to.Y - e.GlobalPosition.Y;
                 if (new Vector2(d.X, d.Z).Length() < e.Def.R * e.ScaleF() + 0.5f && dy > -0.3f && dy < e.HeightM() + 0.5f)
                 {
-                    if ((Pierce || PierceLeft > 0) && Aoe <= 0) { var ph = HitFor(to - Vel); ph.Knock = 1.5f; e.TakeHit(ph); Hits.Add(e); if (PierceLeft > 0) PierceLeft--; continue; }
+                    if ((Pierce || PierceLeft > 0) && Aoe <= 0) { var ph = HitFor(to - Vel); ph.Knock = 1.5f; e.TakeHit(ph); Hits.Add(e); if (PierceLeft > 0) PierceLeft--; if (Calc != null) SpellFx.Skill(Calc.Def.Id, "hit", to); continue; }
                     hitE = e; end = true; break;
                 }
             }
@@ -106,6 +106,7 @@ public partial class Projectile : Node3D
         if (Own == 'x') { if (Aoe > 0) Vfx.Explosion(to, Aoe); else Fx.Burst(to, new Color(0.8f, 0.8f, 0.9f), 4, 2f, 0.25f, 0.06f); QueueFree(); return; }
         if (Own == 'p')
         {
+            if (Calc != null) SpellFx.Skill(Calc.Def.Id, "hit", to, Aoe > 0 ? Mathf.Max(1f, Aoe * 2f / Mathf.Max(.1f, SpellFx.SizeOf(SpellFx.For(Calc.Def.Id, "hit")))) : 1f);
             if (Aoe > 0)
             {
                 Vfx.Explosion(to, Aoe); Sfx.Play("hit"); Player.Instance?.Rig?.Shake(0.18f);
@@ -133,6 +134,7 @@ public partial class Projectile : Node3D
                     {
                         var start = hitE.GlobalPosition + Vector3.Up * hitE.HeightM() * .6f; var dir = (nx.GlobalPosition + Vector3.Up * nx.HeightM() * .5f - start).Normalized();
                         var p2 = Spawn(Kind, 'p', start, dir * Vel.Length(), Dmg * .85f, 1.5f, Crit, Pierce, 0); p2.Calc = Calc; p2.ChainLeft = ChainLeft - 1; p2.Homing = true; p2.Tint = Tint; p2.Hits = new HashSet<Enemy>(Hits);
+                        if (Calc != null) SpellFx.SkillAttach(Calc.Def.Id, "travel", p2);
                     }
                 }
             }

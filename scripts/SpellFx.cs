@@ -81,25 +81,38 @@ void fragment() {
     }
 
     /// <summary>Play the animation data/spellfx.json gives this skill for this moment. Does nothing if there is none.</summary>
-    public static SpellFxSprite? Skill(string skillId, string moment, Vector3 pos, float scale = 1f)
+    public static SpellFxSprite? Skill(string skillId, string moment, Vector3 pos, float scale = 1f, float life = 0f)
     {
-        string n = For(skillId, moment); return n == "" ? null : Play(n, pos, scale);
+        string n = For(skillId, moment); return n == "" ? null : Play(n, pos, scale, life);
     }
 
-    /// <summary>One animation at a world position. Ground kinds lie flat just above the floor; the rest face the camera.</summary>
-    public static SpellFxSprite? Play(string name, Vector3 pos, float scale = 1f)
+    /// <summary>Like Skill, but the animation follows a node (see Attach).</summary>
+    public static SpellFxSprite? SkillAttach(string skillId, string moment, Node3D to, Vector3? offset = null, float scale = 1f, float life = 0f)
+    {
+        string n = For(skillId, moment); return n == "" ? null : Attach(n, to, offset, scale, life);
+    }
+
+    /// <summary>The drawn size in metres of an animation (0 if unknown); divide a radius by half of it to get a scale.</summary>
+    public static float SizeOf(string name) { Load(); return _defs.TryGetValue(name, out var d) ? d.Size : 0f; }
+
+    /// <summary>
+    /// One animation at a world position. Ground kinds lie flat just above the floor; the rest face the camera.
+    /// life > 0 fades it out after that many seconds. A looping animation with nothing to free it gets 2 s, so it cannot loop forever.
+    /// </summary>
+    public static SpellFxSprite? Play(string name, Vector3 pos, float scale = 1f, float life = 0f)
     {
         var s = Make(name, scale); if (s == null) return null;
         var root = Game.Root; if (root == null) { s.Free(); return null; }
+        s.Life = life > 0 ? life : s.Loop ? 2f : 0f;
         root.AddChild(s); s.GlobalPosition = pos + (s.Ground ? new Vector3(0, .06f, 0) : Vector3.Zero);
         return s;
     }
 
-    /// <summary>An animation that follows a node (a projectile, the hero) and is freed with it. offset is in the node's own space.</summary>
-    public static SpellFxSprite? Attach(string name, Node3D to, Vector3? offset = null, float scale = 1f)
+    /// <summary>An animation that follows a node (a projectile, the hero) and is freed with it. offset is in the node's own space. life > 0 fades it out sooner.</summary>
+    public static SpellFxSprite? Attach(string name, Node3D to, Vector3? offset = null, float scale = 1f, float life = 0f)
     {
         var s = Make(name, scale); if (s == null) return null;
-        to.AddChild(s); s.Position = offset ?? Vector3.Zero;
+        s.Life = life; to.AddChild(s); s.Position = offset ?? Vector3.Zero;
         return s;
     }
 
@@ -131,7 +144,8 @@ void fragment() {
 public partial class SpellFxSprite : MeshInstance3D
 {
     public int Frames = 16; public float Fps = 24; public bool Loop, Ground; public ShaderMaterial? Mat;
-    double _t;
+    public float Life;   // > 0: fade out and free after this many seconds (ends looping animations)
+    double _t; bool _fading;
 
     /// <summary>Lay the quad between two points, as wide as `width`, turned to face the camera as well as it can.</summary>
     public void Stretch(Vector3 a, Vector3 b, float width)
@@ -148,13 +162,15 @@ public partial class SpellFxSprite : MeshInstance3D
     /// <summary>Fade out over `time` seconds and free (use to end a looping animation gently).</summary>
     public void FadeOut(float time = .2f)
     {
+        if (_fading) return; _fading = true;
         if (Mat == null) { QueueFree(); return; }
         var tw = CreateTween(); tw.TweenMethod(Callable.From<float>(v => Mat.SetShaderParameter("fade", v)), 1f, 0f, time); tw.TweenCallback(Callable.From(QueueFree));
     }
 
     public override void _Process(double delta)
     {
-        _t += delta; int f = (int)(_t * Fps);
+        _t += delta; if (Life > 0 && _t >= Life) FadeOut();
+        int f = (int)(_t * Fps);
         if (f >= Frames) { if (!Loop) { QueueFree(); return; } f %= Frames; }
         Mat?.SetShaderParameter("frame", (float)f);
     }

@@ -68,7 +68,7 @@ public partial class Player
         {
             // whirlwind: hits all around once per turn
             _spinLeft -= dt; _modelYaw += dt * Mathf.Tau * 2.2f; _spinStep -= dt;
-            if (_spinStep <= 0 && _spinHits > 0) { _spinStep = .26f; _spinHits--; AreaHit(_atkSkill, GlobalPosition, _atkSkill.Radius, 1f); Vfx.Ring(GlobalPosition + Vector3.Up * .1f, _atkSkill.Radius, W.Trail, .25f); }
+            if (_spinStep <= 0 && _spinHits > 0) { _spinStep = .26f; _spinHits--; AreaHit(_atkSkill, GlobalPosition, _atkSkill.Radius, 1f, true); Vfx.Ring(GlobalPosition + Vector3.Up * .1f, _atkSkill.Radius, W.Trail, .25f); }
             if (_spinLeft <= 0) _atkSkill = null;
         }
         if (_moveT > 0 && _moveSkill != null)
@@ -116,6 +116,7 @@ public partial class Player
     void Execute(SkillCalc c, Enemy? forced = null, bool echo = false)
     {
         var k = c.Def; var origin = MuzzlePos(); var col = Dmg.TypeColor(c.Type);
+        CastFx(c, origin);
         switch (k.Kind)
         {
             case "projectile":
@@ -129,21 +130,24 @@ public partial class Player
                     string vis = c.Type == "fire" ? "fire" : k.Arrow || (k.Scale == "weapon" && c.Type == "physical") ? "arrow" : "bolt";
                     var p = Projectile.Spawn(vis, 'p', origin, d * c.Speed + (vis == "arrow" ? Vector3.Up * .5f : Vector3.Zero), c.Dmg, 2.4f, Crit(c), false, c.Radius);
                     p.Calc = c; p.PierceLeft = c.Pierce; p.ChainLeft = c.Chain; p.Homing = c.Homing; p.Tint = col;
+                    SpellFx.SkillAttach(k.Id, "travel", p);
                 }
                 break;
             }
             case "nova":
                 if (c.Type == "frost") Vfx.FrostNova(GlobalPosition, c.Radius); else { Vfx.Ring(GlobalPosition + Vector3.Up * .1f, c.Radius, col, .45f); Vfx.Flash(GlobalPosition + Vector3.Up, col, 4f, c.Radius * 2, .5f); }
-                Rig?.Shake(.15f); AreaHit(c, GlobalPosition, c.Radius, 1f); break;
+                SpellFx.Skill(k.Id, "ground", GlobalPosition, FxFit(k.Id, "ground", c.Radius));
+                Rig?.Shake(.15f); AreaHit(c, GlobalPosition, c.Radius, 1f, true); break;
             case "chain":
             {
                 var (t, cur) = Aim(k.Range, forced); cur ??= NearestFoe(28f);
-                if (cur == null) { Vfx.Lightning(origin, t, col); break; }
+                if (cur == null) { Vfx.Lightning(origin, t, col); BeamFx(k.Id, origin, t); break; }
                 var prev = origin; float dm = c.Dmg; var seen = new HashSet<Enemy>();
                 int hitsN = System.Math.Max(1, c.Chain) + (k.Id == "zap" ? (int)Game.TS["chain"] : 0);
                 for (int j = 0; j < hitsN && cur != null; j++)
                 {
                     var pt = cur.GlobalPosition + new Vector3(0, cur.HeightM() * .55f, 0); Vfx.Lightning(prev, pt, col, .28f); seen.Add(cur);
+                    BeamFx(k.Id, prev, pt); SpellFx.Skill(k.Id, "hit", pt);
                     cur.TakeHit(c.Hit(dm, GlobalPosition, Crit(c))); dm *= .82f; prev = pt; cur = NearestFoe(10f, cur.GlobalPosition, seen);
                 }
                 break;
@@ -167,6 +171,9 @@ public partial class Player
             {
                 var fw = new Vector3(-Mathf.Sin(_modelYaw), 0, -Mathf.Cos(_modelYaw)); var hit = ArcHit(c, fw, Mathf.DegToRad(Mathf.Min(180, k.Arc)), k.Range);
                 if (k.Arc >= 120 || k.Range > 4) Vfx.Ring(GlobalPosition + Vector3.Up * .1f + (k.Range > 4 ? fw * k.Range * .5f : Vector3.Zero), k.Range > 4 ? k.Range * .5f : k.Range, W.Trail, .3f);
+                if (hit != null) SpellFx.Skill(k.Id, "hit", hit.GlobalPosition + Vector3.Up * hit.HeightM() * .55f);
+                var front = GlobalPosition + fw * Mathf.Min(k.Range * .5f, 2.5f);
+                SpellFx.Skill(k.Id, "ground", front, FxFit(k.Id, "ground", k.Range * .6f)); SpellFx.Skill(k.Id, "after", front, FxFit(k.Id, "after", k.Range * .6f));
                 if (c.Chain > 0 && hit != null)
                 {
                     // arcs jump from the struck foe to the next ones
@@ -175,7 +182,9 @@ public partial class Player
                 }
                 break;
             }
-            case "spin": _spinLeft = .26f * c.Count + .05f; _spinStep = 0; _spinHits = c.Count; _atkSkill = c; break;
+            case "spin":
+                _spinLeft = .26f * c.Count + .05f; _spinStep = 0; _spinHits = c.Count; _atkSkill = c;
+                SpellFx.SkillAttach(k.Id, "ground", this, Vector3.Up * .06f, FxFit(k.Id, "ground", c.Radius), _spinLeft); break;
             case "leap":
             {
                 var target = forced ?? Targeting.Current; var to = target != null && IsInstanceValid(target) ? target.GlobalPosition : Aim(k.Range).pt;
@@ -193,6 +202,7 @@ public partial class Player
                     GlobalPosition = Ground(to) + Vector3.Up * .2f; var dd = target.GlobalPosition - GlobalPosition; _modelYaw = Util.YawTo(dd.X, dd.Z);
                     Vfx.Sparks(GlobalPosition + Vector3.Up, Ramp(new Color(.6f, .3f, 1f)), 24, 3, .5f, .3f, 1f);
                     target.TakeHit(c.Hit(c.Dmg, GlobalPosition, true)); Rig?.Shake(.15f);
+                    SpellFx.Skill(k.Id, "hit", target.GlobalPosition + Vector3.Up * target.HeightM() * .55f);
                 }
                 else
                 {
@@ -205,6 +215,7 @@ public partial class Player
             {
                 Buffs.RemoveAll(b => b.id == k.Id); Buffs.Add((k.Id, new Dictionary<string, float>(k.Buff), c.Dur)); Game.RecalcTree();
                 Vfx.Ring(GlobalPosition + Vector3.Up * .1f, Mathf.Max(3, c.Radius), col.Lerp(new Color(1, .8f, .4f), .4f), .5f);
+                SpellFx.Skill(k.Id, "ground", GlobalPosition, FxFit(k.Id, "ground", Mathf.Max(3, c.Radius)));
                 FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.4f, 0), k.Name, new Color(1, .85f, .45f));
                 if (c.Radius > 0) AreaHit(c, GlobalPosition, c.Radius, 0f);
                 break;
@@ -214,14 +225,34 @@ public partial class Player
     }
     static Gradient Ramp(Color c) { var g = new Gradient(); g.SetColor(0, Colors.White); g.SetColor(1, new Color(c, 0)); return g; }
 
-    /// <summary>Damage everything within r of a point (mul 0 = statuses only, as for war cries).</summary>
-    void AreaHit(SkillCalc c, Vector3 at, float r, float mul)
+    // ---------------------------------------------------------------- flipbook animations (SpellFx, data/spellfx.json)
+    /// <summary>Scale that makes a skill's animation for a moment cover a circle of radius r (1 when it has none).</summary>
+    static float FxFit(string id, string moment, float r) { float s = SpellFx.SizeOf(SpellFx.For(id, moment)); return s > 0 && r > 0 ? 2f * r / s : 1f; }
+    /// <summary>The "cast" moment: auras and heals follow the hero, slashes and thrusts appear in front, spells at the casting hand.</summary>
+    void CastFx(SkillCalc c, Vector3 origin)
+    {
+        var k = c.Def; if (SpellFx.For(k.Id, "cast") == "") return;
+        if (k.Kind is "buff" or "heal" or "zone") { SpellFx.SkillAttach(k.Id, "cast", this, Vector3.Up * 1.1f, 1f, c.Dur > 0 ? c.Dur : 1.5f); return; }
+        var fw = new Vector3(-Mathf.Sin(_modelYaw), 0, -Mathf.Cos(_modelYaw));
+        bool front = k.Kind == "melee" || (k.Kind == "dash" && !k.Behind);
+        SpellFx.Skill(k.Id, "cast", front ? GlobalPosition + fw * 1.3f + Vector3.Up * 1.1f : k.Kind is "leap" or "dash" ? GlobalPosition + Vector3.Up * .6f : origin);
+    }
+    /// <summary>A beam segment; looping beams (drain) are cut short so they do not linger.</summary>
+    static void BeamFx(string id, Vector3 a, Vector3 b)
+    {
+        string n = SpellFx.For(id, "beam"); if (n == "") return;
+        var s = SpellFx.Beam(n, a, b); if (s != null && s.Loop) s.Life = .35f;
+    }
+
+    /// <summary>Damage everything within r of a point (mul 0 = statuses only, as for war cries). fx: play the skill's "hit" animation on each foe struck.</summary>
+    void AreaHit(SkillCalc c, Vector3 at, float r, float mul, bool fx = false)
     {
         foreach (var n in GetTree().GetNodesInGroup("enemies"))
             if (n is Enemy e && !e.Dead && e.Active && new Vector2(e.GlobalPosition.X - at.X, e.GlobalPosition.Z - at.Z).Length() - e.Def.R * e.ScaleF() < r && Mathf.Abs(e.GlobalPosition.Y - at.Y) < 4f)
             {
                 var h = c.Hit(c.Dmg * mul, at, mul > 0 && Crit(c)); if (mul <= 0) { h.Damage = 0.01f; h.NoText = true; h.Knock = 0; }
                 e.TakeHit(h);
+                if (fx) SpellFx.Skill(c.Def.Id, "hit", e.GlobalPosition + Vector3.Up * e.HeightM() * .55f);
             }
     }
     Enemy? ArcHit(SkillCalc c, Vector3 fw, float arc, float range)
@@ -242,7 +273,7 @@ public partial class Player
     }
     void Land(SkillCalc c)
     {
-        if (c.Def.Kind == "leap") { AreaHit(c, GlobalPosition, c.Radius, 1f); Vfx.Ring(GlobalPosition + Vector3.Up * .1f, c.Radius, W.Trail, .35f); Vfx.Sparks(GlobalPosition, Ramp(new Color(.7f, .6f, .5f)), 30, 6, .5f, .3f, -8f); Rig?.Shake(.3f); _landT = .22f; }
+        if (c.Def.Kind == "leap") { AreaHit(c, GlobalPosition, c.Radius, 1f); SpellFx.Skill(c.Def.Id, "hit", GlobalPosition, FxFit(c.Def.Id, "hit", c.Radius)); Vfx.Ring(GlobalPosition + Vector3.Up * .1f, c.Radius, W.Trail, .35f); Vfx.Sparks(GlobalPosition, Ramp(new Color(.7f, .6f, .5f)), 30, 6, .5f, .3f, -8f); Rig?.Shake(.3f); _landT = .22f; }
         else
         {
             // lunge: everything along the dash line takes the hit
@@ -251,7 +282,7 @@ public partial class Player
                 if (n is Enemy e && !e.Dead && e.Active)
                 {
                     var p = e.GlobalPosition; var ab = b - a; ab.Y = 0; float t = ab.LengthSquared() > .01f ? Mathf.Clamp(new Vector3(p.X - a.X, 0, p.Z - a.Z).Dot(ab) / ab.LengthSquared(), 0, 1) : 0;
-                    var cp = a + ab * t; if (new Vector2(p.X - cp.X, p.Z - cp.Z).Length() < 1.6f + e.Def.R) { bool cr = Crit(c); e.TakeHit(c.Hit(c.Dmg * (cr ? Game.D.CritMult() : 1f), a, cr)); }
+                    var cp = a + ab * t; if (new Vector2(p.X - cp.X, p.Z - cp.Z).Length() < 1.6f + e.Def.R) { bool cr = Crit(c); e.TakeHit(c.Hit(c.Dmg * (cr ? Game.D.CritMult() : 1f), a, cr)); SpellFx.Skill(c.Def.Id, "hit", p + Vector3.Up * e.HeightM() * .55f); }
                 }
             Rig?.Shake(.12f);
         }
@@ -272,6 +303,7 @@ public partial class SkillZone : Node3D
         _disc = new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = r, BottomRadius = r, Height = .04f, RadialSegments = 40 }, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off, Position = Vector3.Up * .06f,
             MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(Col, Strike ? .18f : .22f), ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, BlendMode = BaseMaterial3D.BlendModeEnum.Add } };
         AddChild(_disc);
+        { float sz = SpellFx.SizeOf(SpellFx.For(Calc.Def.Id, "ground")); SpellFx.SkillAttach(Calc.Def.Id, "ground", this, Vector3.Up * .1f, sz > 0 && r > 0 ? 2f * r / sz : 1f); }
         AddChild(new MeshInstance3D { Mesh = new TorusMesh { InnerRadius = r * .93f, OuterRadius = r, Rings = 48, RingSegments = 3 }, Position = Vector3.Up * .08f, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
             MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(Col, .8f), ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, BlendMode = BaseMaterial3D.BlendModeEnum.Add } });
         if (!Strike)
@@ -297,6 +329,9 @@ public partial class SkillZone : Node3D
             if (_t < Calc.Def.Delay) return;
             if (Calc.Type == "fire") Vfx.Explosion(GlobalPosition + Vector3.Up * .4f, Calc.Radius);
             else { Vfx.HealPillarAt(GlobalPosition, Col, Calc.Radius); }
+            var id = Calc.Def.Id; float big = SpellFx.SizeOf(SpellFx.For(id, "hit"));
+            SpellFx.Skill(id, "hit", GlobalPosition + Vector3.Up * big * .4f);
+            { float sz = SpellFx.SizeOf(SpellFx.For(id, "after")); SpellFx.Skill(id, "after", GlobalPosition, sz > 0 ? 2f * Calc.Radius / sz : 1f); }
             Hit(1f); p?.Rig?.Shake(.2f); QueueFree(); return;
         }
         _tick -= dt;
@@ -308,6 +343,9 @@ public partial class SkillZone : Node3D
     {
         foreach (var n in GetTree().GetNodesInGroup("enemies"))
             if (n is Enemy e && !e.Dead && e.Active && new Vector2(e.GlobalPosition.X - GlobalPosition.X, e.GlobalPosition.Z - GlobalPosition.Z).Length() - e.Def.R < Calc.Radius && Mathf.Abs(e.GlobalPosition.Y - GlobalPosition.Y) < 4f)
-            { var h = Calc.Hit(Calc.Dmg * mul, GlobalPosition, false); if (!Strike) h.Knock = 0; e.TakeHit(h); }
+            {
+                var h = Calc.Hit(Calc.Dmg * mul, GlobalPosition, false); if (!Strike) h.Knock = 0; e.TakeHit(h);
+                if (!Strike) SpellFx.Skill(Calc.Def.Id, "hit", e.GlobalPosition + Vector3.Up * e.HeightM() * .5f, 1f, Mathf.Min(1f, Calc.Tick * 2f));
+            }
     }
 }
