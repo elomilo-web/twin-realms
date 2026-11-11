@@ -28,7 +28,8 @@ project/assembly_name="TwinRealms"
 [importer_defaults]
 
 texture={
-"process/size_limit": 1024
+"mipmaps/generate": true,
+"process/size_limit": 0
 }
 wav={
 "compress/mode": 2
@@ -41,3 +42,20 @@ wav={
 [rendering]
 
 rendering_device/driver.windows="d3d12"
+textures/default_filters/anisotropic_filtering_level=4
+anti_aliasing/quality/msaa_3d=2
+anti_aliasing/quality/use_taa=true
+anti_aliasing/quality/use_debanding=true
+lights_and_shadows/directional_shadow/size=8192
+lights_and_shadows/directional_shadow/soft_shadow_filter_quality=3
+lights_and_shadows/positional_shadow/soft_shadow_filter_quality=3
+lights_and_shadows/positional_shadow/atlas_size=8192
+environment/ssao/quality=3
+environment/ssil/quality=3
+environment/glow/upscale_mode=1
+environment/volumetric_fog/volume_size=128
+environment/volumetric_fog/volume_depth=128
+global_illumination/sdfgi/probe_ray_count=3
+global_illumination/sdfgi/frames_to_converge=2
+mesh_lod/lod_change/threshold_pixels=0.5
+textures/decals/filter=5

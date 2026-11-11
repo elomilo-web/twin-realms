@@ -12,7 +12,7 @@ public class Zone { public string Id = ""; public float X, Z, R, B, H; }
 /// <summary>The overworld: heightfield terrain, sky and day/night, the Light/Shadow realm shift, vegetation and shared materials.</summary>
 public partial class World : Node3D
 {
-    public const int N = 256; public const float Half = 256f, Cell = 2f;
+    public const int N = 512; public const float Half = 256f, Cell = 1f;   // 1 m terrain grid (was 2 m: big flat facets)
     public static World? I;
     public static int Realm;                 // target realm (0 light, 1 shadow)
     public static float RealmT;              // 0..1 visual blend
@@ -108,6 +108,8 @@ public partial class World : Node3D
     static float HeightFn(float x, float z)
     {
         float h = BaseHeight(x, z);
+        // small natural bumps and hollows (flattened along roads), so open ground is not one smooth sheet
+        if (h > 1.2f) h += (Fbm(x * .09f + 51, z * .09f - 17, 3) - .5f) * .7f * Smooth(2.5f, 6f, RoadDist(x, z)) * Smooth(1.2f, 3f, h);
         foreach (var zn in Zones) { float d = Mathf.Sqrt((x - zn.X) * (x - zn.X) + (z - zn.Z) * (z - zn.Z)); if (d < zn.R + zn.B) h = Mathf.Lerp(h, zn.H, 1 - Smooth(zn.R, zn.R + zn.B, d)); }
         return h;
     }
@@ -180,9 +182,19 @@ public partial class World : Node3D
             SsaoEnabled = true, SsaoIntensity = LF("ssaoIntensity", 1.8f), SsaoRadius = LF("ssaoRadius", 1.3f),
             AdjustmentEnabled = true, AdjustmentContrast = LF("contrast", 1.12f), AdjustmentSaturation = LF("saturation", 1.2f), AdjustmentBrightness = LF("brightness", 1f),
         };
+        // high-end lighting (data/look.json env): bounce light (SDFGI), screen-space indirect light, light shafts in a thin haze, sharper sky light
+        ((Sky)_env.Sky).RadianceSize = Sky.RadianceSizeEnum.Size256;
+        _env.SdfgiEnabled = LF("gi", 1f) > 0; _env.SdfgiUseOcclusion = true; _env.SdfgiEnergy = LF("giEnergy", .9f); _env.SdfgiBounceFeedback = .5f;
+        _env.SdfgiCascades = 6; _env.SdfgiMinCellSize = .2f;
+        _env.SsilEnabled = LF("ssil", 1f) > 0; _env.SsilIntensity = LF("ssil", 1f); _env.SsilRadius = 5f;
+        _env.SsaoDetail = .6f; _env.SsaoHorizon = .06f; _env.SsaoLightAffect = .15f;
+        _env.VolumetricFogEnabled = LF("volFog", .004f) > 0; _env.VolumetricFogDensity = LF("volFog", .004f); _env.VolumetricFogAnisotropy = .6f;
+        _env.VolumetricFogLength = 160f; _env.VolumetricFogGIInject = .5f; _env.VolumetricFogSkyAffect = 0f; _env.VolumetricFogTemporalReprojectionEnabled = true;
         Env = new WorldEnvironment { Environment = _env }; AddChild(Env);
         // crisp shadows suit the toon look; soft (PCSS) shadows add sampling noise that toon banding turns into a checker pattern
-        Sun = new DirectionalLight3D { ShadowEnabled = true, DirectionalShadowMaxDistance = 140f, LightEnergy = 1.2f, LightAngularDistance = LF("sunSoftness", 0f) };
+        Sun = new DirectionalLight3D { ShadowEnabled = true, DirectionalShadowMaxDistance = LF("shadowDistance", 260f), LightEnergy = 1.2f, LightAngularDistance = LF("sunSoftness", 0f),
+            DirectionalShadowMode = DirectionalLight3D.ShadowMode.Parallel4Splits, DirectionalShadowBlendSplits = true, DirectionalShadowSplit1 = .04f, DirectionalShadowSplit2 = .12f, DirectionalShadowSplit3 = .35f,
+            ShadowBias = .03f, ShadowNormalBias = 1.2f, LightVolumetricFogEnergy = LF("sunShafts", 1.2f) };
         AddChild(Sun);
     }
 
@@ -274,7 +286,8 @@ void sky(){
         _terrMat = new ShaderMaterial { Shader = sh }; _terrMat.SetShaderParameter("realm_t", 0f);
         foreach (var layer in new[] { "grass", "meadow", "gravel", "rock", "sand", "forest" })
         {
-            string col = $"res://assets/textures/terrain/{layer}_col.jpg", nrm = $"res://assets/textures/terrain/{layer}_nrm.jpg";
+            string col = $"res://assets/textures/terrain/{layer}_col.jpg", nrm = $"res://assets/textures/terrain/{layer}_nrm.jpg", ao = $"res://assets/textures/terrain/{layer}_ao.jpg";
+            if (ResourceLoader.Exists(ao)) _terrMat.SetShaderParameter(layer + "_ao", GD.Load<Texture2D>(ao));
             if (ResourceLoader.Exists(col)) _terrMat.SetShaderParameter(layer + "_col", GD.Load<Texture2D>(col));
             if (ResourceLoader.Exists(nrm)) _terrMat.SetShaderParameter(layer + "_nrm", GD.Load<Texture2D>(nrm));
         }
@@ -311,6 +324,15 @@ uniform sampler2D grass_nrm : hint_normal, filter_linear_mipmap_anisotropic, rep
 uniform sampler2D meadow_nrm : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D gravel_nrm : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D rock_nrm : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D sand_nrm : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D forest_nrm : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D grass_ao : hint_default_white, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D meadow_ao : hint_default_white, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D gravel_ao : hint_default_white, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D rock_ao : hint_default_white, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D sand_ao : hint_default_white, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D forest_ao : hint_default_white, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform float ao_strength = 0.8;
 uniform float grass_tile = 3.5;      // metres per texture repeat
 uniform float meadow_tile = 5.0;
 uniform float gravel_tile = 2.5;
@@ -380,11 +402,17 @@ void fragment(){
   c *= (0.84 + 0.32 * macro);                                             // large soft light/dark patches seen from afar
   c = mix(vec3(lum(c)), c, saturation) * brightness;
 
-  vec2 np = p;
-  vec3 nG = mix(texture(grass_nrm, np / grass_tile).rgb, texture(meadow_nrm, np / meadow_tile).rgb, max(wMeadow, wForest));
-  nG = mix(nG, texture(gravel_nrm, np / gravel_tile).rgb, max(wGravel * (1.0 - COLOR.b), wRoad));
-  nG = mix(nG, texture(rock_nrm, np / rock_tile).rgb, wRock * bw.y);
-  nG = mix(nG, vec3(0.5, 0.5, 1.0), max(wRock * (1.0 - bw.y), max(wSand, wSnow)));
+  // normal and ambient-occlusion maps follow the same layer weights as the colour
+  float wG = wGravel * (1.0 - COLOR.b);
+  vec3 nG = texture(grass_nrm, p / grass_tile).rgb; float ao = texture(grass_ao, p / grass_tile).r;
+  nG = mix(nG, texture(meadow_nrm, p / meadow_tile).rgb, wMeadow); ao = mix(ao, texture(meadow_ao, p / meadow_tile).r, wMeadow);
+  nG = mix(nG, texture(forest_nrm, p / forest_tile).rgb, wForest); ao = mix(ao, texture(forest_ao, p / forest_tile).r, wForest);
+  nG = mix(nG, texture(gravel_nrm, p / gravel_tile).rgb, max(wG, wRoad)); ao = mix(ao, texture(gravel_ao, p / gravel_tile).r, max(wG, wRoad));
+  nG = mix(nG, texture(sand_nrm, p / sand_tile).rgb, wSand); ao = mix(ao, texture(sand_ao, p / sand_tile).r, wSand);
+  nG = mix(nG, texture(rock_nrm, p / rock_tile).rgb, wRock * bw.y); ao = mix(ao, texture(rock_ao, p / rock_tile).r, wRock);
+  nG = mix(nG, vec3(0.5, 0.5, 1.0), max(wRock * (1.0 - bw.y), wSnow));
+  ao = mix(1.0, ao, ao_strength * (1.0 - wSnow));
+  c *= mix(1.0, ao, 0.5); AO = ao; AO_LIGHT_AFFECT = 0.35;
   NORMAL_MAP = nG; NORMAL_MAP_DEPTH = normal_depth;
 
   float l = lum(c);
@@ -400,7 +428,7 @@ void fragment(){
         const int S = 256; _mapImg = Image.CreateEmpty(S, S, false, Image.Format.Rgb8);
         for (int y = 0; y < S; y++) for (int x = 0; x < S; x++)
         {
-            float h = HG[y * (N + 1) + x]; Color c;
+            float h = HG[y * (N / S) * (N + 1) + x * (N / S)]; Color c;
             if (h < 0.4f) c = new Color(.12f, .25f, .45f); else if (h < 2f) c = new Color(.75f, .68f, .5f);
             else if (h < 18f) c = new Color(.3f, .5f, .22f).Lerp(new Color(.4f, .46f, .24f), h / 18f); else if (h < 45f) c = new Color(.5f, .48f, .45f); else c = new Color(.92f, .94f, .97f);
             _mapImg.SetPixel(x, y, c);

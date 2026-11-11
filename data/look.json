@@ -65,7 +65,9 @@
   "sunLow": "ffc685",
   "sunDusk": "ff8a48",
   "ambientDayColor": "a3b2c6",
-  "ambientNightColor": "38426f"
+  "ambientNightColor": "38426f",
+  "_qualityHelp": "gi: bounce light on/off (SDFGI), giEnergy its strength; ssil: screen-space indirect light; volFog: haze density for sun shafts (0 = off), sunShafts their strength; shadowDistance: metres of sun shadows.",
+  "gi": 1, "giEnergy": 0.9, "ssil": 1.0, "volFog": 0.0025, "sunShafts": 1.2, "shadowDistance": 260
  },
  "terrain": {
   "_help": "Ground textures (assets/textures/terrain, CC0 ambientCG) blended by World.cs TerrainShader. *_tile = metres per repeat; *_tint multiplies a texture; saturation/brightness grade the whole ground; meadow_amount = dirt patches in the grass; gravel_amount = gravel patches.",

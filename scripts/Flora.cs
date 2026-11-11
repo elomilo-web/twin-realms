@@ -35,7 +35,101 @@ void fragment(){
   BACKLIGHT = vec3(0.1, 0.16, 0.04) * h * (1.0 - realm_t);
 }";
 
+    // Grass blades: curved, tapered blades whose roots take the colour of the ground texture under them (so a meadow reads as one
+    // surface from afar), darker at the base, lit through from behind, with travelling wind gusts. Far blades shrink into the ground
+    // instead of popping out.
+    const string BladeShader = @"
+shader_type spatial;
+render_mode cull_disabled;
+uniform float realm_t = 0.0;
+uniform float wind = 1.0;
+uniform float sway = 0.3;
+uniform float range = 100.0;
+uniform sampler2D ground_tex : source_color, filter_linear_mipmap, repeat_enable;
+uniform float ground_tile = 3.5;
+uniform vec3 ground_tint : source_color = vec3(1.0);
+uniform float root_blend = 0.75;
+varying float h;
+varying vec3 root_col;
+float h21(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float vn(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(h21(i), h21(i+vec2(1.0,0.0)), f.x), mix(h21(i+vec2(0.0,1.0)), h21(i+vec2(1.0,1.0)), f.x), f.y); }
+void vertex(){
+  h = UV.y;
+  vec3 origin = MODEL_MATRIX[3].xyz;
+  float d = distance(origin, CAMERA_POSITION_WORLD);
+  float keep = 1.0 - smoothstep(range * 0.55, range, d);
+  VERTEX.y *= keep;
+  vec3 wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+  float t = TIME;
+  // big slow gusts rolling across the field + small fast flutter per blade
+  float gust = vn(wp.xz * 0.05 + vec2(t * 0.35, t * 0.12));
+  float flutter = sin(t * 3.1 + wp.x * 1.7 + wp.z * 1.3 + UV.x * 6.0) * 0.18;
+  vec2 dir = normalize(vec2(1.0, 0.45));
+  float bend = (0.25 + gust * 1.1 + flutter) * sway * wind;
+  vec3 off = vec3(dir.x, 0.0, dir.y) * bend * h * h;
+  off.y = -bend * bend * h * h * 0.35;
+  VERTEX += inverse(mat3(MODEL_MATRIX)) * off;
+  // soft normals: mostly up, a little of the blade's own facing (no harsh per-blade facets)
+  vec3 up = normalize(inverse(mat3(MODEL_MATRIX)) * vec3(0.0, 1.0, 0.0));
+  NORMAL = normalize(mix(NORMAL, up, 0.7));
+  root_col = textureLod(ground_tex, origin.xz / ground_tile, 7.0).rgb * ground_tint;
+}
+void fragment(){
+  vec3 tip = COLOR.rgb;
+  vec3 base = mix(root_col, tip, smoothstep(0.0, 1.0, h) * (1.0 - root_blend * (1.0 - h)));
+  base *= mix(0.62, 1.0, smoothstep(0.0, 0.6, h));                       // self-shadow deep in the clump
+  float l = dot(base, vec3(0.33));
+  vec3 sh = vec3(l * 0.45, l * 0.32, l * 0.9) + vec3(0.02, 0.0, 0.06);
+  ALBEDO = mix(base, sh, realm_t);
+  EMISSION = realm_t * vec3(0.25, 0.75, 0.85) * h * h * 0.35;
+  ROUGHNESS = 0.85; SPECULAR = 0.12;
+  BACKLIGHT = base * 0.55 * h * (1.0 - realm_t);                          // sun shining through the blades
+  AO = mix(0.5, 1.0, h); AO_LIGHT_AFFECT = 0.4;
+}";
+
     public static readonly List<ShaderMaterial> Materials = new();
+
+    static ShaderMaterial BladeMat(JsonElement e)
+    {
+        var m = new ShaderMaterial { Shader = new Shader { Code = BladeShader } };
+        m.SetShaderParameter("sway", JsonUtil.F(e, "sway", .3f)); m.SetShaderParameter("wind", JsonUtil.F(e, "wind", 1f)); m.SetShaderParameter("range", JsonUtil.F(e, "range", 100f));
+        const string tex = "res://assets/textures/terrain/grass_col.jpg";
+        if (ResourceLoader.Exists(tex)) m.SetShaderParameter("ground_tex", GD.Load<Texture2D>(tex));
+        // match the terrain: same tile size and tint as data/look.json terrain.grass_*
+        using (var ld = JsonUtil.Load("res://data/look.json"))
+            if (ld.RootElement.TryGetProperty("terrain", out var tc))
+            {
+                m.SetShaderParameter("ground_tile", JsonUtil.F(tc, "grass_tile", 3.5f));
+                string tint = JsonUtil.S(tc, "grass_tint"); if (tint != "") m.SetShaderParameter("ground_tint", Color.FromHtml(tint));
+            }
+        Materials.Add(m); return m;
+    }
+
+    /// <summary>A clump of curved, tapered blades (segments bend more toward the tip). UV.y = 0 root .. 1 tip, UV.x = a per-blade random.</summary>
+    static ArrayMesh Blades(int blades, float h0, float h1, float radius, System.Random r)
+    {
+        var st = new SurfaceTool(); st.Begin(Mesh.PrimitiveType.Triangles);
+        const int Seg = 5;
+        float F() => (float)r.NextDouble();
+        for (int i = 0; i < blades; i++)
+        {
+            float a = F() * Mathf.Tau, rr = Mathf.Sqrt(F()) * radius, face = F() * Mathf.Tau, id = F();
+            float ht = Mathf.Lerp(h0, h1, F() * F() * .6f + F() * .4f), w = .012f + F() * .014f, lean = .15f + F() * .45f;
+            var root = new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * rr;
+            var dir = new Vector3(Mathf.Cos(face), 0, Mathf.Sin(face)); var side = new Vector3(-dir.Z, 0, dir.X);
+            Vector3 P(float t) => root + dir * lean * ht * t * t + Vector3.Up * ht * (t - lean * lean * t * t * .3f);
+            float W(float t) => w * Mathf.Pow(1 - t, .7f);
+            for (int s = 0; s < Seg; s++)
+            {
+                float t0 = s / (float)Seg, t1 = (s + 1) / (float)Seg;
+                Vector3 a0 = P(t0) - side * W(t0), b0 = P(t0) + side * W(t0), a1 = P(t1) - side * W(t1), b1 = P(t1) + side * W(t1);
+                void V(Vector3 v, float t) { st.SetUV(new Vector2(id, t)); st.AddVertex(v); }
+                if (s == Seg - 1) { V(a0, t0); V(b0, t0); V(P(1), 1); }
+                else { V(a0, t0); V(b0, t0); V(a1, t1); V(b0, t0); V(b1, t1); V(a1, t1); }
+            }
+        }
+        st.GenerateNormals(); return st.Commit();
+    }
 
     static ShaderMaterial Mat(float sway, float wind)
     {
@@ -95,9 +189,13 @@ void fragment(){
             return l;
         }
         var grass = L("grass", "height"); var fern = L("fern", "size"); var bush = L("bush", "size"); var stone = L("stone", "size");
-        var gMat = Mat(0.22f, JsonUtil.F(grass.E, "wind", 1f)); var fMat = Mat(0.12f, 1f); var bMat = Mat(0.04f, 1f);
+        var gMat = BladeMat(grass.E); var fMat = Mat(0.12f, 1f); var bMat = Mat(0.04f, 1f);
         var sMat = World.Mat(new Color(.55f, .54f, .52f), new Color(.2f, .17f, .26f), 1f); sMat.VertexColorUseAsAlbedo = true;
-        var gMesh = GrassClump((int)JsonUtil.F(grass.E, "blades", 6), rnd); var fMesh = Fern((int)JsonUtil.F(fern.E, "leaves", 7), rnd); var bMesh = Bush();
+        int blades = (int)JsonUtil.F(grass.E, "blades", 24); float rad = JsonUtil.F(grass.E, "radius", .3f);
+        var gMesh = Blades(blades, grass.S0, grass.S1, rad, rnd); grass.S0 = grass.S1 = 1f;   // heights are built into the blades
+        var tall = root.TryGetProperty("grassTall", out _) ? L("grassTall", "height") : null; Mesh? tMesh = null; ShaderMaterial? tMat = null;
+        if (tall != null) { tMesh = Blades((int)JsonUtil.F(tall.E, "blades", 14), tall.S0, tall.S1, JsonUtil.F(tall.E, "radius", .22f), rnd); tall.S0 = tall.S1 = 1f; tMat = BladeMat(tall.E); }
+        var fMesh = Fern((int)JsonUtil.F(fern.E, "leaves", 7), rnd); var bMesh = Bush();
         var sMesh = new SphereMesh { Radius = 1, Height = 1.3f, RadialSegments = 6, Rings = 3 };
 
         var holder = new Node3D { Name = "Flora" }; parent.AddChild(holder);
@@ -107,6 +205,7 @@ void fragment(){
             float x0 = -World.Half + cx * chunk, z0 = -World.Half + cz * chunk; var center = new Vector3(x0 + chunk / 2, 0, z0 + chunk / 2);
             if (World.GroundAt(center.X, center.Z) < -2f && World.GroundAt(x0, z0) < -2f) continue; // open sea
             Scatter(holder, grass, gMesh, gMat, x0, z0, chunk, rnd, false);
+            if (tall != null) Scatter(holder, tall, tMesh!, tMat!, x0, z0, chunk, rnd, false);
             Scatter(holder, fern, fMesh, fMat, x0, z0, chunk, rnd, false);
             Scatter(holder, bush, bMesh, bMat, x0, z0, chunk, rnd, true);
             Scatter(holder, stone, sMesh, sMat, x0, z0, chunk, rnd, false, flat: true);
