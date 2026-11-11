@@ -22,6 +22,7 @@ public class Item
     public bool Two { get; set; }                    // two-handed
     public int Up { get; set; }                      // smith upgrades
     public string? Elem { get; set; }                // element (data/gear_fx.json): colours the glow; weapons can inflict its status
+    public string? Model { get; set; }               // weapons: a kit model name (data/weapons.json "kitModels"), e.g. "sword_azure"; null = picked from the type's list
 
     [JsonIgnore] public int Value => Math.Max(1, (int)Math.Round((Dmg * 4 + Def * 4 + Hp * 0.6 + Mp * 0.6) * (1 + Rar * 0.8)));
     [JsonIgnore] public Color Color => Items.RarityColor(Rar);

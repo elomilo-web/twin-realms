@@ -92,8 +92,27 @@ public static class Builder
         var body = new StaticBody3D { Position = new Vector3(0, y0 + floors * S / 2f, 0), CollisionLayer = 1 }; body.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(W + .2f, floors * S + .6f, D + .2f) } }); g.AddChild(body);
     }
 
+    /// <summary>
+    /// A whole-house model (data/env.json "house" "models": [name, scale] pairs, front and door facing +Z), picked by position and
+    /// scaled so its footprint fills w x d (times the listed scale). Stone plinth and a box collider as for the modular houses.
+    /// </summary>
+    static bool WholeHouse(Node parent, float x, float z, float w, float d, float rot)
+    {
+        if (!Kit.Cfg.TryGetProperty("house", out var hc) || !hc.TryGetProperty("models", out var ml)) return false;
+        var models = Kit.Models(ml); if (models.Count == 0) return false;
+        var m = models[Math.Abs((int)(x * 7 + z * 13)) % models.Count]; var p = Kit.Get(m.Name); if (p == null) return false;
+        var box = p.Box; float s = Mathf.Min(w / Mathf.Max(.1f, box.Size.X), d / Mathf.Max(.1f, box.Size.Z)) * m.Scale;
+        var g = Group(parent, x, z, rot, -0.1f);
+        Box(g, new Vector3(box.Size.X * s + .3f, 1.6f, box.Size.Z * s + .3f), new Vector3(0, -.75f, 0), Stone);   // plinth under sloping ground
+        Kit.Add(g, m.Name, new Vector3(0, .05f, 0), 0, s);
+        var body = new StaticBody3D { Position = new Vector3(box.GetCenter().X * s, .05f + box.Size.Y * s * .35f, box.GetCenter().Z * s), CollisionLayer = 1 };
+        body.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(box.Size.X * s, box.Size.Y * s * .7f, box.Size.Z * s) } }); g.AddChild(body);
+        return true;
+    }
+
     static void House(Node parent, float x, float z, float w, float d, float h, float rot)
     {
+        if (Kit.Available && WholeHouse(parent, x, z, w, d, rot)) return;
         if (Kit.Available) { KitHouse(parent, x, z, w, d, h, rot); return; }
         var g = Group(parent, x, z, rot, -0.1f);
         int v = Math.Abs((int)(x * 7 + z * 13)) % 4; var rf = v == 1 ? RoofB : Roof; float rh = Mathf.Max(2.3f, w * .4f), top = h + .5f;

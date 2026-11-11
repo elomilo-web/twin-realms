@@ -62,10 +62,36 @@ public static class Weapons
         return a;
     }
 
+    // kit weapon models (assets/models/kit/weapons, data/weapons.json "kitModels"): type -> model names
+    static readonly Dictionary<string, List<string>> _kit = new();
+    static bool _useKit;
+    static readonly Dictionary<string, PackedScene?> _kitScenes = new();
+    static readonly HashSet<string> Melee = new() { "sword", "greatsword", "axe", "mace", "dagger", "spear" };
+
+    /// <summary>The kit model names listed for a weapon type (empty if none).</summary>
+    public static IReadOnlyList<string> KitModels(string type) { Load(); return _kit.TryGetValue(type, out var l) ? l : new List<string>(); }
+
+    /// <summary>Which kit model an item shows: its own Model if set and present, else one from its type's list (stable per item name). "" = the built-in mesh.</summary>
+    public static string KitModelFor(string wt, Item? it)
+    {
+        Load();
+        if (!string.IsNullOrEmpty(it?.Model) && ResourceLoader.Exists(KitPath(it!.Model!))) return it.Model!;
+        if (!_useKit || !_kit.TryGetValue(wt, out var l) || l.Count == 0) return "";
+        uint h = 2166136261; foreach (char ch in it?.Name ?? wt) h = (h ^ ch) * 16777619;
+        return l[(int)(h % (uint)l.Count)];
+    }
+    static string KitPath(string name) => $"res://assets/models/kit/weapons/{name}.glb";
+
     public static void Load()
     {
         if (_d.Count > 0) return;
         using var doc = JsonUtil.Load("res://data/weapons.json");
+        if (doc.RootElement.TryGetProperty("kitModels", out var km))
+        {
+            _useKit = !km.TryGetProperty("use", out var u) || u.ValueKind != JsonValueKind.False;
+            if (km.TryGetProperty("models", out var mm))
+                foreach (var t in mm.EnumerateObject()) { var l = new List<string>(); foreach (var x in t.Value.EnumerateArray()) l.Add(x.GetString() ?? ""); _kit[t.Name] = l; }
+        }
         foreach (var t in doc.RootElement.GetProperty("types").EnumerateObject())
         {
             var e = t.Value; var w = new WeaponDef
@@ -99,6 +125,8 @@ public static class Weapons
     /// <summary>Builds the weapon under parent (grip at origin, pointing -Z). Returns the trail markers (blade base and tip) for melee weapons.</summary>
     public static (Node3D? baseN, Node3D? tipN) Build(Node3D parent, string wt, Item? it)
     {
+        string km = KitModelFor(wt, it);
+        if (km != "" && BuildKit(parent, wt, km) is { } kr) return kr;
         int rar = it?.Rar ?? 0; var rc = Items.RarityColor(rar);
         var steel = M(new Color(.78f, .8f, .85f), .85f, .3f); var dark = M(new Color(.32f, .33f, .36f), .8f, .4f);
         var wood = Gfx.Tex(M(new Color(.42f, .28f, .16f)), "grain", .4f, true, .6f); var wrap = Gfx.Tex(M(new Color(.28f, .17f, .1f)), "cloth", .12f);
@@ -179,6 +207,27 @@ public static class Weapons
                 b = Mark(-.28f); t = Mark(-1.15f); break;
         }
         Gfx.MergeChildren(parent);
+        return (b, t);
+    }
+
+    /// <summary>
+    /// A kit weapon model under parent. Kit weapons hold the grip at the origin and point +Y, so they are turned to point -Z like the built-in meshes;
+    /// bows stay upright (limbs along Y, as the built-in bow). Melee weapons get trail markers from the blade's length. Null if the file is missing.
+    /// </summary>
+    static (Node3D?, Node3D?)? BuildKit(Node3D parent, string wt, string name)
+    {
+        if (!_kitScenes.TryGetValue(name, out var ps)) _kitScenes[name] = ps = ResourceLoader.Exists(KitPath(name)) ? GD.Load<PackedScene>(KitPath(name)) : null;
+        if (ps?.Instantiate() is not Node3D model) { GD.PushWarning("[WEAPONS] missing kit model " + name); return null; }
+        if (wt != "bow") model.Rotation = new Vector3(-H, 0, 0);
+        parent.AddChild(model);
+        float len = 0;
+        foreach (var mi in model.FindChildren("*", "MeshInstance3D", true, false)) if (mi is MeshInstance3D m && m.Mesh != null) len = Mathf.Max(len, (m.Transform * m.Mesh.GetAabb()).End.Y);
+        Node3D? b = null, t = null;
+        if (Melee.Contains(wt) && len > .1f)
+        {
+            b = new Node3D { Position = new Vector3(0, 0, -len * .3f) }; parent.AddChild(b);
+            t = new Node3D { Position = new Vector3(0, 0, -len) }; parent.AddChild(t);
+        }
         return (b, t);
     }
 }

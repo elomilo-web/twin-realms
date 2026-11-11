@@ -1,5 +1,20 @@
 {
     "_help":  "Weapon types. Poses are in the hero\u0027s model space (forward -Z, right +X, metres): h = hand position, d = [yaw, pitch] of the weapon in degrees (yaw +90 = points left, pitch +90 = points up). Each attack: dur (s at speed 1), wind (fraction spent winding up), hit (fraction when damage lands), dmg (x weapon damage), arc (half-angle, degrees), range (m), knock, stun (s), up (knock-up speed), lunge (m), spin (degrees the body turns), finisher (true = combo finisher, boosted by finisher passives), keys = [wind-up pose, mid-swing pose, follow-through pose]. Scaling: base 5 + str/dex/mag x attribute + item damage, times dmg. onHit = status chances per hit.",
+    "kitModels":  {
+                      "_help":  "Twin Realms kit weapon models (assets/models/kit/weapons/<name>.glb) each weapon type can show. An item with a Model field shows that model; otherwise one is picked from its type's list by the item's name, so a weapon keeps its look. use = false: the built-in meshes everywhere. Not listed (no matching type yet): shield_round, shield_kite, shield_tower, buckler, crossbow, chakram, claws.",
+                      "use":  true,
+                      "models":  {
+                                     "sword":  ["sword_knight", "sword_azure", "sword_ember", "sword_verdant", "sword_shadow", "sword_frost", "sword_royal", "katana", "rapier", "shortsword", "saber", "saber_moon", "cutlass"],
+                                     "greatsword":  ["greatsword_sun", "claymore_storm", "greataxe_void", "greathammer", "scythe_reaper"],
+                                     "axe":  ["axe", "axe_double"],
+                                     "mace":  ["mace", "morningstar", "warhammer", "scepter"],
+                                     "dagger":  ["dagger", "kunai"],
+                                     "spear":  ["spear", "halberd", "glaive_tide", "lance", "trident"],
+                                     "bow":  ["bow_wood", "bow_spirit", "longbow_gilded"],
+                                     "wand":  ["wand_star", "wand_frost", "orb_catalyst", "orb_catalyst_ember", "tome_azure", "tome_crimson"],
+                                     "staff":  ["staff_azure", "staff_ember", "staff_crystal", "staff_verdant"]
+                                 }
+                  },
     "types":  {
                   "sword":  {
                                 "name":  "Sword",

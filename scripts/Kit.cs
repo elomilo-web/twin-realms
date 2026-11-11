@@ -22,11 +22,11 @@ public static class Kit
     /// <summary>True when the kit files are present and data/env.json does not disable them.</summary>
     public static bool Available => _ok ??= ResourceLoader.Exists(Dir + "village/Wall_Plaster_Straight.gltf") && !(Cfg.TryGetProperty("enabled", out var e) && e.ValueKind == JsonValueKind.False);
 
-    /// <summary>A model by its env path, e.g. "nature/Pine_1" (null if missing).</summary>
+    /// <summary>A model by its env path, e.g. "nature/Pine_1", or a Twin Realms kit model, e.g. "kit/nature/tree_round_a" (assets/models/kit, .glb). Null if missing.</summary>
     public static Piece? Get(string name)
     {
         if (_cache.TryGetValue(name, out var p)) return p;
-        var path = Dir + name + ".gltf";
+        var path = name.StartsWith("kit/") ? "res://assets/models/" + name + ".glb" : Dir + name + ".gltf";
         if (ResourceLoader.Exists(path) && GD.Load<PackedScene>(path)?.Instantiate() is Node root)
         {
             var parts = new List<(MeshInstance3D mi, Transform3D t)>();
