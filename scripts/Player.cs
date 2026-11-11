@@ -419,7 +419,7 @@ public partial class Player : CharacterBody3D, IDamageable
         var dir = new Vector3(input.X, 0, input.Y).Rotated(Vector3.Up, camYaw);
 
         // ---- hotkeys
-        for (int i = 0; i < 6; i++) if (captured && Input.IsActionJustPressed("spell" + (i + 1))) TryCast(i);
+        SkillKeys(captured, dt);   // press casts, or hold to aim (ground spells) / charge (projectiles), release casts
         if (captured && Input.IsActionJustPressed(Inputs.PotHp)) UsePotion(true);
         if (captured && Input.IsActionJustPressed(Inputs.PotMp)) UsePotion(false);
         if (captured && Input.IsActionJustPressed(Inputs.Mount)) ToggleMount();

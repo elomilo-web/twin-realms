@@ -366,6 +366,32 @@ public partial class Bot : Node
             }
         });
 
+        await Step("hold to aim and hold to charge", async () =>
+        {
+            var d = Game.D; d.Level = Math.Max(d.Level, 8);
+            foreach (var id in new[] { "meteor", "fire" }) if (!d.Skills.ContainsKey(id)) d.Skills[id] = new SkillState();
+            var keepBar = (string[])d.Bar.Clone(); d.Bar[0] = "meteor"; d.Bar[1] = "fire";
+            var spot = World.OnGround(-80, -80, .5f); P.Teleport(spot, 0f); Targeting.Clear(); await Wait(.4f); Heal();
+            // meteor: hold shows the preview, release drops the strike where the preview was
+            Press("spell1", true); await Wait(.6f);
+            MeshInstance3D? disc = null; foreach (var n in Game.Root!.GetChildren()) if (n is MeshInstance3D mi && mi.Mesh is CylinderMesh) disc = mi;
+            Check("holding an area spell shows a preview", disc != null);
+            var where = disc?.GlobalPosition ?? Vector3.Zero; await Shot("21_aim_preview");
+            Press("spell1", false); await Wait(1.2f);
+            SkillZone? z = null; foreach (var n in Game.Root.GetChildren()) if (n is SkillZone sz) z = sz;
+            Check("released area spell lands on the preview", z != null && new Vector2(z.GlobalPosition.X - where.X, z.GlobalPosition.Z - where.Z).Length() < .6f, z != null ? $"{new Vector2(z.GlobalPosition.X - where.X, z.GlobalPosition.Z - where.Z).Length():0.00} m off" : "no zone");
+            await Wait(2.5f); Heal();
+            // fire: a tap fires a normal bolt; holding a full second fires an empowered one
+            float Fire(Func<Projectile, float> f) { float best = 0; foreach (var n in GetTree().GetNodesInGroup("projectiles")) if (n is Projectile pr && pr.Own == 'p' && pr.Calc?.Def.Id == "fire") best = Mathf.Max(best, f(pr)); return best; }
+            Press("spell2", true); await Wait(.05f); Press("spell2", false); await Wait(.45f);
+            float tap = Fire(pr => pr.Dmg); await Wait(3f); Heal();
+            Press("spell2", true); await Wait(.6f); Check("charging shows a charge bar", P.ChargeFrac > .3f, $"{P.ChargeFrac:0.00}");
+            await Shot("22_charge_bar"); await Wait(.6f); Press("spell2", false); await Wait(.45f);
+            float full = Fire(pr => pr.Dmg); bool big = Fire(pr => pr.Big ? 1 : 0) > 0;
+            Check("a full charge fires an empowered spell", full > tap * 1.5f && big, $"tap {tap:0} dmg, charged {full:0} dmg, big {big}");
+            d.Bar = keepBar; Game.Notify(); await Wait(2f);
+        });
+
         await Step("basic attack chains", async () =>
         {
             var d = Game.D; var keepW = d.Eq.GetValueOrDefault("weapon"); var keepS = d.Eq.GetValueOrDefault("shield");

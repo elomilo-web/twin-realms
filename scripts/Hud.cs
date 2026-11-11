@@ -109,6 +109,14 @@ public partial class HudCanvas : Control
         if (Net.Active) DrawLobby(sz, u, pad, fs(1f));
         // crosshair
         DrawCircle(sz / 2, 3f, new Color(1, 1, 1, .75f));
+        // charging a spell: a bar under the crosshair, golden when full
+        if (p.ChargeFrac >= 0)
+        {
+            float bw = u * 12, bh = Mathf.Max(6, u * .6f); var br = new Rect2(sz.X / 2 - bw / 2, sz.Y / 2 - u * 4.5f, bw, bh);   // above the crosshair, clear of the hero
+            bool full = p.ChargeFrac >= .999f;
+            SlantBar(br, p.ChargeFrac, full ? UiTheme.Highlight : UiTheme.Accent, 4, 6);
+            Txt(new Vector2(br.Position.X, br.Position.Y - 4), full ? $"{p.ChargeName}: empowered" : $"{p.ChargeName}: charging", fs(.95f), full ? UiTheme.Highlight : Colors.White, HorizontalAlignment.Center, bw);
+        }
         // prompt
         if (p.Prompt != "" && !Ui.AnyOpen)
         {

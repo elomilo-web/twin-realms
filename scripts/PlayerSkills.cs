@@ -21,7 +21,70 @@ public partial class Player
 
     static readonly HashSet<string> WeaponKinds = new() { "melee", "spin", "leap", "dash" };
 
-    void TryCast(int slot)
+    // ---------------------------------------------------------------- hold to aim / hold to charge
+    /// <summary>Ground zones, strikes and leaps: hold the key to place them, release to cast.</summary>
+    static bool Aimed(SkillDef k) => (k.Kind == "zone" && !k.Self) || k.Kind == "strike" || k.Kind == "leap";
+    /// <summary>Projectiles and chain spells: hold the key to charge, release to fire (stronger the longer, up to ChargeTime).</summary>
+    static bool Charged(SkillDef k) => k.Kind is "projectile" or "chain";
+    const float ChargeTime = 1f, TapTime = .15f;
+    int _holdSlot = -1; float _holdT; MeshInstance3D? _aimDisc; Vector3 _aimAt;
+    /// <summary>For the HUD: 0..1 while a spell charges, -1 otherwise.</summary>
+    public float ChargeFrac => _holdSlot >= 0 && _aimDisc == null ? Mathf.Clamp(_holdT / ChargeTime, 0, 1) : -1f;
+    public string ChargeName => _holdSlot >= 0 ? Skills.Get(Game.D.Bar[_holdSlot])?.Name ?? "" : "";
+
+    /// <summary>Skill key handling for one frame: press starts aiming or charging (or casts at once), release casts.</summary>
+    void SkillKeys(bool captured, float dt)
+    {
+        if (_holdSlot >= 0)
+        {
+            string act = "spell" + (_holdSlot + 1); var hk = Skills.Get(Game.D.Bar[_holdSlot]);
+            if (hk == null || Dead || !captured) { EndHold(); return; }
+            _holdT += dt;
+            if (_aimDisc != null) { _aimAt = AimGround(hk); _aimDisc.GlobalPosition = _aimAt + Vector3.Up * .08f; }
+            if (!Input.IsActionPressed(act))
+            {
+                int s = _holdSlot; bool aimed = _aimDisc != null; float ch = _holdT < TapTime ? 0 : Mathf.Clamp(_holdT / ChargeTime, 0, 1); var at = _aimAt;
+                EndHold(); TryCast(s, aimed ? at : null, aimed ? 0 : ch);
+            }
+            return;
+        }
+        for (int i = 0; i < 6; i++)
+        {
+            if (!captured || !Input.IsActionJustPressed("spell" + (i + 1))) continue;
+            var id = i < Game.D.Bar.Length ? Game.D.Bar[i] : null; var k = string.IsNullOrEmpty(id) ? null : Skills.Get(id);
+            if (k == null || !Game.D.Skills.ContainsKey(id!) || (!Aimed(k) && !Charged(k)) || !CanCast(id!, true)) { TryCast(i); continue; }
+            _holdSlot = i; _holdT = 0;
+            if (Aimed(k))
+            {
+                // the preview: the spell's real radius on the ground, in its damage colour
+                var c = Skills.Compute(id!); float r = Mathf.Max(1.2f, k.Kind == "leap" ? c.Radius : c.Radius); var col = Dmg.TypeColor(c.Type);
+                var mat = new StandardMaterial3D { AlbedoColor = new Color(col.Lightened(.2f), .45f), ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, BlendMode = BaseMaterial3D.BlendModeEnum.Add, NoDepthTest = false };
+                _aimDisc = new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = r, BottomRadius = r, Height = .05f, RadialSegments = 40 }, MaterialOverride = mat, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
+                _aimDisc.AddChild(new MeshInstance3D { Mesh = new TorusMesh { InnerRadius = r * .94f, OuterRadius = r, Rings = 48, RingSegments = 3 }, Position = Vector3.Up * .03f, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+                    MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(col.Lightened(.4f), 1f), ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, BlendMode = BaseMaterial3D.BlendModeEnum.Add } });
+                Game.Root!.AddChild(_aimDisc); _aimAt = AimGround(k); _aimDisc.GlobalPosition = _aimAt + Vector3.Up * .08f;
+            }
+            break;
+        }
+    }
+    void EndHold() { _holdSlot = -1; _holdT = 0; if (_aimDisc != null && IsInstanceValid(_aimDisc)) _aimDisc.QueueFree(); _aimDisc = null; }
+    /// <summary>The ground point under the crosshair, pulled in to the skill's range.</summary>
+    Vector3 AimGround(SkillDef k)
+    {
+        float range = k.Kind == "leap" ? k.Range : k.Kind == "strike" ? 45f : 40f;
+        var p = AimPoint(range + 10f).point; var d = p - GlobalPosition; d.Y = 0;
+        if (d.Length() > range) d = d.Normalized() * range;
+        return Ground(GlobalPosition + d);
+    }
+    /// <summary>The checks TryCast makes before paying, without paying (quiet = no messages for "not ready").</summary>
+    bool CanCast(string id, bool quiet)
+    {
+        if (Dead || Busy || _rollT > 0 || _stagger > 0 || Mounted || CdOf(id) > 0) return false;
+        var c = Skills.Compute(id); if (c.Def.Tags.Contains("bow") && Game.D.WType() != "bow") return false;
+        return Mp >= c.Mp && St >= c.St;
+    }
+
+    void TryCast(int slot, Vector3? at = null, float charge = 0)
     {
         var D = Game.D; if (slot >= D.Bar.Length) return; var id = D.Bar[slot];
         if (string.IsNullOrEmpty(id) || !D.Skills.ContainsKey(id) || Skills.Get(id) == null) { Ui.Note($"No skill on key {Inputs.KeyOf("spell" + (slot + 1))}. Press {Inputs.KeyOf(Inputs.SkillsUi)} to set one.", new Color(.7f, .8f, 1)); return; }
@@ -29,6 +92,12 @@ public partial class Player
         if (Mounted) { Ui.Note("You cannot use skills while mounted", new Color(0.7f, 0.8f, 1)); return; }
         if (CdOf(id) > 0) return;
         var c = Skills.Compute(id); var k = c.Def;
+        c.At = at;
+        if (charge > 0)
+        {   // empowered: up to +80% damage, +30% area, faster and bigger, for up to 25% more mana
+            c.Charge = charge; c.Dmg *= 1 + .8f * charge; c.Radius *= 1 + .3f * charge; c.Speed *= 1 + .2f * charge; c.Mp *= 1 + .25f * charge;
+            if (charge >= .999f) FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.3f, 0), "Empowered", new Color(1f, .82f, .4f), .6f);
+        }
         if (k.Tags.Contains("bow") && D.WType() != "bow") { Ui.Note(k.Name + " needs a bow", new Color(1, .6f, .5f)); return; }
         if (Mp < c.Mp) { Ui.Note("Not enough mana", new Color(0.4f, 0.65f, 1f)); return; }
         if (St < c.St) { Ui.Note("Not enough stamina", new Color(0.6f, 0.9f, .7f)); return; }
@@ -128,9 +197,9 @@ public partial class Player
                     float a = spread >= Mathf.Tau - .01f ? i * Mathf.Tau / n : n > 1 ? (i / (float)(n - 1) - .5f) * spread : 0;
                     var d = dir.Rotated(Vector3.Up, a);
                     string vis = c.Type == "fire" ? "fire" : k.Arrow || (k.Scale == "weapon" && c.Type == "physical") ? "arrow" : "bolt";
-                    var p = Projectile.Spawn(vis, 'p', origin, d * c.Speed + (vis == "arrow" ? Vector3.Up * .5f : Vector3.Zero), c.Dmg, 2.4f, Crit(c), false, c.Radius);
+                    var p = Projectile.Spawn(vis, 'p', origin, d * c.Speed + (vis == "arrow" ? Vector3.Up * .5f : Vector3.Zero), c.Dmg, 2.4f, Crit(c), false, c.Radius, c.Charge > .5f);   // empowered: drawn bigger
                     p.Calc = c; p.PierceLeft = c.Pierce; p.ChainLeft = c.Chain; p.Homing = c.Homing; p.Tint = col;
-                    SpellFx.SkillAttach(k.Id, "travel", p);
+                    SpellFx.SkillAttach(k.Id, "travel", p, null, 1f + .6f * c.Charge);
                 }
                 break;
             }
@@ -159,12 +228,12 @@ public partial class Player
             }
             case "zone":
             {
-                var at = k.Self ? GlobalPosition : Ground(Aim(40f, forced).pt);
+                var at = k.Self ? GlobalPosition : c.At ?? Ground(Aim(40f, forced).pt);
                 var z = new SkillZone { Calc = c, Col = col, Rain = k.Id == "rain" }; Game.Root!.AddChild(z); z.GlobalPosition = at; break;
             }
             case "strike":
             {
-                var at = Ground(Aim(45f, forced).pt);
+                var at = c.At ?? Ground(Aim(45f, forced).pt);
                 var s = new SkillZone { Calc = c, Col = col, Strike = true }; Game.Root!.AddChild(s); s.GlobalPosition = at; break;
             }
             case "melee":
@@ -187,7 +256,7 @@ public partial class Player
                 SpellFx.SkillAttach(k.Id, "ground", this, Vector3.Up * .06f, FxFit(k.Id, "ground", c.Radius), _spinLeft); break;
             case "leap":
             {
-                var target = forced ?? Targeting.Current; var to = target != null && IsInstanceValid(target) ? target.GlobalPosition : Aim(k.Range).pt;
+                var target = forced ?? Targeting.Current; var to = c.At ?? (target != null && IsInstanceValid(target) ? target.GlobalPosition : Aim(k.Range).pt);
                 var d = to - GlobalPosition; d.Y = 0; if (d.Length() > k.Range) d = d.Normalized() * k.Range; if (d.Length() > 1.4f) d -= d.Normalized() * 1.2f;
                 _moveFrom = GlobalPosition; _moveTo = Ground(GlobalPosition + d) + Vector3.Up * .1f; _moveDur = .45f; _moveT = _moveDur; _moveArc = 2.6f; _moveSkill = c; break;
             }

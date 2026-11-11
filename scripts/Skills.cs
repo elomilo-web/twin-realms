@@ -23,6 +23,8 @@ public class SkillCalc
     public SkillDef Def = null!; public string Type = "physical";
     public float Dmg, Mp, St, Cd, Cast, Radius, Speed, Spread, Knock, Stun, Up, Leech, Execute, Heal, Dur, Tick, AutoCd;
     public int Count, Pierce, Chain, Echo; public bool Homing; public string Auto = "";
+    public Vector3? At;      // aimed skills: where the player put the preview while holding the key
+    public float Charge;     // charged skills: 0..1, how long the key was held (empowers the cast)
     public List<(string id, float chance, float durMul, float pow)> Status = new();
     public HitInfo Hit(float dmg, Vector3 from, bool crit) => new() { Damage = dmg, From = from, Knock = Knock, Stun = Stun, Up = Up, Crit = crit, IsPlayer = true, Attacker = Player.Instance, Type = Type, Statuses = Status, Leech = Leech, Execute = Execute, Fire = Type == "fire" };
 }
