@@ -26,6 +26,17 @@ Not used (licence): Bestiary â€“ Dungeon Monsters Kit is under the Quaterni
 |---|---|---|
 | `Characters/GLB format/*` | Kenney mini character pack, added by hand | CC0 (Kenney) â€” not used in game, excluded from exports |
 
+## Ground textures (`textures/terrain/`), blended by the terrain shader in `scripts/World.cs` (settings: `data/look.json` "terrain")
+All from ambientCG (ambientcg.com), CC0 1.0, 1K JPG. Colour map kept for each, the OpenGL normal map for four of them; the other maps were not used.
+| File | ambientCG material | Used for |
+|---|---|---|
+| `grass_col.jpg`, `grass_nrm.jpg` | Grass004 | open grass |
+| `meadow_col.jpg`, `meadow_nrm.jpg` | Ground037 | grass with dirt patches |
+| `gravel_col.jpg`, `gravel_nrm.jpg` | Gravel022 | gravel patches, roads |
+| `rock_col.jpg`, `rock_nrm.jpg` | Rock030 | steep slopes, mountains |
+| `sand_col.jpg` | Ground054 | shore, packed dirt on roads |
+| `forest_col.jpg` | Ground048 | forest floor under trees |
+
 ## Music (`audio/music/`), played by `Sfx.cs` with long quiet gaps between songs
 | File | Title / author | Source |
 |---|---|---|

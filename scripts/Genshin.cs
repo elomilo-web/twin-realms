@@ -20,7 +20,7 @@ public static class Genshin
     static bool _loaded, _on = true, _hull = true;
     static float _rim = .35f, _rimWidth = .28f, _threshold = .5f, _feather = .015f, _ambient = .55f, _shadows = 1f, _lineWidth = 1.8f, _lineMax = .012f, _lineFade = 60f, _hairSpec = .35f, _metalSpec = .8f;
     static Color _line = new(.32f, .2f, .22f);
-    static float _metalMin = .6f;   // below this metallic value a material is cloth/leather: no metal bands, no highlight
+    static float _metalMin = .6f, _sunScale = 1f;   // below this metallic value a material is cloth/leather: no metal bands, no highlight
     static Shader? _toon, _toonTwoSided, _outline;
     static readonly Dictionary<Kind, (Texture2D day, Texture2D night)> _ramps = new();
     static Texture2D? _metalRamp;
@@ -39,6 +39,7 @@ public static class Genshin
             _threshold = JsonUtil.F(g, "shadowThreshold", _threshold); _feather = JsonUtil.F(g, "shadowFeather", _feather);
             _ambient = JsonUtil.F(g, "ambient", _ambient); _shadows = JsonUtil.F(g, "receiveShadows", _shadows);
             _lineWidth = JsonUtil.F(g, "outlineWidth", _lineWidth); _lineMax = JsonUtil.F(g, "outlineMaxWidth", _lineMax); _lineFade = JsonUtil.F(g, "outlineFade", _lineFade);
+            _sunScale = JsonUtil.F(g, "sunScale", _sunScale);
             _hairSpec = JsonUtil.F(g, "hairHighlight", _hairSpec); _metalSpec = JsonUtil.F(g, "metalHighlight", _metalSpec); _metalMin = JsonUtil.F(g, "metalMin", _metalMin);
             string lc = JsonUtil.S(g, "outlineColor"); if (lc != "") _line = Color.FromHtml(lc);
         }
@@ -96,7 +97,7 @@ public static class Genshin
         var (day, nightRamp) = _ramps[kind];
         m.SetShaderParameter("ramp_day", day); m.SetShaderParameter("ramp_night", nightRamp); m.SetShaderParameter("night", Mathf.Max(_night, 0f));
         m.SetShaderParameter("shadow_threshold", _threshold); m.SetShaderParameter("shadow_feather", _feather);
-        m.SetShaderParameter("ambient_strength", _ambient); m.SetShaderParameter("receive_shadows", _shadows);
+        m.SetShaderParameter("ambient_strength", _ambient); m.SetShaderParameter("receive_shadows", _shadows); m.SetShaderParameter("sun_scale", _sunScale);
         float metal = Mathf.Clamp((b.Metallic - _metalMin) / Mathf.Max(.01f, 1f - _metalMin), 0, 1);   // only real metal gets the bands
         m.SetShaderParameter("metal", metal); m.SetShaderParameter("metal_ramp", _metalRamp!);
         m.SetShaderParameter("spec_strength", metal > .2f ? _metalSpec : kind == Kind.Hair ? _hairSpec : 0f);

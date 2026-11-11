@@ -32,6 +32,7 @@ uniform float shadow_feather : hint_range(0.0, 0.2) = 0.015;   // softness of th
 uniform float receive_shadows : hint_range(0.0, 1.0) = 1.0;    // how much shadows cast by other objects show
 uniform float ambient_strength : hint_range(0.0, 1.0) = 0.55;  // how much of the scene's ambient light the surface takes
 uniform float point_light_floor : hint_range(0.0, 1.0) = 0.35; // unlit side under torches and spell lights
+uniform float sun_scale : hint_range(0.0, 2.0) = 1.0;          // sunlight on characters relative to the world (lit cloth burned out to a pale sheen)
 
 group_uniforms Ilm;
 uniform bool use_light_map = false;
@@ -89,7 +90,7 @@ void light() {
 	vec3 n = normalize(NORMAL);
 	vec3 l = normalize(LIGHT);
 	vec3 v = normalize(VIEW);
-	vec3 lc = LIGHT_COLOR / PI;
+	vec3 lc = LIGHT_COLOR / PI * (LIGHT_IS_DIRECTIONAL ? sun_scale : 1.0);
 	float half_l = dot(n, l) * 0.5 + 0.5;
 
 	if (!LIGHT_IS_DIRECTIONAL) {

@@ -26,13 +26,13 @@ void vertex(){
   NORMAL = normalize(inverse(mat3(MODEL_MATRIX)) * vec3(0.0, 1.0, 0.0));
 }
 void fragment(){
-  vec3 base = COLOR.rgb * mix(0.42, 1.18, h);
+  vec3 base = COLOR.rgb * mix(0.45, 1.0, h);   // dark roots, tips no brighter than the colour (brighter tips burned out to pale yellow in sunlight)
   float l = dot(base, vec3(0.33));
   vec3 sh = vec3(l * 0.45, l * 0.32, l * 0.9) + vec3(0.02, 0.0, 0.06);
   ALBEDO = mix(base, sh, realm_t);
   EMISSION = realm_t * vec3(0.25, 0.75, 0.85) * h * h * 0.35;
-  ROUGHNESS = 0.9;
-  BACKLIGHT = vec3(0.25, 0.35, 0.1) * h * (1.0 - realm_t);
+  ROUGHNESS = 0.95; SPECULAR = 0.05;   // matte blades (the default highlight made the tips look pale and glossy)
+  BACKLIGHT = vec3(0.1, 0.16, 0.04) * h * (1.0 - realm_t);
 }";
 
     public static readonly List<ShaderMaterial> Materials = new();
@@ -49,7 +49,7 @@ void fragment(){
         var st = new SurfaceTool(); st.Begin(Mesh.PrimitiveType.Triangles);
         for (int i = 0; i < blades; i++)
         {
-            float a = (float)(r.NextDouble() * Mathf.Tau), off = (float)r.NextDouble() * 0.22f, w = 0.035f + (float)r.NextDouble() * 0.03f, ht = 0.7f + (float)r.NextDouble() * 0.5f, lean = 0.12f + (float)r.NextDouble() * 0.25f;
+            float a = (float)(r.NextDouble() * Mathf.Tau), off = (float)r.NextDouble() * 0.22f, w = 0.022f + (float)r.NextDouble() * 0.02f, ht = 0.7f + (float)r.NextDouble() * 0.5f, lean = 0.12f + (float)r.NextDouble() * 0.25f;
             var dir = new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)); var side = new Vector3(-dir.Z, 0, dir.X);
             var root = dir * off; var tip = root + dir * lean * ht + Vector3.Up * ht;
             st.SetUV(new Vector2(0, 0)); st.AddVertex(root - side * w);

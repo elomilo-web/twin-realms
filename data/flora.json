@@ -1,9 +1,9 @@
-﻿{
+{
  "_comment": "Scenery ground cover, scattered per 32 m chunk. 'per' = attempts per chunk; 'range' = draw distance in metres; heights are terrain heights in metres.",
  "chunk": 32,
  "seed": 4242,
- "grass": { "per": 750, "range": 56, "minH": 1.7, "maxH": 32, "blades": 9, "height": [0.32, 0.7], "colors": ["#4f8a2e", "#5f9a34", "#6f9e3a", "#7d9a40", "#4a7d32"], "wind": 1.0 },
+ "grass": { "per": 1500, "range": 75, "minH": 1.7, "maxH": 34, "blades": 16, "height": [0.3, 0.8], "colors": ["#3f5a1c", "#4a6020", "#536626", "#3a521a", "#5a6628", "#45561e"], "wind": 1.0 },
  "fern": { "per": 10, "range": 85, "minH": 2, "maxH": 26, "leaves": 7, "size": [0.6, 1.1], "colors": ["#2f6b2a", "#3b7a30", "#2a5e2c"], "forestOnly": true },
  "bush": { "per": 7, "range": 160, "minH": 1.8, "maxH": 30, "size": [0.6, 1.3], "colors": ["#3d6e2c", "#4a7a30", "#56802f", "#365f2a"] },
- "stone": { "per": 6, "range": 90, "minH": 1.0, "maxH": 60, "size": [0.12, 0.35], "colors": ["#8a8781", "#77746f", "#9a958c"] }
+ "stone": { "per": 14, "range": 90, "minH": 1.0, "maxH": 60, "size": [0.12, 0.35], "colors": ["#8a8781", "#77746f", "#9a958c"] }
 }

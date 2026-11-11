@@ -3,7 +3,7 @@
  "toon": {
   "enabled": true,
   "bandSoftness": 0.55,
-  "rim": 0.3,
+  "rim": 0.08,
   "rimTint": 0.6,
   "outlineWidth": 1.2,
   "outlineDepth": 0.07,
@@ -24,25 +24,26 @@
   "shadowFeather": 0.015,
   "receiveShadows": 1.0,
   "ambient": 0.35,
-  "rim": 0.35,
-  "rimWidth": 0.28,
-  "hairHighlight": 0.3,
+  "rim": 0.12,
+  "rimWidth": 0.2,
+  "hairHighlight": 0.08,
+  "sunScale": 0.8,
   "metalHighlight": 0.8,
   "metalMin": 0.6,
   "_rampsHelp": "Shadow colours, multiplied with the base colour: [deep shadow, shadow, saturated band at the shadow edge]; the lit side is white. Warm on skin, cool violet on cloth and hair; night ramps bluer. metalMin: materials less metallic than this get no metal bands or highlight (leather and cloth were glossy).",
   "ramps": {
    "skin": { "day": ["b8787c", "d89a92", "fcae96"], "night": ["8a7aa8", "a896bc", "c49cbc"] },
-   "cloth": { "day": ["7a72a8", "9c94c8", "c8a8d6"], "night": ["5e66a4", "7a84bc", "9a94c8"] },
-   "hair": { "day": ["7e6c98", "a08cb4", "d4a8bc"], "night": ["5e62a0", "7c80b8", "9a92c4"] }
+   "cloth": { "day": ["7c7488", "9a92a2", "b8aeb4"], "night": ["5e66a4", "7a84bc", "9a94c8"] },
+   "hair": { "day": ["7a6c84", "988aa0", "b8a4ac"], "night": ["5e62a0", "7c80b8", "9a92c4"] }
   }
  },
  "env": {
   "_help": "tonemapMode: 0 linear, 1 reinhard, 2 filmic, 3 aces, 4 agx. ACES with lower exposure and stronger contrast and saturation: deeper, cleaner colours (Filmic looked flatter in tests). A strong sun over low ambient gives the clear lit/shadow split of the Genshin look; little haze keeps distant colours clean.",
   "tonemapMode": 3,
-  "exposure": 0.9,
+  "exposure": 0.85,
   "white": 6.0,
-  "contrast": 1.2,
-  "saturation": 1.42,
+  "contrast": 1.15,
+  "saturation": 1.1,
   "brightness": 1.0,
   "ssaoIntensity": 0.9,
   "ssaoRadius": 1.3,
@@ -52,13 +53,26 @@
   "skyAffect": 0.25,
   "glowIntensity": 0.7,
   "glowBloom": 0.04,
-  "sunDay": 1.75,
+  "sunDay": 1.9,
   "sunSoftness": 0.0,
   "sunNight": 0.3,
-  "ambientDay": 0.5,
+  "ambientDay": 0.32,
   "ambientNight": 0.4,
   "ambientShadow": 1.25,
-  "saturationShadow": 0.9
+  "saturationShadow": 0.9,
+  "_sunHelp": "Sun colour at noon, while low (morning/evening) and at dusk; ambient = the sky fill light in shadow. Warm sun over a cool, dim fill gives the real-daylight look.",
+  "sunNoon": "fff0d6",
+  "sunLow": "ffc685",
+  "sunDusk": "ff8a48",
+  "ambientDayColor": "a3b2c6",
+  "ambientNightColor": "38426f"
+ },
+ "terrain": {
+  "_help": "Ground textures (assets/textures/terrain, CC0 ambientCG) blended by World.cs TerrainShader. *_tile = metres per repeat; *_tint multiplies a texture; saturation/brightness grade the whole ground; meadow_amount = dirt patches in the grass; gravel_amount = gravel patches.",
+  "grass_tile": 3.5, "meadow_tile": 5.0, "gravel_tile": 2.5, "rock_tile": 6.0, "sand_tile": 4.0, "forest_tile": 3.0,
+  "grass_tint": "d4ecb4", "meadow_tint": "ffffff", "forest_tint": "b4b896", "road_tint": "f2e6d2", "rock_tint": "d8d4cc", "sand_tint": "ffffff",
+  "saturation": 1.0, "brightness": 0.92, "normal_depth": 0.9,
+  "meadow_amount": 0.55, "gravel_amount": 0.5
  },
  "sky": {
   "dayTop": "2a64b8",

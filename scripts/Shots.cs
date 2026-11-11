@@ -111,7 +111,13 @@ public partial class Shots : Node
         // forest and rocks outside the village
         Free(World.OnGround(-60, 60, 14f), World.OnGround(-90, 20, 0)); await Wait(1.2f); await Shot("nature_forest");
         Free(World.OnGround(70, -40, 10f), World.OnGround(100, -80, 0)); await Wait(1.2f); await Shot("nature_hills");
+        Free(World.OnGround(-48, 40, 2.2f), World.OnGround(-80, 20, 4f)); await Wait(1.2f); await Shot("nature_ground_eye");
         Free(null);
+        // the hero out in the fields (play camera): ground, grass and trees as the player sees them
+        P.Teleport(World.OnGround(-46, 34, .5f), 2.2f); Cam(2.2f + Mathf.Pi, 4.2f); await Wait(1.5f); await Shot("field_hero");
+        P.Teleport(World.OnGround(30, -40, .5f), -.6f); Cam(-.6f + Mathf.Pi, 4.2f); await Wait(1.5f); await Shot("field_hero_2");
+        World.TimeOfDay = .69f; P.Teleport(World.OnGround(-46, 34, .5f), 2.2f); Cam(2.2f + Mathf.Pi, 4.2f); await Wait(1.5f); await Shot("field_hero_evening");
+        World.TimeOfDay = .45f; P.Teleport(plaza, Mathf.Pi);
         if (OS.GetCmdlineUserArgs().Contains("--look")) return;   // just the hero, village and nature (to compare the look)
 
         // ---- kit weapons in a row (checks orientation: grip at the bottom, blade up after the -Z turn)

@@ -250,15 +250,14 @@ void sky(){
             verts[i] = new Vector3(x, h, z); uvs[i] = new Vector2(ix * Cell / 7f, iz * Cell / 7f);
             float hl = HG[iz * (N + 1) + Math.Max(ix - 1, 0)], hr = HG[iz * (N + 1) + Math.Min(ix + 1, N)], hd = HG[Math.Max(iz - 1, 0) * (N + 1) + ix], hu = HG[Math.Min(iz + 1, N) * (N + 1) + ix];
             var nrm = new Vector3(hl - hr, 2 * Cell, hd - hu).Normalized(); norms[i] = nrm;
-            float ny = nrm.Y, rd = RoadDist(x, z), n1 = Fbm(x * .05f, z * .05f, 3), n2 = VNoise(x * .45f, z * .45f);
-            // richer meadow green (the old one turned pale mint once lit)
-            float r = Mathf.Lerp(.19f, .3f, n1) + (n2 - .5f) * .05f, g = Mathf.Lerp(.44f, .54f, n1) + (n2 - .5f) * .06f, b = Mathf.Lerp(.08f, .12f, n1);
-            float t = Smooth(8, 26, h) * .5f; r = Mathf.Lerp(r, .4f, t); g = Mathf.Lerp(g, .46f, t); b = Mathf.Lerp(b, .22f, t);
-            t = 1 - Smooth(.5f, 1.9f, h); r = Mathf.Lerp(r, .79f, t); g = Mathf.Lerp(g, .72f, t); b = Mathf.Lerp(b, .52f, t);
-            t = Mathf.Max(Smooth(.84f, .64f, ny), Smooth(34, 46, h) * .8f); float rv = .4f + (n2 - .5f) * .1f; r = Mathf.Lerp(r, rv, t); g = Mathf.Lerp(g, rv * .97f, t); b = Mathf.Lerp(b, rv * .94f, t);
-            t = Smooth(52, 60, h) * Smooth(.5f, .78f, ny); r = Mathf.Lerp(r, .93f, t); g = Mathf.Lerp(g, .95f, t); b = Mathf.Lerp(b, .98f, t);
-            t = 1 - Smooth(1.4f, 3.4f, rd); r = Mathf.Lerp(r, .47f, t * .9f); g = Mathf.Lerp(g, .38f, t * .9f); b = Mathf.Lerp(b, .25f, t * .9f);
-            cols[i] = new Color(r, g, b);
+            // ground layer weights for the terrain shader (it blends the textures in assets/textures/terrain):
+            // R = road, G = sand by the water, B = forest floor (same noise that places the trees), A = snow on the peaks.
+            // Rock on steep slopes, grass/dirt patches and gravel patches are worked out in the shader.
+            float ny = nrm.Y, rd = RoadDist(x, z);
+            float road = 1 - Smooth(1.6f, 3.6f, rd), sand = 1 - Smooth(.6f, 2.0f, h);
+            float forest = Smooth(.5f, .68f, Fbm(x * .02f + 3, z * .02f + 9, 3)) * .75f * (1 - Smooth(40, 46, h)) * Smooth(1.6f, 2.6f, h);
+            float snow = Smooth(52, 60, h) * Smooth(.5f, .78f, ny);
+            cols[i] = new Color(road, sand, forest, snow);
         }
         var idx = new int[N * N * 6]; int k = 0;
         for (int iz = 0; iz < N; iz++) for (int ix = 0; ix < N; ix++)
@@ -273,6 +272,21 @@ void sky(){
 
         var sh = new Shader { Code = TerrainShader };
         _terrMat = new ShaderMaterial { Shader = sh }; _terrMat.SetShaderParameter("realm_t", 0f);
+        foreach (var layer in new[] { "grass", "meadow", "gravel", "rock", "sand", "forest" })
+        {
+            string col = $"res://assets/textures/terrain/{layer}_col.jpg", nrm = $"res://assets/textures/terrain/{layer}_nrm.jpg";
+            if (ResourceLoader.Exists(col)) _terrMat.SetShaderParameter(layer + "_col", GD.Load<Texture2D>(col));
+            if (ResourceLoader.Exists(nrm)) _terrMat.SetShaderParameter(layer + "_nrm", GD.Load<Texture2D>(nrm));
+        }
+        // data/look.json "terrain": tile sizes and colour grading of the ground textures
+        using (var ld = JsonUtil.Load("res://data/look.json"))
+            if (ld.RootElement.TryGetProperty("terrain", out var tc))
+                foreach (var p in tc.EnumerateObject())
+                {
+                    if (p.Name.StartsWith("_")) continue;
+                    if (p.Value.ValueKind == JsonValueKind.Number) _terrMat.SetShaderParameter(p.Name, p.Value.GetSingle());
+                    else if (p.Value.ValueKind == JsonValueKind.String) _terrMat.SetShaderParameter(p.Name, Color.FromHtml(p.Value.GetString()!));
+                }
         var body = new StaticBody3D { Name = "Terrain", CollisionLayer = 1 };
         body.AddChild(new MeshInstance3D { Mesh = mesh, MaterialOverride = _terrMat });
         body.AddChild(new CollisionShape3D { Shape = mesh.CreateTrimeshShape() });
@@ -282,28 +296,103 @@ void sky(){
 
     const string TerrainShader = @"
 shader_type spatial;
+render_mode specular_schlick_ggx;
+// Textured ground: grass, patchy grass/dirt, gravel, rock on slopes, sand by the water, forest floor under trees, snow on peaks.
+// Vertex COLOR carries the weights worked out on the CPU (R road, G sand, B forest, A snow); the rest comes from noise and slope.
+// Each texture is read twice at two scales and rotated, and the two are mixed by noise, so the tiling does not show.
 uniform float realm_t = 0.0;
+uniform sampler2D grass_col : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D meadow_col : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D gravel_col : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D rock_col : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D sand_col : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D forest_col : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D grass_nrm : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D meadow_nrm : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D gravel_nrm : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D rock_nrm : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform float grass_tile = 3.5;      // metres per texture repeat
+uniform float meadow_tile = 5.0;
+uniform float gravel_tile = 2.5;
+uniform float rock_tile = 6.0;
+uniform float sand_tile = 4.0;
+uniform float forest_tile = 3.0;
+uniform vec3 grass_tint : source_color = vec3(1.0);
+uniform vec3 meadow_tint : source_color = vec3(1.0);
+uniform vec3 forest_tint : source_color = vec3(1.0);
+uniform vec3 road_tint : source_color = vec3(1.0);
+uniform vec3 rock_tint : source_color = vec3(1.0);
+uniform vec3 sand_tint : source_color = vec3(1.0);
+uniform float saturation = 1.0;
+uniform float brightness = 1.0;
+uniform float normal_depth = 0.8;
+uniform float meadow_amount = 0.55;   // how much of the open grass has dirt patches
+uniform float gravel_amount = 0.5;    // loose gravel patches in the open
 varying vec3 wpos;
+varying vec3 wnrm;
 float h21(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(h21(i), h21(i+vec2(1.0,0.0)), f.x), mix(h21(i+vec2(0.0,1.0)), h21(i+vec2(1.0,1.0)), f.x), f.y); }
 float fb(vec2 p){ return vn(p)*0.5 + vn(p*2.07)*0.25 + vn(p*4.13)*0.125 + vn(p*8.3)*0.0625 + 0.03; }
-void vertex(){ wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz; }
+const mat2 ROT = mat2(vec2(0.80, 0.60), vec2(-0.60, 0.80));
+vec3 tex2(sampler2D s, vec2 p, float k){ return mix(texture(s, p).rgb, texture(s, ROT * p * 0.43 + vec2(0.37, 0.71)).rgb, k); }
+// height-aware blend: where a layer is thin, its bright/raised bits show first (gravel between grass, grass tufts on dirt)
+float hb(float w, float h){ return smoothstep(0.0, 1.0, clamp(w * 1.6 - 0.3 + (h - 0.5) * 0.6, 0.0, 1.0)); }
+float lum(vec3 c){ return dot(c, vec3(0.3, 0.59, 0.11)); }
+void vertex(){
+  wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+  wnrm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
+  // the terrain mesh has no tangents: build them from the world X/Z axes the textures are laid along
+  TANGENT = normalize(vec3(1.0, 0.0, 0.0) - NORMAL * NORMAL.x);
+  BINORMAL = normalize(cross(TANGENT, NORMAL));
+}
 void fragment(){
-  vec3 c = COLOR.rgb;
-  float macro = fb(wpos.xz * 0.012);
-  float meso = fb(wpos.xz * 0.09 + 17.0);
-  float d = length(wpos - CAMERA_POSITION_WORLD);
-  float fd = 1.0 - smoothstep(30.0, 110.0, d);
-  float micro = mix(0.5, vn(wpos.xz * 2.7) * 0.5 + vn(wpos.xz * 8.9) * 0.5, fd);
-  c *= (0.74 + 0.56 * macro) * (0.88 + 0.24 * meso) * (0.86 + 0.28 * micro);
-  float gr = clamp((c.g - max(c.r, c.b)) * 5.0, 0.0, 1.0);
-  c = mix(c, c * vec3(1.14, 1.02, 0.72), gr * smoothstep(0.5, 0.8, macro) * 0.65);
-  float l = dot(c, vec3(0.33));
+  vec2 p = wpos.xz;
+  float k = smoothstep(0.35, 0.65, fb(p * 0.05 + 3.1));                 // which of the two texture reads shows
+  float macro = fb(p * 0.012), patchy = fb(p * 0.06 + 11.0), grit = fb(p * 0.045 + 31.0);
+  float slope = 1.0 - clamp(wnrm.y, 0.0, 1.0);
+
+  vec3 grass = tex2(grass_col, p / grass_tile, k) * grass_tint;
+  vec3 meadow = tex2(meadow_col, p / meadow_tile, k) * meadow_tint;
+  vec3 gravel = tex2(gravel_col, p / gravel_tile, k);
+  vec3 sand = tex2(sand_col, p / sand_tile, k) * sand_tint;
+  vec3 forest = tex2(forest_col, p / forest_tile, k) * forest_tint;
+  // rock: three projections so steep faces are not stretched
+  vec3 bw = pow(abs(wnrm), vec3(4.0)); bw /= (bw.x + bw.y + bw.z);
+  vec3 rock = (texture(rock_col, wpos.zy / rock_tile).rgb * bw.x + texture(rock_col, p / rock_tile).rgb * bw.y + texture(rock_col, wpos.xy / rock_tile).rgb * bw.z) * rock_tint;
+  vec3 road = mix(gravel, sand * 0.85, 0.45 + 0.3 * (patchy - 0.5)) * road_tint;
+
+  float wMeadow = hb(smoothstep(0.42, 0.72, patchy + (macro - 0.5) * 0.4) * meadow_amount, lum(meadow) * 2.0);
+  float wGravel = hb(smoothstep(0.6, 0.74, grit) * gravel_amount, lum(gravel) * 1.6);
+  float wForest = hb(COLOR.b, lum(forest) * 2.2);
+  float wRoad = hb(COLOR.r, lum(road) * 1.8);
+  float wSand = hb(COLOR.g, lum(sand) * 1.5);
+  float wRock = hb(max(smoothstep(0.2, 0.36, slope + (patchy - 0.5) * 0.12), smoothstep(34.0, 46.0, wpos.y) * 0.85), lum(rock) * 2.0);
+  float wSnow = COLOR.a;
+
+  vec3 c = grass;
+  c = mix(c, meadow, wMeadow);
+  c = mix(c, forest, wForest);
+  c = mix(c, gravel, wGravel * (1.0 - COLOR.b));
+  c = mix(c, road, wRoad);
+  c = mix(c, sand, wSand);
+  c = mix(c, rock, wRock);
+  c = mix(c, vec3(0.9, 0.93, 0.97), wSnow);
+  c *= (0.84 + 0.32 * macro);                                             // large soft light/dark patches seen from afar
+  c = mix(vec3(lum(c)), c, saturation) * brightness;
+
+  vec2 np = p;
+  vec3 nG = mix(texture(grass_nrm, np / grass_tile).rgb, texture(meadow_nrm, np / meadow_tile).rgb, max(wMeadow, wForest));
+  nG = mix(nG, texture(gravel_nrm, np / gravel_tile).rgb, max(wGravel * (1.0 - COLOR.b), wRoad));
+  nG = mix(nG, texture(rock_nrm, np / rock_tile).rgb, wRock * bw.y);
+  nG = mix(nG, vec3(0.5, 0.5, 1.0), max(wRock * (1.0 - bw.y), max(wSand, wSnow)));
+  NORMAL_MAP = nG; NORMAL_MAP_DEPTH = normal_depth;
+
+  float l = lum(c);
   vec3 sh = vec3(l * 0.5, l * 0.38, l * 0.85) + vec3(0.03, 0.01, 0.06);
-  float vein = 1.0 - smoothstep(0.0, 0.03, abs(fb(wpos.xz * 0.028 + vec2(5.0, -9.0)) - 0.5));
+  float vein = 1.0 - smoothstep(0.0, 0.03, abs(fb(p * 0.028 + vec2(5.0, -9.0)) - 0.5));
   sh = mix(sh, vec3(0.78, 0.22, 0.6), vein * 0.5 * step(2.0, wpos.y));
   ALBEDO = mix(c, sh, realm_t);
-  ROUGHNESS = 0.95;
+  ROUGHNESS = mix(0.92, 0.6, wSnow); SPECULAR = 0.25;
 }";
 
     void BuildMapImage()
@@ -458,7 +547,8 @@ void fragment(){
     {
         var cfg = Kit.Cfg; float treeVis = cfg.TryGetProperty("trees", out var tr) ? JsonUtil.F(tr, "visEnd", 300f) : 300f;
         // per-tree tint so a forest is not one flat green
-        Color Tint(int i) { float k = (float)i * 0.618034f % 1f, j = (float)i * 0.414213f % 1f; return new Color(.86f + .22f * k, .88f + .18f * j, .84f + .16f * (1 - k)); }
+        // (red kept lower: the lime-topped kit canopies turned orange under the warm sun)
+        Color Tint(int i) { float k = (float)i * 0.618034f % 1f, j = (float)i * 0.414213f % 1f; return new Color(.68f + .2f * k, .86f + .16f * j, .74f + .16f * (1 - k)); }
         void Spread(List<Kit.Model> models, List<Transform3D> list, float vis, Func<int, Color>? tint = null)
         {
             if (models.Count == 0 || list.Count == 0) return;
@@ -474,7 +564,23 @@ void fragment(){
         // leafy trees in the lowlands, pines higher up (same spots; chosen by a hash, so the seed sequence is untouched)
         float oakBelow = JsonUtil.F(tr, "oakBelow", 18f), oakShare = JsonUtil.F(tr, "oakShare", .6f);
         var kp = new List<Transform3D>(); var ko = new List<Transform3D>(); int n = 0;
-        foreach (var t in pines.Concat(oaks)) { float hsh = (n++ * 0.754877f) % 1f; (t.Origin.Y < oakBelow && hsh < oakShare ? ko : kp).Add(t); }
+        // size variety per tree (env.json trees.variety): own width and height, a few giants, a slight lean; from a hash of the spot, so nothing else moves
+        float[] wR = { .8f, 1.3f }, hR = { .75f, 1.45f }, gR = { 1.7f, 2.4f }; float giantShare = .06f, lean = 4f;
+        if (tr.TryGetProperty("variety", out var va))
+        {
+            float[] A(string k, float[] d) => va.TryGetProperty(k, out var a) && a.GetArrayLength() == 2 ? new[] { a[0].GetSingle(), a[1].GetSingle() } : d;
+            wR = A("width", wR); hR = A("height", hR); gR = A("giant", gR); giantShare = JsonUtil.F(va, "giantShare", giantShare); lean = JsonUtil.F(va, "lean", lean);
+        }
+        Transform3D Vary(Transform3D t)
+        {
+            float x = t.Origin.X, z = t.Origin.Z;
+            float H(float s) { float v = Mathf.Sin(x * 12.9898f + z * 78.233f + s) * 43758.5453f; return v - Mathf.Floor(v); }
+            float w = Mathf.Lerp(wR[0], wR[1], H(1)), hgt = Mathf.Lerp(hR[0], hR[1], H(2));
+            if (H(3) < giantShare) { float g = Mathf.Lerp(gR[0], gR[1], H(4)); w *= g; hgt *= g; }
+            var tilt = new Basis(new Vector3(Mathf.Cos(H(5) * Mathf.Tau), 0, Mathf.Sin(H(5) * Mathf.Tau)), Mathf.DegToRad(lean * H(6)));
+            return new Transform3D(tilt * t.Basis * Basis.FromScale(new Vector3(w, hgt, w)), t.Origin - new Vector3(0, .15f * w, 0));
+        }
+        foreach (var t0 in pines.Concat(oaks)) { var t = Vary(t0); float hsh = (n++ * 0.754877f) % 1f; (t.Origin.Y < oakBelow && hsh < oakShare ? ko : kp).Add(t); }
         Spread(Kit.Models("trees", "pine"), kp, treeVis, Tint);
         Spread(Kit.Models("trees", "oak"), ko, treeVis, Tint);
         Spread(Kit.Models("rocks"), rocks.FindAll(t => FreeSpot(t.Origin.X, t.Origin.Z, 1.5f + t.Basis.Scale.X * 2.2f)), treeVis);   // kit rocks are wider than the old boulders: keep them off gates and roads
@@ -492,7 +598,7 @@ void fragment(){
                 if (Fbm(x * .02f + 3, z * .02f + 9, 3) < .42f && rg() < .7f) continue;   // mostly at forest edges
                 float s = R(.75f, 1.25f); list.Add(T(new Vector3(x, h - .05f, z), Vector3.One * s, new Vector3(0, R(0, Mathf.Tau), 0)));
             }
-            Spread(Kit.Models("bushes", "models"), list, JsonUtil.F(bu, "visEnd", 160f));
+            Spread(Kit.Models("bushes", "models"), list, JsonUtil.F(bu, "visEnd", 160f), Tint);
         }
     }
 
@@ -546,7 +652,8 @@ void fragment(){
         Night = (1 - day) * (1 - RealmT) + RealmT * 0.7f;
         Genshin.SetNight(Night);   // characters switch to their cooler night shadow colours
         Sun.RotationDegrees = new Vector3(-Mathf.RadToDeg(Mathf.Asin(Mathf.Clamp(Mathf.Abs(elev) * 0.9f + 0.1f, 0.06f, 1f))), Mathf.RadToDeg(ang) + 90f, 0);
-        var dayCol = new Color(1f, .95f, .86f).Lerp(new Color(1f, .55f, .3f), dusk); var moon = new Color(.55f, .62f, 1f); var shadowCol = new Color(.6f, .35f, .9f);
+        // warm sunlight, more golden while the sun is low (morning and evening), orange at dusk (data/look.json sunNoon / sunLow / sunDusk)
+        var dayCol = LC("sunNoon", "fff1dc").Lerp(LC("sunLow", "ffc98a"), 1f - Smooth(.12f, .6f, elev)).Lerp(LC("sunDusk", "ff8c4a"), dusk); var moon = new Color(.55f, .62f, 1f); var shadowCol = new Color(.6f, .35f, .9f);
         Sun.LightColor = dayCol.Lerp(moon, Smooth(.35f, 0f, day)).Lerp(shadowCol, RealmT);
         Sun.LightEnergy = Mathf.Lerp(LF("sunNight", .22f), LF("sunDay", 1.55f), day) * (1 - RealmT * 0.45f) * (1f - dusk * .25f * day);
         var top = LC("nightTop", "02040d").Lerp(LC("dayTop", "2a64b8"), day).Lerp(LC("duskTop", "2d2f6e"), dusk * .55f).Lerp(LC("shadowTop", "0d0318"), RealmT);
@@ -557,7 +664,7 @@ void fragment(){
         _sky.SetShaderParameter("sun_col", dayCol);
         _cloudT += dt * LF("cloudSpeed", .006f); _sky.SetShaderParameter("wind", new Vector2(_cloudT, _cloudT * .35f));
         _env.FogLightColor = hor.Lerp(top, .25f); _env.FogDensity = Mathf.Lerp(LF("fogDay", .0017f), LF("fogShadow", .0045f), RealmT);
-        _env.AmbientLightColor = new Color(.62f, .68f, .8f).Lerp(new Color(.22f, .26f, .45f), 1 - day).Lerp(new Color(.9f, .55f, .5f), dusk * .45f).Lerp(new Color(.5f, .38f, .68f), RealmT);
+        _env.AmbientLightColor = LC("ambientDayColor", "9eafc8").Lerp(LC("ambientNightColor", "38426f"), 1 - day).Lerp(new Color(.9f, .55f, .5f), dusk * .45f).Lerp(new Color(.5f, .38f, .68f), RealmT);
         _env.AmbientLightEnergy = Mathf.Lerp(LF("ambientNight", .45f), LF("ambientDay", .62f), day) * Mathf.Lerp(1f, LF("ambientShadow", 1.25f), RealmT);
         _env.AdjustmentSaturation = Mathf.Lerp(LF("saturation", 1.2f), LF("saturationShadow", .9f), RealmT);
         if (force || Mathf.Abs(RealmT - _lastRealmT) > 0.001f)
