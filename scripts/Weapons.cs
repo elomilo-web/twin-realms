@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using Godot;
 
@@ -62,23 +64,54 @@ public static class Weapons
         return a;
     }
 
-    // kit weapon models (assets/models/kit/weapons, data/weapons.json "kitModels"): type -> model names
-    static readonly Dictionary<string, List<string>> _kit = new();
-    static bool _useKit;
+    // kit weapon models (assets/models/kit/weapons, data/weapons.json "kitModels"):
+    // type -> base item name (data/items.json weaponNames) -> [model, scale] choices; the element word in the item name picks among them
+    public readonly record struct KitPick(string Model, float Scale);
+    static readonly Dictionary<string, List<(string name, List<KitPick> picks)>> _kitByName = new();
+    static readonly Dictionary<string, Dictionary<string, string[]>> _elemHints = new();
+    static readonly Dictionary<string, string[]> _hint = new();
+    static bool _useKit; static float _jitter = .06f, _elemTint = .3f;
     static readonly Dictionary<string, PackedScene?> _kitScenes = new();
     static readonly HashSet<string> Melee = new() { "sword", "greatsword", "axe", "mace", "dagger", "spear" };
 
-    /// <summary>The kit model names listed for a weapon type (empty if none).</summary>
-    public static IReadOnlyList<string> KitModels(string type) { Load(); return _kit.TryGetValue(type, out var l) ? l : new List<string>(); }
+    /// <summary>Every kit model a weapon type can show (for tests and previews).</summary>
+    public static IReadOnlyList<string> KitModels(string type)
+    {
+        Load(); if (!_kitByName.TryGetValue(type, out var l)) return new List<string>();
+        return l.SelectMany(x => x.picks).Select(p => p.Model).Distinct().ToList();
+    }
+    /// <summary>The base item names a weapon type knows, with their kit models (for the audit in tests).</summary>
+    public static IEnumerable<(string name, IReadOnlyList<KitPick> picks)> KitNames(string type)
+    {
+        Load(); if (_kitByName.TryGetValue(type, out var l)) foreach (var (n, p) in l) yield return (n, p);
+    }
 
-    /// <summary>Which kit model an item shows: its own Model if set and present, else one from its type's list (stable per item name). "" = the built-in mesh.</summary>
-    public static string KitModelFor(string wt, Item? it)
+    static uint Hash(string s) { uint h = 2166136261; foreach (char ch in s) h = (h ^ ch) * 16777619; return h; }
+
+    /// <summary>
+    /// Which kit model an item shows: its own Model if set; else the models listed for the base name in its name ("Bearded Axe" before "Axe"),
+    /// preferring ones that suit its element (an Ember sword picks sword_ember when the name allows it), stable per item name. Model "" = built-in mesh.
+    /// </summary>
+    public static KitPick KitModelFor(string wt, Item? it)
     {
         Load();
-        if (!string.IsNullOrEmpty(it?.Model) && ResourceLoader.Exists(KitPath(it!.Model!))) return it.Model!;
-        if (!_useKit || !_kit.TryGetValue(wt, out var l) || l.Count == 0) return "";
-        uint h = 2166136261; foreach (char ch in it?.Name ?? wt) h = (h ^ ch) * 16777619;
-        return l[(int)(h % (uint)l.Count)];
+        if (!string.IsNullOrEmpty(it?.Model) && ResourceLoader.Exists(KitPath(it!.Model!))) return new KitPick(it.Model!, ScaleOf(wt, it.Model!));
+        if (!_useKit || !_kitByName.TryGetValue(wt, out var l) || l.Count == 0) return new KitPick("", 1);
+        string name = it?.Name ?? wt;
+        var picks = l.FirstOrDefault(x => x.name != "" && name.Contains(x.name, StringComparison.OrdinalIgnoreCase)).picks
+                    ?? l.FirstOrDefault(x => x.name == "").picks ?? l.SelectMany(x => x.picks).ToList();
+        if (picks.Count == 0) return new KitPick("", 1);
+        var pool = picks;
+        if (it?.Elem != null && _hint.TryGetValue(it.Elem, out var words))
+        {
+            var suited = picks.Where(p => words.Any(w => p.Model.Contains(w))).ToList(); if (suited.Count > 0) pool = suited;
+        }
+        return pool[(int)(Hash(name) % (uint)pool.Count)];
+    }
+    static float ScaleOf(string wt, string model)
+    {
+        if (_kitByName.TryGetValue(wt, out var l)) foreach (var (_, ps) in l) foreach (var p in ps) if (p.Model == model) return p.Scale;
+        return 1f;
     }
     static string KitPath(string name) => $"res://assets/models/kit/weapons/{name}.glb";
 
@@ -89,8 +122,23 @@ public static class Weapons
         if (doc.RootElement.TryGetProperty("kitModels", out var km))
         {
             _useKit = !km.TryGetProperty("use", out var u) || u.ValueKind != JsonValueKind.False;
-            if (km.TryGetProperty("models", out var mm))
-                foreach (var t in mm.EnumerateObject()) { var l = new List<string>(); foreach (var x in t.Value.EnumerateArray()) l.Add(x.GetString() ?? ""); _kit[t.Name] = l; }
+            _jitter = JsonUtil.F(km, "sizeJitter", .06f); _elemTint = JsonUtil.F(km, "elementTint", .3f);
+            if (km.TryGetProperty("byName", out var bn))
+                foreach (var t in bn.EnumerateObject())
+                {
+                    var l = new List<(string, List<KitPick>)>();
+                    foreach (var n in t.Value.EnumerateObject())
+                    {
+                        var ps = new List<KitPick>();
+                        foreach (var x in n.Value.EnumerateArray())
+                            ps.Add(x.ValueKind == JsonValueKind.Array ? new KitPick(x[0].GetString() ?? "", x.GetArrayLength() > 1 ? x[1].GetSingle() : 1f) : new KitPick(x.GetString() ?? "", 1f));
+                        l.Add((n.Name, ps));
+                    }
+                    l.Sort((a, b) => b.Item1.Length.CompareTo(a.Item1.Length));   // longest name first: "Bearded Axe" before "Axe"
+                    _kitByName[t.Name] = l;
+                }
+            if (km.TryGetProperty("elementModels", out var em))
+                foreach (var e in em.EnumerateObject()) _hint[e.Name] = e.Value.EnumerateArray().Select(x => x.GetString() ?? "").ToArray();
         }
         foreach (var t in doc.RootElement.GetProperty("types").EnumerateObject())
         {
@@ -125,8 +173,8 @@ public static class Weapons
     /// <summary>Builds the weapon under parent (grip at origin, pointing -Z). Returns the trail markers (blade base and tip) for melee weapons.</summary>
     public static (Node3D? baseN, Node3D? tipN) Build(Node3D parent, string wt, Item? it)
     {
-        string km = KitModelFor(wt, it);
-        if (km != "" && BuildKit(parent, wt, km) is { } kr) return kr;
+        var km = KitModelFor(wt, it);
+        if (km.Model != "" && BuildKit(parent, wt, km, it) is { } kr) return kr;
         int rar = it?.Rar ?? 0; var rc = Items.RarityColor(rar);
         var steel = M(new Color(.78f, .8f, .85f), .85f, .3f); var dark = M(new Color(.32f, .33f, .36f), .8f, .4f);
         var wood = Gfx.Tex(M(new Color(.42f, .28f, .16f)), "grain", .4f, true, .6f); var wrap = Gfx.Tex(M(new Color(.28f, .17f, .1f)), "cloth", .12f);
@@ -214,14 +262,31 @@ public static class Weapons
     /// A kit weapon model under parent. Kit weapons hold the grip at the origin and point +Y, so they are turned to point -Z like the built-in meshes;
     /// bows stay upright (limbs along Y, as the built-in bow). Melee weapons get trail markers from the blade's length. Null if the file is missing.
     /// </summary>
-    static (Node3D?, Node3D?)? BuildKit(Node3D parent, string wt, string name)
+    static (Node3D?, Node3D?)? BuildKit(Node3D parent, string wt, KitPick pick, Item? it)
     {
+        string name = pick.Model;
         if (!_kitScenes.TryGetValue(name, out var ps)) _kitScenes[name] = ps = ResourceLoader.Exists(KitPath(name)) ? GD.Load<PackedScene>(KitPath(name)) : null;
         if (ps?.Instantiate() is not Node3D model) { GD.PushWarning("[WEAPONS] missing kit model " + name); return null; }
+        // size: the listed scale for this name, and a small stable variation per item so two swords of a kind differ
+        float jit = 1f + (((Hash((it?.Name ?? "") + "#size") % 1000) / 1000f) * 2f - 1f) * _jitter, sc = pick.Scale * jit;
+        model.Scale = Vector3.One * sc;
         if (wt != "bow") model.Rotation = new Vector3(-H, 0, 0);
         parent.AddChild(model);
+        // colour: the element tints the metal and gems (vertex colours stay, multiplied); GearFx adds glow, light and sparks on top
+        var ec = GearFx.Get(it?.Elem)?.Col;
+        foreach (var n in model.FindChildren("*", "MeshInstance3D", true, false))
+            if (n is MeshInstance3D mi && mi.Mesh != null)
+                for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
+                    if (mi.GetActiveMaterial(s) is BaseMaterial3D bm)
+                    {
+                        var d = (BaseMaterial3D)bm.Duplicate(); d.VertexColorUseAsAlbedo = true;
+                        string mn = bm.ResourceName ?? "";
+                        if (ec != null && (mn.Contains("Metal") || mn.Contains("Glow"))) d.AlbedoColor = Colors.White.Lerp(ec.Value.Lightened(.2f), _elemTint);
+                        mi.SetSurfaceOverrideMaterial(s, d);
+                    }
         float len = 0;
         foreach (var mi in model.FindChildren("*", "MeshInstance3D", true, false)) if (mi is MeshInstance3D m && m.Mesh != null) len = Mathf.Max(len, (m.Transform * m.Mesh.GetAabb()).End.Y);
+        len *= sc;
         Node3D? b = null, t = null;
         if (Melee.Contains(wt) && len > .1f)
         {

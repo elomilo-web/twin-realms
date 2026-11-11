@@ -16,5 +16,6 @@
     "venom": { "word": "Venom", "color": "8dff6a", "status": "poison", "proc": 0.15 },
     "holy": { "word": "Dawn", "color": "ffe7a0", "status": "judged", "proc": 0.1 },
     "shadow": { "word": "Umbral", "color": "b45cff", "status": "weaken", "proc": 0.12 }
-  }
+  },
+  "upgrade": { "_help": "Smith upgrades (Item.Up): added per level to the edge glow and weapon emission; at pulseAt the glow breathes, at sparksAt weapons spark.", "edge": 0.12, "emit": 0.1, "pulseAt": 2, "sparksAt": 4 }
 }

@@ -1,18 +1,28 @@
 {
     "_help":  "Weapon types. Poses are in the hero\u0027s model space (forward -Z, right +X, metres): h = hand position, d = [yaw, pitch] of the weapon in degrees (yaw +90 = points left, pitch +90 = points up). Each attack: dur (s at speed 1), wind (fraction spent winding up), hit (fraction when damage lands), dmg (x weapon damage), arc (half-angle, degrees), range (m), knock, stun (s), up (knock-up speed), lunge (m), spin (degrees the body turns), finisher (true = combo finisher, boosted by finisher passives), keys = [wind-up pose, mid-swing pose, follow-through pose]. Scaling: base 5 + str/dex/mag x attribute + item damage, times dmg. onHit = status chances per hit.",
     "kitModels":  {
-                      "_help":  "Twin Realms kit weapon models (assets/models/kit/weapons/<name>.glb) each weapon type can show. An item with a Model field shows that model; otherwise one is picked from its type's list by the item's name, so a weapon keeps its look. use = false: the built-in meshes everywhere. Not listed (no matching type yet): shield_round, shield_kite, shield_tower, buckler, crossbow, chakram, claws.",
+                      "_help":  "Twin Realms kit weapon models (assets/models/kit/weapons/<name>.glb). byName: weapon type -> base item name (data/items.json weaponNames; the longest name found in the item name wins) -> models it may show, as name or [name, scale]. Among those, elementModels picks the ones that suit the item's element (an Ember Sword picks sword_ember). Each item gets a stable size variation of +-sizeJitter; its element tints metal by elementTint. An item with a Model field shows that model. use = false: the built-in meshes everywhere. Not used (no matching type yet): shields, crossbow, chakram, claws.",
                       "use":  true,
-                      "models":  {
-                                     "sword":  ["sword_knight", "sword_azure", "sword_ember", "sword_verdant", "sword_shadow", "sword_frost", "sword_royal", "katana", "rapier", "shortsword", "saber", "saber_moon", "cutlass"],
-                                     "greatsword":  ["greatsword_sun", "claymore_storm", "greataxe_void", "greathammer", "scythe_reaper"],
-                                     "axe":  ["axe", "axe_double"],
-                                     "mace":  ["mace", "morningstar", "warhammer", "scepter"],
-                                     "dagger":  ["dagger", "kunai"],
-                                     "spear":  ["spear", "halberd", "glaive_tide", "lance", "trident"],
-                                     "bow":  ["bow_wood", "bow_spirit", "longbow_gilded"],
-                                     "wand":  ["wand_star", "wand_frost", "orb_catalyst", "orb_catalyst_ember", "tome_azure", "tome_crimson"],
-                                     "staff":  ["staff_azure", "staff_ember", "staff_crystal", "staff_verdant"]
+                      "sizeJitter":  0.06,
+                      "elementTint":  0.3,
+                      "elementModels":  {
+                                            "fire":  ["ember", "sun"],
+                                            "frost":  ["frost", "azure", "crystal"],
+                                            "storm":  ["storm", "royal"],
+                                            "venom":  ["verdant"],
+                                            "holy":  ["sun", "royal", "star"],
+                                            "shadow":  ["shadow", "void", "moon"]
+                                        },
+                      "byName":  {
+                                     "sword":  { "Sword": ["sword_knight", "sword_azure", "sword_ember", "sword_verdant", "sword_shadow", "sword_frost"], "Blade": ["shortsword", "katana", "rapier"], "Saber": ["saber", "saber_moon"], "Longsword": ["sword_royal", "sword_knight", "sword_frost", "sword_shadow", "sword_ember"], "Falchion": ["cutlass"] },
+                                     "greatsword":  { "Greatsword": ["greatsword_sun", "claymore_storm"], "Claymore": ["claymore_storm", "greatsword_sun"], "Zweihander": [["greatsword_sun", 1.08], ["claymore_storm", 1.08]], "Flamberge": ["greatsword_sun", "claymore_storm"], "Executioner": [["claymore_storm", 1.1]] },
+                                     "axe":  { "Hatchet": [["axe", 0.82]], "Axe": ["axe"], "Bearded Axe": ["axe_double"], "War Axe": ["axe_double", ["greataxe_void", 0.82]], "Cleaver": [["axe", 0.9]] },
+                                     "mace":  { "Club": [["mace", 0.92]], "Mace": ["mace"], "Flanged Mace": [["mace", 1.05]], "Morningstar": ["morningstar"], "Warhammer": ["warhammer", ["greathammer", 0.78]] },
+                                     "dagger":  { "Knife": [["dagger", 0.82]], "Dagger": ["dagger"], "Dirk": [["dagger", 1.08]], "Stiletto": ["kunai"], "Kris": [["dagger", 0.95]] },
+                                     "spear":  { "Spear": ["spear"], "Pike": [["spear", 1.1]], "Partisan": ["halberd", "trident"], "Glaive": ["glaive_tide", "scythe_reaper"], "Lance": ["lance"] },
+                                     "bow":  { "Shortbow": [["bow_wood", 0.85]], "Hunting Bow": ["bow_wood"], "Recurve Bow": ["bow_spirit"], "Longbow": ["longbow_gilded"], "Warbow": [["longbow_gilded", 1.06], ["bow_spirit", 1.06]] },
+                                     "wand":  { "Wand": ["wand_star", "wand_frost"], "Rod": [["wand_frost", 1.1]], "Orb": ["orb_catalyst", "orb_catalyst_ember"], "Scepter": ["scepter"], "Tome": ["tome_azure", "tome_crimson"] },
+                                     "staff":  { "Staff": ["staff_azure", "staff_ember"], "Crook": ["staff_verdant"], "Quarterstaff": ["staff_crystal"], "Stave": ["staff_crystal", "staff_verdant"] }
                                  }
                   },
     "types":  {

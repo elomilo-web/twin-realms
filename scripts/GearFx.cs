@@ -15,6 +15,7 @@ public static class GearFx
     public class Elem { public string Id = "", Word = "", Status = ""; public Color Col; public float Proc; }
     struct Tier { public float Edge, Emit, Pulse, Light; public int Sparks; }
 
+    static float _upEdge = .12f, _upEmit = .1f; static int _upSparksAt = 4, _upPulseAt = 2;   // smith upgrades (Item.Up) strengthen the glow
     static Tier[] _tiers = new Tier[5]; static float[] _chance = { 0, .12f, .35f, .65f, 1f }; static float _armorScale = .45f;
     static readonly Dictionary<string, Elem> _el = new(); static readonly List<string> _order = new();
     static readonly Dictionary<string, ShaderMaterial> _edge = new();
@@ -26,6 +27,7 @@ public static class GearFx
         if (r.TryGetProperty("rarity", out var ra)) { int i = 0; foreach (var t in ra.EnumerateArray()) if (i < 5) _tiers[i++] = new Tier { Edge = JsonUtil.F(t, "edge"), Emit = JsonUtil.F(t, "emit"), Pulse = JsonUtil.F(t, "pulse"), Light = JsonUtil.F(t, "light"), Sparks = (int)JsonUtil.F(t, "sparks") }; }
         if (r.TryGetProperty("elementChance", out var ec)) { int i = 0; foreach (var x in ec.EnumerateArray()) if (i < 5) _chance[i++] = x.GetSingle(); }
         _armorScale = JsonUtil.F(r, "armorScale", .45f);
+        if (r.TryGetProperty("upgrade", out var up)) { _upEdge = JsonUtil.F(up, "edge", _upEdge); _upEmit = JsonUtil.F(up, "emit", _upEmit); _upSparksAt = (int)JsonUtil.F(up, "sparksAt", _upSparksAt); _upPulseAt = (int)JsonUtil.F(up, "pulseAt", _upPulseAt); }
         foreach (var p in r.GetProperty("elements").EnumerateObject())
         {
             var e = p.Value; _el[p.Name] = new Elem { Id = p.Name, Word = JsonUtil.S(e, "word", p.Name), Status = JsonUtil.S(e, "status"), Col = Color.FromHtml(JsonUtil.S(e, "color", "ffffff")), Proc = JsonUtil.F(e, "proc", .1f) };
@@ -43,6 +45,12 @@ public static class GearFx
     {
         if (it == null) return; Load();
         var t = _tiers[Mathf.Clamp(it.Rar, 0, 4)]; var col = ColorOf(it); bool elem = it.Elem != null;
+        if (it.Up > 0)
+        {   // each upgrade adds glow; a few upgrades make it breathe, more make it spark
+            t.Edge += _upEdge * it.Up; if (weapon) t.Emit += _upEmit * it.Up;
+            if (it.Up >= _upPulseAt) t.Pulse = Mathf.Max(t.Pulse, .25f);
+            if (weapon && it.Up >= _upSparksAt) t.Sparks = Mathf.Max(t.Sparks, 3 + it.Up);
+        }
         float edge = t.Edge * (weapon ? 1f : _armorScale); if (elem) edge = Mathf.Max(edge, weapon ? .5f : .25f);
         if (edge <= 0.001f && t.Emit <= 0) return;
         var edgeMat = EdgeMat(col, edge, t.Pulse);

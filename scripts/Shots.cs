@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Godot;
 
@@ -68,6 +69,7 @@ public partial class Shots : Node
         if (Player.Instance == null) { GD.PrintErr("[SHOTS] no player"); return; }
         Game.D.Level = 30; Game.RecalcTree(); Heal(); Hud(false);
         foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Node nn) nn.QueueFree();   // a quiet village for the pictures
+        if (OS.GetCmdlineUserArgs().Contains("--weapons")) { await WeaponRow(); return; }   // just the weapon audit and the hero holding each type
 
         // ---- the hero: day, night (plaza, lamps lit), close up, facing the camera
         var plaza = World.OnGround(1.5f, 6f, .5f);
@@ -110,20 +112,30 @@ public partial class Shots : Node
 
     async Task WeaponRow()
     {
-        var at = World.OnGround(-70, -88, 1.2f); var row = new Node3D(); Game.Root!.AddChild(row); row.GlobalPosition = at;
-        int i = 0; float x0 = -7f;
+        // audit wall, one picture per weapon type: every base item name (as loot names them), each as Common, Rare Ember, Epic Frost +3, Legendary Umbral +6
+        var at = World.OnGround(-70, -88, 40f);   // up in the open sky: a plain background
+        World.TimeOfDay = .45f; P.Teleport(World.OnGround(1.5f, 6f, .5f), 0);   // the hero waits in the (already discovered) village
+        var variants = new (string pre, int rar, string? elem, int up)[] { ("Rusty", 0, null, 0), ("Fine", 2, "fire", 0), ("Runed", 3, "frost", 3), ("Mythic", 4, "shadow", 6) };
         foreach (var t in Weapons.Types)
-            foreach (var m in Weapons.KitModels(t))
+        {
+            var row = new Node3D(); Game.Root!.AddChild(row); row.GlobalPosition = at;
+            var names = Weapons.KitNames(t).Select(x => x.name).Reverse().ToList(); float gx = 0, step = t is "spear" or "staff" or "greatsword" ? .6f : .5f;
+            foreach (var n in names)
             {
-                var holder = new Node3D { Position = new Vector3(x0 + (i % 18) * .8f, (i / 18) * 2.4f, 0), Rotation = new Vector3(Mathf.Pi / 2, 0, 0) };   // -Z back to +Y: blades up
-                row.AddChild(holder); Weapons.Build(holder, t, new Item { Wt = t, Model = m, Name = m }); i++;
+                for (int v = 0; v < variants.Length; v++)
+                {
+                    var (pre, rar, elem, up) = variants[v]; string word = GearFx.Get(elem)?.Word ?? "";
+                    var it = new Item { Wt = t, Slot = "weapon", Rar = rar, Elem = elem, Up = up, Name = $"{pre} {(word != "" ? word + " " : "")}{n}" };
+                    var holder = new Node3D { Position = new Vector3(gx + v * step, 0, 0), Rotation = new Vector3(Mathf.Pi / 2, 0, 0) };   // -Z back to +Y: blades up
+                    row.AddChild(holder); Weapons.Build(holder, t, it); GearFx.Apply(holder, it, true, 0, .9f);
+                }
+                row.AddChild(new Label3D { Text = n + "\n" + Weapons.KitModelFor(t, new Item { Name = n }).Model, Position = new Vector3(gx + step * 1.5f, -.25f, 0), FontSize = 40, PixelSize = .004f, Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, OutlineSize = 10 });
+                gx += step * variants.Length + .5f;
             }
-        World.TimeOfDay = .45f; P.Teleport(at + new Vector3(0, 0, 30), 0);
-        Free(at + new Vector3(0, 2.4f, 9.5f), at + new Vector3(0, 2.0f, 0)); await Wait(1f); await Shot("weapons_kit");
-        Free(at + new Vector3(-3.6f, 1.0f, 3.2f), at + new Vector3(-3.6f, .9f, 0)); await Wait(.5f); await Shot("weapons_kit_close_left");
-        Free(at + new Vector3(3.6f, 1.0f, 3.2f), at + new Vector3(3.6f, .9f, 0)); await Wait(.5f); await Shot("weapons_kit_close_right");
-        Free(at + new Vector3(0, 3.4f, 3.2f), at + new Vector3(0, 3.3f, 0)); await Wait(.5f); await Shot("weapons_kit_close_top");
-        Free(null); row.QueueFree();
+            foreach (var c in row.GetChildren()) if (c is Node3D n3) n3.Position -= new Vector3((gx - .5f) / 2f, 0, 0);
+            float w = gx; Free(at + new Vector3(0, .75f, Mathf.Max(2.6f, w * .5f)), at + new Vector3(0, .75f, 0)); await Wait(.8f); await Shot("weapons_audit_" + t);
+            Free(null); row.QueueFree(); await Wait(.1f);
+        }
         // the hero holding one kit weapon of each type (grip in the hand, blade out)
         var pos = World.OnGround(1.5f, 6f, .5f); P.Teleport(pos, Mathf.Pi * .75f);
         foreach (var t in Weapons.Types)
