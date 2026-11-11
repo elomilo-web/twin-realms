@@ -11,6 +11,7 @@ $b = dotnet build 2>&1 | Out-String
 if ($LASTEXITCODE -ne 0) { $b -split "`n" | Select-String "error" | Select-Object -First 30; "BUILD_FAIL"; exit 1 }
 if ($mode -eq "bot") {
   if (Test-Path bot_out) { Remove-Item -Recurse -Force bot_out }
+  New-Item -ItemType Directory -Force bot_out | Out-Null; New-Item -ItemType File -Force bot_out/.gdignore | Out-Null   # keeps Godot from importing test pictures
   & $godot --path . -- --bot 2>&1 | ForEach-Object { "$_" } | Out-File -Encoding utf8 bot_log.txt
   if (Test-Path bot_out/report.txt) { Get-Content bot_out/report.txt | Select-String "FAIL|passed" } else { "NO REPORT: the game crashed before the bot finished. See bot_log.txt"; exit 1 }
   $err = Get-Content bot_log.txt | Select-String "ERROR|SCRIPT ERROR|Unhandled|leaked"
