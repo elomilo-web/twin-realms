@@ -103,7 +103,7 @@ public partial class Ui
             default:
                 SliderRow(list, "Master volume", "Everything at once.", s.Master, 0, 1, .05f, Pct, x => s.Master = x);
                 SliderRow(list, "Music", "Calm songs with long quiet gaps between them.", s.Music, 0, 1, .05f, Pct, x => s.Music = x);
-                SliderRow(list, "Ambience", "Birds, crickets, wind and dungeon air.", s.Ambient, 0, 1, .05f, Pct, x => s.Ambient = x);
+                if (Sfx.AmbienceOn) SliderRow(list, "Ambience", "Birds, crickets, wind and dungeon air.", s.Ambient, 0, 1, .05f, Pct, x => s.Ambient = x);
                 SliderRow(list, "Effects", "Swings, spells, coins and menus. Let go of the slider to hear a sample.", s.Sfx, 0, 1, .05f, Pct, x => s.Sfx = x, false, "coin");
                 break;
         }

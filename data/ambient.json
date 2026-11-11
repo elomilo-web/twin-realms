@@ -1,5 +1,6 @@
 {
- "_help": "Ambient scenery life around the player (no gameplay). Read by scripts/Ambient.cs.",
+ "_help": "Ambient scenery life around the player (no gameplay). Read by scripts/Ambient.cs. sound: false = no ambience sound layers (birds, crickets, wind, dungeon air), only music (Sfx.cs).",
+ "sound": false,
  "butterflies": { "count": 14, "radius": 22, "maxHeight": 14, "colors": ["ffb340", "ffffff", "8fd0ff", "ff7aa8", "fff07a"] },
  "fireflies": { "amount": 90, "box": 22, "night": 0.45 },
  "spores": { "amount": 70, "box": 24 },

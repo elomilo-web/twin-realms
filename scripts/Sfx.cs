@@ -123,8 +123,15 @@ public partial class Sfx : Node
     // ------------------------------------------------------------------ ambience
     sealed class Layer { public AudioStreamPlayer P = null!; public float Gain, Level; }
     readonly Dictionary<string, Layer> _amb = new();
+    /// <summary>data/ambient.json "sound": false = no ambience layers at all, only music (the park recording had traffic in it).</summary>
+    public static bool AmbienceOn
+    {
+        get { if (_ambOn == null) { using var doc = JsonUtil.Load("res://data/ambient.json"); _ambOn = !(doc.RootElement.TryGetProperty("sound", out var s) && s.ValueKind == System.Text.Json.JsonValueKind.False); } return _ambOn.Value; }
+    }
+    static bool? _ambOn;
     void BuildAmbience()
     {
+        if (!AmbienceOn) return;
         foreach (var f in List(AmbDir))
         {
             var s = Load(AmbDir + f); if (s == null) continue;
