@@ -111,9 +111,13 @@ public partial class Sfx : Node
         var wav = Make(s); Synth[id] = wav; return wav;
     }
 
+    /// <summary>Per-sound loudness (1 = as recorded). Pickup and the wand's zap were far too loud next to everything else.</summary>
+    static readonly Dictionary<string, float> Gain = new() { ["pickup"] = .3f, ["zap"] = .35f, ["coin"] = .6f };
+
     public static void Play(string id, float vol = 1f)
     {
         if (I == null) return;
+        vol *= Gain.GetValueOrDefault(id, 1f);
         bool file = Files.TryGetValue(id, out var l) && l.Count > 0;
         var stream = file ? l![(int)(GD.Randi() % (uint)l.Count)] : Gen(id);
         foreach (var p in I._pool)

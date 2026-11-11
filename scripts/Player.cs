@@ -32,6 +32,7 @@ public partial class Player : CharacterBody3D, IDamageable
     bool _lmbPrev; float _lmbHold;
     float _atkT, _atkDur, _comboT, _blockT, _queueT, _castT, _castDur; bool _queuePower, _hasQueue;
     int _combo; bool _atkPower, _hitDone, _blocking, _fired;
+    ulong _noStMsg;
     AttackStep? _step;   // the basic-attack chain step being swung (data/attacks.json)
     public AttackStep? CurrentStep => _step; public int ComboIndex => _combo;
     float _undyReady; Item? _shownWeapon; string _shownType = "";
@@ -51,6 +52,12 @@ public partial class Player : CharacterBody3D, IDamageable
     }
 
     public override void _ExitTree() { Game.Changed -= OnGearChanged; if (Instance == this) Instance = null; }
+    /// <summary>Alt-tab while holding a key: the release never arrives, so drop held movement and sprint.</summary>
+    public override void _Notification(int what)
+    {
+        if (what == NotificationApplicationFocusOut || what == NotificationWMWindowFocusOut)
+            foreach (var a in new[] { Inputs.Sprint, Inputs.Forward, Inputs.Back, Inputs.Left, Inputs.Right, Inputs.Attack, Inputs.Guard }) Input.ActionRelease(a);
+    }
     void OnGearChanged() { Hp = Mathf.Min(Hp, Game.D.MaxHp()); Mp = Mathf.Min(Mp, Game.D.MaxMp()); St = Mathf.Min(St, Game.D.MaxSt()); RefreshWeapon(); }
 
     // ------------------------------------------------------------------ model
@@ -237,7 +244,11 @@ public partial class Player : CharacterBody3D, IDamageable
         if (Mounted) { Ui.Note("Dismount to fight (T)", new Color(0.7f, 0.8f, 1)); return false; }
         var w = W; bool ranged = w.Ranged;
         float cost = ranged ? (power ? 16f : 7f) : (power ? 26f : 9f) * (w.Hands > 1 ? 1.25f : w.Id == "dagger" ? .6f : 1f);
-        if (St < 4f) { FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.2f, 0), "Out of stamina", new Color(0.6f, 0.8f, 1f), 0.8f); return false; }
+        if (St < 4f)
+        {   // one message at a time: queued and repeated presses used to stack several on top of each other
+            if (Time.GetTicksMsec() - _noStMsg > 1000) { _noStMsg = Time.GetTicksMsec(); FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.2f, 0), "Out of stamina", new Color(0.6f, 0.8f, 1f), 0.8f); }
+            return false;
+        }
         // the basic attack of the equipped weapon class (data/attacks.json): light attacks walk the player's chain, power attacks reset it
         int chainLen = Attacks.HasStyle(w.Id) ? Attacks.Build(w.Id).Chain.Count : w.Combo.Count;
         if (!power) _combo = _comboT > 0 ? (_combo + 1) % chainLen : 0; else _combo = 0;
@@ -461,6 +472,7 @@ public partial class Player : CharacterBody3D, IDamageable
             }
             if (captured && Input.IsActionJustPressed(Inputs.Jump) && IsOnFloor() && _atkT <= 0 && _stagger <= 0) v.Y = JumpVelocity;
 
+            if (!captured) Input.ActionRelease(Inputs.Sprint);   // a menu or another window took the Shift release: never keep sprinting after it
             bool sprint = Input.IsActionPressed(Inputs.Sprint) && St > 1f && dir.LengthSquared() > 0.01f && _atkT <= 0 && !_blocking && !Mounted;
             float speed = (sprint ? 8.4f : 5.2f) * moveMul;
             if (Mounted) speed = 10.5f * moveMul;

@@ -18,7 +18,7 @@ public partial class Hud : CanvasLayer
 public partial class HudCanvas : Control
 {
     static readonly Color Gold = new Color("e3b04b"), Mute = new Color("a095bd");
-    float _hurt, _lastHp = -1;
+    float _hurt, _lastHp = -1, _ptsShowT; int _lastPts;
     static GradientTexture2D? _vig;
     static GradientTexture2D Vignette
     {
@@ -98,7 +98,7 @@ public partial class HudCanvas : Control
         }
         DrawColoredPolygon(new[] { new Vector2(cx - 5, cr.End.Y + 6), new Vector2(cx + 5, cr.End.Y + 6), new Vector2(cx, cr.End.Y) }, UiTheme.Accent);
         // target bar
-        Enemy? tgt = Targeting.Current != null && IsInstanceValid(Targeting.Current) && !Targeting.Current.Dead ? Targeting.Current : Enemy.CurrentBoss != null && GodotObject.IsInstanceValid(Enemy.CurrentBoss) && !Enemy.CurrentBoss.Dead && Enemy.CurrentBoss.Active ? Enemy.CurrentBoss : p.Dead ? null : p.AimPoint(40f).enemy;
+        Enemy? tgt = Targeting.Current != null && IsInstanceValid(Targeting.Current) && !Targeting.Current.Dead ? Targeting.Current : Enemy.CurrentBoss != null && GodotObject.IsInstanceValid(Enemy.CurrentBoss) && !Enemy.CurrentBoss.Dead && Enemy.CurrentBoss.Active && Enemy.CurrentBoss.GlobalPosition.DistanceTo(p.GlobalPosition) < 35f ? Enemy.CurrentBoss : p.Dead ? null : p.AimPoint(40f).enemy;
         if (tgt != null && !tgt.Dead)
         {
             float tw = u * 24, ty = u * 7.6f; Txt(new Vector2(sz.X / 2 - tw / 2, ty), $"{tgt.Def.N}  Lv {tgt.Level}", fs(1.2f), tgt.Def.Boss ? UiTheme.Highlight : Colors.White, HorizontalAlignment.Center, tw);
@@ -123,8 +123,10 @@ public partial class HudCanvas : Control
         }
         // hotbar bottom-left: 6 skills (keys 1-6, set in the Skills menu, L) + 2 potions
         float ss = Mathf.Max(36, u * 4.4f), hx = pad, hy = sz.Y - pad - ss;
-        // unspent points: to the right of the hotbar, never over it
-        if (d.AttrPts + d.SkillPts + d.RankPts > 0)
+        // unspent points: shown for a few seconds when new points arrive (level up), not all game; the pause menu always lists them
+        int unspent = d.AttrPts + d.SkillPts + d.RankPts;
+        if (unspent > _lastPts) _ptsShowT = 10f; _lastPts = unspent; _ptsShowT -= (float)GetProcessDeltaTime();
+        if (unspent > 0 && _ptsShowT > 0)
         {
             float ux = hx + 8 * (ss + u * .5f) + u;
             Txt(new Vector2(ux, hy + ss * .62f),$"Unspent: {d.AttrPts} attribute (Esc > Character), {d.RankPts} skill (L), {d.SkillPts} skill tree (K)", fs(1f), UiTheme.Highlight, HorizontalAlignment.Left, Mathf.Max(100, sz.X - ux - pad));
