@@ -112,3 +112,124 @@ def all_models():
             greatsword('greatsword_sun'), katana('katana'), rapier('rapier'), dagger('dagger'), axe('axe'), axe('axe_double', True), hammer('warhammer'), spear('spear'),
             bow('bow_wood'), bow('bow_spirit', ('e8e2f4', 'ffffff'), GOLD, '6fe8ff'), staff('staff_azure'), staff('staff_ember', 'ff9a3a', ('3a2a3a', '6a4a5a')), wand('wand_star'), wand('wand_frost', '9af0ff'),
             shield_round('shield_round'), shield_kite('shield_kite')]
+
+# ---------------------------------------------------------------- second batch
+def pole(l, y0, c=WOOD, r=.017): return lathe([(r, 0), (r, l)], 7).grad(*c).move(0, y0, 0)
+
+def scythe(name, glow='b884ff'):
+    m = Model(name); m.add(pole(1.7, -.7, ('2a1f3a', '5a4a7a')).bend(.05)); m.add(grip(.24, .022))
+    b = extrude([(0, 0), (.1, .06), (.3, .08), (.55, .0), (.72, -.16), (.5, -.04), (.28, .0), (.08, -.03)], .018, mat='metal').grad('5a5d78', 'f0f4ff', axis=0)
+    m.add(b.move(.03, .98, 0)); m.add(lathe([(.035, 0), (.045, .06), (.03, .12)], 8, GOLD, 'metal').move(.05, .93, 0)); m.add(ico(.03, 1, mat='glow').paint(glow).move(.05, 1.07, 0)); return m
+
+def halberd(name):
+    m = Model(name); m.add(pole(1.9, -.9)); m.add(grip(.26, .021)); m.add(blade([(.02, 0), (.04, .1), (.03, .3), (.001, .42)], .02).grad(*STEEL).move(0, 1.0, 0))
+    m.add(extrude([(0, -.08), (.16, -.16), (.22, -.04), (.2, .1), (.12, .16), (0, .06)], .025, mat='metal').grad(*STEEL, axis=0).move(.015, .9, 0))
+    m.add(extrude([(0, -.03), (.14, 0), (0, .03)], .02, mat='metal').grad(*STEEL, axis=0).scale(-1, 1, 1).move(-.015, .9, 0)); m.add(cyl(.028, .028, .2, 8, GOLD, 'metal').move(0, .8, 0)); return m
+
+def glaive(name):
+    m = Model(name); m.add(pole(1.6, -.8, ('3a2a3a', '6a4a5a'))); m.add(grip(.26, .021)); b = blade([(.03, 0), (.06, .2), (.05, .45), (.001, .62)], .02).grad('7fd0e8', 'f0ffff').bend(.09)
+    m.add(b.move(0, .8, 0)); m.add(lathe([(.03, 0), (.04, .05), (.02, .1)], 8, GOLD, 'metal').move(0, .76, 0)); m.add(Part([[0, .8, 0], [0, .72, 0], [-.2, .55, .02], [-.16, .7, .02]], [[0, 1, 2], [0, 2, 3]], mat='matte2s').grad('4a78c8', '9ac0ff', axis=0)); return m
+
+def lance(name):
+    m = Model(name); m.add(lathe([(.02, 0), (.02, .5), (.1, .55), (.05, .7), (.0, 2.1)], 10, mat='metal').grad(*STEEL).move(0, -.45, 0)); m.add(grip(.24, .024))
+    for y in (.5, .8, 1.1): m.add(torus(.06 - (y - .5) * .03, .008, 10, 4, GOLD, 'metal').move(0, y, 0))
+    return m
+
+def trident(name):
+    m = Model(name); m.add(pole(1.7, -.85, ('2c5a6a', '5aa8b8'))); m.add(grip(.26, .021)); m.add(box(.34, .035, .03, GOLD, 'metal').move(0, .85, 0))
+    for x, h in ((-.15, .34), (0, .5), (.15, .34)): m.add(blade([(.016, 0), (.022, h * .6), (.001, h)], .016).grad('9ad8e8', 'f0ffff').move(x, .87, 0))
+    m.add(ico(.028, 1, mat='glow').paint('6fe8ff').move(0, .86, .02)); return m
+
+def mace(name, spiked=False):
+    m = Model(name); m.add(pole(.6, -.12, r=.018)); m.add(grip(.22, .024)); m.add(pommel(-.11, GOLD))
+    if spiked:
+        m.add(ico(.08, 1, mat='metal', smooth=False).grad(*STEEL).move(0, .55, 0))
+        for i in range(8): a = i * 45; m.add(lathe([(.02, 0), (0, .07)], 5, 'f6faff', 'metal').move(0, .07, 0).rot(z=90 if i < 4 else 55).rot(y=a * 2 if i < 4 else a * 2 + 45).move(0, .55, 0))
+    else:
+        m.add(lathe([(.03, 0), (.05, .03), (.03, .12), (0, .16)], 8, GOLD, 'metal').move(0, .46, 0))
+        for i in range(6): m.add(extrude([(0, 0), (.07, .03), (.08, .09), (0, .13)], .012, mat='metal').grad(*STEEL, axis=0).move(.02, .46, 0).rot(y=i * 60))
+    return m
+
+def greataxe(name):
+    m = Model(name); m.add(pole(1.4, -.5, ('3a2a3a', '6a4a5a'), .022)); m.add(grip(.3, .026)); head = [(.0, -.12), (.26, -.3), (.36, -.14), (.38, 0), (.36, .14), (.26, .3), (0, .12)]
+    for sx in (1, -1):
+        h = extrude(head, .035, mat='metal').grad('6a5a80', 'e6e0ff', axis=0)
+        if sx < 0: h.scale(-1, 1, 1)
+        m.add(h.move(sx * .02, .7, 0)); m.add(box(.2, .02, .04, 'b884ff', 'glow').move(sx * .16, .69, 0))
+    m.add(cyl(.045, .045, .3, 8, '3a3d52', 'metal').move(0, .55, 0)); m.add(lathe([(.035, 0), (0, .16)], 6, '3a3d52', 'metal').move(0, .85, 0)); return m
+
+def greathammer(name):
+    m = Model(name); m.add(pole(1.3, -.5, WOOD, .024)); m.add(grip(.3, .028)); m.add(box(.5, .3, .3, mat='metal').grad('8792b0', 'eef3ff').move(0, .68, 0))
+    for sx in (-1, 1): m.add(box(.06, .36, .36, GOLD, 'metal').move(sx * .23, .65, 0)); m.add(lathe([(.1, 0), (.0, .08)], 4, GOLD, 'metal', smooth=False).rot(z=-90 * sx).move(sx * .26, .83, 0))
+    m.add(box(.12, .12, .32, 'ffb04a', 'glow').move(0, .77, 0)); m.add(pommel(-.15, GOLD)); return m
+
+def saber(name, c=('c8d0e4', 'ffffff'), gem='ff8fc0'):
+    m = Model(name); b = blade([(.03, 0), (.034, .3), (.03, .62), (.001, .8)], .014).grad(*c).bend(.12); m.add(b.move(0, .13, 0)); m.add(grip(.2, .02)); m.add(pommel(-.1, GOLD, gem, .03))
+    m.add(guard(.07, .12, GOLD, 'disc')); m.add(torus(.1, .008, 12, 4, GOLD, 'metal', 170).rot(z=90).rot(y=90).scale(1, 1.1, .8).move(0, 0, .0)); return m
+
+def cutlass(name):
+    m = Model(name); b = blade([(.035, 0), (.05, .3), (.055, .5), (.001, .68)], .016).grad(*STEEL).bend(.07); m.add(b.move(0, .12, 0)); m.add(grip(.19, .022, ('5a2a2a', '8a4a3a'))); m.add(pommel(-.095, GOLD))
+    m.add(lathe([(.02, 0), (.09, .03), (.1, .08)], 10, GOLD, 'metal').scale(1, 1, .6).move(0, .06, 0)); return m
+
+def kunai(name):
+    m = Model(name); m.add(blade([(.004, 0), (.035, .07), (.001, .24)], .012).grad('5a5d78', 'e0e6f4').move(0, .07, 0)); m.add(cyl(.01, .01, .14, 6).grad('3a2a3a', '6a4a5a').move(0, -.07, 0)); m.add(torus(.025, .006, 10, 4, '5a5d78', 'metal').rot(x=90).move(0, -.095, 0)); return m
+
+def chakram(name):
+    m = Model(name); m.add(torus(.2, .022, 20, 4, mat='metal').grad(*STEEL, axis=0).scale(1, .35, 1).rot(x=90))
+    for i in range(8): m.add(extrude([(-.03, 0), (.03, 0), (0, .07)], .008, GOLD, 'metal').move(0, .215, 0).rot(z=i * 45))
+    m.add(cyl(.012, .012, .36, 6).grad(*LEATHER).move(0, -.18, 0)); m.add(ico(.025, 1, mat='glow').paint('ff9a3a').move(0, 0, .01)); return m
+
+def crossbow(name):
+    m = Model(name); m.add(box(.06, .07, .6).grad(*WOOD, axis=2).move(0, -.035, .1)); m.add(box(.04, .12, .08).grad(*WOOD).rot(x=20).move(0, -.14, -.1))
+    limb = torus(.3, .014, 14, 5, arc=130).rot(y=65 - 90).grad('5a5d78', 'c8d0e4', axis=0); m.add(limb.scale(1, 1, .5).move(0, .0, .38 - limb.v[:, 2].max() * .5 + .02))
+    zs = limb.v[np.abs(limb.v[:, 0]) > .25][:, 2].mean(); m.add(cyl(.003, .003, .54, 3, 'f4f0e0').rot(z=90).move(.27, .0, zs)); m.add(blade([(.006, 0), (.012, .04), (.001, .1)], .008).grad(*STEEL).rot(x=90).move(0, .045, .36))
+    m.add(cyl(.006, .006, .3, 5).grad(*WOOD).rot(x=90).move(0, .045, .06)); return m
+
+def tome(name, c='3a5aa8', glow='6fe8ff'):
+    m = Model(name); m.add(box(.26, .34, .05).grad(mixc(c, '000000', .25), mixc(c, 'ffffff', .15)).move(0, -.17, 0)); m.add(box(.23, .31, .04, 'f6ead2').move(.012, -.155, 0))
+    for z in (-.027, .027): m.add(box(.265, .345, .006).grad(mixc(c, '000000', .25), mixc(c, 'ffffff', .15)).move(0, -.1725, z))
+    for sx in (-1, 1):
+        for sy in (-1, 1): m.add(extrude([(0, 0), (.05, 0), (0, .05)], .064, GOLD, 'metal').scale(sx, sy, 1).move(sx * -.134, sy * -.174, 0))
+    m.add(lathe([(0, 0), (.04, .05), (0, .1)], 4, mat='glow', smooth=False).paint(glow).scale(1, 1, .3).move(0, -.05, .034)); m.add(torus(.065, .006, 14, 4, GOLD, 'metal').rot(x=90).move(0, 0, .033)); return m
+
+def orb_catalyst(name, glow='6fe8ff'):
+    m = Model(name); m.add(ico(.075, 2, mat='glow').paint(glow)); m.add(ico(.04, 1, mat='glow').paint(mixc(glow, 'ffffff', .7)))
+    m.add(torus(.12, .008, 20, 4, GOLD, 'metal').rot(x=70)); m.add(torus(.14, .006, 20, 4, GOLD, 'metal').rot(x=-40).rot(y=60))
+    for i in range(3): a = i * 120; m.add(lathe([(0, 0), (.014, .02), (0, .05)], 4, mat='glow', smooth=False).paint(glow).move(.17, -.02, 0).rot(y=a))
+    return m
+
+def scepter(name, glow='ffd25a'):
+    m = Model(name); m.add(lathe([(.014, 0), (.018, .5), (.03, .56)], 8, 'f6ead2', 'metal').move(0, -.12, 0)); m.add(grip(.2, .02, ('5a2a4a', '9a4a7a'))); m.add(pommel(-.1, GOLD, glow, .03))
+    for i in range(4): m.add(extrude([(0, 0), (.05, .04), (.06, .14), (0, .2)], .01, GOLD, 'metal').move(.01, .44, 0).rot(y=i * 90))
+    m.add(lathe([(0, 0), (.035, .06), (0, .13)], 6, mat='glow', smooth=False).paint(glow).move(0, .5, 0)); return m
+
+def staff_crystal(name, glow='b884ff'):
+    m = Model(name); m.add(lathe([(.014, 0), (.02, .3), (.018, 1.45), (.04, 1.5)], 7).grad('e8e2f4', 'ffffff').move(0, -.75, 0)); m.add(grip(.22, .024, ('4a3a9a', '7a6ad8')))
+    for i in range(3): m.add(extrude([(0, 0), (.05, .06), (.035, .2), (.0, .12)], .012, GOLD, 'metal').move(.02, .74, 0).rot(y=i * 120))
+    m.add(lathe([(0, 0), (.05, .1), (.04, .22), (0, .34)], 6, mat='glow', smooth=False).paint(glow).move(0, .8, 0)); m.add(torus(.1, .006, 16, 4, GOLD, 'metal').rot(x=25).move(0, .97, 0)); return m
+
+def shield_tower(name, c='3a3d52'):
+    m = Model(name); out = [(-.24, .42), (-.26, -.3), (-.14, -.46), (.14, -.46), (.26, -.3), (.24, .42), (0, .48)]
+    m.add(extrude(out, .04, mat='metal').grad(mixc(c, '000000', .2), mixc(c, 'ffffff', .3))); m.add(extrude([(x * 1.06, y * 1.05) for x, y in out], .02, GOLD, 'metal').move(0, 0, -.014))
+    m.add(box(.05, .7, .02, GOLD, 'metal').move(0, -.36, .025)); m.add(box(.36, .05, .02, GOLD, 'metal').move(0, .12, .025)); m.add(ico(.04, 1, mat='glow').paint('ff5a6e').move(0, .145, .04)); return m
+
+def buckler(name):
+    m = Model(name); m.add(lathe([(0, .06), (.12, .045), (.2, 0)], 12, mat='metal').grad('7a5a3a', 'e0b080', axis=1).rot(x=90)); m.add(torus(.2, .016, 14, 5, '5a5d78', 'metal').rot(x=90))
+    m.add(lathe([(0, .07), (.04, .03), (.06, 0)], 8, 'f6faff', 'metal').rot(x=90).move(0, 0, .04))
+    for i in range(6): m.add(ico(.012, 0, GOLD, 'metal').move(.15, 0, .03).rot(z=i * 60))
+    return m
+
+def claws(name):
+    m = Model(name); m.add(box(.1, .05, .12, '3a3d52', 'metal').move(0, -.025, 0)); m.add(cyl(.045, .045, .1, 8).grad(*LEATHER).rot(x=90).move(0, 0, -.11))
+    for i, x in enumerate((-.035, 0, .035)): m.add(blade([(.008, 0), (.012, .14), (.001, .3)], .01).grad(*STEEL).bend(.04, 2).move(x, .02, 0))
+    return m
+
+_all1 = all_models
+def all_models():
+    return _all1() + [sword('sword_frost', 1.02, .05, 'crescent', ('9ad8f8', 'ffffff'), '9af0ff', 'd9d9e4', glow_line='e6fbff', tip=.2), sword('sword_royal', 1.05, .048, 'wing', STEEL, 'ff5a6e', GOLD, glow_line='ffd25a'),
+            sword('claymore_storm', 1.5, .08, 'cross', ('6a78c8', 'e6ecff'), 'b0c0ff', '5a5d78', glow_line='c8d4ff', tip=.24, grip_l=.44, gw=.22), sword('shortsword', .6, .045, 'cross', gw=.1),
+            saber('saber'), saber('saber_moon', ('8a7ad8', 'f0e8ff'), 'b884ff'), cutlass('cutlass'), kunai('kunai'), claws('claws'), chakram('chakram'),
+            scythe('scythe_reaper'), halberd('halberd'), glaive('glaive_tide'), lance('lance'), trident('trident'), mace('mace'), mace('morningstar', True), greataxe('greataxe_void'), greathammer('greathammer'),
+            bow('longbow_gilded', ('8a5a3a', 'c89a6a'), GOLD, 'ffd25a'), crossbow('crossbow'), tome('tome_azure'), tome('tome_crimson', 'a8323c', 'ffb04a'), orb_catalyst('orb_catalyst'), orb_catalyst('orb_catalyst_ember', 'ff9a3a'),
+            scepter('scepter'), staff_crystal('staff_crystal'), staff_crystal('staff_verdant', '8fffb0'), shield_tower('shield_tower'), buckler('buckler')]
+import numpy as np

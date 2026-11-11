@@ -857,6 +857,246 @@
      0.91,
      0.09
     ]
+   },
+   "sword_frost": {
+    "tris": 400,
+    "size": [
+     0.3,
+     1.35,
+     0.08
+    ]
+   },
+   "sword_royal": {
+    "tris": 320,
+    "size": [
+     0.26,
+     1.38,
+     0.08
+    ]
+   },
+   "claymore_storm": {
+    "tris": 316,
+    "size": [
+     0.44,
+     2.03,
+     0.08
+    ]
+   },
+   "shortsword": {
+    "tris": 304,
+    "size": [
+     0.2,
+     0.93,
+     0.08
+    ]
+   },
+   "saber": {
+    "tris": 396,
+    "size": [
+     0.19,
+     1.09,
+     0.14
+    ]
+   },
+   "saber_moon": {
+    "tris": 396,
+    "size": [
+     0.19,
+     1.09,
+     0.14
+    ]
+   },
+   "cutlass": {
+    "tris": 232,
+    "size": [
+     0.2,
+     0.97,
+     0.11
+    ]
+   },
+   "kunai": {
+    "tris": 124,
+    "size": [
+     0.07,
+     0.43,
+     0.02
+    ]
+   },
+   "claws": {
+    "tris": 104,
+    "size": [
+     0.1,
+     0.36,
+     0.17
+    ]
+   },
+   "chakram": {
+    "tris": 328,
+    "size": [
+     0.57,
+     0.57,
+     0.05
+    ]
+   },
+   "scythe_reaper": {
+    "tris": 280,
+    "size": [
+     0.78,
+     1.8,
+     0.09
+    ]
+   },
+   "halberd": {
+    "tris": 212,
+    "size": [
+     0.39,
+     2.32,
+     0.06
+    ]
+   },
+   "glaive_tide": {
+    "tris": 202,
+    "size": [
+     0.3,
+     2.22,
+     0.08
+    ]
+   },
+   "lance": {
+    "tris": 416,
+    "size": [
+     0.2,
+     2.1,
+     0.19
+    ]
+   },
+   "trident": {
+    "tris": 276,
+    "size": [
+     0.34,
+     2.22,
+     0.07
+    ]
+   },
+   "mace": {
+    "tris": 292,
+    "size": [
+     0.2,
+     0.8,
+     0.18
+    ]
+   },
+   "morningstar": {
+    "tris": 332,
+    "size": [
+     0.28,
+     0.81,
+     0.28
+    ]
+   },
+   "greataxe_void": {
+    "tris": 240,
+    "size": [
+     0.8,
+     1.51,
+     0.09
+    ]
+   },
+   "greathammer": {
+    "tris": 236,
+    "size": [
+     0.68,
+     1.51,
+     0.36
+    ]
+   },
+   "longbow_gilded": {
+    "tris": 372,
+    "size": [
+     0.25,
+     1.24,
+     0.04
+    ]
+   },
+   "crossbow": {
+    "tris": 216,
+    "size": [
+     0.57,
+     0.2,
+     0.68
+    ]
+   },
+   "tome_azure": {
+    "tris": 200,
+    "size": [
+     0.27,
+     0.35,
+     0.08
+    ]
+   },
+   "tome_crimson": {
+    "tris": 200,
+    "size": [
+     0.27,
+     0.35,
+     0.08
+    ]
+   },
+   "orb_catalyst": {
+    "tris": 744,
+    "size": [
+     0.31,
+     0.24,
+     0.32
+    ]
+   },
+   "orb_catalyst_ember": {
+    "tris": 744,
+    "size": [
+     0.31,
+     0.24,
+     0.32
+    ]
+   },
+   "scepter": {
+    "tris": 332,
+    "size": [
+     0.14,
+     0.8,
+     0.14
+    ]
+   },
+   "staff_crystal": {
+    "tris": 340,
+    "size": [
+     0.21,
+     1.89,
+     0.19
+    ]
+   },
+   "staff_verdant": {
+    "tris": 340,
+    "size": [
+     0.21,
+     1.89,
+     0.19
+    ]
+   },
+   "shield_tower": {
+    "tris": 152,
+    "size": [
+     0.55,
+     0.99,
+     0.1
+    ]
+   },
+   "buckler": {
+    "tris": 340,
+    "size": [
+     0.43,
+     0.42,
+     0.13
+    ]
    }
   },
   "armor": {
@@ -938,6 +1178,152 @@
      0.74,
      1.07,
      0.22
+    ]
+   }
+  },
+  "spells": {
+   "proj_ice_lance": {
+    "tris": 80,
+    "size": [
+     0.28,
+     0.28,
+     1.3
+    ]
+   },
+   "proj_fire": {
+    "tris": 216,
+    "size": [
+     0.42,
+     0.41,
+     1.0
+    ]
+   },
+   "proj_shadow": {
+    "tris": 216,
+    "size": [
+     0.42,
+     0.41,
+     1.0
+    ]
+   },
+   "proj_arcane": {
+    "tris": 216,
+    "size": [
+     0.42,
+     0.41,
+     1.0
+    ]
+   },
+   "proj_holy": {
+    "tris": 216,
+    "size": [
+     0.42,
+     0.41,
+     1.0
+    ]
+   },
+   "proj_arrow": {
+    "tris": 34,
+    "size": [
+     0.07,
+     0.06,
+     0.79
+    ]
+   },
+   "proj_arrow_spirit": {
+    "tris": 58,
+    "size": [
+     0.07,
+     0.06,
+     0.98
+    ]
+   },
+   "proj_arrow_fire": {
+    "tris": 58,
+    "size": [
+     0.07,
+     0.06,
+     0.98
+    ]
+   },
+   "proj_thorn": {
+    "tris": 44,
+    "size": [
+     0.13,
+     0.11,
+     0.6
+    ]
+   },
+   "proj_meteor": {
+    "tris": 700,
+    "size": [
+     1.51,
+     1.47,
+     2.75
+    ]
+   },
+   "spell_ice_spikes": {
+    "tris": 180,
+    "size": [
+     2.26,
+     1.7,
+     1.67
+    ]
+   },
+   "spell_earth_spikes": {
+    "tris": 180,
+    "size": [
+     2.26,
+     1.7,
+     1.67
+    ]
+   },
+   "spell_vines": {
+    "tris": 192,
+    "size": [
+     1.2,
+     1.6,
+     1.4
+    ]
+   },
+   "spell_light_sword": {
+    "tris": 80,
+    "size": [
+     1.0,
+     3.5,
+     0.09
+    ]
+   },
+   "spell_ward": {
+    "tris": 492,
+    "size": [
+     0.62,
+     1.35,
+     0.54
+    ]
+   },
+   "spell_ward_violet": {
+    "tris": 492,
+    "size": [
+     0.62,
+     1.35,
+     0.54
+    ]
+   },
+   "spell_shield_dome": {
+    "tris": 60,
+    "size": [
+     2.77,
+     1.35,
+     2.77
+    ]
+   },
+   "spell_shield_dome_gold": {
+    "tris": 60,
+    "size": [
+     2.77,
+     1.35,
+     2.77
     ]
    }
   }

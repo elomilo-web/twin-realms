@@ -4,8 +4,8 @@ import importlib, json, os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import preview
 ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
-GROUPS = ['nature', 'village', 'castle', 'dungeon', 'weapons', 'armor']
-VIEW = {'weapons': dict(yaw=20, pitch=8), 'armor': dict(yaw=30, pitch=12)}
+GROUPS = ['nature', 'village', 'castle', 'dungeon', 'weapons', 'armor', 'spells']
+VIEW = {'weapons': dict(yaw=20, pitch=8, cols=6, size=250), 'armor': dict(yaw=30, pitch=12), 'spells': dict(yaw=50, pitch=18, cols=6, size=250)}
 if __name__ == '__main__':
     want = sys.argv[1:] or GROUPS; manifest = {}
     mp = os.path.join(ROOT, 'data', 'kit.json')

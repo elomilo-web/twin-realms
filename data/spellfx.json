@@ -1,0 +1,369 @@
+{
+ "_help": "Spell and skill animations (tools/kit_gen/fx_gen.py). Sheets are res://assets/vfx/flipbooks/<name>.png, 4x4 frames. kind: billboard (faces the camera), ground (lies flat on the floor), strip (stretched between two points, tiles along its length). size = metres across. skills = which animations each skill in data/skills.json should play; played by scripts/SpellFx.cs.",
+ "fx": {
+  "fire_burst": {
+   "frames": 16,
+   "fps": 24,
+   "loop": false,
+   "kind": "billboard",
+   "size": 3.0
+  },
+  "fire_orb": {
+   "frames": 16,
+   "fps": 20,
+   "loop": true,
+   "kind": "billboard",
+   "size": 1.0
+  },
+  "meteor_blast": {
+   "frames": 16,
+   "fps": 20,
+   "loop": false,
+   "kind": "billboard",
+   "size": 7.0
+  },
+  "frost_nova": {
+   "frames": 16,
+   "fps": 24,
+   "loop": false,
+   "kind": "ground",
+   "size": 6.0
+  },
+  "ice_shatter": {
+   "frames": 16,
+   "fps": 28,
+   "loop": false,
+   "kind": "billboard",
+   "size": 2.2
+  },
+  "ice_orb": {
+   "frames": 16,
+   "fps": 20,
+   "loop": true,
+   "kind": "billboard",
+   "size": 0.8
+  },
+  "lightning_bolt": {
+   "frames": 16,
+   "fps": 30,
+   "loop": false,
+   "kind": "strip",
+   "size": 1.2
+  },
+  "lightning_hit": {
+   "frames": 16,
+   "fps": 30,
+   "loop": false,
+   "kind": "billboard",
+   "size": 2.0
+  },
+  "heal_rise": {
+   "frames": 16,
+   "fps": 20,
+   "loop": false,
+   "kind": "billboard",
+   "size": 2.6
+  },
+  "shadow_orb": {
+   "frames": 16,
+   "fps": 20,
+   "loop": true,
+   "kind": "billboard",
+   "size": 0.9
+  },
+  "shadow_burst": {
+   "frames": 16,
+   "fps": 24,
+   "loop": false,
+   "kind": "billboard",
+   "size": 2.6
+  },
+  "drain_beam": {
+   "frames": 16,
+   "fps": 20,
+   "loop": true,
+   "kind": "strip",
+   "size": 0.9
+  },
+  "slash_arc": {
+   "frames": 16,
+   "fps": 36,
+   "loop": false,
+   "kind": "billboard",
+   "size": 3.2
+  },
+  "slash_heavy": {
+   "frames": 16,
+   "fps": 30,
+   "loop": false,
+   "kind": "billboard",
+   "size": 4.2
+  },
+  "slash_shadow": {
+   "frames": 16,
+   "fps": 36,
+   "loop": false,
+   "kind": "billboard",
+   "size": 3.0
+  },
+  "thrust_streak": {
+   "frames": 16,
+   "fps": 36,
+   "loop": false,
+   "kind": "billboard",
+   "size": 3.6
+  },
+  "hit_spark": {
+   "frames": 16,
+   "fps": 32,
+   "loop": false,
+   "kind": "billboard",
+   "size": 1.6
+  },
+  "shockwave": {
+   "frames": 16,
+   "fps": 24,
+   "loop": false,
+   "kind": "ground",
+   "size": 7.0
+  },
+  "shockwave_gold": {
+   "frames": 16,
+   "fps": 22,
+   "loop": false,
+   "kind": "ground",
+   "size": 8.0
+  },
+  "circle_arcane": {
+   "frames": 16,
+   "fps": 12,
+   "loop": true,
+   "kind": "ground",
+   "size": 5.0
+  },
+  "circle_holy": {
+   "frames": 16,
+   "fps": 12,
+   "loop": true,
+   "kind": "ground",
+   "size": 6.0
+  },
+  "circle_hex": {
+   "frames": 16,
+   "fps": 12,
+   "loop": true,
+   "kind": "ground",
+   "size": 6.0
+  },
+  "smite_pillar": {
+   "frames": 16,
+   "fps": 24,
+   "loop": false,
+   "kind": "billboard",
+   "size": 6.0
+  },
+  "poison_cloud": {
+   "frames": 16,
+   "fps": 12,
+   "loop": true,
+   "kind": "billboard",
+   "size": 3.0
+  },
+  "whirlwind": {
+   "frames": 16,
+   "fps": 24,
+   "loop": true,
+   "kind": "ground",
+   "size": 5.0
+  },
+  "buff_aura": {
+   "frames": 16,
+   "fps": 16,
+   "loop": true,
+   "kind": "billboard",
+   "size": 2.4
+  },
+  "poison_aura": {
+   "frames": 16,
+   "fps": 16,
+   "loop": true,
+   "kind": "billboard",
+   "size": 2.4
+  },
+  "smoke_puff": {
+   "frames": 16,
+   "fps": 24,
+   "loop": false,
+   "kind": "billboard",
+   "size": 2.2
+  },
+  "shadow_puff": {
+   "frames": 16,
+   "fps": 24,
+   "loop": false,
+   "kind": "billboard",
+   "size": 2.4
+  },
+  "cast_gather": {
+   "frames": 16,
+   "fps": 28,
+   "loop": false,
+   "kind": "billboard",
+   "size": 2.0
+  },
+  "cast_gather_fire": {
+   "frames": 16,
+   "fps": 28,
+   "loop": false,
+   "kind": "billboard",
+   "size": 2.0
+  },
+  "sparkle": {
+   "frames": 16,
+   "fps": 14,
+   "loop": true,
+   "kind": "billboard",
+   "size": 1.4
+  },
+  "thorn_roots": {
+   "frames": 16,
+   "fps": 20,
+   "loop": false,
+   "kind": "billboard",
+   "size": 3.4
+  },
+  "arcane_burst": {
+   "frames": 16,
+   "fps": 28,
+   "loop": false,
+   "kind": "billboard",
+   "size": 2.6
+  },
+  "earth_spikes": {
+   "frames": 16,
+   "fps": 24,
+   "loop": false,
+   "kind": "billboard",
+   "size": 3.4
+  },
+  "thorn_hit": {
+   "frames": 16,
+   "fps": 28,
+   "loop": false,
+   "kind": "billboard",
+   "size": 1.6
+  }
+ },
+ "skills": {
+  "fire": {
+   "cast": "cast_gather_fire",
+   "travel": "fire_orb",
+   "hit": "fire_burst"
+  },
+  "nova": {
+   "ground": "frost_nova",
+   "hit": "ice_shatter"
+  },
+  "heal": {
+   "cast": "heal_rise"
+  },
+  "zap": {
+   "beam": "lightning_bolt",
+   "hit": "lightning_hit"
+  },
+  "shadowbolt": {
+   "cast": "cast_gather",
+   "travel": "shadow_orb",
+   "hit": "shadow_burst"
+  },
+  "drain": {
+   "beam": "drain_beam",
+   "hit": "shadow_puff"
+  },
+  "hex": {
+   "ground": "circle_hex",
+   "hit": "poison_cloud"
+  },
+  "meteor": {
+   "ground": "circle_arcane",
+   "hit": "meteor_blast",
+   "after": "shockwave"
+  },
+  "icelance": {
+   "travel": "ice_orb",
+   "hit": "ice_shatter"
+  },
+  "thornvolley": {
+   "hit": "thorn_hit"
+  },
+  "entangle": {
+   "ground": "circle_hex",
+   "hit": "thorn_roots"
+  },
+  "consecrate": {
+   "ground": "circle_holy",
+   "cast": "buff_aura"
+  },
+  "smite": {
+   "ground": "circle_holy",
+   "hit": "smite_pillar"
+  },
+  "cleave": {
+   "cast": "slash_heavy",
+   "hit": "hit_spark"
+  },
+  "whirlwind": {
+   "ground": "whirlwind",
+   "hit": "hit_spark"
+  },
+  "leap": {
+   "hit": "shockwave",
+   "cast": "smoke_puff"
+  },
+  "lunge": {
+   "cast": "thrust_streak",
+   "hit": "hit_spark"
+  },
+  "shieldbash": {
+   "hit": "hit_spark",
+   "after": "shockwave_gold"
+  },
+  "warcry": {
+   "ground": "shockwave_gold",
+   "cast": "buff_aura"
+  },
+  "groundslam": {
+   "hit": "earth_spikes",
+   "ground": "shockwave"
+  },
+  "shadowstep": {
+   "cast": "shadow_puff",
+   "hit": "slash_shadow"
+  },
+  "poisonblade": {
+   "cast": "poison_aura"
+  },
+  "fan": {
+   "hit": "hit_spark"
+  },
+  "arcanestrike": {
+   "cast": "slash_arc",
+   "hit": "arcane_burst"
+  },
+  "volley": {
+   "hit": "hit_spark"
+  },
+  "rain": {
+   "ground": "circle_arcane",
+   "hit": "hit_spark"
+  },
+  "_melee_combo": {
+   "cast": "slash_arc",
+   "hit": "hit_spark",
+   "finisher": "slash_heavy"
+  },
+  "_pickup": {
+   "cast": "sparkle"
+  }
+ }
+}
