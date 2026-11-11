@@ -20,6 +20,7 @@ public static class Genshin
     static bool _loaded, _on = true, _hull = true;
     static float _rim = .35f, _rimWidth = .28f, _threshold = .5f, _feather = .015f, _ambient = .55f, _shadows = 1f, _lineWidth = 1.8f, _lineMax = .012f, _lineFade = 60f, _hairSpec = .35f, _metalSpec = .8f;
     static Color _line = new(.32f, .2f, .22f);
+    static float _metalMin = .6f;   // below this metallic value a material is cloth/leather: no metal bands, no highlight
     static Shader? _toon, _toonTwoSided, _outline;
     static readonly Dictionary<Kind, (Texture2D day, Texture2D night)> _ramps = new();
     static Texture2D? _metalRamp;
@@ -38,7 +39,7 @@ public static class Genshin
             _threshold = JsonUtil.F(g, "shadowThreshold", _threshold); _feather = JsonUtil.F(g, "shadowFeather", _feather);
             _ambient = JsonUtil.F(g, "ambient", _ambient); _shadows = JsonUtil.F(g, "receiveShadows", _shadows);
             _lineWidth = JsonUtil.F(g, "outlineWidth", _lineWidth); _lineMax = JsonUtil.F(g, "outlineMaxWidth", _lineMax); _lineFade = JsonUtil.F(g, "outlineFade", _lineFade);
-            _hairSpec = JsonUtil.F(g, "hairHighlight", _hairSpec); _metalSpec = JsonUtil.F(g, "metalHighlight", _metalSpec);
+            _hairSpec = JsonUtil.F(g, "hairHighlight", _hairSpec); _metalSpec = JsonUtil.F(g, "metalHighlight", _metalSpec); _metalMin = JsonUtil.F(g, "metalMin", _metalMin);
             string lc = JsonUtil.S(g, "outlineColor"); if (lc != "") _line = Color.FromHtml(lc);
         }
         if (!ResourceLoader.Exists(ToonPath) || !ResourceLoader.Exists(OutlinePath)) { GD.PrintErr("[GENSHIN] shaders missing, using the plain toon look"); _on = false; return; }
@@ -53,6 +54,15 @@ public static class Genshin
                               Ramp(new Color(.46f, .48f, .72f), new Color(.58f, .60f, .82f), new Color(.66f, .64f, .84f)));
         _ramps[Kind.Hair] = (Ramp(new Color(.62f, .54f, .68f), new Color(.74f, .66f, .78f), new Color(.86f, .70f, .74f)),
                              Ramp(new Color(.48f, .48f, .70f), new Color(.60f, .60f, .80f), new Color(.68f, .64f, .82f)));
+        // data/look.json genshin.ramps overrides: { "skin": { "day": [deep, shade, edge], "night": [...] }, "cloth": ..., "hair": ... }
+        using (var doc2 = JsonUtil.Load("res://data/look.json"))
+            if (doc2.RootElement.TryGetProperty("genshin", out var gg) && gg.TryGetProperty("ramps", out var rr))
+                foreach (var (kind, key) in new[] { (Kind.Skin, "skin"), (Kind.Cloth, "cloth"), (Kind.Hair, "hair") })
+                {
+                    if (!rr.TryGetProperty(key, out var rk)) continue;
+                    Texture2D? R(string dn) => rk.TryGetProperty(dn, out var a) && a.GetArrayLength() >= 3 ? Ramp(Color.FromHtml(a[0].GetString()!), Color.FromHtml(a[1].GetString()!), Color.FromHtml(a[2].GetString()!)) : null;
+                    var cur = _ramps[kind]; _ramps[kind] = (R("day") ?? cur.day, R("night") ?? cur.night);
+                }
         // Metal: dark and bright stripes, looked up by which way the surface faces the camera.
         var mg = new Gradient { Offsets = new[] { 0f, .22f, .30f, .48f, .56f, .78f, .86f, 1f }, Colors = new[] { G(.25f), G(.35f), G(.75f), G(.55f), G(1f), G(.6f), G(.9f), G(.45f) } };
         _metalRamp = new GradientTexture1D { Gradient = mg, Width = 256 };
@@ -87,8 +97,9 @@ public static class Genshin
         m.SetShaderParameter("ramp_day", day); m.SetShaderParameter("ramp_night", nightRamp); m.SetShaderParameter("night", Mathf.Max(_night, 0f));
         m.SetShaderParameter("shadow_threshold", _threshold); m.SetShaderParameter("shadow_feather", _feather);
         m.SetShaderParameter("ambient_strength", _ambient); m.SetShaderParameter("receive_shadows", _shadows);
-        m.SetShaderParameter("metal", b.Metallic); m.SetShaderParameter("metal_ramp", _metalRamp!);
-        m.SetShaderParameter("spec_strength", b.Metallic > .3f ? _metalSpec : kind == Kind.Hair ? _hairSpec : 0f);
+        float metal = Mathf.Clamp((b.Metallic - _metalMin) / Mathf.Max(.01f, 1f - _metalMin), 0, 1);   // only real metal gets the bands
+        m.SetShaderParameter("metal", metal); m.SetShaderParameter("metal_ramp", _metalRamp!);
+        m.SetShaderParameter("spec_strength", metal > .2f ? _metalSpec : kind == Kind.Hair ? _hairSpec : 0f);
         m.SetShaderParameter("shininess", kind == Kind.Hair ? 24f : 64f);
         m.SetShaderParameter("rim_strength", _rim); m.SetShaderParameter("rim_width", _rimWidth);
 

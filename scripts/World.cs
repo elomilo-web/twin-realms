@@ -159,6 +159,7 @@ public partial class World : Node3D
             if (doc.RootElement.TryGetProperty(sec, out var o))
                 foreach (var p in o.EnumerateObject())
                 {
+                    if (p.Name.StartsWith("_")) continue;   // _help notes
                     if (p.Value.ValueKind == JsonValueKind.Number) LookF[p.Name] = p.Value.GetSingle();
                     else if (p.Value.ValueKind == JsonValueKind.String) LookC[p.Name] = Color.FromHtml(p.Value.GetString() ?? "#ffffff");
                 }
@@ -173,7 +174,7 @@ public partial class World : Node3D
         {
             BackgroundMode = Godot.Environment.BGMode.Sky, Sky = new Sky { SkyMaterial = _sky, ProcessMode = Sky.ProcessModeEnum.Incremental, RadianceSize = Sky.RadianceSizeEnum.Size64 },
             AmbientLightSource = Godot.Environment.AmbientSource.Color, AmbientLightColor = new Color(0.55f, 0.6f, 0.7f), AmbientLightEnergy = 0.8f,
-            TonemapMode = Godot.Environment.ToneMapper.Aces, TonemapExposure = LF("exposure", 1f), TonemapWhite = LF("white", 7f),
+            TonemapMode = (Godot.Environment.ToneMapper)(int)LF("tonemapMode", 3), TonemapExposure = LF("exposure", 1f), TonemapWhite = LF("white", 7f),
             FogEnabled = true, FogDensity = LF("fogDay", .0017f), FogAerialPerspective = LF("aerial", .55f), FogSkyAffect = LF("skyAffect", .45f),
             GlowEnabled = true, GlowIntensity = LF("glowIntensity", .7f), GlowBloom = LF("glowBloom", .04f),
             SsaoEnabled = true, SsaoIntensity = LF("ssaoIntensity", 1.8f), SsaoRadius = LF("ssaoRadius", 1.3f),
@@ -250,7 +251,8 @@ void sky(){
             float hl = HG[iz * (N + 1) + Math.Max(ix - 1, 0)], hr = HG[iz * (N + 1) + Math.Min(ix + 1, N)], hd = HG[Math.Max(iz - 1, 0) * (N + 1) + ix], hu = HG[Math.Min(iz + 1, N) * (N + 1) + ix];
             var nrm = new Vector3(hl - hr, 2 * Cell, hd - hu).Normalized(); norms[i] = nrm;
             float ny = nrm.Y, rd = RoadDist(x, z), n1 = Fbm(x * .05f, z * .05f, 3), n2 = VNoise(x * .45f, z * .45f);
-            float r = Mathf.Lerp(.27f, .37f, n1) + (n2 - .5f) * .05f, g = Mathf.Lerp(.47f, .56f, n1) + (n2 - .5f) * .06f, b = Mathf.Lerp(.16f, .21f, n1);
+            // richer meadow green (the old one turned pale mint once lit)
+            float r = Mathf.Lerp(.19f, .3f, n1) + (n2 - .5f) * .05f, g = Mathf.Lerp(.44f, .54f, n1) + (n2 - .5f) * .06f, b = Mathf.Lerp(.08f, .12f, n1);
             float t = Smooth(8, 26, h) * .5f; r = Mathf.Lerp(r, .4f, t); g = Mathf.Lerp(g, .46f, t); b = Mathf.Lerp(b, .22f, t);
             t = 1 - Smooth(.5f, 1.9f, h); r = Mathf.Lerp(r, .79f, t); g = Mathf.Lerp(g, .72f, t); b = Mathf.Lerp(b, .52f, t);
             t = Mathf.Max(Smooth(.84f, .64f, ny), Smooth(34, 46, h) * .8f); float rv = .4f + (n2 - .5f) * .1f; r = Mathf.Lerp(r, rv, t); g = Mathf.Lerp(g, rv * .97f, t); b = Mathf.Lerp(b, rv * .94f, t);

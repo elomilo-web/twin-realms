@@ -69,7 +69,8 @@ public partial class Toon : Node3D
     public static void Apply(Material m)
     {
         if (!_on || m is not BaseMaterial3D b || b.ShadingMode == BaseMaterial3D.ShadingModeEnum.Unshaded) return;
-        b.DiffuseMode = BaseMaterial3D.DiffuseModeEnum.Toon; b.SpecularMode = BaseMaterial3D.SpecularModeEnum.Toon;
+        // toon light; only metal keeps a highlight (cloth, wood and leather were glossy)
+        b.DiffuseMode = BaseMaterial3D.DiffuseModeEnum.Toon; b.SpecularMode = b.Metallic >= .5f ? BaseMaterial3D.SpecularModeEnum.Toon : BaseMaterial3D.SpecularModeEnum.Disabled;
         b.Roughness = Mathf.Max(b.Roughness, _soft);   // toon roughness = how soft the light/shadow edge is
         if (_rim > 0 && b.Transparency == BaseMaterial3D.TransparencyEnum.Disabled) { b.RimEnabled = true; b.Rim = _rim; b.RimTint = _rimTint; }
     }

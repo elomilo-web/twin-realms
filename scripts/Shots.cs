@@ -95,6 +95,7 @@ public partial class Shots : Node
         Free(World.OnGround(-60, 60, 14f), World.OnGround(-90, 20, 0)); await Wait(1.2f); await Shot("nature_forest");
         Free(World.OnGround(70, -40, 10f), World.OnGround(100, -80, 0)); await Wait(1.2f); await Shot("nature_hills");
         Free(null);
+        if (OS.GetCmdlineUserArgs().Contains("--look")) return;   // just the hero, village and nature (to compare the look)
 
         // ---- kit weapons in a row (checks orientation: grip at the bottom, blade up after the -Z turn)
         await WeaponRow();
