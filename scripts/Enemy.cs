@@ -584,6 +584,9 @@ public partial class Enemy : CharacterBody3D, IDamageable
             case State.Wind:
                 _yaw = Mathf.LerpAngle(_yaw, yawToP, 1f - Mathf.Exp(-12f * dt));
                 _timer -= dt;
+                // melee: lunge in over the last third of the wind-up so the blow lands in contact, not from a step away
+                if (!ranged && _timer < Def.Wind * .35f && dist - Def.R * _scale > .9f)
+                    move = new Vector3(-Mathf.Sin(_yaw), 0, -Mathf.Cos(_yaw)) * Mathf.Min(Def.Spd * 2.2f, (dist - Def.R * _scale - .7f) / Mathf.Max(.05f, _timer));
                 if (_timer <= 0)
                 {
                     if (plOk)

@@ -406,7 +406,7 @@ public partial class Bot : Node
             Check("rend resolves with bleed and the heavy bonus", r0.Id == "rend" && r0.Status.Any(s => s.id == "bleed") && r0.Def.Dmg > 0.95f, $"dmg x{r0.Def.Dmg:0.00}");
             // swing three times on a dummy foe: the steps come out in chain order
             var spot = World.OnGround(-80, -80, .5f); P.Teleport(spot, 0f);
-            var foe = new Enemy { Type = "golem", Level = 20, AnyRealm = true, NoLeash = true, Position = spot + new Vector3(0, 0, -2.2f) }; Game.Root!.AddChild(foe); await Wait(.5f); Targeting.Set(foe);
+            var foe = new Enemy { Type = "golem", Level = 20, AnyRealm = true, NoLeash = true, Position = spot + new Vector3(0, 0, -2.2f) }; Game.Root!.AddChild(foe); await Wait(.5f); Targeting.Set(foe); foe.Stun(10f);   // a still target: its blows would (rightly) interrupt the chain
             var seen = new List<string>();
             for (int i = 0; i < 3; i++) { Heal(); MouseRaw(MouseButton.Left, true); await Wait(.06f); MouseRaw(MouseButton.Left, false); await Wait(.08f); seen.Add(P.CurrentStep?.Id ?? "-"); await Wait(.45f); }
             Check("taps walk the chain in order", string.Join(",", seen) == "flurry,cut,rend", string.Join(",", seen));

@@ -33,6 +33,7 @@ public partial class Player : CharacterBody3D, IDamageable
     float _atkT, _atkDur, _comboT, _blockT, _queueT, _castT, _castDur; bool _queuePower, _hasQueue;
     int _combo; bool _atkPower, _hitDone, _blocking, _fired;
     ulong _noStMsg; float _airT; FootPlant? _feet;
+    Vector3 _hitKb, _walkV; int _hurtSerial, _avHurt; Enemy? _magnet;   // knockback from blows, hit-clip restarts, the foe a melee swing steps in on
     public const float RunSpeed = 4.6f, SprintSpeed = 6.6f;
     float _heavyT; const float HeavyGather = .25f;   // heavy attack: seconds between pressing and the swing
     AttackStep? _step;   // the basic-attack chain step being swung (data/attacks.json)
@@ -172,8 +173,11 @@ public partial class Player : CharacterBody3D, IDamageable
         else
         {
             Sfx.Play("hurt");
-            if (away.LengthSquared() > 0.001f) _kb += away.Normalized() * h.Knock;
-            if (!h.IsProjectile) _stagger = Mathf.Max(_stagger, 0.18f);
+            // the blow lands on the body: a real shove, a stagger long enough for the hit clip, a spark where it struck
+            if (away.LengthSquared() > 0.001f) _hitKb += away.Normalized() * h.Knock * .9f;
+            _stagger = Mathf.Max(_stagger, h.IsProjectile ? .2f : h.Knock >= 8f ? .55f : .35f); _hurtSerial++;
+            var hitDir = toSrc.LengthSquared() > .001f ? toSrc.Normalized() : Vector3.Forward;
+            SpellFx.Play("hit_spark", GlobalPosition + new Vector3(0, 1.25f, 0) + hitDir * .3f, h.Knock >= 8f ? 1.6f : 1.1f);
             _atkT = 0; _castT = 0; _castSkill = null; _atkSkill = null;
         }
         if (TS.Has("manaShield") && Mp > 0) { float m = Mathf.Min(Mp, dmg * 0.35f); Mp -= m; dmg -= m; }
@@ -212,7 +216,7 @@ public partial class Player : CharacterBody3D, IDamageable
 
     public void Teleport(Vector3 pos, float yaw = 0f)
     {
-        GlobalPosition = pos; Velocity = Vector3.Zero; _kb = Vector3.Zero;
+        GlobalPosition = pos; Velocity = Vector3.Zero; _kb = Vector3.Zero; _hitKb = Vector3.Zero; _walkV = Vector3.Zero;
         if (Rig != null) { Rig.GlobalPosition = pos + new Vector3(0, 1.6f, 0); Rig.Rotation = new Vector3(0, yaw, 0); }
         _modelYaw = yaw;
     }
@@ -271,20 +275,36 @@ public partial class Player : CharacterBody3D, IDamageable
         UseStamina(cost * (_step?.Stamina ?? 1f));
         _atkPower = power; _atkDur = _atk.Dur / (Game.D.AtkSpeed() * w.Speed * (_step?.Speed ?? 1f)); _atkT = _atkDur; _hitDone = false; _comboT = _atkDur + 0.55f; _atkSerial++;
         float camYaw = Rig?.Yaw ?? _modelYaw; float face = camYaw;
-        var tgt = Targeting.Current;
-        if (tgt != null) { var d = tgt.GlobalPosition - GlobalPosition; face = Util.YawTo(d.X, d.Z); }
+        var tgt = Targeting.Current; _magnet = null;
+        if (tgt != null) { var d = tgt.GlobalPosition - GlobalPosition; face = Util.YawTo(d.X, d.Z); if (!ranged) _magnet = tgt; }
         else if (!ranged)
         {
-            float best = 5.5f;
+            // the foe in front within reach + 2.2 m: face it, and step in on it during the wind-up (Magnet)
+            float best = _atk.Range + 2.2f;
             foreach (var n in GetTree().GetNodesInGroup("enemies"))
             {
                 if (n is not Enemy e || e.Dead || !e.Active) continue;
-                var d = e.GlobalPosition - GlobalPosition; d.Y = 0; float dd = d.Length() - e.Def.R;
-                if (dd < best && Mathf.Abs(Util.AngDiff(camYaw, Util.YawTo(d.X, d.Z))) < 0.9f) { best = dd; face = Util.YawTo(d.X, d.Z); }
+                var d = e.GlobalPosition - GlobalPosition; d.Y = 0; float dd = d.Length() - e.Def.R * e.ScaleF();
+                if (dd < best && Mathf.Abs(Util.AngDiff(camYaw, Util.YawTo(d.X, d.Z))) < 1.05f) { best = dd; face = Util.YawTo(d.X, d.Z); _magnet = e; }
             }
         }
+        if (_magnet != null && _magnet.GlobalPosition.DistanceTo(GlobalPosition) - _magnet.Def.R * _magnet.ScaleF() > _atk.Range + 2.4f) _magnet = null;
         _modelYaw = face; _spinBase = face; Sfx.Play("swing");
         return true;
+    }
+
+    /// <summary>
+    /// Melee step-in: during the wind-up the hero closes on the chosen foe to the swing's sweet spot (60% of its reach from the
+    /// foe's edge), arriving at the impact frame, and keeps facing it. Swings at the edge of range connect instead of whiffing.
+    /// </summary>
+    void Magnet(float prog, float dt, ref Vector3 v)
+    {
+        if (_magnet == null || !IsInstanceValid(_magnet) || _magnet.Dead || _atk == null || prog >= _atk.Hit) return;
+        var d = _magnet.GlobalPosition - GlobalPosition; d.Y = 0; float edge = d.Length() - _magnet.Def.R * _magnet.ScaleF();
+        _modelYaw = Mathf.LerpAngle(_modelYaw, Util.YawTo(d.X, d.Z), 1f - Mathf.Exp(-18f * dt)); _spinBase = _modelYaw;
+        float want = _atk.Range * .6f, gap = edge - want; if (gap <= .05f) return;
+        float left = Mathf.Max(.04f, (_atk.Hit - prog) * _atkDur), sp = Mathf.Min(gap / left, 11f);
+        var dir = d.Normalized(); v.X = dir.X * sp; v.Z = dir.Z * sp;
     }
 
     /// <summary>Melee hit for the current attack: arc, reach, knockback, stun and knock-up come from the attack data, then passives modify them.</summary>
@@ -310,6 +330,9 @@ public partial class Player : CharacterBody3D, IDamageable
             if (GearFx.Get(D.Weapon?.Elem) is { } el && el.Status != "") hi.With(el.Status, el.Proc * (fin || _atkPower ? 1.5f : 1f) * (_step?.ElemMul ?? 1f));   // elemental weapon
             if (_step != null) foreach (var (sid, ch) in _step.Status) hi.With(sid, ch);   // the chain step and its modifiers
             e.TakeHit(hi); if (crit) TriggerAuto("crit");
+            // where steel meets the foe: a spark on its near side, bigger for crits, finishers and heavies
+            var toMe = -d.Normalized(); float big = crit ? 1.6f : fin || _atkPower ? 1.4f : 1f;
+            SpellFx.Play("hit_spark", e.GlobalPosition + new Vector3(0, e.HeightM() * .55f, 0) + toMe * e.Def.R * e.ScaleF() * .8f, big);
             hits++;
         }
         if (hits > 0) { Rig?.Shake(_atkPower ? 0.25f : fin ? 0.15f : 0.08f); Sfx.Play("hit"); }
@@ -392,7 +415,7 @@ public partial class Player : CharacterBody3D, IDamageable
     public override void _PhysicsProcess(double delta)
     {
         float dt = (float)delta; var D = Game.D; var TS = Game.TS;
-        var v = Velocity;
+        var v = Velocity; v.X = _walkV.X; v.Z = _walkV.Z;   // steer the walking velocity only; pushes are added for the move below
         if (!IsOnFloor()) v.Y -= _gravity * dt;
         _rollCd = Mathf.Max(0, _rollCd - dt); _inv = Mathf.Max(0, _inv - dt); _stagger = Mathf.Max(0, _stagger - dt);
         _comboT = Mathf.Max(0, _comboT - dt); _stLockT = Mathf.Max(0, _stLockT - dt);
@@ -505,9 +528,13 @@ public partial class Player : CharacterBody3D, IDamageable
             if (sprint) { St = Mathf.Max(0, St - 10f * dt); _stLockT = 0.5f; }
             var target = dir * speed; float a = (IsOnFloor() ? Accel : AirAccel) * dt;
             v.X = Mathf.MoveToward(v.X, target.X, a); v.Z = Mathf.MoveToward(v.Z, target.Z, a);
+            if (_atkT > 0 && !Ranged && _atk != null) Magnet(1f - _atkT / _atkDur, dt, ref v);   // melee step-in overrides the planted feet
         }
+        // pushes (lunges, blows) ride on top of the walking velocity; take last frame's push off first, or it piles up every frame
         _kb = _kb.MoveToward(Vector3.Zero, 25f * dt);
-        v.X += _kb.X * 0.3f; v.Z += _kb.Z * 0.3f;
+        _hitKb = _hitKb.MoveToward(Vector3.Zero, 12f * dt);   // being struck: about 0.5 m for a normal blow
+        _walkV = new Vector3(v.X, 0, v.Z);
+        var push = _kb * .3f + _hitKb; v.X += push.X; v.Z += push.Z;
 
         // ---- regeneration
         if (_stLockT <= 0 && !_blocking && _atkT <= 0) St = Mathf.Min(D.MaxSt(), St + 24f * dt);
@@ -635,7 +662,7 @@ public partial class Player : CharacterBody3D, IDamageable
         bool rolling = _rollT > 0; bool rollStart = rolling && !_avRolling; _avRolling = rolling;
         if (Mounted) { a.Play("sit"); return; }
         if (rolling) { a.Play("roll", .06f, RollTime, rollStart); return; }
-        if (_stagger > 0) { a.Play("hit", .05f); return; }
+        if (_stagger > 0) { bool fresh = _hurtSerial != _avHurt; _avHurt = _hurtSerial; a.Play("hit", .04f, 0, fresh); return; }   // every blow restarts the flinch
         if (atk)
         {
             bool fresh = _atkSerial != _avAtk; _avAtk = _atkSerial;

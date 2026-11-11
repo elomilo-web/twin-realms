@@ -73,6 +73,7 @@ public partial class Shots : Node
         if (OS.GetCmdlineUserArgs().Contains("--move")) { await MoveCheck(); return; }
         if (OS.GetCmdlineUserArgs().Contains("--fxdrift")) { await FxDrift(); return; }
         if (OS.GetCmdlineUserArgs().Contains("--feel")) { await FeelCheck(); return; }
+        if (OS.GetCmdlineUserArgs().Contains("--combat")) { await CombatCheck(); return; }
         if (OS.GetCmdlineUserArgs().Contains("--hands"))
         {
             // which hand each clip reaches out with (model space: -Z is forward, +X is the model's left after the 180 turn)
@@ -192,6 +193,36 @@ public partial class Shots : Node
     /// Movement feel numbers: foot skating while running (how fast the planted foot slides), floor contact running down a slope
     /// (frames off the floor, frames in the fall clip, foot gap to the ground), and stopping distance from a sprint.
     /// </summary>
+    /// <summary>Combat feel numbers: do swings connect at the edge of reach (step-in), and how does an enemy blow land on the hero.</summary>
+    async Task CombatCheck()
+    {
+        World.TimeOfDay = .45f; Game.D.Eq["weapon"] = new Item { Name = "Sword", Slot = "weapon", Wt = "sword", Dmg = 5 }; Game.D.Eq["shield"] = null; Game.Notify();
+        var spot = World.OnGround(1.5f, 6f, .5f); _keepAlive = true;
+        foreach (float gap in new[] { 1.5f, 3f, 4.2f, 5.5f })
+        {
+            ClearField(); P.Teleport(spot, 0); Cam(0, 5f); await Wait(.5f);
+            var g = new Enemy { Type = "bandit", Level = 30, AnyRealm = true, NoLeash = true, Position = World.OnGround(spot.X, spot.Z - gap, .3f) }; Game.Root!.AddChild(g); await Wait(.4f); g.Stun(6f);
+            float hp0 = g.Hp; var p0 = P.GlobalPosition;
+            Input.ActionPress(Inputs.Attack); await Wait(.05f); Input.ActionRelease(Inputs.Attack);
+            await Wait(.22f); if (gap == 3f) await Shot("combat_swing_connect"); await Wait(.4f);
+            float edge = P.GlobalPosition.DistanceTo(g.GlobalPosition) - g.Def.R * g.ScaleF();
+            Say($"combat swing at {gap:0.0} m: {(g.Hp < hp0 ? "HIT" : "miss")}, hero stepped {P.GlobalPosition.DistanceTo(p0):0.00} m, ends {edge:0.00} m from the foe's edge");
+        }
+        // an enemy blow on the hero
+        ClearField(); P.Teleport(spot, 0); Cam(.6f, 5f); await Wait(.5f);
+        var b = new Enemy { Type = "bandit", Level = 3, AnyRealm = true, NoLeash = true, Position = World.OnGround(spot.X, spot.Z - 3.2f, .3f) }; Game.Root!.AddChild(b); await Wait(.2f); b.Wake();
+        float hpP = P.Hp; Vector3 before = P.GlobalPosition; float atBlow = -1; string clip = ""; float t = 0; bool shot = false;
+        while (t < 6f && atBlow < 0)
+        {
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame); t += (float)GetProcessDeltaTime(); _keepAlive = false;
+            if (P.Hp < hpP - .5f) { atBlow = P.GlobalPosition.DistanceTo(b.GlobalPosition) - b.Def.R * b.ScaleF(); before = P.GlobalPosition; }
+            else { P.Hp = Game.D.MaxHp(); hpP = P.Hp; }
+        }
+        await Wait(.12f); clip = P.AvClip; if (!shot) { await Shot("combat_hero_struck"); shot = true; } await Wait(.4f);
+        Say($"combat enemy blow: landed {(atBlow < 0 ? "never" : $"{atBlow:0.00} m from the bandit's edge")}, hero shoved {new Vector2(P.GlobalPosition.X - before.X, P.GlobalPosition.Z - before.Z).Length():0.00} m, clip after the blow {clip}");
+        _keepAlive = false; ClearField();
+    }
+
     Vector3 _pl, _pr; float _stDz, _stDt;
     async Task FeelCheck()
     {
