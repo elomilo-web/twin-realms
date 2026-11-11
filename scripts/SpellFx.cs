@@ -144,7 +144,7 @@ void fragment() {
 public partial class SpellFxSprite : MeshInstance3D
 {
     public int Frames = 16; public float Fps = 24; public bool Loop, Ground; public ShaderMaterial? Mat;
-    public float Life;   // > 0: fade out and free after this many seconds (ends looping animations)
+    public static bool NoHug; public float Life;   // > 0: fade out and free after this many seconds (ends looping animations)
     double _t; bool _fading;
 
     /// <summary>Lay the quad between two points, as wide as `width`, turned to face the camera as well as it can.</summary>
@@ -169,24 +169,32 @@ public partial class SpellFxSprite : MeshInstance3D
 
     /// <summary>
     /// Ground animations are flat quads: on a slope half of one would sink into the hill. Tilt it to the ground under it
-    /// (world layer 1, like projectiles), keeping its height above the ground and its turn. Every frame, as zones and whirlwinds move.
+    /// (world layer 1, like projectiles) and set its height above the ground. It stays at its own spot on its parent:
+    /// only height and tilt change, so it moves exactly as much as the zone (or hero) it belongs to.
+    /// (The first version set the world position from the hit every frame and crept sideways by metres.)
     /// </summary>
     void HugGround()
     {
-        var at = GlobalPosition; var space = GetWorld3D()?.DirectSpaceState; if (space == null) return;
+        var par = GetParent<Node3D>(); if (par == null) return;
+        if (!_anchored) { _anchor = Position; _anchored = true; }   // the spot it was placed at, in the parent's space
+        var pg = par.GlobalTransform; var at = pg * _anchor;
+        var space = GetWorld3D()?.DirectSpaceState; if (space == null) return;
         var q = PhysicsRayQueryParameters3D.Create(at + Vector3.Up * 1.5f, at + Vector3.Down * 2.5f, 1);
         if (Player.Instance is { } pl && IsInstanceValid(pl)) q.Exclude = new Godot.Collections.Array<Rid> { pl.GetRid() };   // the hero is on layer 1 too
         var hit = space.IntersectRay(q);
-        if (hit.Count == 0) return;
-        var n = ((Vector3)hit["normal"]).Normalized(); if (n.Y < .5f) return;   // a wall, not a floor
-        var fwd = GlobalBasis.Z; fwd = (fwd - n * fwd.Dot(n)); if (fwd.LengthSquared() < 1e-4f) fwd = Vector3.Back; fwd = fwd.Normalized();
-        GlobalBasis = new Basis(n.Cross(fwd), n, fwd);
-        GlobalPosition = (Vector3)hit["position"] + n * .06f;
+        if (hit.Count == 0) { Position = _anchor; return; }
+        var n = ((Vector3)hit["normal"]).Normalized(); if (n.Y < .5f) { Position = _anchor; return; }   // a wall, not a floor
+        var fwd = Vector3.Back - n * n.Z; fwd = fwd.LengthSquared() < 1e-4f ? Vector3.Right : fwd.Normalized();
+        var tilt = new Basis(n.Cross(fwd), n, fwd);
+        float y = ((Vector3)hit["position"]).Y + .06f;
+        var local = pg.AffineInverse() * new Vector3(at.X, y, at.Z);   // same x/z as the anchor, new height
+        Transform = new Transform3D(pg.Basis.Orthonormalized().Inverse() * tilt, local);
     }
+    Vector3 _anchor; bool _anchored;
 
     public override void _Process(double delta)
     {
-        if (Ground) HugGround();
+        if (Ground && !NoHug) HugGround();
         _t += delta; if (Life > 0 && _t >= Life) FadeOut();
         int f = (int)(_t * Fps);
         if (f >= Frames) { if (!Loop) { QueueFree(); return; } f %= Frames; }

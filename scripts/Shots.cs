@@ -71,6 +71,7 @@ public partial class Shots : Node
         foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Node nn) nn.QueueFree();   // a quiet village for the pictures
         if (OS.GetCmdlineUserArgs().Contains("--weapons")) { await WeaponRow(); return; }   // just the weapon audit and the hero holding each type
         if (OS.GetCmdlineUserArgs().Contains("--move")) { await MoveCheck(); return; }
+        if (OS.GetCmdlineUserArgs().Contains("--fxdrift")) { await FxDrift(); return; }
 
         // ---- the hero: day, night (plaza, lamps lit), close up, facing the camera
         var plaza = World.OnGround(1.5f, 6f, .5f);
@@ -134,6 +135,32 @@ public partial class Shots : Node
                     foreach (var k in keys) Input.ActionRelease(k); Input.ActionRelease(Inputs.Sprint); await Wait(.3f);
                 }
         Targeting.Clear();
+    }
+
+    /// <summary>Casts each zone/strike/nova skill while standing still and logs how far each spell animation and its zone move.</summary>
+    async Task FxDrift()
+    {
+        SpellFxSprite.NoHug = OS.GetCmdlineUserArgs().Contains("--nohug");
+        var spot = World.OnGround(-70, -95, .5f); World.TimeOfDay = .45f; _keepAlive = true;
+        foreach (var id in new[] { "hex", "entangle", "consecrate", "rain", "meteor", "smite", "nova", "warcry", "whirlwind", "fire" })
+        {
+            ClearField(); await Wait(.1f);
+            Game.D.Eq["weapon"] = new Item { Name = id == "rain" ? "Bow" : "Sword", Slot = "weapon", Wt = id == "rain" ? "bow" : "sword" }; Game.Notify();
+            if (!Game.D.Skills.ContainsKey(id)) Game.D.Skills[id] = new SkillState(); Game.D.Bar[0] = id;
+            P.Teleport(spot, 0); Cam(0, 7f); await Wait(.4f);
+            var foe = new Enemy { Type = "golem", Level = 22, AnyRealm = true, NoLeash = true, Position = World.OnGround(spot.X, spot.Z - 7, .3f) }; Game.Root!.AddChild(foe); await Wait(.4f); Targeting.Set(foe);
+            Input.ActionPress("spell1"); await Wait(.05f); Input.ActionRelease("spell1"); await Wait(.5f);
+            var start = new Dictionary<ulong, (string what, Vector3 p)>();
+            foreach (var n in GetTree().Root.FindChildren("*", "", true, false))
+                if (n is SpellFxSprite s && s.IsInsideTree()) start[s.GetInstanceId()] = (s.Name + (s.Ground ? " ground" : "") + " on " + s.GetParent().Name, s.GlobalPosition);
+                else if (n is SkillZone z) start[z.GetInstanceId()] = ("zone", z.GlobalPosition);
+            float moved0 = P.GlobalPosition.DistanceTo(spot);
+            await Wait(1.2f);
+            foreach (var (iid, (what, p)) in start)
+                if (InstanceFromId(iid) is Node3D nn && IsInstanceValid(nn) && nn.IsInsideTree()) Say($"fxdrift {id}: {what} moved {nn.GlobalPosition.DistanceTo(p):0.00} m, delta {nn.GlobalPosition - p} (hero at {P.GlobalPosition - spot}, {P.GlobalPosition.DistanceTo(spot):0.00} m from start)");
+                else Say($"fxdrift {id}: {what} gone");
+        }
+        _keepAlive = false; ClearField();
     }
 
     async Task WeaponRow()
