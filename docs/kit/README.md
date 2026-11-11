@@ -36,11 +36,11 @@ Previews (drawn by a simple software renderer, so the in-game look will differ a
 - `scripts/SpellFx.cs` plays them: `SpellFx.Skill("fire", "hit", pos)`, `SpellFx.Play("shockwave", pos)`, `SpellFx.Attach("fire_orb", projectile)`, `SpellFx.Beam("lightning_bolt", a, b)`.
 - To change or add an animation: edit `tools/kit_gen/fx_gen.py`, then run `python tools/kit_gen/fx_gen.py`.
 
-## Not done yet (needs the PC)
-- `SpellFx.cs` has not been compiled or run, and no skill calls it yet. Next step: call `SpellFx.Skill(...)` from `Skills.cs` / `Projectile.cs` next to the existing `Vfx` calls, build, and take screenshots.
-- Nothing is placed in the world yet. `data/env.json` still points at the Quaternius models; swapping in kit models there is the next step, then screenshots.
-- `Avatar.cs` does not use the eye textures or armor pieces yet, and `Weapons.cs` does not load the kit weapons.
-- The water shader has not been run in Godot.
+## Status (2026-11-10, branch new-content)
+- Done: `SpellFx.cs` compiled and running; skills call it from `PlayerSkills.cs` and `Projectile.cs` (see docs/PORT.md).
+- Done: kit trees, rocks, flowers, bushes and houses are placed through `data/env.json` (names starting `kit/`).
+- Done: `Weapons.cs` loads kit weapons (`data/weapons.json` "kitModels"), and the hero holds them (`data/avatar.json`).
+- Not done: `Avatar.cs` does not use the eye textures or armor pieces; castle, dungeon, the other village pieces and `*_shadow` nature are not placed; the water shader has not been run in Godot.
 - To change a model: edit the matching `tools/kit_gen/assets_*.py`, then run `python tools/kit_gen/build.py` from the repo root (needs Python with numpy and Pillow).
 
 ## Anime character models (found, not downloaded)

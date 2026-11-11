@@ -1,5 +1,15 @@
 ﻿# Port status
 
+**New content (2026-11-10), branch `new-content`, not merged into main yet.** main + `origin/genshin-shader` + `origin/asset-kit-2` (both merged cleanly).
+- Imported in Godot 4.7.2 (164 kit models, 36 flipbooks, 8 eye textures, 3 shaders), no import errors. `Genshin.cs` and `SpellFx.cs` compiled with no errors as merged.
+- Fixed in `SpellFx.cs`: looping animations played free in the world never ended (buff_aura, poison_cloud, whirlwind, circles, drain beam); sprites now take a `Life` (free loops default 2 s). Ground animations tilt to the terrain under them (they sank into slopes). Added `SkillAttach`, `SizeOf`.
+- Skills: SpellFx is called from `PlayerSkills.cs` (`Player.Execute`, `SkillZone`; that is where the skill `Vfx` calls are, `Skills.cs` only holds data) and `Projectile.cs`, per `data/spellfx.json`. Spells play "cast" at the start of the wind-up, weapon skills at the impact. Not wired: `_melee_combo` (plain attacks) and `_pickup`; SpellFx is local only (friends in multiplayer do not see the animations).
+- World: `data/env.json` uses kit trees, rocks, flowers, bushes (names starting `kit/` load `assets/models/kit/*.glb`); the old Quaternius lists are under `_quaternius`. Oakhaven uses whole kit houses (`house.models`, `Builder.WholeHouse`); delete `models` for the modular houses. Kit windmill, well, stalls, lamps, castle, dungeon pieces, eyes, armor and the water shader are not placed yet.
+- Weapons: `data/weapons.json` `kitModels` lists kit models per type; `Item.Model` picks one, otherwise the item name does. `data/avatar.json` now builds every weapon type through `Weapons.Build` (remove `"proc": true` to go back to the Quaternius models). Not mapped (no type): shields, crossbow, chakram, claws.
+- `--shots` / `tools/run.ps1 shots` / `tools/shots.sh`: screenshot tour into `screenshots/`.
+- Verified: build OK, bot 81/81 with no engine errors, shots tour OK (131 shots, no errors). `tools/smoke_test.sh` prints "ERROR: 7 resources still in use at exit" and fails, the same as on main (pre-existing).
+- Looks wrong / to do: kit house windows do not light up at night (painted, not the night window material); kit houses and trees are not tinted for the Shadow realm beyond the global tint (`*_shadow` kit pieces unused); fire burst at full AoE size is large on big foes.
+
 **Art + audio overhaul (2026-11-09), in progress.** Goal: one cohesive Genshin-like look, gear as separate assets on plain base bodies, calm audio.
 Backup before the overhaul: `../twin-realms-backup-2026-11-09.zip` (git is not installed on this PC).
 - Done: `scripts/Toon.cs` (toon lighting + rim on every StandardMaterial3D, screen-space outlines; tune in `data/look.json` "toon"). Brighter grading in look.json.
