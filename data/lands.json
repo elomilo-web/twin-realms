@@ -1,0 +1,159 @@
+{
+ "_help": "The wider world around the home island (scripts/Lands.cs). Every land is a heightfield island; x/z inside a land are LOCAL metres from its centre (north = -z). Places: kind = village | stilts | city | castle | ruins | cave | camp | tombs. roads join place ids and docks ('dock:<name>'). bridges join two WORLD points (docks): the deck spans from coast to coast along that line. Sky islands float at y and are reached by an updraft column beside them. Biomes: surface weights (sand, forest floor, snow, extra rock, ash), hill height, grass density, tree set and density, small props.",
+ "extent": 1700,
+ "home": "The Verdant Isle",
+ "skyName": "The Skyreach",
+ "sea": "The Sundering Sea",
+
+ "biomes": {
+  "meadow":   { "hills": 22, "grass": 1.0, "trees": "oak", "treeDensity": 0.35, "props": [["nature/Rock_Medium_1", 0.9], ["nature/Bush_Common_Flowers", 1.2]], "propDensity": 0.25 },
+  "forest":   { "forest": 0.55, "hills": 26, "grass": 0.75, "trees": "mixed", "treeDensity": 0.95, "props": [["kit/nature/log", 1.6], ["kit/nature/stump", 1.5], ["nature/Mushroom_Common", 1.0]], "propDensity": 0.35 },
+  "pine":     { "forest": 0.5, "hills": 30, "grass": 0.55, "trees": "pine", "treeDensity": 0.9, "props": [["nature/Rock_Medium_2", 1.1], ["kit/nature/stump", 1.5]], "propDensity": 0.25 },
+  "tundra":   { "snow": 0.8, "hills": 26, "grass": 0.12, "grassTint": "c8d4c0", "trees": "snowpine", "treeDensity": 0.3, "props": [["nature/Rock_Medium_1", 1.6], ["kit/nature/crystal_cyan", 1.6], ["nature/Rock_Medium_3", 1.2]], "propDensity": 0.3 },
+  "desert":   { "sand": 1.0, "hills": 16, "grass": 0.0, "trees": "desert", "treeDensity": 0.05, "props": [["nature/Rock_Medium_2", 1.8], ["nature/Rock_Medium_1", 1.3], ["kit/nature/cliff_spires", 1.4]], "propDensity": 0.18 },
+  "savanna":  { "sand": 0.35, "hills": 10, "grass": 0.55, "grassTint": "e6d890", "trees": "savanna", "treeDensity": 0.12, "treeTints": [[1.5, 1.2, 0.6], [1.2, 1.1, 0.7]], "props": [["nature/Rock_Medium_2", 1.0]], "propDensity": 0.12 },
+  "swamp":    { "forest": 0.8, "hills": 5, "grass": 0.95, "grassTint": "a8b880", "trees": "swamp", "treeDensity": 0.55, "props": [["kit/nature/reeds", 2.2], ["kit/nature/mushroom_glow", 2.2], ["kit/nature/log", 1.6]], "propDensity": 0.6 },
+  "autumn":   { "forest": 0.35, "hills": 26, "grass": 0.8, "grassTint": "f0d890", "trees": "autumn", "treeDensity": 0.75, "treeTints": [[2.2, 1.0, 0.35], [2.4, 0.75, 0.3], [2.0, 1.35, 0.4], [1.7, 1.15, 0.5], [1.0, 1.0, 1.0]], "props": [["kit/nature/log", 1.6], ["nature/Mushroom_Common", 1.0], ["kit/nature/stump", 1.5]], "propDensity": 0.3 },
+  "volcanic": { "forest": 0.9, "rock": 0.45, "ash": 0.75, "hills": 32, "grass": 0.04, "trees": "dead", "treeDensity": 0.12, "props": [["kit/nature/cliff_spires", 1.6], ["kit/nature/crystal_violet", 1.8], ["nature/Rock_Medium_3", 1.6]], "propDensity": 0.3 },
+  "ancient":  { "forest": 0.7, "hills": 24, "grass": 0.6, "trees": "ancient", "treeDensity": 0.95, "props": [["kit/nature/mushroom_glow", 2.4], ["kit/nature/log", 2.0], ["kit/nature/stump", 2.0]], "propDensity": 0.45 },
+  "highland": { "rock": 0.35, "hills": 40, "grass": 0.6, "trees": "pine", "treeDensity": 0.3, "props": [["nature/Rock_Medium_1", 1.9], ["nature/Rock_Medium_3", 1.4]], "propDensity": 0.35 }
+ },
+
+ "treeSets": {
+  "oak": [["nature/CommonTree_1", 1.45], ["nature/CommonTree_2", 1.4], ["nature/CommonTree_3", 1.3], ["nature/CommonTree_5", 1.5]],
+  "mixed": [["nature/CommonTree_1", 1.5], ["nature/Pine_1", 1.15], ["nature/CommonTree_4", 1.35], ["nature/Pine_3", 1.2], ["nature/CommonTree_2", 1.6]],
+  "pine": [["nature/Pine_1", 1.2], ["nature/Pine_2", 1.2], ["nature/Pine_3", 1.25], ["nature/Pine_4", 1.0], ["nature/Pine_5", 1.1]],
+  "snowpine": [["kit/nature/tree_pine_snow", 1.7], ["kit/nature/tree_pine_snow", 1.4], ["nature/Pine_4", 1.0], ["kit/nature/tree_dead", 1.3]],
+  "desert": [["kit/nature/tree_dead", 1.4]],
+  "savanna": [["nature/CommonTree_3", 1.5], ["nature/CommonTree_5", 1.3], ["kit/nature/tree_dead", 1.3]],
+  "swamp": [["kit/nature/tree_dead", 1.9], ["nature/CommonTree_4", 1.3], ["kit/nature/tree_dead", 1.5], ["nature/CommonTree_2", 1.2]],
+  "autumn": [["nature/CommonTree_1", 1.5], ["nature/CommonTree_2", 1.45], ["nature/CommonTree_3", 1.35], ["nature/CommonTree_5", 1.55], ["nature/CommonTree_4", 1.4]],
+  "dead": [["kit/nature/tree_dead", 1.6], ["kit/nature/tree_dead", 2.1]],
+  "ancient": [["nature/CommonTree_1", 2.6], ["nature/CommonTree_2", 2.9], ["nature/CommonTree_4", 2.4], ["nature/CommonTree_5", 3.2], ["nature/Pine_3", 2.0]]
+ },
+
+ "lands": [
+  {
+   "id": "frost", "name": "Frostspire Reach", "x": 0, "z": -950, "size": 1024, "seed": 11, "biome": "tundra", "snowLine": 34, "shape": 0.25,
+   "look": { "grass_tint": "c4d8b0", "rock_tint": "c8ccd4" },
+   "biomes": [ { "type": "pine", "x": 0, "z": 190, "r": 250 }, { "type": "highland", "x": 260, "z": -40, "r": 140 } ],
+   "mountains": [
+    { "name": "Frostfang Peaks", "x": 0, "z": -260, "r": 210, "h": 95 },
+    { "name": "The White Crown", "x": -260, "z": -180, "r": 150, "h": 70 },
+    { "name": "Rimewall", "x": 220, "z": -270, "r": 120, "h": 60 }
+   ],
+   "lakes": [ { "name": "Frostmere", "x": -210, "z": 90, "r": 46 } ],
+   "rivers": [ { "name": "Icemelt Run", "width": 9, "pts": [[70, -190], [120, -60], [130, 60], [230, 230], [330, 330], [460, 430]] } ],
+   "places": [
+    { "id": "wintermere", "name": "Wintermere Keep", "kind": "castle", "x": -140, "z": -40, "r": 38 },
+    { "id": "hollowfrost", "name": "Hollowfrost", "kind": "village", "x": 40, "z": 150, "r": 30 },
+    { "id": "rimeholt", "name": "Rimeholt", "kind": "village", "x": 260, "z": -20, "r": 26 },
+    { "id": "glacier_maw", "name": "Glacier Maw", "kind": "cave", "x": -40, "z": -150, "r": 10, "yaw": 0 }
+   ],
+   "docks": { "main": [0, 300], "elder": [300, -50] },
+   "roads": [["dock:main", "hollowfrost", "rimeholt", "dock:elder"], ["hollowfrost", "wintermere", "glacier_maw"]]
+  },
+  {
+   "id": "sun", "name": "Sunscar Expanse", "x": 950, "z": 0, "size": 1024, "seed": 23, "biome": "desert", "snowLine": 999, "shape": 0.25,
+   "look": { "sand_tint": "f2dcc2", "rock_tint": "d8b090", "grass_tint": "f0e0a0" },
+   "biomes": [ { "type": "savanna", "x": -230, "z": 160, "r": 210 } ],
+   "mountains": [
+    { "name": "The Red Mesas", "x": 200, "z": -200, "r": 110, "h": 46, "mesa": true },
+    { "name": "Anvil Butte", "x": 280, "z": 160, "r": 90, "h": 38, "mesa": true },
+    { "name": "Sunscar Tor", "x": 40, "z": -320, "r": 80, "h": 30, "mesa": true }
+   ],
+   "lakes": [ { "name": "Dunemere", "x": -130, "z": -240, "r": 26 } ],
+   "rivers": [],
+   "places": [
+    { "id": "kesh", "name": "Kesh Amaran", "kind": "city", "x": 40, "z": 30, "r": 58, "capital": true },
+    { "id": "dunemere", "name": "Dunemere Oasis", "kind": "village", "x": -120, "z": -180, "r": 26 },
+    { "id": "atheru", "name": "Tombs of Atheru", "kind": "tombs", "x": 300, "z": -10, "r": 30 },
+    { "id": "scorpion", "name": "Scorpion Hollow", "kind": "cave", "x": 200, "z": -100, "r": 10, "yaw": 3.14 },
+    { "id": "sandstrider", "name": "Sandstrider Camp", "kind": "camp", "x": -260, "z": 110, "r": 18 }
+   ],
+   "docks": { "main": [-300, 0], "elder": [50, -300] },
+   "roads": [["dock:main", "kesh", "atheru"], ["kesh", "dunemere"], ["dock:main", "sandstrider"], ["kesh", "dock:elder"]]
+  },
+  {
+   "id": "mire", "name": "Mirefen Marshes", "x": 0, "z": 950, "size": 1024, "seed": 37, "biome": "swamp", "snowLine": 999, "shape": 0.25, "hills": 0.8,
+   "look": { "grass_tint": "b8cc8c", "forest_tint": "8c8c70", "meadow_tint": "c8c8a0" },
+   "biomes": [ { "type": "meadow", "x": 40, "z": -260, "r": 150 }, { "type": "forest", "x": 260, "z": 220, "r": 140 } ],
+   "mountains": [ { "name": "Gloamhill", "x": 260, "z": 250, "r": 120, "h": 26 } ],
+   "lakes": [
+    { "name": "Blackwater Pool", "x": -150, "z": 0, "r": 40 },
+    { "name": "Stillmere", "x": 90, "z": 70, "r": 30 },
+    { "name": "Witchglass Pond", "x": -60, "z": 200, "r": 32 },
+    { "x": 190, "z": -40, "r": 22 },
+    { "x": -260, "z": -120, "r": 26 }
+   ],
+   "rivers": [ { "name": "The Mirewind", "width": 13, "pts": [[-330, -230], [-220, -80], [-80, 90], [40, 260], [130, 440]] } ],
+   "places": [
+    { "id": "bogwater", "name": "Bogwater", "kind": "stilts", "x": 60, "z": -90, "r": 28 },
+    { "id": "reedholm", "name": "Reedholm", "kind": "stilts", "x": -230, "z": 210, "r": 24 },
+    { "id": "drowned", "name": "Drowned Bastion", "kind": "ruins", "x": 190, "z": 140, "r": 34 },
+    { "id": "rotroot", "name": "Rotroot Burrow", "kind": "cave", "x": 300, "z": 330, "r": 10, "yaw": 0.6 }
+   ],
+   "docks": { "main": [40, -300] },
+   "roads": [["dock:main", "bogwater", "drowned", "rotroot"], ["bogwater", "reedholm"]]
+  },
+  {
+   "id": "ember", "name": "Emberwild Highlands", "x": -950, "z": 0, "size": 1024, "seed": 41, "biome": "autumn", "snowLine": 999, "shape": 0.25,
+   "look": { "grass_tint": "e8dc98", "forest_tint": "c09a78" },
+   "biomes": [ { "type": "volcanic", "x": -170, "z": -200, "r": 250 }, { "type": "forest", "x": 150, "z": 250, "r": 160 } ],
+   "mountains": [
+    { "name": "Mount Cinderheart", "x": -180, "z": -220, "r": 190, "h": 115, "crater": true },
+    { "name": "Smoulder Ridge", "x": 150, "z": -300, "r": 110, "h": 50 },
+    { "name": "The Russet Hills", "x": -300, "z": 210, "r": 110, "h": 40 }
+   ],
+   "lakes": [ { "name": "Copper Lake", "x": -120, "z": 140, "r": 40 } ],
+   "rivers": [ { "name": "Copperrun", "width": 10, "pts": [[-20, -110], [60, 20], [170, 150], [250, 300], [380, 450]] } ],
+   "places": [
+    { "id": "ashford", "name": "Ashford", "kind": "city", "x": 120, "z": 40, "r": 52 },
+    { "id": "cinderhold", "name": "Cinderhold", "kind": "castle", "x": -40, "z": -40, "r": 38 },
+    { "id": "emberfall", "name": "Emberfall", "kind": "village", "x": 210, "z": -130, "r": 28 },
+    { "id": "magma", "name": "Magma Throat", "kind": "cave", "x": -110, "z": -110, "r": 10, "yaw": 0.8 }
+   ],
+   "docks": { "main": [300, 40] },
+   "roads": [["dock:main", "ashford", "cinderhold", "magma"], ["dock:main", "emberfall"]]
+  },
+  {
+   "id": "elder", "name": "Elderwood Vale", "x": 1000, "z": -1000, "size": 896, "seed": 53, "biome": "ancient", "snowLine": 62, "shape": 0.25,
+   "look": { "grass_tint": "c8f0a0" },
+   "biomes": [ { "type": "meadow", "x": 0, "z": 0, "r": 130 }, { "type": "highland", "x": 240, "z": -240, "r": 140 } ],
+   "mountains": [
+    { "name": "Mount Elderhorn", "x": 240, "z": -250, "r": 150, "h": 74 },
+    { "name": "The Greywatch", "x": -250, "z": -270, "r": 120, "h": 50 }
+   ],
+   "lakes": [ { "name": "Mirror Lake", "x": 130, "z": 190, "r": 50 } ],
+   "rivers": [ { "name": "Silverbrook", "width": 11, "pts": [[170, -200], [175, -70], [150, 60], [135, 160], [60, 260], [-80, 330], [-260, 430]] } ],
+   "places": [
+    { "id": "aurelion", "name": "Aurelion", "kind": "city", "x": 20, "z": -40, "r": 72, "capital": true },
+    { "id": "thistledown", "name": "Thistledown", "kind": "village", "x": -220, "z": -40, "r": 28 },
+    { "id": "mossbrook", "name": "Mossbrook", "kind": "village", "x": 250, "z": 110, "r": 26 },
+    { "id": "hollowroot", "name": "Hollowroot Caverns", "kind": "cave", "x": 270, "z": -110, "r": 10, "yaw": 3.6 }
+   ],
+   "docks": { "frost": [-300, 0], "sun": [0, 300] },
+   "roads": [["dock:frost", "thistledown", "aurelion", "mossbrook"], ["aurelion", "dock:sun"], ["aurelion", "hollowroot"]]
+  }
+ ],
+
+ "bridges": [
+  { "name": "The Northern Span", "a": [25, -178], "b": [0, -650] },
+  { "name": "Sunward Bridge", "a": [188, -2], "b": [650, 0] },
+  { "name": "Fenwalk Causeway", "a": [46, 192], "b": [40, 650] },
+  { "name": "The Emberway", "a": [-192, 72], "b": [-650, 40] },
+  { "name": "Pinewood Crossing", "a": [300, -1000], "b": [700, -1000] },
+  { "name": "Dawnspan", "a": [1000, -300], "b": [1000, -700] }
+ ],
+
+ "sky": [
+  { "id": "lumen", "name": "Lumen Aerie", "x": 70, "y": 150, "z": -70, "r": 70, "biome": "meadow", "temple": true, "seed": 3 },
+  { "id": "cloudrest", "name": "Cloudrest", "x": -150, "y": 190, "z": 130, "r": 55, "biome": "forest", "seed": 5 },
+  { "id": "stormcradle", "name": "Stormcradle", "x": 0, "y": 250, "z": -1080, "r": 100, "biome": "pine", "temple": true, "seed": 7 },
+  { "id": "aethelspire", "name": "Aethelspire", "x": -1000, "y": 230, "z": 120, "r": 80, "biome": "autumn", "temple": true, "seed": 9 },
+  { "id": "skyhaven", "name": "Skyhaven", "x": 950, "y": 200, "z": 150, "r": 62, "biome": "savanna", "seed": 13 },
+  { "id": "skyhaven_rest", "name": "Skyhaven Spur", "x": 1060, "y": 222, "z": 225, "r": 38, "biome": "meadow", "link": "skyhaven", "seed": 17 },
+  { "id": "zephyr", "name": "Zephyr's Rest", "x": 950, "y": 280, "z": -950, "r": 110, "biome": "ancient", "temple": true, "seed": 19 },
+  { "id": "mirelight", "name": "Mirelight Isle", "x": -40, "y": 170, "z": 1000, "r": 60, "biome": "meadow", "seed": 29 }
+ ]
+}

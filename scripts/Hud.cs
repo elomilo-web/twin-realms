@@ -6,12 +6,19 @@ namespace TwinRealms;
 public partial class Hud : CanvasLayer
 {
     HudCanvas _c = null!;
+    string? _region; float _regT;
     public override void _Ready() { Layer = 5; _c = new HudCanvas { MouseFilter = Control.MouseFilterEnum.Ignore }; _c.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); AddChild(_c); }
     public override void _Process(double delta)
     {
         var p = Player.Instance; if (p == null || Dungeon.Active) { if (p == null) return; }
         if (!Dungeon.Active) foreach (var poi in World.Pois)
-            if (!Game.D.Disc.Contains(poi.Id) && new Vector2(poi.X - p.GlobalPosition.X, poi.Z - p.GlobalPosition.Z).Length() < poi.R) { Game.D.Disc.Add(poi.Id); Ui.Banner(poi.Name, "discovered"); Sfx.Play("level"); }
+            if (!Game.D.Disc.Contains(poi.Id) && new Vector2(poi.X - p.GlobalPosition.X, poi.Z - p.GlobalPosition.Z).Length() < poi.R && (!poi.Sky || p.GlobalPosition.Y > poi.Y - 25f)) { Game.D.Disc.Add(poi.Id); Ui.Banner(poi.Name, "discovered"); Sfx.Play("level"); }
+        // region banner when crossing into another land, the sky islands or the open sea
+        if (!Dungeon.Active && !Arenas.Active)
+        {
+            _regT -= (float)delta;
+            if (_regT <= 0) { _regT = .5f; var reg = Lands.RegionAt(p.GlobalPosition); if (_region != null && reg != _region) Ui.Banner(reg, "entering"); _region = reg; }
+        }
     }
 }
 
@@ -252,7 +259,7 @@ public partial class HudCanvas : Control
             {
                 var o = new Vector2((ix + .5f) * step - rad, (iy + .5f) * step - rad); if (o.Length() > rad - 1) continue;
                 var w = o / rad * span / 2; var wp = new Vector2(p.GlobalPosition.X, p.GlobalPosition.Z) + r * w.X - f * w.Y;
-                int px = Mathf.Clamp((int)((wp.X + 256f) / 512f * 256f), 0, 255), pz = Mathf.Clamp((int)((wp.Y + 256f) / 512f * 256f), 0, 255);
+                var muv = World.MapUV(wp.X, wp.Y); int S = img.GetWidth(); int px = Mathf.Clamp((int)(muv.X * S), 0, S - 1), pz = Mathf.Clamp((int)(muv.Y * S), 0, S - 1);
                 DrawRect(new Rect2(c + o - new Vector2(step, step) / 2, new Vector2(step + .5f, step + .5f)), img.GetPixel(px, pz));
             }
             foreach (var poi in World.Pois)
@@ -265,5 +272,5 @@ public partial class HudCanvas : Control
         DrawArc(c, rad, 0, Mathf.Tau, 48, UiTheme.Accent, 2f); DrawArc(c, rad + 5, -0.5f, 0.5f, 12, UiTheme.Accent, 2f); DrawArc(c, rad + 5, Mathf.Pi - 0.5f, Mathf.Pi + 0.5f, 12, UiTheme.Accent, 2f);
     }
 
-    public static string PlaceName(Vector3 p) { Poi? best = null; float bd = 1e9f; foreach (var poi in World.Pois) { float dd = new Vector2(poi.X - p.X, poi.Z - p.Z).Length(); if (dd < poi.R && dd < bd) { bd = dd; best = poi; } } return best?.Name ?? "The Wilds"; }
+    public static string PlaceName(Vector3 p) { Poi? best = null; float bd = 1e9f; foreach (var poi in World.Pois) { float dd = new Vector2(poi.X - p.X, poi.Z - p.Z).Length(); if (dd < poi.R && dd < bd) { bd = dd; best = poi; } } return best?.Name ?? (Mathf.Abs(p.X) < World.Half && Mathf.Abs(p.Z) < World.Half ? "The Wilds" : Lands.RegionAt(p)); }
 }

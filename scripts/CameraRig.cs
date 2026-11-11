@@ -28,7 +28,7 @@ public partial class CameraRig : Node3D
         AddChild(_pivot);
         _arm = new SpringArm3D { Name = "Arm", SpringLength = Distance, Margin = 0.3f, CollisionMask = 1 };
         _pivot.AddChild(_arm);
-        _cam = new Camera3D { Name = "Camera", Fov = 70f, Far = 2000f, Current = true };
+        _cam = new Camera3D { Name = "Camera", Fov = 70f, Far = 4500f, Current = true };
         _arm.AddChild(_cam);
         _pivot.Rotation = new Vector3(_pitch, 0, 0);
         Input.MouseMode = Input.MouseModeEnum.Captured;

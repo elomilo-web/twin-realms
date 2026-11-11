@@ -175,12 +175,19 @@ void fragment(){
     }
 
     // ---------------------------------------------------------------- build
-    class Layer { public string Key = ""; public int Per; public float Range, MinH, MaxH, S0 = 1, S1 = 1; public Color[] Cols = { Colors.Green }; public bool ForestOnly; public JsonElement E; }
+    public class Layer { public string Key = ""; public int Per; public float Range, MinH, MaxH, S0 = 1, S1 = 1; public Color[] Cols = { Colors.Green }; public bool ForestOnly, Shadows, Flat, Grass; public JsonElement E; public Mesh Mesh = null!; public Material Mat = null!; }
+    public static readonly List<Layer> Layers = new();
+    public static float Chunk = 32f; static int _seed = 4242;
+    /// <summary>The grass clump and its material (sky islands scatter the same grass).</summary>
+    public static Mesh? GrassMesh; public static ShaderMaterial? GrassMat;
 
+    /// <summary>Loads the layers and adds the streamer: ground cover is built in 32 m chunks around the camera and dropped behind it,
+    /// so it covers every land without holding the whole world in memory.</summary>
     public static void Build(Node3D parent)
     {
+        Layers.Clear();
         using var doc = JsonUtil.Load("res://data/flora.json"); var root = doc.RootElement;
-        float chunk = JsonUtil.F(root, "chunk", 32); var rnd = new System.Random((int)JsonUtil.F(root, "seed", 4242));
+        Chunk = JsonUtil.F(root, "chunk", 32); _seed = (int)JsonUtil.F(root, "seed", 4242); var rnd = new System.Random(_seed);
         Layer L(string k, string sizeKey)
         {
             var e = root.GetProperty(k); var l = new Layer { Key = k, Per = (int)JsonUtil.F(e, "per"), Range = JsonUtil.F(e, "range", 60), MinH = JsonUtil.F(e, "minH", 1.5f), MaxH = JsonUtil.F(e, "maxH", 30), ForestOnly = e.TryGetProperty("forestOnly", out var fo) && fo.GetBoolean(), E = e.Clone() };
@@ -188,59 +195,100 @@ void fragment(){
             var cl = new List<Color>(); if (e.TryGetProperty("colors", out var cs)) foreach (var c in cs.EnumerateArray()) cl.Add(Color.FromHtml(c.GetString()!)); if (cl.Count > 0) l.Cols = cl.ToArray();
             return l;
         }
-        var grass = L("grass", "height"); var fern = L("fern", "size"); var bush = L("bush", "size"); var stone = L("stone", "size");
-        var gMat = BladeMat(grass.E); var fMat = Mat(0.12f, 1f); var bMat = Mat(0.04f, 1f);
-        var sMat = World.Mat(new Color(.55f, .54f, .52f), new Color(.2f, .17f, .26f), 1f); sMat.VertexColorUseAsAlbedo = true;
-        int blades = (int)JsonUtil.F(grass.E, "blades", 24); float rad = JsonUtil.F(grass.E, "radius", .3f);
-        var gMesh = Blades(blades, grass.S0, grass.S1, rad, rnd); grass.S0 = grass.S1 = 1f;   // heights are built into the blades
-        var tall = root.TryGetProperty("grassTall", out _) ? L("grassTall", "height") : null; Mesh? tMesh = null; ShaderMaterial? tMat = null;
-        if (tall != null) { tMesh = Blades((int)JsonUtil.F(tall.E, "blades", 14), tall.S0, tall.S1, JsonUtil.F(tall.E, "radius", .22f), rnd); tall.S0 = tall.S1 = 1f; tMat = BladeMat(tall.E); }
-        var fMesh = Fern((int)JsonUtil.F(fern.E, "leaves", 7), rnd); var bMesh = Bush();
-        var sMesh = new SphereMesh { Radius = 1, Height = 1.3f, RadialSegments = 6, Rings = 3 };
-
-        var holder = new Node3D { Name = "Flora" }; parent.AddChild(holder);
-        int n = Mathf.CeilToInt(World.Half * 2 / chunk);
-        for (int cz = 0; cz < n; cz++) for (int cx = 0; cx < n; cx++)
+        var grass = L("grass", "height");
+        grass.Mesh = Blades((int)JsonUtil.F(grass.E, "blades", 24), grass.S0, grass.S1, JsonUtil.F(grass.E, "radius", .3f), rnd); grass.S0 = grass.S1 = 1f;   // heights are built into the blades
+        grass.Mat = GrassMat = BladeMat(grass.E); GrassMesh = grass.Mesh; grass.Grass = true; Layers.Add(grass);
+        if (root.TryGetProperty("grassTall", out _))
         {
-            float x0 = -World.Half + cx * chunk, z0 = -World.Half + cz * chunk; var center = new Vector3(x0 + chunk / 2, 0, z0 + chunk / 2);
-            if (World.GroundAt(center.X, center.Z) < -2f && World.GroundAt(x0, z0) < -2f) continue; // open sea
-            Scatter(holder, grass, gMesh, gMat, x0, z0, chunk, rnd, false);
-            if (tall != null) Scatter(holder, tall, tMesh!, tMat!, x0, z0, chunk, rnd, false);
-            Scatter(holder, fern, fMesh, fMat, x0, z0, chunk, rnd, false);
-            Scatter(holder, bush, bMesh, bMat, x0, z0, chunk, rnd, true);
-            Scatter(holder, stone, sMesh, sMat, x0, z0, chunk, rnd, false, flat: true);
+            var tall = L("grassTall", "height"); tall.Mesh = Blades((int)JsonUtil.F(tall.E, "blades", 14), tall.S0, tall.S1, JsonUtil.F(tall.E, "radius", .22f), rnd); tall.S0 = tall.S1 = 1f;
+            tall.Mat = BladeMat(tall.E); tall.Grass = true; Layers.Add(tall);
         }
+        var fern = L("fern", "size"); fern.Mesh = Fern((int)JsonUtil.F(fern.E, "leaves", 7), rnd); fern.Mat = Mat(0.12f, 1f); if (fern.Per > 0) Layers.Add(fern);
+        var bush = L("bush", "size"); bush.Mesh = Bush(); bush.Mat = Mat(0.04f, 1f); bush.Shadows = true; if (bush.Per > 0) Layers.Add(bush);
+        var stone = L("stone", "size"); stone.Mesh = new SphereMesh { Radius = 1, Height = 1.3f, RadialSegments = 6, Rings = 3 }; stone.Flat = true;
+        var sMat = World.Mat(new Color(.55f, .54f, .52f), new Color(.2f, .17f, .26f), 1f); sMat.VertexColorUseAsAlbedo = true; stone.Mat = sMat; if (stone.Per > 0) Layers.Add(stone);
+        parent.AddChild(new FloraField { Name = "Flora" });
     }
 
-    static void Scatter(Node3D holder, Layer l, Mesh mesh, Material mat, float x0, float z0, float chunk, System.Random r, bool shadows, bool flat = false)
+    /// <summary>One chunk of ground cover: every layer scattered with a seed of its own (the same on every machine and every visit).</summary>
+    public static Node3D BuildChunk(int cx, int cz)
+    {
+        var holder = new Node3D { Name = $"c{cx}_{cz}" };
+        float x0 = cx * Chunk, z0 = cz * Chunk;
+        if (World.GroundAt(x0 + Chunk / 2, z0 + Chunk / 2) < -2f && World.GroundAt(x0, z0) < -2f && World.GroundAt(x0 + Chunk, z0 + Chunk) < -2f) return holder;   // open sea
+        var r = new System.Random(unchecked(_seed * 73856093 ^ cx * 19349663 ^ cz * 83492791));
+        foreach (var l in Layers) Scatter(holder, l, x0, z0, Chunk, r);
+        return holder;
+    }
+
+    static void Scatter(Node3D holder, Layer l, float x0, float z0, float chunk, System.Random r)
     {
         var xs = new List<Transform3D>(); var cs = new List<Color>(); float F() => (float)r.NextDouble();
+        bool home = Mathf.Abs(x0) < World.Half && Mathf.Abs(z0) < World.Half;
         for (int i = 0; i < l.Per; i++)
         {
-            float x = x0 + F() * chunk, z = z0 + F() * chunk, h = World.GroundAt(x, z);
+            float x = x0 + F() * chunk, z = z0 + F() * chunk, keep = F(), h = World.GroundAt(x, z);
             if (h < l.MinH || h > l.MaxH) continue;
             if (Mathf.Abs(World.GroundAt(x + 1, z) - World.GroundAt(x - 1, z)) > 1.3f || Mathf.Abs(World.GroundAt(x, z + 1) - World.GroundAt(x, z - 1)) > 1.3f) continue; // cliffs
-            if (World.RoadDist(x, z) < 2.6f || InPlaza(x, z)) continue;
+            var tint = Colors.White;
+            if (home) { if (World.RoadDist(x, z) < 2.6f || InPlaza(x, z)) continue; }
+            else { float dens = Lands.CoverAt(x, z, h, l.Grass, out tint); if (keep > dens) continue; }
             if (l.ForestOnly && World.Fbm(x * .02f + 3, z * .02f + 9, 3) < .42f) continue;          // same noise that places the trees
             float s = Mathf.Lerp(l.S0, l.S1, F());
-            var sc = flat ? new Vector3(s * (0.8f + F() * 0.6f), s * 0.6f, s * (0.8f + F() * 0.6f)) : new Vector3(s, s * (0.85f + F() * 0.3f), s);
+            var sc = l.Flat ? new Vector3(s * (0.8f + F() * 0.6f), s * 0.6f, s * (0.8f + F() * 0.6f)) : new Vector3(s, s * (0.85f + F() * 0.3f), s);
             xs.Add(new Transform3D(Basis.FromEuler(new Vector3(0, F() * Mathf.Tau, 0)).Scaled(sc), new Vector3(x, h - 0.03f, z)));
-            var c = l.Cols[r.Next(l.Cols.Length)]; float v = 0.9f + F() * 0.2f; cs.Add(new Color(c.R * v, c.G * v, c.B * v));
+            var c = l.Cols[r.Next(l.Cols.Length)]; float v = 0.9f + F() * 0.2f; cs.Add(new Color(c.R * v * tint.R, c.G * v * tint.G, c.B * v * tint.B));
         }
         if (xs.Count == 0) return;
-        var mm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseColors = true, Mesh = mesh, InstanceCount = xs.Count };
+        var mm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseColors = true, Mesh = l.Mesh, InstanceCount = xs.Count };
         for (int i = 0; i < xs.Count; i++) { mm.SetInstanceTransform(i, xs[i]); mm.SetInstanceColor(i, cs[i]); }
         holder.AddChild(new MultiMeshInstance3D
         {
-            Multimesh = mm, MaterialOverride = mat, CastShadow = shadows ? GeometryInstance3D.ShadowCastingSetting.On : GeometryInstance3D.ShadowCastingSetting.Off,
+            Multimesh = mm, MaterialOverride = l.Mat, CastShadow = l.Shadows ? GeometryInstance3D.ShadowCastingSetting.On : GeometryInstance3D.ShadowCastingSetting.Off,
             VisibilityRangeEnd = l.Range, VisibilityRangeEndMargin = l.Range * 0.15f, VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self,
         });
     }
-
     /// <summary>Keep the village plaza and the arena floor clear.</summary>
     static bool InPlaza(float x, float z)
     {
         foreach (var p in World.Pois) if ((p.Id == "village" || p.Id == "arena") && new Vector2(x - p.X, z - p.Z).Length() < p.R * 0.45f) return true;
         return false;
     }
+}
+
+/// <summary>Streams the ground cover: keeps the chunks within reach of the camera built, nearest first, and frees the ones left behind.</summary>
+public partial class FloraField : Node3D
+{
+    readonly Dictionary<(int, int), Node3D> _chunks = new();
+    readonly List<(int, int)> _want = new();
+    float _reach;
+    public override void _Ready() { foreach (var l in Flora.Layers) _reach = Mathf.Max(_reach, l.Range); _reach += Flora.Chunk * .75f; }
+
+    public override void _Process(double delta)
+    {
+        if (Dungeon.Active) return;
+        var cam = GetViewport()?.GetCamera3D(); if (cam == null) return;
+        var p = cam.GlobalPosition; float C = Flora.Chunk;
+        int pcx = Mathf.FloorToInt(p.X / C), pcz = Mathf.FloorToInt(p.Z / C), rad = Mathf.CeilToInt(_reach / C);
+        _want.Clear();
+        for (int dz = -rad; dz <= rad; dz++) for (int dx = -rad; dx <= rad; dx++)
+        {
+            int cx = pcx + dx, cz = pcz + dz; if (_chunks.ContainsKey((cx, cz))) continue;
+            float ddx = (cx + .5f) * C - p.X, ddz = (cz + .5f) * C - p.Z; if (ddx * ddx + ddz * ddz > _reach * _reach) continue;
+            _want.Add((cx, cz));
+        }
+        if (_want.Count > 0)
+        {
+            _want.Sort((a, b) => D2(a, p, C).CompareTo(D2(b, p, C)));
+            // a few per frame; many at once after a teleport (nothing built near the camera yet)
+            int budget = _want.Count > 60 || D2(_want[0], p, C) < (C * 1.5f) * (C * 1.5f) ? 24 : 3;
+            for (int i = 0; i < _want.Count && i < budget; i++) { var k = _want[i]; var n = Flora.BuildChunk(k.Item1, k.Item2); AddChild(n); _chunks[k] = n; }
+        }
+        // drop chunks well behind the reach
+        float drop = (_reach + C * 1.5f) * (_reach + C * 1.5f);
+        List<(int, int)>? gone = null;
+        foreach (var kv in _chunks) if (D2(kv.Key, p, C) > drop) (gone ??= new()).Add(kv.Key);
+        if (gone != null) foreach (var k in gone) { _chunks[k].QueueFree(); _chunks.Remove(k); }
+    }
+    static float D2((int, int) k, Vector3 p, float C) { float dx = (k.Item1 + .5f) * C - p.X, dz = (k.Item2 + .5f) * C - p.Z; return dx * dx + dz * dz; }
 }

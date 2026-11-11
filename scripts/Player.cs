@@ -214,6 +214,10 @@ public partial class Player : CharacterBody3D, IDamageable
         GlobalPosition = pos; Velocity = Vector3.Zero; _inv = 2f;
     }
 
+    float _liftT, _liftTop;
+    /// <summary>Called every physics frame by an updraft the player stands in.</summary>
+    public void Lift(float top) { _liftT = .15f; _liftTop = top; }
+
     public void Teleport(Vector3 pos, float yaw = 0f)
     {
         GlobalPosition = pos; Velocity = Vector3.Zero; _kb = Vector3.Zero; _hitKb = Vector3.Zero; _walkV = Vector3.Zero;
@@ -417,6 +421,12 @@ public partial class Player : CharacterBody3D, IDamageable
         float dt = (float)delta; var D = Game.D; var TS = Game.TS;
         var v = Velocity; v.X = _walkV.X; v.Z = _walkV.Z;   // steer the walking velocity only; pushes are added for the move below
         if (!IsOnFloor()) v.Y -= _gravity * dt;
+        if (_liftT > 0)   // an updraft (Lands.Updraft): rise to its top, then hover there so the player can step off onto the sky island
+        {
+            _liftT -= dt;
+            v.Y = GlobalPosition.Y < _liftTop ? Mathf.MoveToward(v.Y, 15f, 40f * dt) : Mathf.MoveToward(v.Y, (_liftTop + .5f - GlobalPosition.Y) * 2f, 30f * dt);
+            _airT = 0f;
+        }
         _rollCd = Mathf.Max(0, _rollCd - dt); _inv = Mathf.Max(0, _inv - dt); _stagger = Mathf.Max(0, _stagger - dt);
         _comboT = Mathf.Max(0, _comboT - dt); _stLockT = Mathf.Max(0, _stLockT - dt);
 

@@ -394,7 +394,7 @@ public partial class Ui : CanvasLayer
         var v = Frame("map", "Map", new Vector2(side + 40, side + 110), OpenMap); var d = Game.D;
         Row(v, "Click a discovered place to fast travel (not inside dungeons or the arena).", Dim, 15);
         var mv = new MapView { CustomMinimumSize = new Vector2(side, side), SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter }; v.AddChild(mv);
-        mv.Travel = poi => { if (Dungeon.Active || Arenas.Active) { Note("You cannot travel from here", new Color(1, .6f, .5f)); return; } Close(); World.ForceRealm(0); Player.Instance?.Teleport(World.OnGround(poi.X, poi.Z + (poi.Id == "village" ? 9 : 6), 0.6f), 0f); Ui.Flash(Colors.White); Ui.Note("Travelled to " + poi.Name, Gold); };
+        mv.Travel = poi => { if (Dungeon.Active || Arenas.Active) { Note("You cannot travel from here", new Color(1, .6f, .5f)); return; } Close(); World.ForceRealm(0); Player.Instance?.Teleport(World.TravelPoint(poi), 0f); Ui.Flash(Colors.White); Ui.Note("Travelled to " + poi.Name, Gold); };
     }
 
     // ---------------------------------------------------------------- pause and settings live in UiSystem.cs
@@ -600,7 +600,7 @@ public partial class TreeView : Control
 public partial class MapView : Control
 {
     public Action<Poi>? Travel;
-    Vector2 W2S(float x, float z) => new Vector2((x + 256f) / 512f * Size.X, (z + 256f) / 512f * Size.Y);
+    Vector2 W2S(float x, float z) => World.MapUV(x, z) * Size;
     public override void _Ready() { MouseFilter = MouseFilterEnum.Stop; }
     public override void _Draw()
     {

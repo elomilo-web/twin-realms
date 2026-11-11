@@ -52,7 +52,7 @@ public partial class Shots : Node
     void Free(Vector3? from, Vector3 at = default)
     {
         if (from == null) { _free?.QueueFree(); _free = null; P.Rig!.Camera.Current = true; return; }
-        _free ??= new Camera3D { Fov = 60f, Far = 2000f }; if (_free.GetParent() == null) Game.Root!.AddChild(_free);
+        _free ??= new Camera3D { Fov = 60f, Far = 4500f }; if (_free.GetParent() == null) Game.Root!.AddChild(_free);
         _free.GlobalPosition = from.Value; _free.LookAt(at, Vector3.Up); _free.Current = true;
     }
 
@@ -74,6 +74,7 @@ public partial class Shots : Node
         if (OS.GetCmdlineUserArgs().Contains("--fxdrift")) { await FxDrift(); return; }
         if (OS.GetCmdlineUserArgs().Contains("--feel")) { await FeelCheck(); return; }
         if (OS.GetCmdlineUserArgs().Contains("--combat")) { await CombatCheck(); return; }
+        if (OS.GetCmdlineUserArgs().Contains("--lands")) { await LandsTour(); return; }
         if (OS.GetCmdlineUserArgs().Contains("--hands"))
         {
             // which hand each clip reaches out with (model space: -Z is forward, +X is the model's left after the 180 turn)
@@ -133,6 +134,66 @@ public partial class Shots : Node
         await Shot("hero_dungeon");
         Cam(-.9f, 4.5f); await Wait(.8f); await Shot("hero_dungeon_side");
         Hud(true);
+    }
+
+    /// <summary>The wider world (data/lands.json): wide views of every land, its places, the sea bridges and the sky islands; the hero in a few of them; an updraft ride; the world map.</summary>
+    async Task LandsTour()
+    {
+        World.TimeOfDay = .42f; await Wait(.5f);
+        Free(new Vector3(0, 650, 1150), new Vector3(0, 0, -150)); await Wait(2f); await Shot("world_from_south");
+        Free(new Vector3(-1300, 520, -1300), new Vector3(100, 0, 100)); await Wait(2f); await Shot("world_from_northwest");
+        Free(World.OnGround(18, -215, 18f), new Vector3(0, 40, -900)); await Wait(1.5f); await Shot("home_coast_to_frost");
+        Free(World.OnGround(80, 30, 60f), new Vector3(70, 150, -70)); await Wait(1.2f); await Shot("home_sky_lumen");
+        foreach (var L in Lands.All)
+        {
+            Vector2 dk = default; foreach (var d in L.Docks.Values) { dk = d; break; }
+            var c = new Vector3(L.Cx, 0, L.Cz); var dir = (new Vector3(dk.X, 0, dk.Y) - c).Normalized();
+            Free(new Vector3(dk.X, 0, dk.Y) + dir * 120f + Vector3.Up * 140f, c + Vector3.Up * 20f); await Wait(1.5f); await Shot("land_" + L.Id);
+            foreach (var p in L.Places)
+            {
+                var pc = new Vector3(p.X, p.H, p.Z); var off = new Vector3(Mathf.Cos(p.X * .01f + 1), 0, Mathf.Sin(p.Z * .01f + 1)).Normalized();
+                float back = p.Kind == "cave" ? 26f : p.R * 1.7f + 20f;
+                var from = pc + off * back; from.Y = Mathf.Max(World.GroundAt(from.X, from.Z), p.H) + (p.Kind == "cave" ? 8f : p.R * .9f + 10f);
+                Free(from, pc + Vector3.Up * 4f); await Wait(1.2f); await Shot("place_" + L.Id + "_" + p.Id);
+            }
+        }
+        int bi = 0;
+        foreach (var b in Lands.Bridges)
+        {
+            var mid = (b.A + b.B) / 2; var d = (b.B - b.A).Normalized(); var side = new Vector2(-d.Y, d.X);
+            Free(new Vector3(mid.X + side.X * 70, 30, mid.Y + side.Y * 70), new Vector3(mid.X, 6, mid.Y)); await Wait(1.2f); await Shot("bridge_" + (bi++));
+        }
+        foreach (var s in Lands.Sky)
+        {
+            float top = Lands.SkyTop(s, s.X, s.Z); if (float.IsNaN(top)) top = s.Y;
+            Free(new Vector3(s.X + s.R * 2.2f, top - 30, s.Z + s.R * 2.2f), new Vector3(s.X, top - 15, s.Z)); await Wait(1.2f); await Shot("sky_" + s.Id);
+        }
+        Free(null);
+        // the hero out there (play camera)
+        foreach (var (id, pid) in new[] { ("frost", "hollowfrost"), ("sun", "kesh"), ("mire", "bogwater"), ("ember", "ashford"), ("elder", "aurelion") })
+        {
+            var L = Lands.All.Find(l => l.Id == id); var p = L?.Places.Find(q => q.Id == pid); if (p == null) continue;
+            P.Teleport(World.OnGround(p.X + 4, p.Z + p.R * .3f, .6f), Mathf.Pi * .8f); Cam(Mathf.Pi * .8f + Mathf.Pi, 5f); await Wait(2.2f); await Shot("hero_" + id + "_" + pid);
+        }
+        var lumen = Lands.SkyGet("lumen");
+        if (lumen != null)
+        {
+            float top = Lands.SkyTop(lumen, lumen.X, lumen.Z);
+            P.Teleport(new Vector3(lumen.X + 6, top + 1, lumen.Z + 6), .5f); Cam(.5f + Mathf.Pi, 5.5f); await Wait(2f); await Shot("hero_sky_lumen");
+            // ride the updraft from the ground
+            Updraft? up = null; foreach (var n in GetTree().Root.FindChildren("Updraft_lumen", "", true, false)) up = n as Updraft;
+            if (up != null)
+            {
+                P.Teleport(up.GlobalPosition + Vector3.Up * .6f, 0f); Cam(Mathf.Pi, 7f); await Wait(1.2f); await Shot("updraft_ride_start");
+                float t = 0, maxY = -1e9f; while (t < 9f) { await Wait(.25f); t += .25f; maxY = Mathf.Max(maxY, P.GlobalPosition.Y); }
+                Say($"updraft lumen: base {up.GlobalPosition.Y:0.0} top {up.Top:0.0} hero reached {maxY:0.0}, now {P.GlobalPosition.Y:0.0}");
+                await Shot("updraft_ride_top");
+            }
+            else Say("updraft lumen: NOT FOUND");
+        }
+        P.Teleport(World.OnGround(1.5f, 6f, .5f), Mathf.Pi);
+        Hud(true); Ui.I?.OpenMap(); await Wait(.8f); await Shot("world_map"); Ui.I?.Close(); Hud(false);
+        Say($"lands: {Lands.All.Count} lands, {Lands.Sky.Count} sky islands, {Lands.Bridges.Count} bridges, {World.Pois.Count} points of interest");
     }
 
     /// <summary>Walks and runs in all eight directions (with and without a locked foe) and logs the clip, facing and movement; one picture each.</summary>

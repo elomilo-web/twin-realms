@@ -6,7 +6,7 @@ using Godot;
 
 namespace TwinRealms;
 
-public class Poi { public string Id = "", Name = "", Icon = ""; public float X, Z, R; public int Lvl; public string? Dun; public Vector3 Door; public float DoorYaw; }
+public class Poi { public string Id = "", Name = "", Icon = ""; public float X, Z, R; public int Lvl; public string? Dun; public Vector3 Door; public float DoorYaw; public bool Sky; public float Y; }
 public class Zone { public string Id = ""; public float X, Z, R, B, H; }
 
 /// <summary>The overworld: heightfield terrain, sky and day/night, the Light/Shadow realm shift, vegetation and shared materials.</summary>
@@ -38,6 +38,14 @@ public partial class World : Node3D
     float _cloudT;
     Image? _mapImg;
     public static ImageTexture? MapTex;
+    public const int MapSize = 2048;
+    public static float MapExtent => Lands.Extent;
+    /// <summary>World x/z to 0..1 on the map image.</summary>
+    public static Vector2 MapUV(float x, float z) => new((x + MapExtent) / (2 * MapExtent), (z + MapExtent) / (2 * MapExtent));
+    /// <summary>Where fast travel to a point of interest puts the player.</summary>
+    public static Vector3 TravelPoint(Poi p) => p.Sky ? new Vector3(p.X, p.Y + 1.5f, p.Z + 3f) : OnGround(p.X, p.Z + (p.Id == "village" ? 9 : 6), 0.6f);
+    public static ShaderMaterial? TerrainMaterial => I?._terrMat;
+    public static ShaderMaterial? WaterMaterial => I?._water;
 
     // ---- realm-aware materials and lights
     static readonly List<(StandardMaterial3D m, Color l, Color d)> Mats = new();
@@ -116,7 +124,7 @@ public partial class World : Node3D
     public static float GroundAt(float x, float z)
     {
         float fx = (x + Half) / Cell, fz = (z + Half) / Cell;
-        if (fx < 0 || fz < 0 || fx >= N || fz >= N) return -9f;
+        if (fx < 0 || fz < 0 || fx >= N || fz >= N) return Lands.GroundAt(x, z);   // the other lands (data/lands.json), or -9 over open sea
         int ix = (int)fx, iz = (int)fz; float u = fx - ix, v = fz - iz; int i0 = iz * (N + 1) + ix;
         float h0 = HG[i0], h1 = HG[i0 + 1], h2 = HG[i0 + N + 1], h3 = HG[i0 + N + 2];
         return u + v <= 1 ? h0 + u * (h1 - h0) + v * (h2 - h0) : h3 + (1 - u) * (h2 - h3) + (1 - v) * (h1 - h3);
@@ -138,6 +146,7 @@ public partial class World : Node3D
         foreach (var rd in r.GetProperty("roads").EnumerateArray()) { var l = new List<Vector2>(); foreach (var pt in rd.EnumerateArray()) l.Add(new Vector2(pt[0].GetSingle(), pt[1].GetSingle())); Roads.Add(l.ToArray()); }
         foreach (var z in r.GetProperty("zones").EnumerateArray()) Zones.Add(new Zone { Id = JsonUtil.S(z, "id"), X = JsonUtil.F(z, "x"), Z = JsonUtil.F(z, "z"), R = JsonUtil.F(z, "r"), B = JsonUtil.F(z, "b"), H = JsonUtil.F(z, "h") });
         for (int iz = 0; iz <= N; iz++) for (int ix = 0; ix <= N; ix++) HG[iz * (N + 1) + ix] = HeightFn(-Half + ix * Cell, -Half + iz * Cell);
+        Lands.Load();
     }
 
     // =================================================================== build
@@ -146,7 +155,7 @@ public partial class World : Node3D
         I = this; LoadData();
         Lamps.RemoveAll(l => !IsInstanceValid(l.lt));   // lamps of a world freed by "Quit to title" (the list is static)
         Over = new Node3D { Name = "Overworld" }; AddChild(Over);
-        BuildEnvironment(); BuildTerrain(); BuildWater(); BuildBounds(); BuildVegetation(); Flora.Build(Over); GatherDb.Spawn(Over);
+        BuildEnvironment(); BuildTerrain(); BuildWater(); BuildBounds(); BuildVegetation(); Flora.Build(Over); Lands.Build(Over); BuildMapImage(); GatherDb.Spawn(Over);
         Builder.BuildAll(Over); Wildlife.Spawn(Over); IndexEnemies();
         Sfx.I?.SetRealmMix(0);
         TimeOfDay = Game.D.Time;
@@ -279,7 +288,7 @@ void sky(){
         }
         var arrays = new Godot.Collections.Array(); arrays.Resize((int)Mesh.ArrayType.Max);
         arrays[(int)Mesh.ArrayType.Vertex] = verts; arrays[(int)Mesh.ArrayType.Normal] = norms; arrays[(int)Mesh.ArrayType.Color] = cols;
-        arrays[(int)Mesh.ArrayType.TexUV] = uvs; arrays[(int)Mesh.ArrayType.Index] = idx;
+        arrays[(int)Mesh.ArrayType.TexUV] = uvs; arrays[(int)Mesh.ArrayType.TexUV2] = new Vector2[verts.Length]; arrays[(int)Mesh.ArrayType.Index] = idx;
         var mesh = new ArrayMesh(); mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
 
         var sh = new Shader { Code = TerrainShader };
@@ -304,7 +313,6 @@ void sky(){
         body.AddChild(new MeshInstance3D { Mesh = mesh, MaterialOverride = _terrMat });
         body.AddChild(new CollisionShape3D { Shape = mesh.CreateTrimeshShape() });
         Over.AddChild(body);
-        BuildMapImage();
     }
 
     const string TerrainShader = @"
@@ -390,6 +398,8 @@ void fragment(){
   float wSand = hb(COLOR.g, lum(sand) * 1.5);
   float wRock = hb(max(smoothstep(0.2, 0.36, slope + (patchy - 0.5) * 0.12), smoothstep(34.0, 46.0, wpos.y) * 0.85), lum(rock) * 2.0);
   float wSnow = COLOR.a;
+  // UV2 (the other lands): x = extra rock (rocky biomes), y = volcanic ash
+  wRock = max(wRock, hb(UV2.x * (0.55 + patchy * 0.9), lum(rock) * 2.0));
 
   vec3 c = grass;
   c = mix(c, meadow, wMeadow);
@@ -399,6 +409,7 @@ void fragment(){
   c = mix(c, sand, wSand);
   c = mix(c, rock, wRock);
   c = mix(c, vec3(0.9, 0.93, 0.97), wSnow);
+  c = mix(c, c * vec3(0.36, 0.33, 0.32), UV2.y * (0.55 + 0.45 * patchy));
   c *= (0.84 + 0.32 * macro);                                             // large soft light/dark patches seen from afar
   c = mix(vec3(lum(c)), c, saturation) * brightness;
 
@@ -425,14 +436,8 @@ void fragment(){
 
     void BuildMapImage()
     {
-        const int S = 256; _mapImg = Image.CreateEmpty(S, S, false, Image.Format.Rgb8);
-        for (int y = 0; y < S; y++) for (int x = 0; x < S; x++)
-        {
-            float h = HG[y * (N / S) * (N + 1) + x * (N / S)]; Color c;
-            if (h < 0.4f) c = new Color(.12f, .25f, .45f); else if (h < 2f) c = new Color(.75f, .68f, .5f);
-            else if (h < 18f) c = new Color(.3f, .5f, .22f).Lerp(new Color(.4f, .46f, .24f), h / 18f); else if (h < 45f) c = new Color(.5f, .48f, .45f); else c = new Color(.92f, .94f, .97f);
-            _mapImg.SetPixel(x, y, c);
-        }
+        // the whole world, -MapExtent..MapExtent on both axes (home island, the other lands, sky islands, bridges)
+        _mapImg = Lands.MapImage(MapSize);
         MapTex = ImageTexture.CreateFromImage(_mapImg);
     }
 
@@ -442,7 +447,7 @@ void fragment(){
         _water = new ShaderMaterial { Shader = new Shader { Code = WaterShader } }; RealmShaders.Add(_water);
         foreach (var k in new[] { "shallow", "deep", "foam", "shadowShallow", "shadowDeep" })
             _water.SetShaderParameter(k switch { "shallow" => "shallow", "deep" => "deep", "foam" => "foam", "shadowShallow" => "s_shallow", _ => "s_deep" }, LC(k, "#3080a0"));
-        Over.AddChild(new MeshInstance3D { Mesh = new PlaneMesh { Size = new Vector2(3000, 3000) }, MaterialOverride = _water, Position = new Vector3(0, 0.25f, 0), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
+        Over.AddChild(new MeshInstance3D { Mesh = new PlaneMesh { Size = new Vector2(30000, 30000) }, MaterialOverride = _water, Position = new Vector3(0, 0.25f, 0), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
     }
 
     const string WaterShader = @"
@@ -483,10 +488,12 @@ void fragment(){
     void BuildBounds()
     {
         var b = new StaticBody3D { Name = "Bounds", CollisionLayer = 1 };
-        float e = Half - 6f, t = 4f, h = 200f;
-        void Wall(Vector3 pos, Vector3 size) { b.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = size }, Position = pos }); }
+        // the edge of the whole world (home island, the lands, the sky), and a sea floor under the open sea between the lands
+        float e = MapExtent - 6f, t = 4f, h = 1200f;
+        void Wall(Vector3 pos, Vector3 size) { b.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = size }, Position = pos + Vector3.Up * 300f }); }
         Wall(new Vector3(0, 0, -e), new Vector3(2 * e, h, t)); Wall(new Vector3(0, 0, e), new Vector3(2 * e, h, t));
         Wall(new Vector3(-e, 0, 0), new Vector3(t, h, 2 * e)); Wall(new Vector3(e, 0, 0), new Vector3(t, h, 2 * e));
+        b.AddChild(new CollisionShape3D { Shape = new WorldBoundaryShape3D { Plane = new Plane(Vector3.Up, -13f) } });
         Over.AddChild(b);
     }
 
@@ -631,7 +638,7 @@ void fragment(){
     }
 
     /// <summary>A MultiMesh split into 64 m patches, so off-screen and far patches are skipped.</summary>
-    void Chunked(Mesh mesh, List<Transform3D> list, List<Color>? cols, float visEnd)
+    public void Chunked(Mesh mesh, List<Transform3D> list, List<Color>? cols, float visEnd)
     {
         const float C = 64f;
         var groups = new Dictionary<(int, int), List<int>>();
