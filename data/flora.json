@@ -2,8 +2,8 @@
  "_comment": "Scenery ground cover, scattered per 32 m chunk. grass/grassTall: clumps of curved blades (Flora.Blades): blades per clump, radius in metres, height range of the blades, sway = wind bend; roots take the ground texture colour, colors = tip colours. 'per' = attempts per chunk; 'range' = draw distance in metres; heights are terrain heights in metres.",
  "chunk": 32,
  "seed": 4242,
- "grass": { "per": 2600, "range": 110, "minH": 1.7, "maxH": 34, "blades": 28, "radius": 0.32, "height": [0.22, 0.62], "sway": 0.22, "colors": ["#6a8a2c", "#78962f", "#86a038", "#628228", "#90a040", "#7a9030", "#9a9846"], "wind": 1.0 },
- "grassTall": { "per": 420, "range": 110, "minH": 1.7, "maxH": 30, "blades": 14, "radius": 0.2, "height": [0.5, 0.9], "sway": 0.45, "colors": ["#6e8a34", "#7f9038", "#94924a", "#667e30"], "wind": 1.0 },
+ "grass": { "per": 2600, "range": 110, "minH": 1.7, "maxH": 34, "blades": 28, "radius": 0.32, "height": [0.22, 0.62], "sway": 0.22, "colors": ["#6c9a28", "#7aaa2c", "#88b232", "#62922a", "#96b23a", "#7ca02e", "#a2a83e"], "wind": 1.0 },
+ "grassTall": { "per": 420, "range": 110, "minH": 1.7, "maxH": 30, "blades": 14, "radius": 0.2, "height": [0.5, 0.9], "sway": 0.45, "colors": ["#74a030", "#86a834", "#a0a644", "#6a922e"], "wind": 1.0 },
  "fern": { "per": 0, "range": 85, "minH": 2, "maxH": 26, "leaves": 7, "size": [0.6, 1.1], "colors": ["#2f6b2a", "#3b7a30", "#2a5e2c"], "forestOnly": true },
  "bush": { "per": 0, "range": 160, "minH": 1.8, "maxH": 30, "size": [0.6, 1.3], "colors": ["#3d6e2c", "#4a7a30", "#56802f", "#365f2a"] },
  "stone": { "per": 14, "range": 90, "minH": 1.0, "maxH": 60, "size": [0.12, 0.35], "colors": ["#8a8781", "#77746f", "#9a958c"] }

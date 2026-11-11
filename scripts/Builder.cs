@@ -146,7 +146,8 @@ public static class Builder
         (float x, float z, float w, float d, float h, float r)[] hs = { (-15, -9, 7, 6, 3.2f, 0), (-18, 7, 6, 6, 3f, P / 2), (15, -10, 7, 6, 3.3f, 0), (18, 6, 6, 7, 3.1f, -P / 2), (-3, -21, 9, 6.5f, 4.2f, 0), (8, -20, 6, 6, 3f, 0), (-7, 19, 6.5f, 6, 3.1f, P), (9, 19, 7, 6, 3.2f, P) };
         foreach (var a in hs) House(over, a.x, a.z, a.w, a.d, a.h, a.r);
         // plaza cobbles
-        var cob = World.Mat(new Color(.62f, .59f, .55f), new Color(.2f, .17f, .25f), 1f); Gfx.Tex(cob, "cobble", 3.2f, true, 1.6f);
+        var cob = World.Mat(new Color(.5f, .45f, .4f),   // warmer and darker: the light stone blew out to white in the brighter grade
+            new Color(.2f, .17f, .25f), 1f); Gfx.Tex(cob, "cobble", 3.2f, true, 1.6f);
         over.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 9f, BottomRadius = 9f, Height = .06f, RadialSegments = 32 }, MaterialOverride = cob, Position = World.OnGround(0, 0, .03f) });
         // well
         var well = Group(over, 0, 0); Cyl(well, 1.5f, .9f, new Vector3(0, .45f, 0), Stone, true); Cyl(well, 1.2f, .05f, new Vector3(0, .86f, 0), World.Mat(new Color(.04f, .1f, .16f)));
