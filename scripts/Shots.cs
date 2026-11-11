@@ -72,6 +72,7 @@ public partial class Shots : Node
         if (OS.GetCmdlineUserArgs().Contains("--weapons")) { await WeaponRow(); return; }   // just the weapon audit and the hero holding each type
         if (OS.GetCmdlineUserArgs().Contains("--move")) { await MoveCheck(); return; }
         if (OS.GetCmdlineUserArgs().Contains("--fxdrift")) { await FxDrift(); return; }
+        if (OS.GetCmdlineUserArgs().Contains("--feel")) { await FeelCheck(); return; }
         if (OS.GetCmdlineUserArgs().Contains("--hands"))
         {
             // which hand each clip reaches out with (model space: -Z is forward, +X is the model's left after the 180 turn)
@@ -185,6 +186,100 @@ public partial class Shots : Node
                 else Say($"fxdrift {id}: {what} gone");
         }
         _keepAlive = false; ClearField();
+    }
+
+    /// <summary>
+    /// Movement feel numbers: foot skating while running (how fast the planted foot slides), floor contact running down a slope
+    /// (frames off the floor, frames in the fall clip, foot gap to the ground), and stopping distance from a sprint.
+    /// </summary>
+    Vector3 _pl, _pr; float _stDz, _stDt;
+    async Task FeelCheck()
+    {
+        Game.D.Eq["weapon"] = new Item { Name = "Sword", Slot = "weapon", Wt = "sword" }; Game.Notify(); World.TimeOfDay = .45f;
+        var sk = P.Av?.Skel; if (sk == null) { Say("feel: no avatar"); return; }
+        // each locomotion clip's own speed: how far a foot travels backward (model space) while it is the lower foot, per second
+        {
+            var av = new Avatar(); Game.Root!.AddChild(av); av.GlobalPosition = World.OnGround(-60, -60, 0); av.Build(new Appearance(), "feel"); await Wait(.3f);
+            var s2 = av.Skel!; int al = s2.FindBone("foot_l"), ar = s2.FindBone("foot_r"), pel = s2.FindBone("pelvis");
+            foreach (var key in new[] { "walk", "run", "sprint" })
+            {
+                string clip = Avatar.Clip(key); float len = av.ClipLength(clip); if (len <= 0) continue;
+                float back = 0, minY = 9, maxPel = -9, minPel = 9; Vector3? prev = null; int prevFoot = -1; const int N = 60;
+                for (int i = 0; i <= N; i++)
+                {
+                    av.PoseAt(key, i / (float)N); await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                    var l = av.ToLocal(s2.GlobalTransform * s2.GetBoneGlobalPose(al).Origin); var r = av.ToLocal(s2.GlobalTransform * s2.GetBoneGlobalPose(ar).Origin);
+                    var pv = av.ToLocal(s2.GlobalTransform * s2.GetBoneGlobalPose(pel).Origin); maxPel = Mathf.Max(maxPel, pv.Y); minPel = Mathf.Min(minPel, pv.Y);
+                    int f = l.Y < r.Y ? 0 : 1; var low = f == 0 ? l : r; minY = Mathf.Min(minY, low.Y);
+                    if (prev != null && f == prevFoot) back += Mathf.Max(0, low.Z - prev.Value.Z);   // model forward is -Z: a planted foot moves to +Z
+                    prev = low; prevFoot = f;
+                }
+                Say($"feel clip {clip}: {len:0.00} s, planted foot travels {back:0.00} m per cycle = {back / len:0.00} m/s, lowest ankle {minY * 100:0} cm, pelvis bob {(maxPel - minPel) * 100:0} cm");
+            }
+            av.QueueFree();
+        }
+        int fl = sk.FindBone("foot_l"), fr = sk.FindBone("foot_r");
+        Vector3 Foot(int b) => sk.GlobalTransform * sk.GetBoneGlobalPose(b).Origin;
+        // a flat spot and a slope: search for the steepest walkable line near the village
+        var flat = World.OnGround(1.5f, 6f, .5f);
+        Vector3 slopeTop = flat, slopeDir = Vector3.Forward; float best = 0;
+        for (float x = -100; x <= 100; x += 8) for (float z = -100; z <= 100; z += 8)
+            foreach (var dd in new[] { Vector3.Forward, Vector3.Back, Vector3.Left, Vector3.Right })
+            {
+                float h0 = World.GroundAt(x, z), h1 = World.GroundAt(x + dd.X * 20, z + dd.Z * 20), gr = (h0 - h1) / 20f;
+                if (gr > best && gr < .7f && World.GroundAt(x, z) > 2f) { best = gr; slopeTop = World.OnGround(x, z, .5f); slopeDir = dd; }
+            }
+        Say($"feel: slope found, grade {best:0.00} ({Mathf.RadToDeg(Mathf.Atan(best)):0} deg)");
+
+        async Task Run(string label, Vector3 start, Vector3 dir, bool sprint, float secs)
+        {
+            P.Teleport(start, Util.YawTo(dir.X, dir.Z)); Cam(Util.YawTo(dir.X, dir.Z), 5f); await Wait(.6f);
+            Input.ActionPress(Inputs.Forward); if (sprint) Input.ActionPress(Inputs.Sprint); await Wait(.5f);
+            int n = 0, air = 0, fall = 0, sn = 0, lastFoot = -1; float skate = 0, gapSum = 0, gapMax = 0, sinkMax = 0; Vector3 lastLow = Vector3.Zero; var slides = new List<float>();
+            var t = 0f; _stDz = 0; _stDt = 0;
+            while (t < secs)
+            {
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame); float dt = (float)GetProcessDeltaTime(); t += dt; n++;
+                if (!P.IsOnFloor()) air++; if (P.AvClip == Avatar.Clip("fall")) fall++;
+                var a = Foot(fl); var b = Foot(fr); int lf = a.Y < b.Y ? 0 : 1; var low = lf == 0 ? a : b;
+                float g = low.Y - World.GroundAt(low.X, low.Z) - .08f;   // ankle bone sits ~8 cm above the sole
+                gapSum += Mathf.Abs(g); gapMax = Mathf.Max(gapMax, g); sinkMax = Mathf.Max(sinkMax, -g);
+                { var la = P.Av!.ToLocal(a); var lb = P.Av!.ToLocal(b); if (n > 1) { _stDz += la.Y < lb.Y ? la.Z - _pl.Z : lb.Z - _pr.Z; _stDt += dt; } _pl = la; _pr = lb; }   // the lower foot (on the ground): its backward travel
+            }
+            var hv = new Vector2(P.Velocity.X, P.Velocity.Z).Length(); float hv0 = hv;
+            Say($"feel {label}: speed {hv:0.0} m/s, clip {P.AvClip}, stance foot moves back {_stDz / Mathf.Max(.01f, _stDt):0.0} m/s (skate {hv0 - _stDz / Mathf.Max(.01f, _stDt):+0.0;-0.0} m/s), off floor {air * 100 / Mathf.Max(1, n)}% of frames, fall clip {fall * 100 / Mathf.Max(1, n)}%, foot gap avg {gapSum / n * 100:0} cm (float max {gapMax * 100:0}, sink max {sinkMax * 100:0})");
+            // stopping
+            var p0 = P.GlobalPosition; Input.ActionRelease(Inputs.Forward); Input.ActionRelease(Inputs.Sprint);
+            float st = 0; while (new Vector2(P.Velocity.X, P.Velocity.Z).Length() > .2f && st < 2f) { await ToSignal(GetTree(), SceneTree.SignalName.PhysicsFrame); st += (float)GetPhysicsProcessDeltaTime(); }
+            Say($"feel {label}: stops in {st:0.00} s over {new Vector2(P.GlobalPosition.X - p0.X, P.GlobalPosition.Z - p0.Z).Length():0.00} m");
+            await Wait(.4f);
+        }
+        {   // raw check: the left foot relative to the body while jogging
+            P.Teleport(flat, 0); Cam(0, 5f); await Wait(.5f); Input.ActionPress(Inputs.Forward); await Wait(.6f); var raw = new List<string>();
+            for (int i = 0; i < 12; i++) { await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame); var lp = P.Av!.ToLocal(Foot(fl)); raw.Add($"{lp.Z:0.00}/{lp.Y:0.00}"); }
+            Input.ActionRelease(Inputs.Forward); Say("feel raw foot_l z/y (avatar space): " + string.Join(" ", raw)); await Wait(.5f);
+        }
+        {   // standing across the slope, seen from the side: feet with and without foot IK
+            var side = slopeDir.Cross(Vector3.Up); var mid = World.OnGround(slopeTop.X + slopeDir.X * 6, slopeTop.Z + slopeDir.Z * 6, .3f);
+            foreach (bool ik in new[] { true, false })
+            {
+                P.Teleport(mid, Util.YawTo(side.X, side.Z)); await Wait(.8f);
+                var fp = P.Av!.Skel!.GetNodeOrNull<FootPlant>("FootPlant"); if (fp != null) fp.Ik.Active = ik;
+                // feet against the ground, read right after the IK solved (its signal), so the pose includes it
+                float gapL = 0, gapR = 0; bool got = false; var sk2 = P.Av!.Skel!;
+                void Read() { var a = Foot(fl); var b = Foot(fr); gapL = a.Y - World.GroundAt(a.X, a.Z); gapR = b.Y - World.GroundAt(b.X, b.Z); got = true; }
+                if (fp != null) { if (ik) fp.Ik.ModificationProcessed += Read; else fp.ModificationProcessed += Read; }
+                await Wait(.3f); if (fp != null) { if (ik) fp.Ik.ModificationProcessed -= Read; else fp.ModificationProcessed -= Read; }
+                Say($"feel slope standing, IK {(ik ? "on" : "off")}: ankle above ground left {gapL * 100:0} cm, right {gapR * 100:0} cm (flat stance is about 10 cm){(got ? "" : " (no read)")}");
+                Free(mid + side * 3.4f + Vector3.Up * 1.1f, mid + Vector3.Up * .5f); await Wait(.6f);
+                await Shot("feel_slope_ik_" + (ik ? "on" : "off")); Free(null); if (fp != null) fp.Ik.Active = true;
+            }
+        }
+        await Run("flat jog", flat, Vector3.Forward, false, 2f);
+        await Run("flat sprint", flat, Vector3.Forward, true, 2f);
+        await Run("downhill jog", slopeTop, slopeDir, false, 2.2f);
+        await Run("downhill sprint", slopeTop, slopeDir, true, 2.2f);
+        await Run("uphill jog", World.OnGround(slopeTop.X + slopeDir.X * 10f, slopeTop.Z + slopeDir.Z * 10f, .3f), -slopeDir, false, 2.2f);
     }
 
     async Task WeaponRow()

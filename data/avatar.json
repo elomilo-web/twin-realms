@@ -6,6 +6,7 @@
   },
   "height": 1.82,
   "raceFeatures": false,
+  "gait": { "_help": "Each locomotion clip's own ground speed in m/s (measured: Shots --feel). Playback = speed / this, clamped to minScale..maxScale, so feet do not skate. runAt / sprintAt: speeds where the gait changes.", "walk": 0.83, "run": 2.2, "sprint": 2.75, "minScale": 0.8, "maxScale": 2.3, "runAt": 2.6, "sprintAt": 5.8 },
   "_raceFeaturesHelp": "true = add the procedural cones for pointy ears, tusks and horns (data/races.json look). Off: they stuck out of heads.",
   "hair": {
     "male": ["Hair_SimpleParted", "Hair_Buzzed", "Hair_Long"],

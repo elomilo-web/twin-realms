@@ -151,6 +151,7 @@ public partial class Avatar : Node3D
     /// <summary>The base body mesh (set once the avatar has been dressed).</summary>
     public MeshInstance3D? BodyMesh => _bodyMi;
     public IReadOnlyList<Node> SlotNodes(string slot) => _slot.TryGetValue(slot, out var l) ? l : Array.Empty<Node>();
+    public float ClipLength(string clip) => _ap != null && _ap.HasAnimation(clip) ? (float)_ap.GetAnimation(clip).Length : 0f;
     /// <summary>Holds an action's clip still at a fraction of its length (0..1), so a pose can be measured or photographed.</summary>
     public void PoseAt(string key, float frac, int step = 0)
     {
@@ -504,6 +505,7 @@ public partial class Avatar : Node3D
     public void Play(string key, float blend = .18f, float fit = 0, bool restart = false, int step = 0, bool reverse = false)
     {
         if (_ap == null) return; string n = Clip(key, step); if (!_ap.HasAnimation(n)) return;
+        _ap.SpeedScale = 1f;   // Move sets the gait scale after this; attacks and casts play at their own fitted speed
         if (n == Cur && !restart && _ap.IsPlaying() && reverse == _rev) return;
         float sp = fit > 0 ? (float)_ap.GetAnimation(n).Length / fit : 1f;
         _ap.Play(n, blend, reverse ? -sp : sp, reverse); if (restart) _ap.Seek(0, true); Cur = n; _rev = reverse;
@@ -522,8 +524,12 @@ public partial class Avatar : Node3D
         if (Busy && Cur != Clip("land") && !moving) return;   // a one-shot clip runs on only while standing
         // quick blend into motion so the feet start with the body; slower between gaits and back to idle
         bool fromStill = Cur == Clip("idle") || Cur == Clip("idleArmed") || Cur == Clip("idleShield") || Busy;
-        Play(speed > 7.5f && !back ? "sprint" : speed > 3.2f ? "run" : moving ? "walk" : shield ? "idleShield" : armed ? "idleArmed" : "idle", moving && fromStill ? .07f : .2f, 0, false, 0, back && moving);
+        string gait = speed > Gait("sprintAt", 6.2f) && !back ? "sprint" : speed > Gait("runAt", 2.6f) ? "run" : moving ? "walk" : "";
+        Play(gait != "" ? gait : shield ? "idleShield" : armed ? "idleArmed" : "idle", moving && fromStill ? .07f : .2f, 0, false, 0, back && moving);
+        // feet keep pace with the ground: the clip plays at (speed / the clip's own speed), within limits (data/avatar.json "gait")
+        if (_ap != null) _ap.SpeedScale = gait == "" ? 1f : Mathf.Clamp(speed / Gait(gait, 2.5f), Gait("minScale", .8f), Gait("maxScale", 2f));
     }
+    static float Gait(string k, float d) => Cfg.TryGetProperty("gait", out var g) ? JsonUtil.F(g, k, d) : d;
 
     // ------------------------------------------------------------------ helpers for callers
     /// <summary>An item-like stand-in for NPC / enemy outfits from data/avatar.json ("armor": "Plate" ...).</summary>

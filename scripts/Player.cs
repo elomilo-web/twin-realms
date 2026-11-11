@@ -32,7 +32,8 @@ public partial class Player : CharacterBody3D, IDamageable
     bool _lmbPrev; float _lmbHold;
     float _atkT, _atkDur, _comboT, _blockT, _queueT, _castT, _castDur; bool _queuePower, _hasQueue;
     int _combo; bool _atkPower, _hitDone, _blocking, _fired;
-    ulong _noStMsg;
+    ulong _noStMsg; float _airT; FootPlant? _feet;
+    public const float RunSpeed = 4.6f, SprintSpeed = 6.6f;
     float _heavyT; const float HeavyGather = .25f;   // heavy attack: seconds between pressing and the swing
     AttackStep? _step;   // the basic-attack chain step being swung (data/attacks.json)
     public AttackStep? CurrentStep => _step; public int ComboIndex => _combo;
@@ -47,6 +48,8 @@ public partial class Player : CharacterBody3D, IDamageable
         _gravity = (float)ProjectSettings.GetSetting("physics/3d/default_gravity");
         Hp = Game.D.MaxHp(); Mp = Game.D.MaxMp(); St = Game.D.MaxSt();
         AddChild(new CollisionShape3D { Shape = new CapsuleShape3D { Radius = 0.4f, Height = 1.8f }, Position = new Vector3(0, 0.9f, 0) });
+        // stay on the ground over bumps and down hills (the default 0.1 m snap launched the hero off every downslope), same speed up and down
+        FloorSnapLength = .6f; FloorMaxAngle = Mathf.DegToRad(50); FloorConstantSpeed = true; FloorStopOnSlope = true;
         BuildModel();
         Game.Changed += OnGearChanged;
         RefreshWeapon();
@@ -72,7 +75,7 @@ public partial class Player : CharacterBody3D, IDamageable
         {
             // the drawn hero: base body + separate gear models. HeroRig stays as the invisible pose source (hand targets, look-at).
             var ap = Races.Look(Game.D); _av = new Avatar { Name = "Avatar", Scale = new Vector3(1 / ap.Bulk, 1 / ap.Height, 1 / ap.Bulk) };
-            _rig.AddChild(_av); _av.Build(ap, Game.D.Name); HideRig();   // the cape is an equipment slot now (Avatar.Dress)
+            _rig.AddChild(_av); _av.Build(ap, Game.D.Name); HideRig(); _feet = FootPlant.Attach(_av, GetRid());   // feet on slopes   // the cape is an equipment slot now (Avatar.Dress)
         }
         _trail = new SwordTrail(); AddChild(_trail);
         // a soft light around the hero that grows in the dark (night, Shadow realm, dungeons)
@@ -112,7 +115,7 @@ public partial class Player : CharacterBody3D, IDamageable
     }
     Avatar? _av; int _atkSerial, _avAtk, _castSerial, _avCast; bool _avRolling;
     /// <summary>For test bots: the clip the model is playing and the model's facing (radians).</summary>
-    public string AvClip => _av?.Cur ?? ""; public float ModelYaw => _modelYaw; public bool Backpedal => _backpedal;
+    public Avatar? Av => _av; public string AvClip => _av?.Cur ?? ""; public float ModelYaw => _modelYaw; public bool Backpedal => _backpedal;
     bool _backpedal;
     /// <summary>Hides the procedural hero meshes when the model is drawn (HeroRig still runs for hand targets).</summary>
     void HideRig() { void H(Node n) { foreach (var c in n.GetChildren()) { if (c == _av) continue; if (c is GeometryInstance3D g) g.Visible = false; H(c); } } H(_rig); }
@@ -484,7 +487,7 @@ public partial class Player : CharacterBody3D, IDamageable
 
             if (!captured) Input.ActionRelease(Inputs.Sprint);   // a menu or another window took the Shift release: never keep sprinting after it
             bool sprint = Input.IsActionPressed(Inputs.Sprint) && St > 1f && dir.LengthSquared() > 0.01f && _atkT <= 0 && !_blocking && !Mounted;
-            float speed = (sprint ? 8.4f : 5.2f) * moveMul;
+            float speed = (sprint ? SprintSpeed : RunSpeed) * moveMul;   // matched to the clips' own stride (Avatar gait speeds)
             if (Mounted) speed = 10.5f * moveMul;
             if (_atkT > 0 && !Ranged && _atk != null)
             {
@@ -540,9 +543,12 @@ public partial class Player : CharacterBody3D, IDamageable
     {
         Feel.Load(); var w = W;
         // ---- locomotion: stride phase advances with ground speed, so feet roughly match the distance covered
-        float hv = new Vector2(Velocity.X, Velocity.Z).Length(); bool floor = IsOnFloor();
+        float hv = new Vector2(Velocity.X, Velocity.Z).Length();
+        // grounded for animation: a moment in the air over a bump is not a fall (coyote time); a jump is
+        _airT = IsOnFloor() ? 0 : _airT + dt; bool floor = IsOnFloor() || (_airT < .2f && Velocity.Y < 1f);
+        if (_feet != null) _feet.Enabled = floor && !Mounted;
         if (floor && !_wasFloor) _landT = .22f; _wasFloor = floor; _landT = Mathf.Max(0, _landT - dt);
-        float moveAmt = floor && !Mounted && _rollT <= 0 ? Mathf.Clamp(hv / 8.4f, 0, 1) : 0f;
+        float moveAmt = floor && !Mounted && _rollT <= 0 ? Mathf.Clamp(hv / SprintSpeed, 0, 1) : 0f;
         _walkAmt = Mathf.Lerp(_walkAmt, moveAmt, 1f - Mathf.Exp(-10f * dt));
         _walkPh = Mathf.Wrap(_walkPh + hv * Feel.Stride * dt, 0, Mathf.Tau); _idleT += dt;
         float s = Mathf.Sin(_walkPh), amt = _walkAmt;

@@ -31,6 +31,7 @@
                  "energy":  0.9,
                  "range":  10
              },
+    "footIK":  { "_comment": "Feet planted on slopes (scripts/FootIK.cs): hips drop up to maxDrop m, a foot rises up to maxLift m, smooth = how fast the hips follow.", "enabled": true, "maxDrop": 0.4, "maxLift": 0.5, "smooth": 14 },
     "camera":  {
                    "_comment":  "lockTurn: how fast the camera swings to a locked target (per second). shoulder / shoulderUp: metres the view sits right of and above the hero, so the aim point is not behind them.",
                    "lockTurn":  6,
