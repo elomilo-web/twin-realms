@@ -18,3 +18,4 @@ export_log.txt
 exe_*.txt
 build_stage/
 __pycache__/
+shots_log.txt

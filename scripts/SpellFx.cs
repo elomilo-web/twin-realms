@@ -167,8 +167,26 @@ public partial class SpellFxSprite : MeshInstance3D
         var tw = CreateTween(); tw.TweenMethod(Callable.From<float>(v => Mat.SetShaderParameter("fade", v)), 1f, 0f, time); tw.TweenCallback(Callable.From(QueueFree));
     }
 
+    /// <summary>
+    /// Ground animations are flat quads: on a slope half of one would sink into the hill. Tilt it to the ground under it
+    /// (world layer 1, like projectiles), keeping its height above the ground and its turn. Every frame, as zones and whirlwinds move.
+    /// </summary>
+    void HugGround()
+    {
+        var at = GlobalPosition; var space = GetWorld3D()?.DirectSpaceState; if (space == null) return;
+        var q = PhysicsRayQueryParameters3D.Create(at + Vector3.Up * 1.5f, at + Vector3.Down * 2.5f, 1);
+        if (Player.Instance is { } pl && IsInstanceValid(pl)) q.Exclude = new Godot.Collections.Array<Rid> { pl.GetRid() };   // the hero is on layer 1 too
+        var hit = space.IntersectRay(q);
+        if (hit.Count == 0) return;
+        var n = ((Vector3)hit["normal"]).Normalized(); if (n.Y < .5f) return;   // a wall, not a floor
+        var fwd = GlobalBasis.Z; fwd = (fwd - n * fwd.Dot(n)); if (fwd.LengthSquared() < 1e-4f) fwd = Vector3.Back; fwd = fwd.Normalized();
+        GlobalBasis = new Basis(n.Cross(fwd), n, fwd);
+        GlobalPosition = (Vector3)hit["position"] + n * .06f;
+    }
+
     public override void _Process(double delta)
     {
+        if (Ground) HugGround();
         _t += delta; if (Life > 0 && _t >= Life) FadeOut();
         int f = (int)(_t * Fps);
         if (f >= Frames) { if (!Loop) { QueueFree(); return; } f %= Frames; }

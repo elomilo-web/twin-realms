@@ -15,6 +15,14 @@ if ($mode -eq "bot") {
   if (Test-Path bot_out/report.txt) { Get-Content bot_out/report.txt | Select-String "FAIL|passed" } else { "NO REPORT: the game crashed before the bot finished. See bot_log.txt"; exit 1 }
   $err = Get-Content bot_log.txt | Select-String "ERROR|SCRIPT ERROR|Unhandled|leaked"
   if ($err) { "ENGINE ERRORS FOUND"; $err | Select-Object -First 20 }
+} elseif ($mode -eq "shots") {
+  # screenshot tour (scripts/Shots.cs): hero day/night/dungeon, village, kit weapons, every skill -> screenshots/
+  if (Test-Path screenshots) { Get-ChildItem screenshots -Filter *.png | Remove-Item }
+  & $godot --path . -- --shots 2>&1 | ForEach-Object { "$_" } | Out-File -Encoding utf8 shots_log.txt
+  $n = (Get-ChildItem screenshots -Filter *.png -ErrorAction SilentlyContinue).Count
+  "SHOTS: $n screenshots in screenshots/ (log: shots_log.txt)"
+  $err = Get-Content shots_log.txt | Select-String "ERROR|SCRIPT ERROR|Unhandled|Exception|\[SPELLFX\]|\[KIT\]|\[WEAPONS\]|\[GENSHIN\]"
+  if ($err) { "ENGINE ERRORS FOUND"; $err | Select-Object -First 30 }
 } elseif ($mode -eq "mp") {
   # two game windows on this computer: one hosts, one joins 127.0.0.1 and plays through the multiplayer checks
   New-Item -ItemType Directory -Force bot_out | Out-Null

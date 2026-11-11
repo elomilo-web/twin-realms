@@ -10,7 +10,7 @@ namespace TwinRealms;
 public partial class Player
 {
     readonly Dictionary<string, float> _skillCd = new(), _skillCdMax = new(), _autoCd = new();
-    SkillCalc? _castSkill, _atkSkill;
+    SkillCalc? _castSkill, _atkSkill; bool _castFxDone;
     public readonly List<(string id, Dictionary<string, float> mods, float t)> Buffs = new();
     // leap / dash movement
     Vector3 _moveFrom, _moveTo; float _moveT, _moveDur, _moveArc; SkillCalc? _moveSkill; float _spinLeft, _spinStep; int _spinHits;
@@ -39,7 +39,7 @@ public partial class Player
             // weapon skills reuse the weapon's power swing as the body motion; the skill fires at its impact frame
             _atk = k.Kind == "spin" ? W.Combo[^1] : W.Power; _atkPower = true; _atkDur = Mathf.Max(.25f, c.Cast); _atkT = _atkDur; _hitDone = false; _atkSkill = c; _spinBase = _modelYaw; _atkSerial++;
         }
-        else { _castSkill = c; _castT = _castDur = Mathf.Max(.12f, c.Cast); _atkT = 0; _fired = false; _castSerial++; }
+        else { _castSkill = c; _castT = _castDur = Mathf.Max(.12f, c.Cast); _atkT = 0; _fired = false; _castSerial++; CastFx(c, MuzzlePos()); _castFxDone = true; }   // spells gather during the wind-up
         Sfx.Play(k.Type == "physical" ? "swing" : k.Type == "frost" ? "ice" : k.Type == "lightning" ? "zap" : "fire");
     }
     void StartCd(string id, float cd) { _skillCd[id] = cd; _skillCdMax[id] = cd; }
@@ -116,7 +116,7 @@ public partial class Player
     void Execute(SkillCalc c, Enemy? forced = null, bool echo = false)
     {
         var k = c.Def; var origin = MuzzlePos(); var col = Dmg.TypeColor(c.Type);
-        CastFx(c, origin);
+        if (!_castFxDone) CastFx(c, origin); _castFxDone = false;   // weapon skills and auto-casts: the cast animation plays at the impact
         switch (k.Kind)
         {
             case "projectile":
