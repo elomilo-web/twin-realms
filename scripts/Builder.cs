@@ -247,6 +247,7 @@ public static class Builder
         for (int j = 1; j <= 4; j++) Box(_portcullis, new Vector3(.12f, .12f, 4.6f), new Vector3(0, j * 1.1f, 0), Metal);
         if (Kit.Available) foreach (var (k, lx, lz, yw) in new[] { ("weaponStand", -35f, 6.5f, Mathf.Pi / 2), ("dummy", -36f, -6.5f, Mathf.Pi / 2), ("dummy", -38f, -8f, 1.2f) })
             Kit.Add(g, Kit.Str("props", k), new Vector3(lx, World.GroundAt(ap.X + lx, ap.Z + lz) - H - .02f, lz), yw, 1f, true);
+        g.AddChild(new ArenaExit { Position = new Vector3(-22.2f, 0, 0) });   // walk back to the gate and press E to leave a run
         GateBody = new StaticBody3D { Position = new Vector3(-24, 2.5f, 0), CollisionLayer = 1 }; GateBody.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(.5f, 5f, 5f) }, Disabled = true }); g.AddChild(GateBody);
         // crowd (static)
         var cm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseColors = true, Mesh = new CapsuleMesh { Radius = .28f, Height = 1.0f, RadialSegments = 6, Rings = 2 } };

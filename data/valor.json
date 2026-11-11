@@ -1,0 +1,31 @@
+{
+  "_help": "Valor (scripts/Valor.cs). Earned only in Wave Survival, when a run first clears a milestone wave; spent with Sera, Valor Quartermaster, in Oakhaven. Wave Survival foes drop no items, gold or materials.",
+  "milestones": [
+    { "wave": 3, "valor": 10 },
+    { "wave": 5, "valor": 20 },
+    { "wave": 8, "valor": 30 },
+    { "wave": 10, "valor": 45 },
+    { "wave": 15, "valor": 70 },
+    { "wave": 20, "valor": 100 }
+  ],
+  "_everyHelp": "after the last milestone: every 'every' waves gives 'valor'",
+  "every": { "every": 5, "valor": 100 },
+  "gold": [
+    { "valor": 10, "gold": 150 },
+    { "valor": 40, "gold": 700 }
+  ],
+  "gear": {
+    "_help": "a chosen slot, rolled at your level + levelBonus with at least this rarity (0 common .. 4 legendary)",
+    "cost": [0, 0, 25, 60, 140],
+    "levelBonus": 1,
+    "slots": ["weapon", "armor", "shield", "head", "hands", "feet", "cape", "trinket"]
+  },
+  "gacha": {
+    "_help": "one pull = one random item at your level + levelBonus; rarity by weight. pity: a pull after this many without an epic or better gives at least epic.",
+    "cost": 15,
+    "costTen": 135,
+    "levelBonus": 2,
+    "weights": [40, 32, 18, 8, 2],
+    "pity": 10
+  }
+}

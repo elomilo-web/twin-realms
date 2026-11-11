@@ -232,6 +232,17 @@
    ]
   },
   {
+   "id": "sera",
+   "name": "Sera, Valor Quartermaster",
+   "outfit": "arenaMaster",
+   "x": 9,
+   "z": -6.5,
+   "role": "valor",
+   "lines": [
+    "Survive the Crimson Arena's waves and you earn valor. Spend it here."
+   ]
+  },
+  {
    "id": "v1",
    "name": "Villager",
    "outfit": "villager",

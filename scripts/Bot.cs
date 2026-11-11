@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Godot;
@@ -362,6 +363,56 @@ public partial class Bot : Node
                 await Shot("16_arena_" + mode);
                 var e = Nearest(x => x.Arena); if (e != null) { bool d = await Fight(e, 30f); Say("arena fight result: " + d); }
                 Arenas.End(false); await Wait(0.5f); Check($"arena {mode} ended", !Arenas.Active);
+            }
+        });
+
+        await Step("wave survival: no drops, valor, exit gate, valor vendor", async () =>
+        {
+            Arenas.Start("waves"); await Wait(4.5f);
+            int gold0 = Game.D.Gold, valor0 = Game.D.Valor, inv0 = Game.D.Inv.Count;
+            var lootBefore = new HashSet<ulong>(); foreach (var n in GetTree().GetNodesInGroup("loot")) lootBefore.Add(n.GetInstanceId());   // bags from earlier steps (the duel prize) do not count
+            // clear waves 1-3 quickly (kill foes directly); wave 3 is the first valor milestone
+            for (int w = 1; w <= 3 && Arenas.Active; w++)
+            {
+                for (int k = 0; k < 40 && Arenas.Alive > 0; k++)
+                {
+                    foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Enemy en && en.Arena && !en.Dead) en.TakeHit(new HitInfo { Damage = 1e6f, From = en.GlobalPosition, IsPlayer = true, Attacker = P });
+                    Heal(); await Wait(.25f);
+                }
+                await Wait(6.5f);   // the break between waves
+            }
+            await Wait(1f);
+            int drops = 0; foreach (var n in GetTree().GetNodesInGroup("loot")) if (!lootBefore.Contains(n.GetInstanceId())) drops++;
+            Check("wave foes drop no gold", Game.D.Gold == gold0, $"gold {gold0} -> {Game.D.Gold}");
+            Check("wave foes drop no items", drops == 0 && Game.D.Inv.Count == inv0, $"{drops} loot on the ground");
+            Check("valor at wave 3", Game.D.Valor - valor0 == Valor.ForWave(3), $"valor {valor0} -> {Game.D.Valor}, run {Arenas.RunValor}");
+            // walk to the gate and use it
+            ArenaExit? exit = null; foreach (var n in GetTree().GetNodesInGroup("interact")) if (n is ArenaExit ax) exit = ax;
+            Check("arena exit exists", exit != null);
+            if (exit != null)
+            {
+                P.Teleport(exit.GlobalPosition + new Vector3(1.2f, .5f, 0), Mathf.Pi / 2); await Wait(.4f);
+                Check("exit offers to leave", P.Prompt.Contains("Leave"), "prompt: " + P.Prompt);
+                await Shot("16_arena_exit");
+                Press(Inputs.Use, true); await Wait(.1f); Press(Inputs.Use, false); await Wait(1f);
+                Check("leaving by the gate ends the run", !Arenas.Active);
+                Check("valor kept after leaving", Game.D.Valor >= valor0 + Valor.ForWave(3));
+            }
+            if (Arenas.Active) Arenas.End(false);
+            // the quartermaster: a pull and a gold trade
+            Npc? sera = null; foreach (var n in GetTree().GetNodesInGroup("interact")) if (n is Npc np && np.Role == "valor") sera = np;
+            Check("valor quartermaster in the village", sera != null && sera.GlobalPosition.DistanceTo(World.OnGround(0, 0)) < 40f);
+            if (sera != null)
+            {
+                Game.D.Valor += 200; int v1 = Game.D.Valor, i1 = Game.D.Inv.Count, g1 = Game.D.Gold;
+                P.Teleport(sera.GlobalPosition + new Vector3(0, .5f, 2f), 0); await Wait(.3f); Ui.OpenDialogue(sera); await Wait(.3f);
+                Check("valor shop opens", Ui.AnyOpen && Ui.I!.PanelName == "valor", Ui.I?.PanelName ?? "");
+                await Shot("19_valor_shop");
+                var it = Valor.Pull(); Game.D.Valor -= Valor.PullCost; Game.D.Inv.Add(it);
+                Check("a pull gives an item", Game.D.Inv.Count == i1 + 1, it.Name);
+                var tr = Valor.GoldTrades().First(); Game.D.Valor -= tr.valor; Game.D.Gold += tr.gold;
+                Check("valor trades for gold", Game.D.Gold == g1 + tr.gold && Game.D.Valor == v1 - Valor.PullCost - tr.valor);
+                Ui.I!.Close(); Game.D.Inv.Remove(it);
             }
         });
 

@@ -81,6 +81,7 @@
     "arena": { "armor": "Plate", "head": "Greathelm", "hands": "Gauntlets", "feet": "Greaves", "weapon": "greatsword", "idle": "guard" },
     "smith": { "armor": "Leather", "hands": "Gloves", "feet": "Boots", "weapon": "mace", "idle": "smith" },
     "shop": { "idle": "talk" },
+    "valor": { "armor": "Plate", "hands": "Gauntlets", "feet": "Greaves", "cape": "Ember Cape", "weapon": "spear", "idle": "guard", "tint": "8a3a2e" },
     "quest": { "armor": "Robe", "idle": "talk", "tint": "5a6fa8" },
     "talk": { "idle": "talk" }
   },

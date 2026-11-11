@@ -416,13 +416,14 @@ public partial class Enemy : CharacterBody3D, IDamageable
         if (DefOverride != null) xp = 0;
         Fx.Burst(GlobalPosition + Vector3.Up, Def.Kind == "wraith" ? new Color(0.7f, 0.4f, 1f) : new Color(0.8f, 0.2f, 0.2f), 16, 5f, 0.6f);
         var mats = new System.Text.StringBuilder();
-        if (Def.Drops != null && !Summoned)
+        bool noDrops = Arenas.NoDrops(this);   // Wave Survival pays valor only
+        if (Def.Drops != null && !Summoned && !noDrops)
             foreach (var kv in Def.Drops)
             {
                 int lo = kv.Value.Length > 0 ? kv.Value[0] : 1, hi = kv.Value.Length > 1 ? kv.Value[1] : lo, n = GD.RandRange(lo, hi);
                 if (netKill) mats.Append(kv.Key).Append(':').Append(n).Append(';'); else GatherDb.Give(kv.Key, n, GlobalPosition);
             }
-        bool lootable = !Summoned && DefOverride == null && !Def.NoLoot;
+        bool lootable = !Summoned && DefOverride == null && !Def.NoLoot && !noDrops;
         int gold = GD.RandRange(2 + Level, 6 + Level * 2) * (Def.Boss ? 12 : 1);
         float chance = Def.Boss ? 1f : Arena ? .12f : .2f + (Def.Realm == 1 ? .06f : 0f) + .06f * UpgradeCount(), bonus = (Def.Boss ? 2 : 0) + (Def.Realm == 1 ? 1 : 0) + _lootBonus;
         if (dshared) { Net.I!.DunKill(this, xp, killer, mats.ToString(), lootable, gold, chance, bonus, Def.Boss ? .6f : .07f); lootable = false; }

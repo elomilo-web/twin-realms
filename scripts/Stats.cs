@@ -20,6 +20,7 @@ public class PlayerStats
     public int Level = 1, Xp = 0, Gold = 60, AttrPts = 0, SkillPts = 3, Kills = 0;
     public int Str = 5, Dex = 5, Vit = 5, Mag = 5;
     public int HpPot = 3, MpPot = 2, BestWave = 0, BestDuel = 0, Deepest = 0;
+    public int Valor = 0, GachaPity = 0;   // arena valor points (data/valor.json) and pulls since the last epic
     public int DuelWins = 0;                              // duels won against friends
     public float Played = 0;                              // seconds played with this hero
     public bool Horse = false;

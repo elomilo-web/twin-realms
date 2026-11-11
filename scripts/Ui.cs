@@ -131,9 +131,10 @@ public partial class Ui : CanvasLayer
     {
         if (n.Role == "shop") { OpenShop("buy"); return; }
         if (n.Role == "smith") { OpenSmith(); return; }
+        if (n.Role == "valor") { OpenValor("gacha"); return; }
         var v = Frame("dialog", n.NpcName, new Vector2(620, 220), () => { });
         var d = Game.D;
-        Row(v, n.Role == "arena" ? $"Welcome to the Crimson Arena. Best wave: {d.BestWave}. Best duel streak: {d.BestDuel}." : n.NextLine(), Colors.White, 18);
+        Row(v, n.Role == "arena" ? $"Welcome to the Crimson Arena. Best wave: {d.BestWave}. Best duel streak: {d.BestDuel}. Waves pay valor (first at wave {Valor.NextMilestone(0)}), spent with Sera in Oakhaven; leave by the gate whenever you like." : n.NextLine(), Colors.White, 18);
         foreach (var id in n.QuestIds)
         {
             var q = Quests.ById(id); if (q == null) continue; var s = Game.Q(id);
@@ -189,6 +190,40 @@ public partial class Ui : CanvasLayer
     {
         var h = new HBoxContainer(); parent.AddChild(h); var l = Lbl(text, 16, col, h); l.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; l.AutowrapMode = TextServer.AutowrapMode.WordSmart; h.AddChild(Btn(btn, a, true));
     }
+    // ---------------------------------------------------------------- valor quartermaster (data/valor.json)
+    static readonly List<Item> _lastPulls = new();
+    void OpenValor(string tab)
+    {
+        var d = Game.D; var v = Frame("valor", "Sera, Valor Quartermaster", new Vector2(760, 580), () => OpenValor(tab));
+        var top = new HBoxContainer(); v.AddChild(top);
+        foreach (var (t, l) in new[] { ("gacha", "Pulls"), ("gear", "Gear"), ("gold", "Gold") }) top.AddChild(Btn(l, () => OpenValor(t)));
+        Lbl($"   {d.Valor} valor", 20, new Color(1f, .78f, .35f), top); Lbl($"   {d.Gold} gold", 18, Gold, top);
+        var sc = Scroll(v, 430); var list = Inner(sc);
+        bool Pay(int c) { if (d.Valor < c) { Note("Not enough valor", new Color(1, .5f, .5f)); return false; } d.Valor -= c; return true; }
+        bool Room(int n) { if (d.Inv.Count + n > 28) { Note("Pack is full", new Color(1, .5f, .5f)); return false; } return true; }
+        if (tab == "gacha")
+        {
+            Row(list, $"A sealed cache of arena spoils: one random item at your level. Every {Valor.Pity} pulls without an epic, the next is at least epic ({d.GachaPity}/{Valor.Pity}).", Colors.White, 16);
+            AddRow(list, "One pull", Colors.White, $"{Valor.PullCost} valor", () => { if (!Room(1) || !Pay(Valor.PullCost)) return; _lastPulls.Clear(); var it = Valor.Pull(); d.Inv.Add(it); _lastPulls.Add(it); Sfx.Play("level"); Game.Notify(); OpenValor(tab); });
+            AddRow(list, "Ten pulls", Colors.White, $"{Valor.PullTenCost} valor", () => { if (!Room(10) || !Pay(Valor.PullTenCost)) return; _lastPulls.Clear(); for (int i = 0; i < 10; i++) { var it = Valor.Pull(); d.Inv.Add(it); _lastPulls.Add(it); } Sfx.Play("level"); Game.Notify(); OpenValor(tab); });
+            if (_lastPulls.Count > 0) { Row(list, "You received:", Dim, 15); foreach (var it in _lastPulls) Row(list, it.Describe(), it.Color, 16); }
+        }
+        else if (tab == "gear")
+        {
+            Row(list, "Pick a slot and a rarity: a new item at your level.", Colors.White, 16);
+            foreach (var slot in Valor.GearSlots)
+                for (int rar = 2; rar <= 4; rar++)
+                {
+                    int c = Valor.GearCost(rar); if (c <= 0) continue; string s = slot; int r = rar;
+                    AddRow(list, $"{Items.RarityName(rar)} {slot}", Items.RarityColor(rar), $"{c} valor", () => { if (!Room(1) || !Pay(c)) return; var it = Valor.Gear(s, r); d.Inv.Add(it); Note("Received " + it.Name, it.Color); Sfx.Play("coin"); Game.Notify(); OpenValor(tab); });
+                }
+        }
+        else
+            foreach (var (val, gold) in Valor.GoldTrades())
+                AddRow(list, $"{gold} gold", Gold, $"{val} valor", () => { if (!Pay(val)) return; d.Gold += gold; Sfx.Play("coin"); Game.Notify(); OpenValor(tab); });
+        v.AddChild(Btn("Leave", Close));
+    }
+
     void OpenSmith()
     {
         var d = Game.D; var w = d.Weapon; int up = w?.Up ?? 0; int cost = 60 * (up + 1) + (w != null ? w.Lvl * 10 : 0);

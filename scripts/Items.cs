@@ -62,12 +62,14 @@ public static class Items
         if (r.TryGetProperty("itemNames", out var inn)) foreach (var o in inn.EnumerateObject()) { var l = new List<string>(); foreach (var x in o.Value.EnumerateArray()) l.Add(x.GetString() ?? ""); _in[o.Name] = l.ToArray(); }
     }
 
-    public static Item Roll(int level, float bonus = 0, string? slot = null)
+    /// <param name="rarity">-1 = roll it; 0..4 = this rarity (valor vendor, gacha)</param>
+    public static Item Roll(int level, float bonus = 0, string? slot = null, int rarity = -1)
     {
         Load();
         float x = GD.Randf();
         int idx = x < .55f ? 0 : x < .82f ? 1 : x < .94f ? 2 : x < .985f ? 3 : 4;
         if (GD.Randf() < bonus * .25f && idx < 4) idx++;
+        if (rarity >= 0) idx = Math.Clamp(rarity, 0, 4);
         level = Math.Max(1, level);
         if (slot == null) { float q = GD.Randf(); slot = q < .28f ? "weapon" : q < .44f ? "armor" : q < .55f ? "shield" : q < .67f ? "head" : q < .78f ? "hands" : q < .89f ? "feet" : q < .95f ? "cape" : "trinket"; }
         float m = _mult[idx];
