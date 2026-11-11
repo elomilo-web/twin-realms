@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using Godot;
 
@@ -31,6 +32,8 @@ public partial class Player : CharacterBody3D, IDamageable
     bool _lmbPrev; float _lmbHold;
     float _atkT, _atkDur, _comboT, _blockT, _queueT, _castT, _castDur; bool _queuePower, _hasQueue;
     int _combo; bool _atkPower, _hitDone, _blocking, _fired;
+    AttackStep? _step;   // the basic-attack chain step being swung (data/attacks.json)
+    public AttackStep? CurrentStep => _step; public int ComboIndex => _combo;
     float _undyReady; Item? _shownWeapon; string _shownType = "";
     float _regenAcc;
 
@@ -75,13 +78,20 @@ public partial class Player : CharacterBody3D, IDamageable
         for (int i = 0; i < 4; i++) _horse.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(0.18f, 0.9f, 0.18f) }, MaterialOverride = hm, Position = new Vector3(i % 2 == 0 ? 0.25f : -0.25f, 0.45f, i < 2 ? -0.8f : 0.8f) });
     }
 
-    string _gearSig = "";
+    string _gearSig = "", _atkClass = "";
     /// <summary>Rebuilds the visible gear when anything equipped changes (weapon, shield, armor, helmet, gloves, boots, trinket).</summary>
     void RefreshWeapon()
     {
         var d = Game.D; var sig = d.WType();
         foreach (var s in PlayerStats.Slots) { var it = d.Eq.GetValueOrDefault(s); sig += "|" + (it == null ? "-" : it.Name + it.Rar + it.Up); }
         if (sig == _gearSig) return; _gearSig = sig;
+        // the weapon class's basic attack goes on the attack button automatically (data/attacks.json)
+        string wt = d.WType();
+        if (wt != _atkClass && Attacks.HasStyle(wt))
+        {
+            bool first = _atkClass != ""; _atkClass = wt; var b = Attacks.Build(wt); _combo = 0; _comboT = 0;
+            if (first) Ui.Note($"{Attacks.StyleName(wt)} on {Inputs.KeyOf(Inputs.Attack)}: {string.Join(" > ", b.Chain.Select(s => Attacks.Step(wt, s)?.Name ?? s))}  ({Inputs.KeyOf(Inputs.AttacksUi)} to edit)", new Color(1f, .85f, .5f));
+        }
         _rig.ApplyGear(d);
         _trail.Base = _rig.BladeBase; _trail.Tip = _rig.BladeTip; _trail.Col = Weapons.Get(d.WType()).Trail;
         if (_av != null)
@@ -228,11 +238,13 @@ public partial class Player : CharacterBody3D, IDamageable
         var w = W; bool ranged = w.Ranged;
         float cost = ranged ? (power ? 16f : 7f) : (power ? 26f : 9f) * (w.Hands > 1 ? 1.25f : w.Id == "dagger" ? .6f : 1f);
         if (St < 4f) { FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.2f, 0), "Out of stamina", new Color(0.6f, 0.8f, 1f), 0.8f); return false; }
-        UseStamina(cost);
-        // each weapon type has its own combo chain (data/weapons.json); power attacks reset it
-        if (!power) _combo = _comboT > 0 ? (_combo + 1) % w.Combo.Count : 0; else _combo = 0;
-        _atk = power ? w.Power : w.Combo[Mathf.Min(_combo, w.Combo.Count - 1)];
-        _atkPower = power; _atkDur = _atk.Dur / (Game.D.AtkSpeed() * w.Speed); _atkT = _atkDur; _hitDone = false; _comboT = _atkDur + 0.55f; _atkSerial++;
+        // the basic attack of the equipped weapon class (data/attacks.json): light attacks walk the player's chain, power attacks reset it
+        int chainLen = Attacks.HasStyle(w.Id) ? Attacks.Build(w.Id).Chain.Count : w.Combo.Count;
+        if (!power) _combo = _comboT > 0 ? (_combo + 1) % chainLen : 0; else _combo = 0;
+        if (Attacks.HasStyle(w.Id)) { _step = Attacks.Resolve(w, _combo, power); _atk = _step.Def; }
+        else { _step = null; _atk = power ? w.Power : w.Combo[Mathf.Min(_combo, w.Combo.Count - 1)]; }
+        UseStamina(cost * (_step?.Stamina ?? 1f));
+        _atkPower = power; _atkDur = _atk.Dur / (Game.D.AtkSpeed() * w.Speed * (_step?.Speed ?? 1f)); _atkT = _atkDur; _hitDone = false; _comboT = _atkDur + 0.55f; _atkSerial++;
         float camYaw = Rig?.Yaw ?? _modelYaw; float face = camYaw;
         var tgt = Targeting.Current;
         if (tgt != null) { var d = tgt.GlobalPosition - GlobalPosition; face = Util.YawTo(d.X, d.Z); }
@@ -270,7 +282,8 @@ public partial class Player : CharacterBody3D, IDamageable
             float dmg = D.WpnDmg() * (float)GD.RandRange(0.9, 1.1) * mult * (crit ? D.CritMult() : 1f);
             var hi = new HitInfo { Damage = dmg, From = GlobalPosition, Knock = knock, Stun = stun, Up = up, Crit = crit, Attacker = this, IsPlayer = true, Kind = _atkPower ? "power" : fin ? "combo" : "light" };
             foreach (var kv in w.OnHit) hi.With(kv.Key, kv.Value * (fin || _atkPower ? 1.5f : 1f));
-            if (GearFx.Get(D.Weapon?.Elem) is { } el && el.Status != "") hi.With(el.Status, el.Proc * (fin || _atkPower ? 1.5f : 1f));   // elemental weapon
+            if (GearFx.Get(D.Weapon?.Elem) is { } el && el.Status != "") hi.With(el.Status, el.Proc * (fin || _atkPower ? 1.5f : 1f) * (_step?.ElemMul ?? 1f));   // elemental weapon
+            if (_step != null) foreach (var (sid, ch) in _step.Status) hi.With(sid, ch);   // the chain step and its modifiers
             e.TakeHit(hi); if (crit) TriggerAuto("crit");
             hits++;
         }
@@ -295,27 +308,33 @@ public partial class Player : CharacterBody3D, IDamageable
         var D = Game.D; var TS = Game.TS; string wt = D.WType();
         var origin = MuzzlePos(); var (target, _) = AimPoint(80f);
         var dir = (target - origin).Normalized();
-        bool crit = GD.Randf() < D.CritChance(); float dmg = D.WpnDmg() * (float)GD.RandRange(0.9, 1.1) * (crit ? D.CritMult() : 1f);
+        bool crit = GD.Randf() < D.CritChance() + (_atk?.CritBonus ?? 0) / 100f; float dmg = D.WpnDmg() * (float)GD.RandRange(0.9, 1.1) * (crit ? D.CritMult() : 1f);
+        // the chain step (data/attacks.json): damage, shots in a fan, piercing, blast radius, statuses
+        var st = _step; float sm = st != null && st.Id != "power" ? st.Def.Dmg : 1f; int shots = st?.Shots ?? 1; float spreadR = Mathf.DegToRad(st?.Spread ?? 0); bool sPierce = st?.Pierce ?? false;
+        void Shoot(string kind, Vector3 d, float speed, float pdmg, float life, bool pierce, float aoe = 0, bool big = false)
+        {
+            var p = Projectile.Spawn(kind, 'p', origin, d * speed + (kind == "arrow" ? Vector3.Up * 0.6f : Vector3.Zero), pdmg, life, crit, pierce, aoe, big);
+            if (st != null && st.Status.Count > 0) p.Statuses = st.Status;
+        }
+        Vector3 Fan(int k, int n) => n <= 1 ? dir : dir.Rotated(Vector3.Up, (k / (float)(n - 1) - .5f) * Mathf.Max(spreadR, .11f * (n - 1)));
         if (wt == "bow")
         {
-            int n = TS.Has("multi") ? 3 : 1; float sp = _atkPower ? 64f : 50f, pd = dmg * (_atkPower ? 2f : 1f) * (n > 1 ? 0.55f : 1f);
-            for (int k = 0; k < n; k++)
-            {
-                float a = (k - (n - 1) / 2f) * 0.11f;
-                var d = dir.Rotated(Vector3.Up, -a);
-                Projectile.Spawn("arrow", 'p', origin, d * sp + Vector3.Up * 0.6f, pd, 2.4f, crit, _atkPower || TS.Has("pierce"));
-            }
+            int n = Mathf.Max(shots, TS.Has("multi") ? 3 : 1); float sp = _atkPower ? 64f : 50f, pd = dmg * sm * (_atkPower ? 2f : 1f) * (TS.Has("multi") && shots <= 1 ? 0.55f : 1f);
+            for (int k = 0; k < n; k++) Shoot("arrow", Fan(k, n), sp, pd, 2.4f, _atkPower || sPierce || TS.Has("pierce"));
             Sfx.Play("swing");
         }
         else if (wt == "wand")
         {
-            float cost = _atkPower ? 8f : 3f; bool ok = Mp >= cost; Mp = Mathf.Max(0, Mp - cost); if (!ok) dmg *= 0.5f;
-            Projectile.Spawn("bolt", 'p', origin, dir * 44f, dmg * (_atkPower ? 1.9f : 1f), 1.6f, crit, TS.Has("pierce")); Sfx.Play("zap");
+            float cost = (_atkPower ? 8f : 3f) * Mathf.Max(1, shots * .6f); bool ok = Mp >= cost; Mp = Mathf.Max(0, Mp - cost); if (!ok) dmg *= 0.5f;
+            for (int k = 0; k < shots; k++) Shoot("bolt", Fan(k, shots), 44f, dmg * sm * (_atkPower ? 1.9f : 1f), 1.6f, sPierce || TS.Has("pierce"), st?.Aoe ?? 0);
+            Sfx.Play("zap");
         }
         else
         {
-            float cost = _atkPower ? 16f : 8f; bool ok = Mp >= cost; Mp = Mathf.Max(0, Mp - cost); if (!ok) dmg *= 0.5f;
-            Projectile.Spawn("bolt", 'p', origin, dir * 28f, dmg * (_atkPower ? 2.6f : 1.35f), 2.2f, crit, false, _atkPower ? 3.4f : 2.2f, true); Sfx.Play("fire");
+            float cost = (_atkPower ? 16f : 8f) * Mathf.Max(1, shots * .6f); bool ok = Mp >= cost; Mp = Mathf.Max(0, Mp - cost); if (!ok) dmg *= 0.5f;
+            float aoe = st != null && st.Aoe > 0 ? st.Aoe : _atkPower ? 3.4f : 2.2f;
+            for (int k = 0; k < shots; k++) Shoot("bolt", Fan(k, shots), 28f, dmg * sm * (_atkPower ? 2.6f : 1.35f), 2.2f, false, aoe, true);
+            Sfx.Play("fire");
         }
     }
 
@@ -586,7 +605,7 @@ public partial class Player : CharacterBody3D, IDamageable
         {
             bool fresh = _atkSerial != _avAtk; _avAtk = _atkSerial;
             string key = w.Ranged ? (w.LeftHand ? "shoot" : "cast") : _atkPower ? (w.Hands > 1 ? "powerHeavy" : "power") : w.Hands > 1 ? "heavy" : "melee";
-            a.Play(key, .06f, _atkDur, fresh, Mathf.Max(0, _combo - 1)); return;
+            a.Play(key, .06f, _atkDur, fresh, _step != null ? _step.AnimStep : Mathf.Max(0, _combo - 1)); return;
         }
         if (_castT > 0) { bool fresh = _castSerial != _avCast; _avCast = _castSerial; a.Play("cast", .08f, _castDur, fresh); return; }
         if (_blocking) { a.Play("block", .1f); return; }

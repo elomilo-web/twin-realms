@@ -1,0 +1,131 @@
+{
+  "_help": "Basic attack skills (scripts/Attacks.cs, menu: O or Skills > Basic attacks). Each weapon class has one, used by the attack button whenever that class is equipped. The player builds its chain from unlocked steps (light attacks run the chain in order, then start over) and sockets modifiers into it, like supports on spells. Unlocking steps and modifiers and ranking up costs skill points (the same points as spells). Steps: base = which of the weapon's combo swings (data/weapons.json) to borrow timing and hand poses from, 'power' for the power attack; then any of dmg (x weapon damage), arc, range, knock, stun, up, lunge, spin, critBonus, finisher, speed (x attack speed), stamina (x cost), status {id: chance}, and for ranged classes shots, spread (degrees), pierce, aoe (m). The 'start' steps are free and form the first chain.",
+  "maxRank": 5,
+  "rankDmgP": 8,
+  "chainByRank": [3, 4, 5, 6, 7],
+  "socketsByRank": [1, 1, 2, 2, 3],
+  "styles": {
+    "sword": {
+      "name": "Sword Forms",
+      "start": ["cut", "backcut", "thrust"],
+      "steps": {
+        "cut": { "n": "Cut", "d": "A quick diagonal cut.", "base": 0 },
+        "backcut": { "n": "Backcut", "d": "The return stroke.", "base": 1, "dmg": 1.05 },
+        "thrust": { "n": "Thrust", "d": "A stabbing finisher that staggers.", "base": 2, "finisher": true },
+        "flurry": { "n": "Flurry", "d": "A fast light cut: weaker, but much quicker.", "base": 0, "dmg": 0.75, "speed": 1.45, "stamina": 0.7, "cost": 1, "req": 2 },
+        "rend": { "n": "Rending Cut", "d": "Opens a wound: may cause bleeding.", "base": 1, "dmg": 0.95, "status": { "bleed": 0.35 }, "cost": 1, "req": 4 },
+        "riposte": { "n": "Riposte", "d": "A lunging stab with a high crit chance.", "base": 2, "dmg": 1.3, "lunge": 1.2, "critBonus": 20, "cost": 2, "req": 6 },
+        "whirl": { "n": "Whirling Edge", "d": "A full turn that hits all around.", "base": 2, "dmg": 1.2, "arc": 180, "spin": 360, "finisher": true, "speed": 0.85, "cost": 2, "req": 8 }
+      }
+    },
+    "greatsword": {
+      "name": "Greatsword Forms",
+      "start": ["sweep", "return", "cleaver"],
+      "steps": {
+        "sweep": { "n": "Sweep", "d": "A wide horizontal sweep.", "base": 0 },
+        "return": { "n": "Return Sweep", "d": "The heavy return.", "base": 1 },
+        "cleaver": { "n": "Cleaver", "d": "A crushing finisher in a full arc.", "base": 2, "finisher": true },
+        "overhead": { "n": "Overhead Chop", "d": "A slow chop that stuns.", "base": 2, "dmg": 1.7, "arc": 40, "stun": 0.7, "speed": 0.8, "cost": 1, "req": 3 },
+        "uplift": { "n": "Uplift", "d": "Throws the foe into the air.", "base": 1, "dmg": 1.1, "up": 6, "cost": 2, "req": 5 },
+        "quake": { "n": "Quake", "d": "Slams the ground: knocks back everything near.", "base": 2, "dmg": 1.4, "arc": 180, "knock": 6, "finisher": true, "cost": 2, "req": 8 }
+      }
+    },
+    "axe": {
+      "name": "Axe Forms",
+      "start": ["hack", "hew", "splitter"],
+      "steps": {
+        "hack": { "n": "Hack", "d": "A short chop.", "base": 0 },
+        "hew": { "n": "Hew", "d": "A wider swing.", "base": 1 },
+        "splitter": { "n": "Splitter", "d": "A finisher that stuns.", "base": 2, "finisher": true },
+        "gash": { "n": "Gash", "d": "Deep bleeding wound.", "base": 0, "dmg": 0.9, "status": { "bleed": 0.5 }, "cost": 1, "req": 2 },
+        "sunder": { "n": "Sunder", "d": "Weakens the foe's defence.", "base": 1, "dmg": 1.0, "status": { "weaken": 0.4 }, "cost": 1, "req": 5 },
+        "executioner": { "n": "Executioner's Chop", "d": "A huge slow blow.", "base": 2, "dmg": 2.1, "speed": 0.7, "stamina": 1.4, "finisher": true, "cost": 2, "req": 8 }
+      }
+    },
+    "mace": {
+      "name": "Mace Forms",
+      "start": ["bash", "bash2", "crush"],
+      "steps": {
+        "bash": { "n": "Bash", "d": "A dazing blow.", "base": 0 },
+        "bash2": { "n": "Second Bash", "d": "Another dazing blow.", "base": 1 },
+        "crush": { "n": "Crush", "d": "A finisher that stuns.", "base": 2, "finisher": true },
+        "rattle": { "n": "Rattle", "d": "Quick tap, longer daze.", "base": 0, "dmg": 0.8, "stun": 0.4, "speed": 1.3, "cost": 1, "req": 2 },
+        "bonebreak": { "n": "Bonebreaker", "d": "Slows the foe.", "base": 1, "dmg": 1.15, "status": { "chill": 0.35 }, "cost": 1, "req": 5 },
+        "judgement": { "n": "Judgement", "d": "A ringing overhead blow that knocks up.", "base": 2, "dmg": 1.8, "up": 5, "stun": 1.0, "finisher": true, "speed": 0.8, "cost": 2, "req": 8 }
+      }
+    },
+    "dagger": {
+      "name": "Dagger Forms",
+      "start": ["jab", "slice", "fan"],
+      "steps": {
+        "jab": { "n": "Jab", "d": "A quick stab.", "base": 0 },
+        "jab2": { "n": "Second Jab", "d": "Another quick stab.", "base": 1 },
+        "slice": { "n": "Slice", "d": "A wider cut.", "base": 2 },
+        "fan": { "n": "Fan of Steel", "d": "A finisher all around.", "base": 3, "finisher": true },
+        "venom": { "n": "Venom Stab", "d": "May poison.", "base": 0, "dmg": 0.85, "status": { "poison": 0.5 }, "cost": 1, "req": 2 },
+        "backstab": { "n": "Backstab", "d": "A crit-hungry lunge.", "base": 2, "dmg": 1.1, "lunge": 1.4, "critBonus": 35, "cost": 2, "req": 5 },
+        "dance": { "n": "Blade Dance", "d": "Spinning cuts, very fast.", "base": 3, "dmg": 1.2, "spin": 360, "speed": 1.25, "finisher": true, "cost": 2, "req": 8 }
+      }
+    },
+    "spear": {
+      "name": "Spear Forms",
+      "start": ["prod", "prod2", "sweep"],
+      "steps": {
+        "prod": { "n": "Prod", "d": "A long straight stab.", "base": 0 },
+        "prod2": { "n": "Second Prod", "d": "Another long stab.", "base": 1 },
+        "sweep": { "n": "Sweep", "d": "A wide finishing sweep.", "base": 2, "finisher": true },
+        "pin": { "n": "Pin", "d": "Pierces through and slows.", "base": 0, "dmg": 1.05, "range": 5.2, "status": { "chill": 0.3 }, "cost": 1, "req": 3 },
+        "vault": { "n": "Vaulting Strike", "d": "A lunge from range.", "base": 1, "dmg": 1.25, "lunge": 2.2, "cost": 2, "req": 5 },
+        "cyclone": { "n": "Cyclone", "d": "A full spin of the shaft.", "base": 2, "dmg": 1.35, "arc": 180, "spin": 360, "knock": 5, "finisher": true, "cost": 2, "req": 8 }
+      }
+    },
+    "bow": {
+      "name": "Archery",
+      "start": ["shot", "shot2"],
+      "steps": {
+        "shot": { "n": "Shot", "d": "A plain arrow.", "base": 0 },
+        "shot2": { "n": "Follow-up Shot", "d": "Another arrow.", "base": 0 },
+        "quick": { "n": "Quick Shot", "d": "Fast and light.", "base": 0, "dmg": 0.75, "speed": 1.5, "stamina": 0.7, "cost": 1, "req": 2 },
+        "twin": { "n": "Twin Shot", "d": "Two arrows in a narrow fan.", "base": 0, "dmg": 0.7, "shots": 2, "spread": 8, "cost": 1, "req": 4 },
+        "piercer": { "n": "Piercing Shot", "d": "Goes through foes.", "base": 0, "dmg": 1.15, "pierce": true, "speed": 0.85, "cost": 2, "req": 6 },
+        "volley": { "n": "Fan Volley", "d": "Five arrows in a wide fan.", "base": 0, "dmg": 0.55, "shots": 5, "spread": 40, "finisher": true, "speed": 0.75, "cost": 2, "req": 9 }
+      }
+    },
+    "wand": {
+      "name": "Wandcraft",
+      "start": ["bolt", "bolt2"],
+      "steps": {
+        "bolt": { "n": "Bolt", "d": "A magic bolt.", "base": 0 },
+        "bolt2": { "n": "Second Bolt", "d": "Another bolt.", "base": 0 },
+        "spark": { "n": "Spark Spray", "d": "Three weak bolts.", "base": 0, "dmg": 0.5, "shots": 3, "spread": 18, "cost": 1, "req": 2 },
+        "lance": { "n": "Arcane Lance", "d": "A piercing bolt.", "base": 0, "dmg": 1.2, "pierce": true, "speed": 0.85, "cost": 1, "req": 4 },
+        "hexbolt": { "n": "Hex Bolt", "d": "Weakens what it hits.", "base": 0, "dmg": 0.9, "status": { "weaken": 0.5 }, "cost": 2, "req": 6 },
+        "burst": { "n": "Burst Bolt", "d": "Explodes on impact.", "base": 0, "dmg": 1.1, "aoe": 2.2, "finisher": true, "speed": 0.8, "cost": 2, "req": 9 }
+      }
+    },
+    "staff": {
+      "name": "Staffcraft",
+      "start": ["orb", "orb2"],
+      "steps": {
+        "orb": { "n": "Orb", "d": "A slow exploding orb.", "base": 0 },
+        "orb2": { "n": "Second Orb", "d": "Another orb.", "base": 0 },
+        "frostorb": { "n": "Frost Orb", "d": "Chills what it hits.", "base": 0, "dmg": 0.9, "status": { "chill": 0.6 }, "cost": 1, "req": 3 },
+        "embers": { "n": "Ember Spread", "d": "Three burning orbs.", "base": 0, "dmg": 0.55, "shots": 3, "spread": 22, "status": { "burn": 0.4 }, "cost": 2, "req": 5 },
+        "comet": { "n": "Comet", "d": "A huge, slow, wide explosion.", "base": 0, "dmg": 1.6, "aoe": 4.5, "speed": 0.7, "finisher": true, "cost": 2, "req": 9 }
+      }
+    }
+  },
+  "mods": {
+    "_help": "Socketed into a weapon class's basic attack. dmgP / speedP / staminaP / rangeP / arcP / knockP add percent; status adds chances to every hit; finisherP more damage on finishers; rampP more damage per step into the chain; elemP multiplies the weapon element's proc; stun adds seconds to finishers; types limits which classes can use it.",
+    "heavy": { "n": "Heavy Hands", "d": "+25% damage, 15% slower.", "dmgP": 25, "speedP": -15, "cost": 1, "req": 2 },
+    "quick": { "n": "Quick Hands", "d": "25% faster, -12% damage.", "speedP": 25, "dmgP": -12, "cost": 1, "req": 2 },
+    "endurance": { "n": "Endurance", "d": "Attacks cost 35% less stamina.", "staminaP": -35, "cost": 1, "req": 3 },
+    "momentum": { "n": "Momentum", "d": "+12% damage for each step into the chain.", "rampP": 12, "cost": 2, "req": 4 },
+    "executioner": { "n": "Executioner", "d": "Finishers deal 40% more and stun longer.", "finisherP": 40, "stun": 0.4, "cost": 2, "req": 5 },
+    "bleeder": { "n": "Bleeder", "d": "Every hit may cause bleeding.", "status": { "bleed": 0.2 }, "types": ["sword", "greatsword", "axe", "dagger", "spear"], "cost": 1, "req": 3 },
+    "concuss": { "n": "Concussion", "d": "Every hit may stun briefly.", "status": { "stun": 0.12 }, "types": ["mace", "greatsword", "axe"], "cost": 1, "req": 4 },
+    "reach": { "n": "Long Reach", "d": "+25% range and wider arcs.", "rangeP": 25, "arcP": 20, "types": ["sword", "greatsword", "axe", "mace", "dagger", "spear"], "cost": 1, "req": 3 },
+    "attuned": { "n": "Attuned Edge", "d": "Your weapon's element procs twice as often.", "elemP": 100, "cost": 2, "req": 6 },
+    "brutal": { "n": "Brutal Force", "d": "+50% knockback.", "knockP": 50, "cost": 1, "req": 2 }
+  }
+}

@@ -14,6 +14,9 @@ public class PlayerStats
     public List<Item> Stash = new();                    // storage chest at home; older saves load with an empty chest
     public Dictionary<string, SkillState> Skills = new(); // learned active skills with rank and socketed supports
     public List<string> Supports = new();                 // unlocked support modifiers
+    public Dictionary<string, AttackBuild> Attacks = new(); // basic attack per weapon class: rank, chain of steps, socketed modifiers (data/attacks.json)
+    public List<string> AtkSteps = new();                 // unlocked attack steps, as "class.step"
+    public List<string> AtkMods = new();                  // unlocked attack modifiers
     public string[] Bar = new string[6];                  // hotbar keys 1-6
     public int RankPts = 2;                               // skill rank points (1 per level)
     public int TreeVer = 0;                               // skill tree layout version; older trees are refunded on load

@@ -14,7 +14,7 @@ public static class Inputs
     public const string Spell1 = "spell1", Spell2 = "spell2", Spell3 = "spell3", Spell4 = "spell4";
     public const string PotHp = "pot_hp", PotMp = "pot_mp", Use = "interact", Realm = "realm", Mount = "mount";
     public const string Pack = "ui_pack", Journal = "ui_journal", Map = "ui_map", Tree = "ui_tree";
-    public const string Lock = "lock_on", Unlock = "lock_off", SkillsUi = "ui_skills";
+    public const string Lock = "lock_on", Unlock = "lock_off", SkillsUi = "ui_skills", AttacksUi = "ui_attacks";
     public const string Attack = "attack", Guard = "guard";
 
     /// <summary>Actions shown in the Controls menu, in order, with their names.</summary>
@@ -25,7 +25,7 @@ public static class Inputs
         (Spell1, "Skill 1"), (Spell2, "Skill 2"), (Spell3, "Skill 3"), (Spell4, "Skill 4"), ("spell5", "Skill 5"), ("spell6", "Skill 6"),
         (PotHp, "Health potion"), (PotMp, "Mana potion"), (Use, "Interact"), (Realm, "Shift realm"), (Mount, "Horse"),
         (Lock, "Lock on / next target"), (Unlock, "Release lock-on"),
-        (Pack, "Pack"), (Journal, "Journal"), (Map, "Map"), (Tree, "Skill tree"), (SkillsUi, "Skills"), (Pause, "Menu"),
+        (Pack, "Pack"), (Journal, "Journal"), (Map, "Map"), (Tree, "Skill tree"), (SkillsUi, "Skills"), (AttacksUi, "Basic attacks"), (Pause, "Menu"),
     };
 
     static bool _done;
@@ -38,7 +38,7 @@ public static class Inputs
         Bind(Spell1, Key.Key1); Bind(Spell2, Key.Key2); Bind(Spell3, Key.Key3); Bind(Spell4, Key.Key4); Bind("spell5", Key.Key5); Bind("spell6", Key.Key6);
         Bind(PotHp, Key.H); Bind(PotMp, Key.G); Bind(Use, Key.E); Bind(Realm, Key.R); Bind(Mount, Key.T);
         Bind(Pack, Key.I); Bind(Journal, Key.J); Bind(Map, Key.M); Bind(Tree, Key.K);
-        Bind(Lock, Key.Tab); Bind(Unlock, Key.Q); Bind(SkillsUi, Key.L);
+        Bind(Lock, Key.Tab); Bind(Unlock, Key.Q); Bind(SkillsUi, Key.L); Bind(AttacksUi, Key.O);
         BindMouse(Attack, MouseButton.Left); BindMouse(Guard, MouseButton.Right);
         InputMap.ActionAddEvent(Lock, new InputEventMouseButton { ButtonIndex = MouseButton.Middle });   // extra default, dropped once rebound
         ApplyBinds();

@@ -14,16 +14,24 @@ public partial class Projectile : Node3D
     public HashSet<Enemy> Hits = new();
     // skill projectiles: resolved skill (type, statuses, leech), pierce and chain counts, homing, colour
     public SkillCalc? Calc; public int PierceLeft, ChainLeft; public bool Homing; public Color? Tint; public Enemy? Source;
-    HitInfo HitFor(Vector3 from) => Calc != null ? Calc.Hit(Dmg, from, Crit) : new HitInfo { Damage = Dmg, From = from, Knock = 2.2f, Crit = Crit, Attacker = Player.Instance, IsPlayer = true };
+    public List<(string id, float chance)>? Statuses;   // basic-attack chain step statuses (data/attacks.json)
+    HitInfo HitFor(Vector3 from)
+    {
+        var h = Calc != null ? Calc.Hit(Dmg, from, Crit) : new HitInfo { Damage = Dmg, From = from, Knock = 2.2f, Crit = Crit, Attacker = Player.Instance, IsPlayer = true };
+        if (Statuses != null) foreach (var (id, ch) in Statuses) h.With(id, ch);
+        return h;
+    }
 
     public static Projectile Spawn(string kind, char own, Vector3 pos, Vector3 vel, float dmg, float life, bool crit = false, bool pierce = false, float aoe = 0f, bool big = false)
     {
         var p = new Projectile { Kind = kind, Own = own, Vel = vel, Dmg = dmg, Life = life, Crit = crit, Pierce = pierce, Aoe = aoe, Big = big };
+        if (own == 'p') SpawnedByPlayer++;
         Game.Root!.AddChild(p); p.GlobalPosition = pos;
         // everyone in the zone sees it fly: the overworld (host's foes) or our party dungeon (the owner's foes)
         if (own != 'x' && Net.Active && ((Net.MyZone == 0 && (own == 'p' || Net.IsHost)) || (Net.MyZone >= 1000 && (own == 'p' || Dungeon.IsOwner)))) Net.I!.Shot(kind, pos, vel, life, big, aoe);
         return p;
     }
+    public static int SpawnedByPlayer;   // count for tests
     public bool NoNet;   // Own 'x': a picture of someone else's shot; it hits nothing
 
     public override void _Ready()

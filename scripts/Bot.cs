@@ -366,6 +366,36 @@ public partial class Bot : Node
             }
         });
 
+        await Step("basic attack chains", async () =>
+        {
+            var d = Game.D; var keepW = d.Eq.GetValueOrDefault("weapon"); var keepS = d.Eq.GetValueOrDefault("shield");
+            d.Eq["shield"] = null; d.Eq["weapon"] = new Item { Name = "Fine Sword", Slot = "weapon", Wt = "sword", Dmg = 5 }; Game.Notify(); await Wait(.2f);
+            Check("equipping a sword assigns its basic attack", d.Attacks.ContainsKey("sword") && Attacks.Build("sword").Chain.Count > 0, string.Join(",", Attacks.Build("sword").Chain));
+            d.Level = Math.Max(d.Level, 8); d.RankPts += 12; int pts = d.RankPts;
+            Check("learn a step costs points", Attacks.UnlockStep("sword", "flurry") == null && Attacks.UnlockStep("sword", "rend") == null && d.RankPts == pts - 2);
+            Check("rank up adds chain room", Attacks.RankUp("sword") == null && Attacks.ChainLen(Attacks.Build("sword").Rank) > Attacks.ChainLen(1));
+            var b = Attacks.Build("sword"); b.Chain.Clear(); b.Chain.AddRange(new[] { "flurry", "cut", "rend" });
+            Check("modifier unlock and socket", Attacks.UnlockMod("heavy") == null && Attacks.Socket("sword", "heavy") == null && b.Mods.Contains("heavy"));
+            var r0 = Attacks.Resolve(Weapons.Get("sword"), 2, false);
+            Check("rend resolves with bleed and the heavy bonus", r0.Id == "rend" && r0.Status.Any(s => s.id == "bleed") && r0.Def.Dmg > 0.95f, $"dmg x{r0.Def.Dmg:0.00}");
+            // swing three times on a dummy foe: the steps come out in chain order
+            var spot = World.OnGround(-80, -80, .5f); P.Teleport(spot, 0f);
+            var foe = new Enemy { Type = "golem", Level = 20, AnyRealm = true, NoLeash = true, Position = spot + new Vector3(0, 0, -2.2f) }; Game.Root!.AddChild(foe); await Wait(.5f); Targeting.Set(foe);
+            var seen = new List<string>();
+            for (int i = 0; i < 3; i++) { Heal(); MouseRaw(MouseButton.Left, true); await Wait(.06f); MouseRaw(MouseButton.Left, false); await Wait(.08f); seen.Add(P.CurrentStep?.Id ?? "-"); await Wait(.45f); }
+            Check("taps walk the chain in order", string.Join(",", seen) == "flurry,cut,rend", string.Join(",", seen));
+            // bow: twin shot fires two arrows (into open ground: arrows that hit vanish before they can be counted)
+            Targeting.Clear(); foe.QueueFree(); await Wait(.2f);
+            d.Eq["weapon"] = new Item { Name = "Hunting Bow", Slot = "weapon", Wt = "bow", Dmg = 5, Two = true }; Game.Notify(); await Wait(.2f);
+            Attacks.UnlockStep("bow", "twin"); var bb = Attacks.Build("bow"); bb.Chain.Clear(); bb.Chain.Add("twin");
+            int before = Projectile.SpawnedByPlayer; Heal();
+            MouseRaw(MouseButton.Left, true); await Wait(.06f); MouseRaw(MouseButton.Left, false); await Wait(.8f);
+            int arrows = Projectile.SpawnedByPlayer - before;
+            Check("twin shot fires two arrows", arrows >= 2, arrows + " arrows");
+            Ui.I!.OpenAttacks("sword"); await Wait(.3f); Check("basic attacks menu opens", Ui.I.PanelName == "attacks"); await Shot("20_basic_attacks"); Ui.I.Close();
+            d.Eq["weapon"] = keepW; d.Eq["shield"] = keepS; Game.Notify(); await Wait(.2f);
+        });
+
         await Step("wave survival: no drops, valor, exit gate, valor vendor", async () =>
         {
             Arenas.Start("waves"); await Wait(4.5f);
