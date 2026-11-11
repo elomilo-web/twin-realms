@@ -75,6 +75,7 @@ public partial class Shots : Node
         if (OS.GetCmdlineUserArgs().Contains("--feel")) { await FeelCheck(); return; }
         if (OS.GetCmdlineUserArgs().Contains("--combat")) { await CombatCheck(); return; }
         if (OS.GetCmdlineUserArgs().Contains("--lands")) { await LandsTour(); return; }
+        if (OS.GetCmdlineUserArgs().Contains("--menus")) { await MenuShots(); return; }
         if (OS.GetCmdlineUserArgs().Contains("--hands"))
         {
             // which hand each clip reaches out with (model space: -Z is forward, +X is the model's left after the 180 turn)
@@ -134,6 +135,27 @@ public partial class Shots : Node
         await Shot("hero_dungeon");
         Cam(-.9f, 4.5f); await Wait(.8f); await Shot("hero_dungeon_side");
         Hud(true);
+    }
+
+    /// <summary>The progression menus (skills, modifier tree, passive tree, character), at the default window size and with a mid-game hero.</summary>
+    async Task MenuShots()
+    {
+        var d = Game.D; d.Level = 18; d.RankPts = 6; d.SkillPts = 5; d.AttrPts = 4;
+        foreach (var id in new[] { "meteor", "icelance", "cleave", "volley" }) if (!d.Skills.ContainsKey(id)) d.Skills[id] = new SkillState { Rank = 3 };
+        foreach (var id in new[] { "wide", "swift" }) if (!d.Supports.Contains(id)) d.Supports.Add(id);
+        Game.Notify(); Hud(true);
+        async Task M(string name, Action open, Action? then = null) { open(); await Wait(.5f); then?.Invoke(); await Wait(.25f); await Shot("menu_" + name); }
+        var uiT = typeof(Ui); void SetF(string f, object val) => uiT.GetField(f, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)?.SetValue(null, val);
+        SetF("_selSkill", "fire"); if (!d.Skills["fire"].Sup.Contains("wide")) d.Skills["fire"].Rank = 3;
+        await M("skills", () => Ui.I!.OpenSkills());
+        SetF("_openSocket", 0); await M("skills_socket", () => Ui.I!.OpenSkills()); SetF("_openSocket", -1);
+        SetF("_skillFilter", "spell"); await M("skills_spells", () => Ui.I!.OpenSkills()); SetF("_skillFilter", "all");
+        if (Ui.I!.GetType().GetMethod("OpenMods") is { } om) await M("modifiers", () => om.Invoke(Ui.I, null));
+        await M("tree", () => Ui.I!.OpenTree());
+        SetF("_treeSearch", "crit"); await M("tree_search", () => { Ui.I!.Close(); Ui.I!.OpenTree(); }); SetF("_treeSearch", "");
+        await M("character", () => Ui.I!.OpenCharacter());
+        await M("attacks", () => Ui.I!.OpenAttacks("sword"));
+        Ui.I!.Close(); Hud(false);
     }
 
     /// <summary>The wider world (data/lands.json): wide views of every land, its places, the sea bridges and the sky islands; the hero in a few of them; an updraft ride; the world map.</summary>

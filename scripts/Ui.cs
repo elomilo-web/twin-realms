@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 
 namespace TwinRealms;
@@ -89,6 +90,7 @@ public partial class Ui : CanvasLayer
         else if (e.IsActionPressed(Inputs.Map)) Toggle("map", OpenMap); else if (e.IsActionPressed(Inputs.Tree)) Toggle("tree", OpenTree);
         else if (e.IsActionPressed(Inputs.SkillsUi)) Toggle("skills", OpenSkills);
         else if (e.IsActionPressed(Inputs.AttacksUi)) Toggle("attacks", () => OpenAttacks(null));
+        else if (e.IsActionPressed(Inputs.ModsUi)) Toggle("mods", OpenMods);
     }
     void Toggle(string name, Action open) { if (_panelName == name) Close(); else if (_panel == null && Player.Instance != null && !Player.Instance.Dead) open(); }
 
@@ -311,7 +313,7 @@ public partial class Ui : CanvasLayer
         if (_tip == null || !IsInstanceValid(_tip)) { _tip = new ItemTip(); AddChild(_tip); }
         _tip.Show(it, worn, anchor.GetGlobalRect(), GetViewport().GetVisibleRect().Size);
     }
-    void HideTip() { if (_tip != null && IsInstanceValid(_tip)) _tip.Visible = false; }
+    void HideTip() { if (_tip != null && IsInstanceValid(_tip)) _tip.Visible = false; HideInfo(); }
     static string Cap(string s) => char.ToUpper(s[0]) + s.Substring(1);
     void Equip(int idx)
     {
@@ -324,23 +326,72 @@ public partial class Ui : CanvasLayer
 
     // ---------------------------------------------------------------- character
     public void OpenCharacter() => OpenCharacterPanel();
+    /// <summary>What one attribute point gives, measured: the derived stats before and after ten extra points, divided by ten.</summary>
+    static string PerPoint(Action<int> add)
+    {
+        var d = Game.D; float[] S() => new[] { d.MaxHp(), d.MaxMp(), d.MaxSt(), d.WpnDmg(), d.SpellPow() * 100, d.Defense(), d.CritChance() * 100, d.AtkSpeed() * 100 };
+        var a = S(); add(10); var b = S(); add(-10);
+        string[] names = { "health", "mana", "stamina", "weapon damage", "% spell power", "armor", "% crit chance", "% attack speed" };
+        var parts = new List<string>(); for (int i = 0; i < a.Length; i++) { float dv = (b[i] - a[i]) / 10f; if (Mathf.Abs(dv) > .005f) parts.Add($"+{dv:0.##} {names[i]}".Replace(" %", "% ").Replace("%  ", "% ")); }
+        return parts.Count > 0 ? "Each point: " + string.Join(", ", parts) : "";
+    }
     void OpenCharacterPanel()
     {
-        var d = Game.D; var v = Frame("char", $"{d.Name}  -  Level {d.Level} {Races.Get(d.Race).Name} {Classes.Get(d.Class).Name}", new Vector2(640, 600), OpenCharacterPanel);
-        Row(v, $"XP {d.Xp} / {d.XpNeed()}     Kills {d.Kills}     Gold {d.Gold}     Valor {d.Valor}", Gold);
-        Row(v, $"Attribute points: {d.AttrPts}      Skill points: {d.RankPts} (L)      Skill tree points: {d.SkillPts} (K)", d.AttrPts > 0 ? Gold : Dim, 18);
-        void Attr(string n, string desc, int val, Action up) { var h = new HBoxContainer(); v.AddChild(h); var l = Lbl($"{n}  {val}   - {desc}", 17, Colors.White, h); l.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; if (d.AttrPts > 0) h.AddChild(Btn("+", () => { d.AttrPts--; up(); Game.Notify(); Sfx.Play("click"); }, true)); }
-        Attr("Strength", "melee damage", d.Str, () => d.Str++); Attr("Dexterity", "bow, speed, crit, stamina", d.Dex, () => d.Dex++); Attr("Vitality", "health, defense", d.Vit, () => d.Vit++); Attr("Magic", "mana, spell power", d.Mag, () => d.Mag++);
-        Row(v, $"\nHealth {d.MaxHp()}   Mana {d.MaxMp()}   Stamina {d.MaxSt()}\nWeapon damage {d.WpnDmg():0}   Spell power x{d.SpellPow():0.00}   Defense {d.Defense()}\nCrit {d.CritChance() * 100:0}% (x{d.CritMult():0.0})   Attack speed x{d.AtkSpeed():0.00}");
-        var sl = new List<string>(); foreach (var n in TreeDb.Nodes) if (d.Tree.Contains(n.Id)) sl.Add(n.Name);
-        var TS = Game.TS; string R(string k) => $"{TS["res_" + k]:0}%";
-        Row(v, $"Armor {d.Defense()}   Magic resist {TS["mr"] + d.Defense() * .5f:0}   Evade {TS["evade"]:0}%   Tenacity {TS["tenacity"]:0}%", new Color(.8f, .9f, 1f), 15);
-        Row(v, $"Resist: fire {R("fire")}  frost {R("frost")}  lightning {R("lightning")}  poison {R("poison")}  shadow {R("shadow")}  holy {R("holy")}", new Color(.8f, .9f, 1f), 14);
-        Row(v, $"Penetration: armor {TS["armorPen"]:0} + {TS["armorPenP"]:0}%   magic {TS["magicPen"]:0} + {TS["magicPenP"]:0}%   Status duration +{TS["statusP"]:0}%", new Color(.8f, .9f, 1f), 14);
-        Row(v, $"Skill tree nodes: {d.Tree.Count}   Skill ranks to spend: {d.RankPts} (L)", Dim);
-        v.AddChild(Btn("All bonuses", OpenTotals, true));
-    }
+        var d = Game.D; var TS = Game.TS; var v = Frame("char", "Character", new Vector2(1000, 620), OpenCharacterPanel); HideInfo();
+        // header: who, level, XP bar, wealth
+        var head = new HBoxContainer(); head.AddThemeConstantOverride("separation", 14); v.AddChild(head);
+        Lbl($"{d.Name}", 22, UiTheme.Title, head); Lbl($"Level {d.Level} {Races.Get(d.Race).Name} {Classes.Get(d.Class).Name}", 16, Colors.White, head);
+        var xb = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; xb.AddThemeConstantOverride("separation", 0); head.AddChild(xb);
+        xb.AddChild(new ProgressBar { MinValue = 0, MaxValue = Math.Max(1, d.XpNeed()), Value = Math.Min(d.Xp, d.XpNeed()), ShowPercentage = false, CustomMinimumSize = new Vector2(160, 8), MouseFilter = Control.MouseFilterEnum.Ignore });
+        Lbl($"XP {d.Xp} / {d.XpNeed()}", 12, Dim, xb);
+        Lbl($"Gold {d.Gold}   Valor {d.Valor}   Kills {d.Kills}", 14, Dim, head);
+        var pts = new HBoxContainer(); pts.AddThemeConstantOverride("separation", 8); v.AddChild(pts);
+        Chip(pts, $"Attribute points  {d.AttrPts}", d.AttrPts > 0); Chip(pts, $"Skill points  {d.RankPts}", d.RankPts > 0); Chip(pts, $"Tree points  {d.SkillPts}", d.SkillPts > 0);
+        pts.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
+        pts.AddChild(Btn($"Skills ({Inputs.KeyOf(Inputs.SkillsUi)})", OpenSkills, true)); pts.AddChild(Btn($"Skill tree ({Inputs.KeyOf(Inputs.Tree)})", OpenTree, true)); pts.AddChild(Btn($"Modifiers ({Inputs.KeyOf(Inputs.ModsUi)})", OpenMods, true)); pts.AddChild(Btn("All bonuses", OpenTotals, true));
 
+        var cols = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; cols.AddThemeConstantOverride("separation", 18); v.AddChild(cols);
+        // ---- left: attributes, each with what a point gives and +1 / +5
+        var left = new VBoxContainer { CustomMinimumSize = new Vector2(380, 0) }; left.AddThemeConstantOverride("separation", 6); cols.AddChild(left);
+        Lbl("ATTRIBUTES", 15, UiTheme.Accent, left);
+        void Attr(string name, string role, int val, Action<int> add, Color col)
+        {
+            var pc = new PanelContainer(); pc.AddThemeStyleboxOverride("panel", UiTheme.Box(new Color(.02f, .06f, .12f, .7f), col with { A = .45f }, 1, 12, 6, 0)); left.AddChild(pc);
+            var h = new HBoxContainer(); h.AddThemeConstantOverride("separation", 10); pc.AddChild(h);
+            var nv = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; nv.AddThemeConstantOverride("separation", 0); h.AddChild(nv);
+            var top = new HBoxContainer(); nv.AddChild(top); Lbl(name, 17, col.Lightened(.3f), top).SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; Lbl(role, 12, Dim, top);
+            var pp = Row(nv, PerPoint(add), UiTheme.Text, 12); pp.CustomMinimumSize = new Vector2(220, 0);
+            Lbl(val.ToString(), 26, Colors.White, h).CustomMinimumSize = new Vector2(44, 0);
+            var bv = new VBoxContainer(); bv.AddThemeConstantOverride("separation", 2); h.AddChild(bv);
+            foreach (int k in new[] { 1, 5 })
+            {
+                int kk = k; var b = Btn("+" + k, () => { int n = Math.Min(kk, d.AttrPts); if (n <= 0) return; d.AttrPts -= n; add(n); Game.Notify(); }, true);
+                b.Disabled = d.AttrPts < 1 || (k == 5 && d.AttrPts < 5); b.CustomMinimumSize = new Vector2(46, 26); bv.AddChild(b);
+            }
+        }
+        Attr("Strength", "melee", d.Str, n => d.Str += n, new Color("ff7a5a")); Attr("Dexterity", "bow · speed · crit", d.Dex, n => d.Dex += n, new Color("7ee08a"));
+        Attr("Vitality", "health · armor", d.Vit, n => d.Vit += n, new Color("ffd36a")); Attr("Magic", "mana · spells", d.Mag, n => d.Mag += n, new Color("8fb0ff"));
+
+        // ---- right: derived stats in groups
+        var right = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; right.AddThemeConstantOverride("separation", 4); cols.AddChild(right);
+        void Section(string title, (string n, string v, Color? c)[] rows)
+        {
+            Lbl(title, 14, UiTheme.Accent, right);
+            var g = new GridContainer { Columns = 6 }; g.AddThemeConstantOverride("h_separation", 10); g.AddThemeConstantOverride("v_separation", 1); right.AddChild(g);
+            foreach (var (n, val, c) in rows) { Lbl(n, 13, Dim, g).CustomMinimumSize = new Vector2(104, 0); Lbl(val, 15, c ?? Colors.White, g).CustomMinimumSize = new Vector2(62, 0); }
+        }
+        string P(float x) => $"{x:0.#}%";
+        Section("OFFENSE", new (string, string, Color?)[] { ("Weapon damage", $"{d.WpnDmg():0}", null), ("Spell power", $"x{d.SpellPow():0.00}", null), ("Crit chance", P(d.CritChance() * 100), null),
+            ("Crit damage", $"x{d.CritMult():0.0}", null), ("Attack speed", $"x{d.AtkSpeed():0.00}", null), ("Cast speed", "+" + P(TS["castSpd"]), null),
+            ("Cooldowns", "-" + P(TS["cdr"]), null), ("Skill damage", "+" + P(TS["skillP"]), null), ("All damage", "+" + P(TS["allP"]), null) });
+        Section("DEFENSE", new (string, string, Color?)[] { ("Health", $"{d.MaxHp()}", new Color("ff8a7a")), ("Mana", $"{d.MaxMp()}", new Color("8fb0ff")), ("Stamina", $"{d.MaxSt()}", new Color("7ee08a")),
+            ("Armor", $"{d.Defense()}", null), ("Magic resist", $"{TS["mr"] + d.Defense() * .5f:0}", null), ("Evade", P(TS["evade"]), null),
+            ("Tenacity", P(TS["tenacity"]), null), ("Block", P(TS["block"]), null), ("Life leech", P(TS["leech"]), null) });
+        var res = new List<(string, string, Color?)>(); foreach (var t in new[] { "fire", "frost", "lightning", "poison", "shadow", "holy" }) res.Add((char.ToUpper(t[0]) + t[1..], P(TS["res_" + t]), Dmg.TypeColor(t)));
+        Section("RESISTANCES", res.ToArray());
+        Section("OTHER", new (string, string, Color?)[] { ("Armor pen", $"{TS["armorPen"]:0} + {TS["armorPenP"]:0}%", null), ("Magic pen", $"{TS["magicPen"]:0} + {TS["magicPenP"]:0}%", null), ("Status time", "+" + P(TS["statusP"]), null),
+            ("Move speed", "+" + P(TS["move"]), null), ("XP bonus", "+" + P(TS["xpP"]), null), ("Tree nodes", $"{d.Tree.Count}", null) });
+    }
     // ---------------------------------------------------------------- journal
     public void OpenJournal()
     {
@@ -354,21 +405,50 @@ public partial class Ui : CanvasLayer
     }
 
     // ---------------------------------------------------------------- skill tree
+    static string _treeSearch = "";
     public void OpenTree()
     {
-        TreeDb.Load(); var v = Frame("tree", "Skill Tree", new Vector2(1000, 680), OpenTree);
-        var hb = new HBoxContainer(); v.AddChild(hb); hb.AddThemeConstantOverride("separation", 14);
-        Lbl($"Skill points: {Game.D.SkillPts}", 16, Game.D.SkillPts > 0 ? UiTheme.Highlight : Gold, hb);
-        Lbl("Left click: take   Right click: refund   Wheel: zoom   Drag: pan", 14, Dim, hb);
+        TreeDb.Load(); if (_panelName != "tree") TreeView.HasSaved = false;   // a fresh open centres on your start; rebuilds after taking a node keep the view
+        var v = Frame("tree", "Skill Tree", new Vector2(1120, 640), OpenTree); HideInfo(); var d = Game.D;
+        var hb = new HBoxContainer(); v.AddChild(hb); hb.AddThemeConstantOverride("separation", 8);
+        Chip(hb, $"Tree points  {d.SkillPts}", d.SkillPts > 0);
+        var search = new LineEdit { Text = _treeSearch, PlaceholderText = "Find a bonus: crit, fire, mana...", CustomMinimumSize = new Vector2(240, 30), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; hb.AddChild(search);
+        var found = Lbl("", 13, new Color(.35f, .95f, 1f), hb); found.CustomMinimumSize = new Vector2(70, 0);
         TreeView? tvRef = null;
-        hb.AddChild(Btn("My start", () => tvRef?.CenterOn(TreeDb.Get(TreeDb.StartFor(Game.D.Class))!, 3.2f), true)); hb.AddChild(Btn("Whole tree", () => tvRef?.CenterOn(TreeDb.Nodes[0], 1f), true));
-        hb.AddChild(Btn("Totals", OpenTotals, true));
-        // tree canvas takes what is left of the window after title, help row and a 3-line tip (fits 648 px tall windows)
-        var vp = GetViewport().GetVisibleRect().Size;
-        var tv = new TreeView { CustomMinimumSize = new Vector2(Mathf.Min(960, vp.X - 64), Mathf.Clamp(vp.Y - 250, 240, 560)), SizeFlagsVertical = Control.SizeFlags.ExpandFill }; v.AddChild(tv); tvRef = tv;
-        var tip = Row(v, " ", Colors.White, 14); tip.CustomMinimumSize = new Vector2(0, 60); tip.ClipContents = true; tv.Tip = tip; tv.Changed = () => { Game.RecalcTree(); Game.Notify(); };
-    }
+        hb.AddChild(Btn("-", () => tvRef?.ZoomBy(1 / 1.3f), true)); hb.AddChild(Btn("+", () => tvRef?.ZoomBy(1.3f), true));
+        hb.AddChild(Btn("My start", () => tvRef?.CenterOn(TreeDb.Get(TreeDb.StartFor(d.Class))!, 3.2f), true)); hb.AddChild(Btn("Whole tree", () => tvRef?.CenterOn(TreeDb.Nodes[0], 1f), true));
 
+
+        var cols = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; cols.AddThemeConstantOverride("separation", 12); v.AddChild(cols);
+        var vp = GetViewport().GetVisibleRect().Size;
+        var tv = new TreeView { CustomMinimumSize = new Vector2(Mathf.Clamp(vp.X - 400, 400, 820), Mathf.Clamp(vp.Y - 170, 240, 600)), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ExpandFill }; cols.AddChild(tv); tvRef = tv;
+        tv.Changed = () => { Game.RecalcTree(); Game.Notify(); };
+        void Find(string s) { _treeSearch = s; tv.SetSearch(s); found.Text = s.Trim().Length >= 2 ? $"{tv.Matches} found" : ""; }
+        search.TextChanged += Find; Find(_treeSearch);
+        tv.HoverAt = (id, at) =>
+        {
+            if (id < 0) { HideInfo(); return; }
+            var n = TreeDb.Nodes[id]; string kind = n.Type switch { "key" => "KEYSTONE", "notable" => "NOTABLE", "start" => "CLASS START", "hub" => "CENTRE", _ => "" };
+            var lines = new List<(string, Color, int)>();
+            if (kind != "" || n.Arm == "hybrid") lines.Add((kind + (n.Arm == "hybrid" ? "   hybrid path" : ""), n.Col.Lightened(.3f), 12));
+            if (n.Desc != "") lines.Add((n.Desc, Colors.White, 13));
+            foreach (var kv in n.Mods) lines.Add((TreeDb.StatText(kv.Key, kv.Value), new Color(.75f, .92f, 1f), 14));
+            if (n.Type == "start") lines.Add((n.Id == TreeDb.StartFor(d.Class) ? "You start here" : $"{Classes.Get(n.Arm).Name} start", UiTheme.Dim, 12));
+            else if (d.Tree.Contains(id)) lines.Add(("Taken. Right click to refund.", UiTheme.Accent, 12));
+            else { var path = tv.PathTo(id); if (path == null) lines.Add(("Cannot be reached", new Color(1f, .6f, .5f), 12)); else lines.Add((path.Count == 1 ? "Click to take (1 point)" : $"Click to take the path: {path.Count} points" + (path.Count > d.SkillPts ? $" (you have {d.SkillPts})" : ""), path.Count <= d.SkillPts ? new Color(.45f, 1f, .6f) : new Color(1f, .6f, .5f), 12)); }
+            Info(at, n.Name == "" ? "Passive" : n.Name, n.Type == "key" ? new Color(1f, .85f, .5f) : Colors.White, lines, 270);
+        };
+        // ---- right: what your tree gives you now
+        var side = new PanelContainer { CustomMinimumSize = new Vector2(250, 0) }; side.AddThemeStyleboxOverride("panel", UiTheme.Box(new Color(.02f, .06f, .12f, .7f), UiTheme.AccentSoft, 1, 10, 8, 0)); cols.AddChild(side);
+        var sv = new VBoxContainer(); sv.AddThemeConstantOverride("separation", 4); side.AddChild(sv);
+        Lbl($"YOUR BONUSES   {d.Tree.Count} nodes", 13, UiTheme.Accent, sv);
+        var ss = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; sv.AddChild(ss);
+        var sl = new VBoxContainer(); ss.AddChild(sl);
+        var keys = new List<string>(); foreach (var k in TreeDb.Known) if (Mathf.Abs(Game.TS[k]) > .001f) keys.Add(k); keys.Sort();
+        if (keys.Count == 0) Row(sl, "Nothing yet. Take nodes next to your start.", Dim, 13);
+        foreach (var k in keys) { var l = Row(sl, TreeDb.StatText(k, Game.TS[k]), new Color(.8f, .92f, 1f), 13); l.CustomMinimumSize = new Vector2(220, 0); }
+        Row(sv, "Click: take a node, or the whole path to it.  Right click: refund.  Drag: move.  Wheel: zoom.", Dim, 12).CustomMinimumSize = new Vector2(220, 0);
+    }
     /// <summary>Panel listing every bonus you currently have, with where the numbers come from.</summary>
     public void OpenTotals()
     {
@@ -499,12 +579,16 @@ public partial class Ui : CanvasLayer
 
 /// <summary>
 /// Interactive passive tree (about 420 nodes). Opens centred on your class start. Wheel zooms toward the cursor, drag pans,
-/// left click takes a node next to your path, right click refunds one that nothing else depends on. Class starts and keystones are labelled.
+/// left click takes a node next to your path, or the whole shortest path to a far node when you have the points; right click refunds
+/// one that nothing else depends on. Hovering shows the node in a card by the mouse and the path to it. Search lights up matches.
+/// The view (zoom and pan) is kept while the menu stays open, so taking a node does not throw you back to your start.
 /// </summary>
 public partial class TreeView : Control
 {
-    public Label? Tip; public Action? Changed;
+    public Action? Changed; public Action<int, Vector2>? HoverAt;
+    public static bool HasSaved; static float _sZoom; static Vector2 _sPan;
     float _zoom = 1f; Vector2 _pan = Vector2.Zero; bool _drag; int _hover = -1; float _scale = 1f; int _start;
+    List<int>? _path; readonly HashSet<int> _match = new();
     static Font F => ThemeDB.FallbackFont;
     Vector2 ToScreen(TreeNode n) => Size / 2 + _pan + new Vector2(n.X, n.Y) * _scale * _zoom;
     public override void _Ready()
@@ -513,21 +597,47 @@ public partial class TreeView : Control
         float minx = 1e9f, maxx = -1e9f, miny = 1e9f, maxy = -1e9f; foreach (var n in TreeDb.Nodes) { minx = Mathf.Min(minx, n.X); maxx = Mathf.Max(maxx, n.X); miny = Mathf.Min(miny, n.Y); maxy = Mathf.Max(maxy, n.Y); }
         var box = CustomMinimumSize == Vector2.Zero ? new Vector2(960, 560) : CustomMinimumSize;
         _scale = Mathf.Min((box.X - 30) / (maxx - minx + 60), (box.Y - 20) / (maxy - miny + 60));
-        CenterOn(TreeDb.Get(_start) ?? TreeDb.Nodes[0], 3.2f);
+        if (HasSaved) { _zoom = _sZoom; _pan = _sPan; } else CenterOn(TreeDb.Get(_start) ?? TreeDb.Nodes[0], 3.2f);
+        MouseExited += () => { _hover = -1; _path = null; HoverAt?.Invoke(-1, Vector2.Zero); QueueRedraw(); };
     }
-    public void CenterOn(TreeNode n, float zoom) { _zoom = zoom; _pan = -new Vector2(n.X, n.Y) * _scale * _zoom; QueueRedraw(); }
+    void Save() { HasSaved = true; _sZoom = _zoom; _sPan = _pan; }
+    public void CenterOn(TreeNode n, float zoom) { _zoom = zoom; _pan = -new Vector2(n.X, n.Y) * _scale * _zoom; Save(); QueueRedraw(); }
+    public void ZoomBy(float f) => ZoomAt(Size / 2, f);
+    public void SetSearch(string s)
+    {
+        _match.Clear(); s = s.Trim().ToLowerInvariant();
+        if (s.Length >= 2) foreach (var n in TreeDb.Nodes) if (n.Name.ToLowerInvariant().Contains(s) || n.Desc.ToLowerInvariant().Contains(s) || n.Mods.Any(kv => kv.Key.ToLowerInvariant().Contains(s) || TreeDb.StatText(kv.Key, kv.Value).ToLowerInvariant().Contains(s))) _match.Add(n.Id);
+        QueueRedraw();
+    }
+    public int Matches => _match.Count;
+    /// <summary>Shortest run of untaken nodes from what you have to n (n last); null if taken or unreachable.</summary>
+    public List<int>? PathTo(int target)
+    {
+        var have = new HashSet<int>(Game.D.Tree) { _start }; if (have.Contains(target)) return null;
+        var prev = new Dictionary<int, int>(); var q = new Queue<int>(); foreach (var h in have) { prev[h] = -1; q.Enqueue(h); }
+        while (q.Count > 0)
+        {
+            int c = q.Dequeue(); if (c == target) break;
+            foreach (var a in TreeDb.Nodes[c].Adj) { if (prev.ContainsKey(a)) continue; if (TreeDb.Nodes[a].Type == "start") continue; prev[a] = c; q.Enqueue(a); }
+        }
+        if (!prev.ContainsKey(target)) return null;
+        var path = new List<int>(); for (int c = target; c != -1 && !have.Contains(c); c = prev[c]) path.Add(c); path.Reverse(); return path;
+    }
     float Rad(TreeNode n) => (n.Type == "start" ? 15f : n.Type == "hub" ? 13f : n.Type == "key" ? 12f : n.Type == "notable" ? 8.5f : 5f) * Mathf.Clamp(_zoom / 2.5f, 0.55f, 1.5f);
     public override void _Draw()
     {
         var d = Game.D; var alloc = new HashSet<int>(d.Tree); alloc.Add(_start); var set = new HashSet<int>(d.Tree);
         DrawRect(new Rect2(Vector2.Zero, Size), new Color(.02f, .03f, .06f));
-        // faint rings to show the structure
         var c0 = Size / 2 + _pan; foreach (var r in new[] { 400f, 900f, 1520f }) DrawArc(c0, r * _scale * _zoom, 0, Mathf.Tau, 96, new Color(.15f, .22f, .32f, .35f), 1f);
+        var onPath = _path != null ? new HashSet<int>(_path) : new HashSet<int>();
+        bool afford = _path != null && _path.Count <= d.SkillPts;
+        var pathCol = afford ? new Color(.45f, 1f, .6f) : new Color(1f, .55f, .45f);
         foreach (var n in TreeDb.Nodes) foreach (var a in n.Adj) if (a > n.Id)
         {
             var m = TreeDb.Nodes[a]; bool on = alloc.Contains(n.Id) && alloc.Contains(a); var p0 = ToScreen(n); var p1 = ToScreen(m);
             if (!GetRect().Grow(400).HasPoint(p0 + Position) && !GetRect().Grow(400).HasPoint(p1 + Position)) continue;
-            DrawLine(p0, p1, on ? new Color(.95f, .8f, .4f) : new Color(.25f, .27f, .34f), on ? 3f : 1.4f);
+            bool pl = (onPath.Contains(n.Id) || alloc.Contains(n.Id)) && (onPath.Contains(a) || alloc.Contains(a)) && (onPath.Contains(n.Id) || onPath.Contains(a));
+            DrawLine(p0, p1, on ? new Color(.95f, .8f, .4f) : pl ? pathCol : new Color(.25f, .27f, .34f), on ? 3f : pl ? 2.6f : 1.4f);
         }
         foreach (var n in TreeDb.Nodes)
         {
@@ -536,11 +646,11 @@ public partial class TreeView : Control
             if (n.Type == "key") DrawColoredPolygon(new[] { p + new Vector2(0, -r - 4), p + new Vector2(r + 4, 0), p + new Vector2(0, r + 4), p + new Vector2(-r - 4, 0) }, on ? Colors.White : can ? new Color(.9f, .9f, .5f) : new Color(.25f, .25f, .3f));
             else DrawCircle(p, r + 2, on ? Colors.White : can ? new Color(.9f, .9f, .5f) : n.Type == "start" ? n.Col.Darkened(.3f) : new Color(.2f, .2f, .26f));
             DrawCircle(p, r, on ? n.Col : n.Col.Darkened(n.Type == "start" ? .3f : .65f));
+            if (onPath.Contains(n.Id)) DrawArc(p, r + 4, 0, Mathf.Tau, 20, pathCol, 2f);
+            if (_match.Contains(n.Id)) { DrawArc(p, r + 7, 0, Mathf.Tau, 24, new Color(.35f, .95f, 1f), 2.5f); DrawArc(p, r + 11, 0, Mathf.Tau, 24, new Color(.35f, .95f, 1f, .35f), 2f); }
             if (n.Type == "start" && n.Id == _start) DrawArc(p, r + 7, 0, Mathf.Tau, 32, UiTheme.Highlight, 2.5f);
             if (_hover == n.Id) DrawArc(p, r + 5, 0, Mathf.Tau, 24, Colors.White, 2f);
         }
-        // labels in a second pass so no circle is drawn over them: class starts always, keystones and notables when zoomed in.
-        // Each sits on a dark tag under its node and is kept inside the view.
         foreach (var n in TreeDb.Nodes)
         {
             if (!(n.Type == "start" || (n.Type == "key" && _zoom > 1.6f) || (n.Type == "notable" && _zoom > 3.6f))) continue;
@@ -556,14 +666,16 @@ public partial class TreeView : Control
     int Pick(Vector2 pos) { int best = -1; float bd = 1e9f; foreach (var n in TreeDb.Nodes) { float d = ToScreen(n).DistanceTo(pos); if (d < Rad(n) + 6 && d < bd) { bd = d; best = n.Id; } } return best; }
     void ZoomAt(Vector2 mouse, float factor)
     {
-        float z2 = Mathf.Clamp(_zoom * factor, 0.7f, 9f); var c = Size / 2; _pan = mouse - c - (mouse - c - _pan) * (z2 / _zoom); _zoom = z2; QueueRedraw();
+        float z2 = Mathf.Clamp(_zoom * factor, 0.7f, 9f); var c = Size / 2; _pan = mouse - c - (mouse - c - _pan) * (z2 / _zoom); _zoom = z2; Save(); QueueRedraw();
     }
     public override void _GuiInput(InputEvent e)
     {
         if (e is InputEventMouseMotion mm)
         {
-            if (_drag) { _pan += mm.Relative; QueueRedraw(); }
-            int h = Pick(mm.Position); if (h != _hover) { _hover = h; UpdateTip(); QueueRedraw(); }
+            if (_drag) { _pan += mm.Relative; Save(); QueueRedraw(); }
+            int h = Pick(mm.Position);
+            if (h != _hover) { _hover = h; _path = h >= 0 ? PathTo(h) : null; QueueRedraw(); }
+            HoverAt?.Invoke(_hover, GetGlobalMousePosition());
         }
         else if (e is InputEventMouseButton mb)
         {
@@ -574,29 +686,22 @@ public partial class TreeView : Control
             {
                 int id = Pick(mb.Position); var d = Game.D;
                 if (id < 0) { _drag = true; return; }
-                var n = TreeDb.Nodes[id]; var set = new HashSet<int>(d.Tree);
-                if (TreeDb.CanAlloc(n, set, d.SkillPts, _start)) { d.Tree.Add(id); d.SkillPts--; Sfx.Play("level"); Changed?.Invoke(); }
-                else Sfx.Play("click");
+                var path = PathTo(id);
+                if (path == null || path.Count == 0) { Sfx.Play("click"); return; }
+                if (path.Count > d.SkillPts) { Ui.Note($"That path takes {path.Count} skill tree points; you have {d.SkillPts}", new Color(1f, .6f, .5f)); Sfx.Play("click"); return; }
+                foreach (var pid in path) { var set = new HashSet<int>(d.Tree); var pn = TreeDb.Nodes[pid]; if (!TreeDb.CanAlloc(pn, set, d.SkillPts, _start)) break; d.Tree.Add(pid); d.SkillPts--; }
+                Sfx.Play("level"); _path = null; Changed?.Invoke();
             }
             else if (mb.ButtonIndex == MouseButton.Left && !mb.Pressed) _drag = false;
             else if (mb.ButtonIndex == MouseButton.Right && mb.Pressed)
             {
                 int id = Pick(mb.Position); if (id < 0) return; var n = TreeDb.Nodes[id]; var set = new HashSet<int>(Game.D.Tree);
                 if (TreeDb.CanDealloc(n, set, _start)) { Game.D.Tree.Remove(id); Game.D.SkillPts++; Sfx.Play("click"); Changed?.Invoke(); }
+                else if (set.Contains(id)) Ui.Note("Refund the nodes further out first: everything you take must stay connected to your start", new Color(1f, .6f, .5f));
             }
         }
     }
-    void UpdateTip()
-    {
-        if (Tip == null) return; if (_hover < 0) { Tip.Text = " "; return; }
-        var n = TreeDb.Nodes[_hover]; string kind = n.Type switch { "key" => "KEYSTONE", "notable" => "notable", "start" => "class start", "hub" => "centre", _ => "" };
-        var s = n.Name + (kind != "" ? "  [" + kind + "]" : "") + (n.Arm == "hybrid" ? "  [hybrid path]" : "") + (n.Desc != "" ? "  " + n.Desc : "");
-        if (n.Type == "start") s += n.Id == _start ? "   (you start here)" : $"   ({Classes.Get(n.Arm).Name} start; reach it through the ring or the bridges)";
-        foreach (var kv in n.Mods) s += "\n  " + TreeDb.StatText(kv.Key, kv.Value);
-        Tip.Text = s;
-    }
-}
-/// <summary>World map with discovered points of interest.</summary>
+}/// <summary>World map with discovered points of interest.</summary>
 public partial class MapView : Control
 {
     public Action<Poi>? Travel;

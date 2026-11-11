@@ -37,7 +37,7 @@ public partial class Ui
         var links = new GridContainer { Columns = 3 }; links.AddThemeConstantOverride("h_separation", 6); links.AddThemeConstantOverride("v_separation", 6); c.AddChild(links);
         foreach (var (label, key, open) in new (string, string, Action)[] { ("Character", "", OpenCharacterPanel), ("Pack", K(Inputs.Pack), OpenPack), ("Journal", K(Inputs.Journal), OpenJournal),
                                                                              ("Map", K(Inputs.Map), OpenMap), ("Skill tree", K(Inputs.Tree), OpenTree), ("Skills", K(Inputs.SkillsUi), OpenSkills),
-                                                                             ("Attacks", K(Inputs.AttacksUi), () => OpenAttacks(null)) })
+                                                                             ("Attacks", K(Inputs.AttacksUi), () => OpenAttacks(null)), ("Modifiers", K(Inputs.ModsUi), OpenMods) })
         { var b = Btn(key == "" ? label : $"{label} [{key}]", open, true); b.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; b.CustomMinimumSize = new Vector2(104, 32); links.AddChild(b); }
 
         // ---- right: actions

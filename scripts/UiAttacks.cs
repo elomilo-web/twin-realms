@@ -85,7 +85,7 @@ public partial class Ui
             var row = new HBoxContainer(); list.AddChild(row);
             var l = Lbl($"{m.Name}: {m.Desc}", 14, on ? Gold : have ? Colors.White : d.Level < m.Req ? Dim.Darkened(.3f) : Dim, row); l.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; l.AutowrapMode = TextServer.AutowrapMode.WordSmart; l.CustomMinimumSize = new Vector2(220, 0);
             if (have) row.AddChild(Btn(on ? "Unsocket" : "Socket", () => Did(Attacks.Socket(w, mmid)), true));
-            else row.AddChild(Btn(d.Level < m.Req ? $"Lv {m.Req}" : $"Unlock {m.Cost}", () => Did(Attacks.UnlockMod(mmid)), true));
+            else { var mn = ModTree.Get(ModTree.KeyOf(mmid, true)); var why = mn != null ? ModTree.Why(mn) : null; var ub = Btn(why == null ? $"Unlock {m.Cost}" : d.Level < m.Req ? $"Lv {m.Req}" : "Tree", () => { if (mn != null && ModTree.Why(mn) == null) Did(ModTree.Unlock(mn)); else OpenMods(); }, true); row.AddChild(ub); }
         }
     }
 }

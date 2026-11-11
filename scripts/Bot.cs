@@ -419,6 +419,15 @@ public partial class Bot : Node
             int arrows = Projectile.SpawnedByPlayer - before;
             Check("twin shot fires two arrows", arrows >= 2, arrows + " arrows");
             Ui.I!.OpenAttacks("sword"); await Wait(.3f); Check("basic attacks menu opens", Ui.I.PanelName == "attacks"); await Shot("20_basic_attacks"); Ui.I.Close();
+            // modifier tree: every support and attack modifier has a place, lanes unlock in order, unlocking spends points
+            ModTree.Load();
+            Check("modifier tree holds every modifier", ModTree.Count(false) == Skills.AllSupports.Count() + Attacks.Mods.Count(), $"{ModTree.Count(false)} in tree");
+            var lane = ModTree.Branches.First(b => b.Nodes.Count >= 2 && !b.Nodes[0].Attack && !ModTree.Unlocked(b.Nodes[0]) && !ModTree.Unlocked(b.Nodes[1]));
+            d.Level = Math.Max(d.Level, 10); d.RankPts += 4; int rp = d.RankPts;
+            Check("modifier lane locks the next one", ModTree.Unlock(lane.Nodes[1]) != null && !ModTree.Unlocked(lane.Nodes[1]));
+            Check("modifier unlock in order", ModTree.Unlock(lane.Nodes[0]) == null && ModTree.Unlock(lane.Nodes[1]) == null && d.RankPts == rp - lane.Nodes[0].Cost - lane.Nodes[1].Cost);
+            Ui.I.OpenMods(); await Wait(.3f); Check("modifier tree menu opens", Ui.I.PanelName == "mods"); await Shot("20_modifier_tree"); Ui.I.Close();
+            Ui.I.OpenSkills(); await Wait(.3f); Check("skills menu opens", Ui.I.PanelName == "skills"); Ui.I.Close();
             d.Eq["weapon"] = keepW; d.Eq["shield"] = keepS; Game.Notify(); await Wait(.2f);
         });
 
