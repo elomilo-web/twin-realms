@@ -49,7 +49,7 @@ public partial class Ui
             Lbl($"{i + 1}.", 16, UiTheme.Accent, row);
             string extra = (a.Finisher ? "  finisher" : "") + (st.Shots > 1 ? $"  {st.Shots} shots" : "") + (st.Pierce ? "  pierce" : "") + (st.Aoe > 0 ? $"  blast {st.Aoe:0.#}m" : "")
                 + (a.Stun > 0 ? $"  stun {a.Stun:0.##}s" : "") + (a.Up > 0 ? "  launch" : "") + string.Concat(st.Status.Select(s => $"  {Dmg.Status(s.id)?.Name ?? s.id} {s.chance * 100:0}%"));
-            var l = Lbl($"{st.Name}   x{a.Dmg:0.00} dmg   speed x{st.Speed:0.00}" + (wd.Ranged ? "" : $"   arc {a.Arc:0}  reach {a.Range:0.0}m") + extra, 15, Colors.White, row);
+            var l = Lbl($"{st.Name}\n" + $"x{a.Dmg:0.00} dmg  ·  speed x{st.Speed:0.00}" + (wd.Ranged ? "" : $"  ·  arc {a.Arc:0}°  ·  reach {a.Range:0.0} m") + extra.Replace("  ", "  ·  "), 15, Colors.White, row);
             l.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; l.AutowrapMode = TextServer.AutowrapMode.WordSmart;
             if (pos > 0) row.AddChild(Btn("<", () => { (b.Chain[pos - 1], b.Chain[pos]) = (b.Chain[pos], b.Chain[pos - 1]); Did(null); }, true));
             if (pos < b.Chain.Count - 1) row.AddChild(Btn(">", () => { (b.Chain[pos + 1], b.Chain[pos]) = (b.Chain[pos], b.Chain[pos + 1]); Did(null); }, true));
@@ -67,7 +67,7 @@ public partial class Ui
         }
 
         // ---- right: steps and modifiers
-        var right = new VBoxContainer { CustomMinimumSize = new Vector2(360, 0) }; cols.AddChild(right);
+        var right = new VBoxContainer { CustomMinimumSize = new Vector2(330, 0) }; cols.AddChild(right);
         var sc = Scroll(right, 540); var list = Inner(sc);
         Lbl("SWING STEPS", 15, UiTheme.Accent, list);
         foreach (var s in Attacks.Steps(w))

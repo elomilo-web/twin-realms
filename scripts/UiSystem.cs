@@ -30,13 +30,14 @@ public partial class Ui
         var info = new GridContainer { Columns = 2 }; info.AddThemeConstantOverride("h_separation", 14); info.AddThemeConstantOverride("v_separation", 1); c.AddChild(info);
         float hrs = World.TimeOfDay * 24f;
         string place = Dungeon.Active ? $"Dungeon, floor {Dungeon.Depth}" : Arenas.Active ? "Crimson Arena" : p != null ? HudCanvas.PlaceName(p.GlobalPosition) : "";
-        foreach (var (k, val) in new[] { ("Place", place), ("Realm", World.Realm == 1 ? "Shadow" : "Light"), ("Time", $"{(int)hrs:00}:{(int)((hrs - (int)hrs) * 60):00}"), ("Gold", $"{d.Gold}"), ("Kills", $"{d.Kills}"), ("Played", Game.Played(d)) })
+        foreach (var (k, val) in new[] { ("Place", place), ("Realm", World.Realm == 1 ? "Shadow" : "Light"), ("Time", $"{(int)hrs:00}:{(int)((hrs - (int)hrs) * 60):00}"), ("Gold", $"{d.Gold}"), ("Valor", $"{d.Valor}"), ("Kills", $"{d.Kills}"), ("Played", Game.Played(d)) })
         { Lbl(k, 14, Dim, info); Lbl(val, 14, k == "Realm" && World.Realm == 1 ? new Color(.78f, .62f, 1f) : Colors.White, info); }
         if (d.AttrPts + d.RankPts + d.SkillPts > 0) Row(c, $"Unspent: {d.AttrPts} attribute, {d.RankPts} skill, {d.SkillPts} skill tree", UiTheme.Highlight, 13);
         c.AddChild(new Control { SizeFlagsVertical = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Ignore });
         var links = new GridContainer { Columns = 3 }; links.AddThemeConstantOverride("h_separation", 6); links.AddThemeConstantOverride("v_separation", 6); c.AddChild(links);
         foreach (var (label, key, open) in new (string, string, Action)[] { ("Character", "", OpenCharacterPanel), ("Pack", K(Inputs.Pack), OpenPack), ("Journal", K(Inputs.Journal), OpenJournal),
-                                                                             ("Map", K(Inputs.Map), OpenMap), ("Skill tree", K(Inputs.Tree), OpenTree), ("Skills", K(Inputs.SkillsUi), OpenSkills) })
+                                                                             ("Map", K(Inputs.Map), OpenMap), ("Skill tree", K(Inputs.Tree), OpenTree), ("Skills", K(Inputs.SkillsUi), OpenSkills),
+                                                                             ("Attacks", K(Inputs.AttacksUi), () => OpenAttacks(null)) })
         { var b = Btn(key == "" ? label : $"{label} [{key}]", open, true); b.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; b.CustomMinimumSize = new Vector2(104, 32); links.AddChild(b); }
 
         // ---- right: actions
@@ -148,7 +149,7 @@ public partial class Ui
         var h = new HBoxContainer(); h.AddThemeConstantOverride("separation", 14); parent.AddChild(h);
         var left = new VBoxContainer { CustomMinimumSize = new Vector2(300, 0) }; left.AddThemeConstantOverride("separation", 0); h.AddChild(left);
         Lbl(name, 17, Colors.White, left);
-        if (hint != "") { var l = Lbl(hint, 12, Dim, left); l.AutowrapMode = TextServer.AutowrapMode.WordSmart; l.CustomMinimumSize = new Vector2(300, 0); }
+        if (hint != "") { var l = Lbl(hint, 13, Dim, left); l.AutowrapMode = TextServer.AutowrapMode.WordSmart; l.CustomMinimumSize = new Vector2(300, 0); }
         return h;
     }
 

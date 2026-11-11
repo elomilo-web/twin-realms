@@ -159,18 +159,18 @@ public partial class Ui : CanvasLayer
     // ---------------------------------------------------------------- shop and smith
     static int _stockLvl = -1; static List<Item> _stock = new();
     static int BuyPrice(Item it) => it.Value * 3 + 12;
-    void OpenShop(string tab)
+    public void OpenShop(string tab)
     {
         var d = Game.D; if (_stockLvl != d.Level) { _stockLvl = d.Level; _stock.Clear(); for (int i = 0; i < 6; i++) _stock.Add(Items.Roll(d.Level + 1, .2f)); }
         var v = Frame("shop", "Brynn's Wares", new Vector2(720, 560), () => OpenShop(tab));
-        var top = new HBoxContainer(); v.AddChild(top); top.AddChild(Btn("Buy", () => OpenShop("buy"))); top.AddChild(Btn("Sell", () => OpenShop("sell"))); Lbl($"   {d.Gold} gold", 20, Gold, top);
+        var top = new HBoxContainer(); v.AddChild(top); Tabs(top, tab, ("buy", "Buy", () => OpenShop("buy")), ("sell", "Sell", () => OpenShop("sell"))); Lbl($"   {d.Gold} gold", 20, Gold, top);
         var sc = Scroll(v, 420); var list = Inner(sc);
         if (tab == "buy")
         {
             AddRow(list, "Health potion  (have " + d.HpPot + ")", Colors.White, "Buy 30g", () => { if (d.Gold < 30) { Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= 30; d.HpPot++; Sfx.Play("coin"); OpenShop(tab); });
             AddRow(list, "Mana potion  (have " + d.MpPot + ")", Colors.White, "Buy 35g", () => { if (d.Gold < 35) { Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= 35; d.MpPot++; Sfx.Play("coin"); OpenShop(tab); });
             if (!d.Horse) AddRow(list, "Horse (ride with T)", Colors.White, "Buy 350g", () => { if (d.Gold < 350) { Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= 350; d.Horse = true; Sfx.Play("coin"); Note("You bought a horse. Press T to ride.", Gold); OpenShop(tab); });
-            for (int i = 0; i < _stock.Count; i++) { int k = i; var it = _stock[i]; AddRow(list, it.Describe(), it.Color, BuyPrice(it) + "g", () => { int c = BuyPrice(it); if (d.Gold < c) { Note("Not enough gold", new Color(1, .5f, .5f)); return; } if (d.Inv.Count >= 28) { Note("Pack is full", new Color(1, .5f, .5f)); return; } d.Gold -= c; d.Inv.Add(it); _stock.RemoveAt(k); Sfx.Play("coin"); OpenShop(tab); }); }
+            for (int i = 0; i < _stock.Count; i++) { int k = i; var it = _stock[i]; ItemRow(list, it, BuyPrice(it) + "g", () => { int c = BuyPrice(it); if (d.Gold < c) { Note("Not enough gold", new Color(1, .5f, .5f)); return; } if (d.Inv.Count >= 28) { Note("Pack is full", new Color(1, .5f, .5f)); return; } d.Gold -= c; d.Inv.Add(it); _stock.RemoveAt(k); Sfx.Play("coin"); OpenShop(tab); }); }
         }
         else
         {
@@ -184,20 +184,35 @@ public partial class Ui : CanvasLayer
                 AddRow(list, $"{m.Name}  x{n}", m.Col.Lightened(0.25f), $"Sell {n * m.Value}g", () => { d.Gold += n * m.Value; d.Mats.Remove(id); Sfx.Play("coin"); Game.Notify(); OpenShop(tab); });
             }
             list.AddChild(Btn("Sell all Common", () => { int g = 0; d.Inv.RemoveAll(it => { if (it.Rar == 0) { g += it.Value; return true; } return false; }); d.Gold += g; if (g > 0) Sfx.Play("coin"); OpenShop(tab); }, true));
-            for (int i = 0; i < d.Inv.Count; i++) { int k = i; var it = d.Inv[i]; AddRow(list, it.Describe(), it.Color, "Sell " + it.Value + "g", () => { d.Gold += it.Value; d.Inv.RemoveAt(k); Sfx.Play("coin"); OpenShop(tab); }); }
+            for (int i = 0; i < d.Inv.Count; i++) { int k = i; var it = d.Inv[i]; ItemRow(list, it, "Sell " + it.Value + "g", () => { d.Gold += it.Value; d.Inv.RemoveAt(k); Sfx.Play("coin"); OpenShop(tab); }); }
         }
     }
+    /// <summary>An item as a shop row: its icon in a rarity frame, its name and stats, a button; hovering compares it with what you wear.</summary>
+    void ItemRow(Node parent, Item it, string btn, Action? a)
+    {
+        var d = Game.D; var h = new HBoxContainer(); h.AddThemeConstantOverride("separation", 10); parent.AddChild(h);
+        var cell = new ItemSlot { Item = it, CustomMinimumSize = new Vector2(46, 46) }; h.AddChild(cell);
+        cell.Hover += on => ShowTip(on ? it : null, cell, d.Eq.GetValueOrDefault(it.Slot));
+        var l = Lbl(it.Describe(), 16, it.Color, h); l.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; l.AutowrapMode = TextServer.AutowrapMode.WordSmart; l.VerticalAlignment = VerticalAlignment.Center;
+        if (a != null) { var b = Btn(btn, () => { HideTip(); a(); }, true); b.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter; h.AddChild(b); }
+    }
+    /// <summary>A row of tab buttons with the current one marked.</summary>
+    void Tabs(Node parent, string cur, params (string id, string label, Action open)[] tabs)
+    {
+        foreach (var (id, label, open) in tabs) { var b = Btn(label, open); Mark(b, id == cur); parent.AddChild(b); }
+    }
+
     void AddRow(Node parent, string text, Color col, string btn, Action a)
     {
         var h = new HBoxContainer(); parent.AddChild(h); var l = Lbl(text, 16, col, h); l.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; l.AutowrapMode = TextServer.AutowrapMode.WordSmart; h.AddChild(Btn(btn, a, true));
     }
     // ---------------------------------------------------------------- valor quartermaster (data/valor.json)
     static readonly List<Item> _lastPulls = new();
-    void OpenValor(string tab)
+    public void OpenValor(string tab)
     {
         var d = Game.D; var v = Frame("valor", "Sera, Valor Quartermaster", new Vector2(760, 580), () => OpenValor(tab));
         var top = new HBoxContainer(); v.AddChild(top);
-        foreach (var (t, l) in new[] { ("gacha", "Pulls"), ("gear", "Gear"), ("gold", "Gold") }) top.AddChild(Btn(l, () => OpenValor(t)));
+        Tabs(top, tab, ("gacha", "Pulls", () => OpenValor("gacha")), ("gear", "Gear", () => OpenValor("gear")), ("gold", "Gold", () => OpenValor("gold")));
         Lbl($"   {d.Valor} valor", 20, new Color(1f, .78f, .35f), top); Lbl($"   {d.Gold} gold", 18, Gold, top);
         var sc = Scroll(v, 430); var list = Inner(sc);
         bool Pay(int c) { if (d.Valor < c) { Note("Not enough valor", new Color(1, .5f, .5f)); return false; } d.Valor -= c; return true; }
@@ -207,7 +222,7 @@ public partial class Ui : CanvasLayer
             Row(list, $"A sealed cache of arena spoils: one random item at your level. Every {Valor.Pity} pulls without an epic, the next is at least epic ({d.GachaPity}/{Valor.Pity}).", Colors.White, 16);
             AddRow(list, "One pull", Colors.White, $"{Valor.PullCost} valor", () => { if (!Room(1) || !Pay(Valor.PullCost)) return; _lastPulls.Clear(); var it = Valor.Pull(); d.Inv.Add(it); _lastPulls.Add(it); Sfx.Play("level"); Game.Notify(); OpenValor(tab); });
             AddRow(list, "Ten pulls", Colors.White, $"{Valor.PullTenCost} valor", () => { if (!Room(10) || !Pay(Valor.PullTenCost)) return; _lastPulls.Clear(); for (int i = 0; i < 10; i++) { var it = Valor.Pull(); d.Inv.Add(it); _lastPulls.Add(it); } Sfx.Play("level"); Game.Notify(); OpenValor(tab); });
-            if (_lastPulls.Count > 0) { Row(list, "You received:", Dim, 15); foreach (var it in _lastPulls) Row(list, it.Describe(), it.Color, 16); }
+            if (_lastPulls.Count > 0) { Row(list, "You received:", Dim, 15); foreach (var it in _lastPulls) ItemRow(list, it, "", null); }
         }
         else if (tab == "gear")
         {
@@ -312,7 +327,7 @@ public partial class Ui : CanvasLayer
     void OpenCharacterPanel()
     {
         var d = Game.D; var v = Frame("char", $"{d.Name}  -  Level {d.Level} {Races.Get(d.Race).Name} {Classes.Get(d.Class).Name}", new Vector2(640, 600), OpenCharacterPanel);
-        Row(v, $"XP {d.Xp} / {d.XpNeed()}     Kills {d.Kills}     Gold {d.Gold}", Gold);
+        Row(v, $"XP {d.Xp} / {d.XpNeed()}     Kills {d.Kills}     Gold {d.Gold}     Valor {d.Valor}", Gold);
         Row(v, $"Attribute points: {d.AttrPts}      Skill points: {d.RankPts} (L)      Skill tree points: {d.SkillPts} (K)", d.AttrPts > 0 ? Gold : Dim, 18);
         void Attr(string n, string desc, int val, Action up) { var h = new HBoxContainer(); v.AddChild(h); var l = Lbl($"{n}  {val}   - {desc}", 17, Colors.White, h); l.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; if (d.AttrPts > 0) h.AddChild(Btn("+", () => { d.AttrPts--; up(); Game.Notify(); Sfx.Play("click"); }, true)); }
         Attr("Strength", "melee damage", d.Str, () => d.Str++); Attr("Dexterity", "bow, speed, crit, stamina", d.Dex, () => d.Dex++); Attr("Vitality", "health, defense", d.Vit, () => d.Vit++); Attr("Magic", "mana, spell power", d.Mag, () => d.Mag++);
@@ -330,7 +345,7 @@ public partial class Ui : CanvasLayer
     public void OpenJournal()
     {
         var v = Frame("journal", "Journal", new Vector2(700, 560), OpenJournal); var d = Game.D;
-        Row(v, $"Best wave {d.BestWave}     Best duel streak {d.BestDuel}     Deepest dungeon depth {d.Deepest}     Kills {d.Kills}", Gold);
+        Row(v, $"Best wave {d.BestWave}     Best duel streak {d.BestDuel}     Deepest dungeon depth {d.Deepest}     Kills {d.Kills}     Valor {d.Valor}", Gold);
         var sc = Scroll(v, 440); var list = Inner(sc); var act = Quests.Active();
         if (act.Count == 0) Row(list, "No active quests. Speak to Elder Maren, Guard Tomas or Kael.", Dim);
         foreach (var q in act) { var s = Game.Q(q.Id); Row(list, q.Name + (s.S == 2 ? "  (ready to turn in)" : ""), s.S == 2 ? new Color(.5f, 1f, .5f) : Gold, 19); Row(list, q.Goal + (q.Need > 1 && s.S == 1 ? $"  ({s.N}/{q.Need})" : "") + (s.S == 2 ? "\nReturn to " + Quests.GiverName(q.Giver) + "." : ""), Colors.White); Row(list, "", Colors.White, 6); }
