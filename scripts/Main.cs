@@ -9,6 +9,7 @@ public partial class Main : Node3D
 
     public override void _Ready()
     {
+        if (System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--list-anims") >= 0) { Avatar.ListSources(); GetTree().Quit(); return; }
         if (System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--bake-anims") >= 0) { Avatar.Bake(); GetTree().Quit(); return; }   // tools: rebuild assets/models/anim/clips.res
         GD.Print("[MAIN] scene start"); Inputs.Setup(); Game.Root = this; Dungeon.Active = false; Arenas.Active = false; World.Realm = 0; World.RealmT = 0; Ui.InGame = false;
         bool testing = Observer.Wanted() || Bot.Wanted() || Shots.Wanted() || FitBot.Wanted() || MpBot.Wanted() != null;

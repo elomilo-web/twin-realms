@@ -67,10 +67,7 @@ public partial class HeroRig : Node3D
         {
             P(Head, Sph(.022f, -1, 6), eye, new Vector3(sx * .06f, .02f, -.148f));
             P(Head, new BoxMesh { Size = new Vector3(.06f, .014f, .02f) }, hair, new Vector3(sx * .062f, .058f, -.15f), new Vector3(0, 0, sx * -.15f));
-            if (ap.PointyEars) P(Head, Cyl(0, .045f, .2f, 6), skin, new Vector3(sx * .19f, .05f, .02f), new Vector3(.2f, 0, -sx * 1.15f));
-            else P(Head, Sph(.035f, .07f, 6), skin, new Vector3(sx * .165f, 0, 0));
-            if (ap.Tusks) P(Head, Cyl(0, .018f, .07f, 5), M(new Color(.95f, .92f, .8f)), new Vector3(sx * .05f, -.08f, -.14f), new Vector3(-.3f, 0, 0));
-            if (ap.Horns) P(Head, Cyl(0, .035f, .22f, 6), M(new Color(.15f, .1f, .14f)), new Vector3(sx * .1f, .15f, -.02f), new Vector3(-.4f, 0, -sx * .45f));
+            P(Head, Sph(.035f, .07f, 6), skin, new Vector3(sx * .165f, 0, 0));   // plain ears for every race (no horn, tusk or pointy-ear cones)
         }
         P(Head, new PrismMesh { Size = new Vector3(.045f, .07f, .055f) }, skin, new Vector3(0, -.025f, -.165f), new Vector3(-Mathf.Pi / 2, 0, 0));
         _hair = N(Head, Vector3.Zero);

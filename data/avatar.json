@@ -5,6 +5,8 @@
     "female": "res://assets/models/char/Superhero_Female_FullBody.gltf"
   },
   "height": 1.82,
+  "raceFeatures": false,
+  "_raceFeaturesHelp": "true = add the procedural cones for pointy ears, tusks and horns (data/races.json look). Off: they stuck out of heads.",
   "hair": {
     "male": ["Hair_SimpleParted", "Hair_Buzzed", "Hair_Long"],
     "female": ["Hair_Long", "Hair_Buns", "Hair_BuzzedFemale", "Hair_SimpleParted"],

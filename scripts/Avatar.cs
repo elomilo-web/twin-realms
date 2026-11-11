@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using Godot;
 
@@ -55,7 +56,7 @@ public partial class Avatar : Node3D
             _hair.AddRange(AddPart(HairDir + hl[h] + ".gltf", "hair", ap.Hair, true));
             if (ap.Beard && !Female) _hair.AddRange(AddPart(HairDir + S(Cfg.GetProperty("hair"), "beard") + ".gltf", "hair", ap.Hair, true));
         }
-        RaceFeatures(ap);
+        if (Cfg.TryGetProperty("raceFeatures", out var rf) && rf.ValueKind == JsonValueKind.True) RaceFeatures(ap);   // off: no cones for ears, tusks or horns
         _ap = new AnimationPlayer { Name = "Anim" }; Body.AddChild(_ap); _ap.RootNode = new NodePath("..");
         _ap.AddAnimationLibrary("", Library(_sex, _sk));
         HasModel = true; Play("idle");
@@ -413,6 +414,18 @@ public partial class Avatar : Node3D
         _libs[key] = lib; return lib;
     }
 
+    /// <summary>--list-anims: prints every clip name in the source animation libraries (to pick names for "clips").</summary>
+    public static void ListSources()
+    {
+        foreach (var src in L(Cfg, "anims"))
+        {
+            if (!ResourceLoader.Exists(src)) { GD.Print("[ANIMS] missing " + src); continue; }
+            var inst = GD.Load<PackedScene>(src).Instantiate<Node>(); var ap = FindAp(inst);
+            if (ap != null) GD.Print($"[ANIMS] {src}: " + string.Join(" ", ap.GetAnimationList().Select(n => { var s = n.ToString(); int b = s.IndexOf('|'); return b >= 0 ? s[(b + 1)..] : s; })));
+            inst.Free();
+        }
+    }
+
     /// <summary>--bake-anims: merges the source libraries at the animation rig's own hip height and saves only the clips in use.</summary>
     public static void Bake()
     {
@@ -468,23 +481,26 @@ public partial class Avatar : Node3D
         return v.GetString() ?? key;
     }
     /// <summary>Plays an action (clip key or clip name). fit &gt; 0 stretches it to that many seconds; restart replays it.</summary>
-    public void Play(string key, float blend = .18f, float fit = 0, bool restart = false, int step = 0)
+    public void Play(string key, float blend = .18f, float fit = 0, bool restart = false, int step = 0, bool reverse = false)
     {
         if (_ap == null) return; string n = Clip(key, step); if (!_ap.HasAnimation(n)) return;
-        if (n == Cur && !restart && _ap.IsPlaying()) return;
+        if (n == Cur && !restart && _ap.IsPlaying() && reverse == _rev) return;
         float sp = fit > 0 ? (float)_ap.GetAnimation(n).Length / fit : 1f;
-        _ap.Play(n, blend, sp); if (restart) _ap.Seek(0, true); Cur = n;
+        _ap.Play(n, blend, reverse ? -sp : sp, reverse); if (restart) _ap.Seek(0, true); Cur = n; _rev = reverse;
     }
+    bool _rev;
     /// <summary>A one-shot clip (attack, cast, hit) is still running.</summary>
     public bool Busy => _ap != null && _ap.IsPlaying() && _ap.HasAnimation(Cur) && _ap.GetAnimation(Cur).LoopMode == Animation.LoopModeEnum.None;
     public float Speed { set { if (_ap != null) _ap.SpeedScale = value; } }
 
     /// <summary>Walking / running / idle from ground speed (m/s).</summary>
-    public void Move(float speed, bool grounded, bool armed, bool shield)
+    /// <summary>Walking / running / idle from ground speed (m/s). back = moving backwards (the walk or run plays in reverse; the clips only go forward).</summary>
+    public void Move(float speed, bool grounded, bool armed, bool shield, bool back = false)
     {
         if (!grounded) { Play("fall", .2f); return; }
         if (Busy && Cur != Clip("land")) return;
-        Play(speed > 7.5f ? "sprint" : speed > 3.2f ? "run" : speed > .4f ? "walk" : shield ? "idleShield" : armed ? "idleArmed" : "idle", .2f);
+        bool moving = speed > .4f;
+        Play(speed > 7.5f && !back ? "sprint" : speed > 3.2f ? "run" : moving ? "walk" : shield ? "idleShield" : armed ? "idleArmed" : "idle", .2f, 0, false, 0, back && moving);
     }
 
     // ------------------------------------------------------------------ helpers for callers

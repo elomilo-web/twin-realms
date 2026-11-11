@@ -70,6 +70,7 @@ public partial class Shots : Node
         Game.D.Level = 30; Game.RecalcTree(); Heal(); Hud(false);
         foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Node nn) nn.QueueFree();   // a quiet village for the pictures
         if (OS.GetCmdlineUserArgs().Contains("--weapons")) { await WeaponRow(); return; }   // just the weapon audit and the hero holding each type
+        if (OS.GetCmdlineUserArgs().Contains("--move")) { await MoveCheck(); return; }
 
         // ---- the hero: day, night (plaza, lamps lit), close up, facing the camera
         var plaza = World.OnGround(1.5f, 6f, .5f);
@@ -108,6 +109,30 @@ public partial class Shots : Node
         await Shot("hero_dungeon");
         Cam(-.9f, 4.5f); await Wait(.8f); await Shot("hero_dungeon_side");
         Hud(true);
+    }
+
+    /// <summary>Walks and runs in all eight directions (with and without a locked foe) and logs the clip, facing and movement; one picture each.</summary>
+    async Task MoveCheck()
+    {
+        var spot = World.OnGround(1.5f, 6f, .5f); World.TimeOfDay = .45f;
+        Game.D.Eq["weapon"] = new Item { Name = "Sword", Slot = "weapon", Wt = "sword" }; Game.Notify();
+        var dirs = new (string n, string[] keys)[] { ("fwd", new[] { Inputs.Forward }), ("back", new[] { Inputs.Back }), ("left", new[] { Inputs.Left }), ("right", new[] { Inputs.Right }),
+            ("fwd_left", new[] { Inputs.Forward, Inputs.Left }), ("back_right", new[] { Inputs.Back, Inputs.Right }) };
+        foreach (bool locked in new[] { false, true })
+            foreach (bool sprint in new[] { false, true })
+                foreach (var (n, keys) in dirs)
+                {
+                    Targeting.Clear(); foreach (var e in GetTree().GetNodesInGroup("enemies")) if (e is Node en) en.QueueFree();
+                    P.Teleport(spot, 0); Cam(0, 5f); await Wait(.4f);
+                    if (locked) { var foe = new Enemy { Type = "golem", Level = 1, AnyRealm = true, NoLeash = true, Position = World.OnGround(spot.X, spot.Z - 9, .3f) }; Game.Root!.AddChild(foe); await Wait(.3f); Targeting.Set(foe); }
+                    foreach (var k in keys) Input.ActionPress(k); if (sprint) Input.ActionPress(Inputs.Sprint);
+                    await Wait(.9f);
+                    var vel = P.Velocity; float vy = Util.YawTo(vel.X, vel.Z), d = Mathf.RadToDeg(Mathf.Abs(Util.AngDiff(P.ModelYaw, vy)));
+                    Say($"move {(locked ? "locked" : "free")} {(sprint ? "sprint" : "walk")} {n}: speed {new Vector2(vel.X, vel.Z).Length():0.0}, clip {P.AvClip}{(P.Backpedal ? " (reversed)" : "")}, facing vs moving {d:0} deg");
+                    await Shot($"move_{(locked ? "locked" : "free")}_{(sprint ? "sprint" : "jog")}_{n}");
+                    foreach (var k in keys) Input.ActionRelease(k); Input.ActionRelease(Inputs.Sprint); await Wait(.3f);
+                }
+        Targeting.Clear();
     }
 
     async Task WeaponRow()

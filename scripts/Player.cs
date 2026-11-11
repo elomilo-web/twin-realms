@@ -93,6 +93,9 @@ public partial class Player : CharacterBody3D, IDamageable
         }
     }
     Avatar? _av; int _atkSerial, _avAtk, _castSerial, _avCast; bool _avRolling;
+    /// <summary>For test bots: the clip the model is playing and the model's facing (radians).</summary>
+    public string AvClip => _av?.Cur ?? ""; public float ModelYaw => _modelYaw; public bool Backpedal => _backpedal;
+    bool _backpedal;
     /// <summary>Hides the procedural hero meshes when the model is drawn (HeroRig still runs for hand targets).</summary>
     void HideRig() { void H(Node n) { foreach (var c in n.GetChildren()) { if (c == _av) continue; if (c is GeometryInstance3D g) g.Visible = false; H(c); } } H(_rig); }
     bool HasShield => Game.D.Eq.GetValueOrDefault("shield") != null && Weapons.Get(Game.D.WType()).Hands < 2;
@@ -444,6 +447,7 @@ public partial class Player : CharacterBody3D, IDamageable
             if (Mounted) speed = 10.5f * moveMul;
             if (_atkT > 0 || _castT > 0) speed *= 0.3f;
             if (_blocking) speed *= 0.5f;
+            if (_backpedal) speed *= 0.75f;   // backing away from a locked foe is slower
             speed *= Statuses.SpeedMul;
             if (_spinLeft > 0) speed = Mathf.Max(speed, 3.5f);
             if (_stagger > 0) speed = 0;
@@ -461,8 +465,20 @@ public partial class Player : CharacterBody3D, IDamageable
 
         // ---- facing
         var flat = new Vector3(v.X, 0, v.Z);
+        _backpedal = false;
         if (Targeting.Current is Enemy lk && IsInstanceValid(lk) && _atkT <= 0 && _rollT <= 0 && !Mounted)
-        { var td = lk.GlobalPosition - GlobalPosition; _modelYaw = Mathf.LerpAngle(_modelYaw, Util.YawTo(td.X, td.Z), 1f - Mathf.Exp(-12f * dt)); }   // strafe around a locked target
+        {
+            // moving around a locked foe. The clips only run forward, so: sideways = turn into the step (keeping an eye on the foe),
+            // backwards = keep facing the foe and play the run in reverse (backpedal)
+            var td = lk.GlobalPosition - GlobalPosition; float ty = Util.YawTo(td.X, td.Z), want = ty;
+            if (flat.LengthSquared() > .5f)
+            {
+                float my = Util.YawTo(flat.X, flat.Z), diff = Mathf.Abs(Util.AngDiff(ty, my));
+                if (diff >= 2.1f) _backpedal = true;
+                else if (diff > 1.0f) want = Mathf.LerpAngle(my, ty, .3f);
+            }
+            _modelYaw = Mathf.LerpAngle(_modelYaw, want, 1f - Mathf.Exp(-12f * dt));
+        }
         else if (_atkT <= 0 && !_blocking && _rollT <= 0 && _castT <= 0 && flat.LengthSquared() > 0.5f)
             _modelYaw = Mathf.LerpAngle(_modelYaw, Util.YawTo(flat.X, flat.Z), 1f - Mathf.Exp(-14f * dt));
 
@@ -575,6 +591,6 @@ public partial class Player : CharacterBody3D, IDamageable
         if (_castT > 0) { bool fresh = _castSerial != _avCast; _avCast = _castSerial; a.Play("cast", .08f, _castDur, fresh); return; }
         if (_blocking) { a.Play("block", .1f); return; }
         if (a.Busy && floor && (a.Cur.Contains("Sword") || a.Cur.Contains("Spell") || a.Cur.Contains("Punch") || a.Cur.Contains("Melee"))) return;   // let a swing finish
-        a.Move(hv, floor, Game.D.Weapon != null, HasShield);
+        a.Move(hv, floor, Game.D.Weapon != null, HasShield, _backpedal);
     }
 }
