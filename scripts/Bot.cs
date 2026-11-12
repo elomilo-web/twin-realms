@@ -548,6 +548,19 @@ public partial class Bot : Node
             await Task.CompletedTask;
         });
 
+        await Step("movement and stamina", async () =>
+        {
+            // sprint 3 s on open flat ground: speed should reach the sprint speed, stamina should drain at sprintDrain per second
+            Heal(); P.Teleport(World.OnGround(0, 30, .6f), 0f); if (P.Rig != null) P.Rig.Rotation = new Vector3(P.Rig.Rotation.X, Mathf.Pi, 0); await Wait(.5f);
+            float st0 = P.St; var p0 = P.GlobalPosition;
+            Press(Inputs.Forward, true); Press(Inputs.Sprint, true); await Wait(3f);
+            float st1 = P.St; var p1 = P.GlobalPosition; Press(Inputs.Sprint, false); Press(Inputs.Forward, false);
+            float speed = new Vector2(p1.X - p0.X, p1.Z - p0.Z).Length() / 3f, used = st0 - st1;
+            Check("sprinting reaches the sprint speed", speed > Feel.Sprint * .75f, $"{speed:0.0} m/s (sprint {Feel.Sprint}, run {Feel.Run})");
+            Check("sprinting drains stamina gently", used > 0 && used <= Feel.SprintDrain * 3.5f, $"{used:0.0} stamina in 3 s, {Game.D.MaxSt()} max: about {Game.D.MaxSt() / Mathf.Max(.1f, Feel.SprintDrain):0} s of sprint");
+            await Wait(1.5f); Check("stamina refills soon after", P.St > st1 + 10f, $"{st1:0} -> {P.St:0} in 1.5 s");
+        });
+
         await Step("playtest flag", async () =>
         {
             // F8 writes a screenshot and a report (hero, place, nearby monsters, recent events)

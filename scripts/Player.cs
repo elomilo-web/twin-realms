@@ -34,7 +34,8 @@ public partial class Player : CharacterBody3D, IDamageable
     int _combo; bool _atkPower, _hitDone, _blocking, _fired;
     ulong _noStMsg; float _airT; FootPlant? _feet;
     Vector3 _hitKb, _walkV; int _hurtSerial, _avHurt; Enemy? _magnet;   // knockback from blows, hit-clip restarts, the foe a melee swing steps in on
-    public const float RunSpeed = 4.6f, SprintSpeed = 6.6f;
+    public static float RunSpeed { get { Feel.Load(); return Feel.Run; } }        // data/feel.json "move"
+    public static float SprintSpeed { get { Feel.Load(); return Feel.Sprint; } }
     float _heavyT; const float HeavyGather = .25f;   // heavy attack: seconds between pressing and the swing
     AttackStep? _step;   // the basic-attack chain step being swung (data/attacks.json)
     public AttackStep? CurrentStep => _step; public int ComboIndex => _combo;
@@ -549,7 +550,7 @@ public partial class Player : CharacterBody3D, IDamageable
             speed *= Statuses.SpeedMul;
             if (_spinLeft > 0) speed = Mathf.Max(speed, 3.5f);
             if (_stagger > 0) speed = 0;
-            if (sprint) { St = Mathf.Max(0, St - 10f * dt); _stLockT = 0.5f; }
+            if (sprint) { St = Mathf.Max(0, St - Feel.SprintDrain * dt); _stLockT = Mathf.Max(_stLockT, Feel.SprintRegenDelay); }   // data/feel.json "move"
             var target = dir * speed; float a = (IsOnFloor() ? Accel : AirAccel) * dt;
             v.X = Mathf.MoveToward(v.X, target.X, a); v.Z = Mathf.MoveToward(v.Z, target.Z, a);
             if (_atkT > 0 && !Ranged && _atk != null) Magnet(1f - _atkT / _atkDur, dt, ref v);   // melee step-in overrides the planted feet
@@ -561,7 +562,7 @@ public partial class Player : CharacterBody3D, IDamageable
         var push = _kb * .3f + _hitKb; v.X += push.X; v.Z += push.Z;
 
         // ---- regeneration
-        if (_stLockT <= 0 && !_blocking && _atkT <= 0) St = Mathf.Min(D.MaxSt(), St + 24f * dt);
+        if (_stLockT <= 0 && !_blocking && _atkT <= 0) St = Mathf.Min(D.MaxSt(), St + Feel.StRegen * dt);
         Hp = Mathf.Min(D.MaxHp(), Hp + (TS["regenHp"] + D.Vit * 0.02f) * dt);
         Mp = Mathf.Min(D.MaxMp(), Mp + (1.5f + TS["regenMp"] + D.Mag * 0.05f) * dt);
 

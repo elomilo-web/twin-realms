@@ -6,7 +6,7 @@
   },
   "height": 1.82,
   "raceFeatures": false,
-  "gait": { "_help": "Each locomotion clip's own ground speed in m/s (measured: Shots --feel). Playback = speed / this, clamped to minScale..maxScale, so feet do not skate. runAt / sprintAt: speeds where the gait changes.", "walk": 0.83, "run": 2.2, "sprint": 2.75, "minScale": 0.8, "maxScale": 2.3, "runAt": 2.6, "sprintAt": 5.8 },
+  "gait": { "_help": "Each locomotion clip's own ground speed in m/s (measured: Shots --feel). Playback = speed / this, clamped to minScale..maxScale, so feet do not skate. runAt / sprintAt: speeds where the gait changes.", "walk": 0.83, "run": 2.68, "sprint": 3.48, "minScale": 0.8, "maxScale": 2.3, "runAt": 2.6, "sprintAt": 6.8, "_tuned": "2026-11-11: hero run 4.6 -> 5.6 m/s and sprint 6.6 -> 8.0 (data/feel.json move); run/sprint raised by the same ratio so the legs keep their pace and the body now keeps up with them (the sprint clip used to hit maxScale and slide)" },
   "_raceFeaturesHelp": "true = add the procedural cones for pointy ears, tusks and horns (data/races.json look). Off: they stuck out of heads.",
   "hair": {
     "male": ["Hair_SimpleParted", "Hair_Buzzed", "Hair_Long"],

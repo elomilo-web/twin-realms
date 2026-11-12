@@ -9,6 +9,8 @@ public static class Feel
     public static float RecoilTime = .2f, RecoilPush = .22f, RecoilSquash = .16f, RecoilBossMul = .4f;
     public static float Stride = 1.9f, LegSwing = .7f, ArmSwing = .2f, Bob = .07f, Lean = .16f, Breath = .012f;
     public static float GlowEnergy = .9f, GlowRange = 10f, LockTurn = 6f, Shoulder = .65f, ShoulderUp = .25f;
+    // hero movement (feel.json "move"): ground speeds in m/s, sprint stamina drain per second, pause before stamina refills, refill per second
+    public static float Run = 5.6f, Sprint = 8f, SprintDrain = 4f, SprintRegenDelay = .3f, StRegen = 24f;
     static bool _loaded, _on;
     static ulong _until;
 
@@ -25,6 +27,11 @@ public static class Feel
         if (r.TryGetProperty("recoil", out var c))
         {
             RecoilTime = JsonUtil.F(c, "time", RecoilTime); RecoilPush = JsonUtil.F(c, "push", RecoilPush); RecoilSquash = JsonUtil.F(c, "squash", RecoilSquash); RecoilBossMul = JsonUtil.F(c, "bossMul", RecoilBossMul);
+        }
+        if (r.TryGetProperty("move", out var mv))
+        {
+            Run = JsonUtil.F(mv, "run", Run); Sprint = JsonUtil.F(mv, "sprint", Sprint); SprintDrain = JsonUtil.F(mv, "sprintDrain", SprintDrain);
+            SprintRegenDelay = JsonUtil.F(mv, "sprintRegenDelay", SprintRegenDelay); StRegen = JsonUtil.F(mv, "staminaRegen", StRegen);
         }
         if (r.TryGetProperty("glow", out var g)) { GlowEnergy = JsonUtil.F(g, "energy", GlowEnergy); GlowRange = JsonUtil.F(g, "range", GlowRange); }
         if (r.TryGetProperty("camera", out var cm)) { LockTurn = JsonUtil.F(cm, "lockTurn", LockTurn); Shoulder = JsonUtil.F(cm, "shoulder", Shoulder); ShoulderUp = JsonUtil.F(cm, "shoulderUp", ShoulderUp); }
