@@ -197,6 +197,7 @@ public partial class Player : CharacterBody3D, IDamageable
             te.TakeHit(new HitInfo { Damage = h.Damage * TS["thorns"] / 100f, From = GlobalPosition, IsPlayer = true, Attacker = this });
         int final = Mathf.Max(1, Mathf.RoundToInt(dmg));
         Hp -= final; _inv = 0.2f;
+        Flag.Event($"took {final} {h.Type} ({h.Damage:0} before armor, {100f * final / Mathf.Max(1, D.MaxHp()):0}% of max hp) from {(h.Attacker is Enemy fe && IsInstanceValid(fe) ? fe.Def.N + " Lv" + fe.Level : "?")}{(_blocking ? ", blocked" : "")}, hp left {Mathf.Max(0, Hp):0}");
         // the attacker's on-hit statuses (tenacity shortens them), then "when hit" triggers
         if (h.Statuses != null) foreach (var (id, chance, durMul, pow) in h.Statuses) if (GD.Randf() < chance) Statuses.Add(id, durMul, pow, h.Damage, TS["tenacity"]);
         TriggerAuto("hit");
@@ -216,7 +217,7 @@ public partial class Player : CharacterBody3D, IDamageable
 
     void Die()
     {
-        CancelCast(); Dead = true; Hp = 0; _deadT = 0; _atkT = 0; _blocking = false; if (Mounted) ToggleMount(true);
+        Flag.Event("DIED"); CancelCast(); Dead = true; Hp = 0; _deadT = 0; _atkT = 0; _blocking = false; if (Mounted) ToggleMount(true);
         Sfx.Play("die");
         if (Arenas.Active) Arenas.OnPlayerDeath();
     }

@@ -548,6 +548,18 @@ public partial class Bot : Node
             await Task.CompletedTask;
         });
 
+        await Step("playtest flag", async () =>
+        {
+            // F8 writes a screenshot and a report (hero, place, nearby monsters, recent events)
+            string dir = ProjectSettings.GlobalizePath(Flag.Dir), log = System.IO.Path.Combine(dir, "flags.log");
+            if (System.IO.Directory.Exists(dir)) System.IO.Directory.Delete(dir, true);
+            Input.ParseInputEvent(new InputEventKey { PhysicalKeycode = Key.F8, Keycode = Key.F8, Pressed = true }); await Wait(.6f);
+            Input.ParseInputEvent(new InputEventKey { PhysicalKeycode = Key.F8, Keycode = Key.F8, Pressed = false });
+            bool ok = System.IO.File.Exists(log) && System.IO.Directory.GetFiles(dir, "flag_*.png").Length == 1;
+            string txt = ok ? System.IO.File.ReadAllText(log) : "";
+            Check("F8 saves a screenshot and a report", ok && txt.Contains("hero ") && txt.Contains("monsters within") && txt.Contains("recent events"), ok ? $"{txt.Split('\n').Length} lines" : "no files in " + dir);
+        });
+
         await Step("controls", async () =>
         {
             // rebind jump to J: Journal (on J) swaps to Space; then back to defaults

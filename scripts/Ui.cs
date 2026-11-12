@@ -37,7 +37,7 @@ public partial class Ui : CanvasLayer
     }
 
     // ---------------------------------------------------------------- static helpers (safe before the UI exists)
-    public static void Note(string text, Color? col = null) => I?.AddNote(text, col ?? Colors.White);
+    public static void Note(string text, Color? col = null) { Flag.Event("note: " + text); I?.AddNote(text, col ?? Colors.White); }
     public static void Banner(string title, string sub = "") => I?.ShowBanner(title, sub);
     public static void Flash(Color c) => I?.DoFlash(c);
 

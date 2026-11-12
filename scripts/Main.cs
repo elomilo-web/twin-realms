@@ -25,6 +25,7 @@ public partial class Main : Node3D
             Sfx.ApplyVolumes(); Game.ApplyDisplay();
         }
         AddChild(new Sfx { Name = "Sfx" });
+        AddChild(new Flag { Name = "Flag" });   // F8: playtest flag (screenshot + report in user://playtest/)
         AddChild(new Net { Name = "Net" });
         var ui = new Ui { Name = "Ui" }; AddChild(ui);
         Ui.OnNew = (cls, name, race) => { Game.NewGame(cls, name, race); Game.D.Body = Ui.PickedBody; Game.D.PosX = 0; Game.D.PosZ = 9; Begin(); };
