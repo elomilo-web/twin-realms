@@ -28,7 +28,7 @@
     "interval": 90, "intervalPerLevel": 6, "minInterval": 30,
     "packBase": 2, "packPerLevel": 1, "aliveBase": 6, "alivePerLevel": 4,
     "ambushDist": 38, "safeRadius": 70,
-    "pools": { "0": ["wolf", "bandit", "goblin", "archer", "wolf", "brute"], "1": ["skeleton", "hound", "wraith", "skeleton", "revenant"] }
+    "pools": { "0": ["wolf", "bandit", "goblin", "archer", "wolf", "brute", "orcWarrior", "hobgoblin", "giantWasp", "raptor", "slime"], "1": ["skeleton", "hound", "wraith", "skeleton", "revenant", "ninja", "ghost", "darkMage", "lesserDemon", "kitsune"] }
   },
   "dungeon": {
     "levelOffset": 2,

@@ -100,6 +100,7 @@ public partial class Observer : Node
         var spot = World.OnGround(0, -60, 1f);
         foreach (var prop in doc.RootElement.GetProperty("enemies").EnumerateObject())
         {
+            if (prop.Name.StartsWith("_")) continue;   // notes
             var e = new Enemy { Type = prop.Name, Level = 1, AnyRealm = true, NoLeash = true, Position = spot }; Game.Root!.AddChild(e); await Wait(0.2f);
             float visTop = 0, visW = 0; float cols = 0, capH = 0, capR = 0;
             void Walk(Node n, Transform3D parent)

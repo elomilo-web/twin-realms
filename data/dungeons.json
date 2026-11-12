@@ -7,7 +7,12 @@
                                                "skeleton",
                                                "wraith",
                                                "hound",
-                                               "skeleton"
+                                               "skeleton",
+                                               "ghost",
+                                               "ghost",
+                                               "darkMage",
+                                               "flameSkull",
+                                               "giantSpider"
                                            ],
                                   "boss":  "barrowKing",
                                   "wall":  4870496,
@@ -39,7 +44,13 @@
                                                 "goblin",
                                                 "wolf",
                                                 "archer",
-                                                "brute"
+                                                "brute",
+                                                "hobgoblin",
+                                                "hobgoblin",
+                                                "orcWarrior",
+                                                "giantRat",
+                                                "giantRat",
+                                                "slime"
                                             ],
                                    "boss":  "warchief",
                                    "wall":  6966836,
@@ -70,7 +81,13 @@
                                                "skeleton",
                                                "hound",
                                                "wraith",
-                                               "hound"
+                                               "hound",
+                                               "lesserDemon",
+                                               "flameSkull",
+                                               "flameSkull",
+                                               "oni",
+                                               "goleling",
+                                               "earthGolem"
                                            ],
                                   "boss":  "golem",
                                   "wall":  3941412,

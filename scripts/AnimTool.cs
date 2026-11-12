@@ -13,7 +13,38 @@ namespace TwinRealms;
 /// </summary>
 public partial class AnimTool : Node
 {
-    public static bool Wanted() => Array.IndexOf(OS.GetCmdlineUserArgs(), "--measure-attacks") >= 0 || Sheet;
+    public static bool Wanted() => Array.IndexOf(OS.GetCmdlineUserArgs(), "--measure-attacks") >= 0 || Sheet || MonSheet;
+    /// <summary>--monster-sheet: every model monster (data/enemies.json "model") on a stage, idle and mid-attack: bot_out/monsters_idle.png, monsters_attack.png.</summary>
+    static bool MonSheet => Array.IndexOf(OS.GetCmdlineUserArgs(), "--monster-sheet") >= 0;
+
+    async System.Threading.Tasks.Task RunMonsterSheet()
+    {
+        AddChild(new MeshInstance3D { Mesh = new PlaneMesh { Size = new Vector2(60, 60) }, MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(.55f, .6f, .55f) } });
+        AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-50, 200, 0), ShadowEnabled = true, LightEnergy = 1.2f });
+        AddChild(new WorldEnvironment { Environment = new Godot.Environment { BackgroundMode = Godot.Environment.BGMode.Color, BackgroundColor = new Color(.66f, .72f, .8f), AmbientLightSource = Godot.Environment.AmbientSource.Color, AmbientLightColor = Colors.White, AmbientLightEnergy = .6f } });
+        using var doc = JsonUtil.Load("res://data/enemies.json"); var types = new List<string>();
+        foreach (var p in doc.RootElement.GetProperty("enemies").EnumerateObject()) if (!p.Name.StartsWith("_") && JsonUtil.S(p.Value, "model") != "") types.Add(p.Name);
+        Enemy.LogModels = true; var foes = new List<Enemy>(); int cols = 7;
+        for (int i = 0; i < types.Count; i++)
+        {
+            float x = (i % cols - (cols - 1) / 2f) * 4.2f, z = (i / cols) * 5f;
+            var e = new Enemy { Type = types[i], Level = 1, Arena = true, Position = new Vector3(x, 0, z) }; AddChild(e); foes.Add(e);
+            AddChild(new Label3D { Text = types[i], FontSize = 64, OutlineSize = 12, PixelSize = .01f, Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, Position = new Vector3(x, -.05f, z - 1.4f), NoDepthTest = true });
+        }
+        var cam = new Camera3D { Fov = 58, Current = true }; AddChild(cam); cam.Position = new Vector3(0, 11f, -17f); cam.LookAt(new Vector3(0, .8f, 7f), Vector3.Up);
+        for (int f = 0; f < 3; f++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        foreach (var e in foes) { e.ProcessMode = ProcessModeEnum.Disabled; e.Rotation = Vector3.Zero; }   // stand still, facing the camera (-Z)
+        string dir = ProjectSettings.GlobalizePath("res://") + "bot_out/"; DirAccess.MakeDirRecursiveAbsolute(dir); int missing = 0;
+        foreach (var (role, frac) in new[] { ("idle", .3f), ("attack", .5f) })
+        {
+            foreach (var e in foes) if (!e.ModelPose(role, frac)) missing++;
+            for (int f = 0; f < 2; f++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+            GetViewport().GetTexture().GetImage().SavePng(dir + $"monsters_{role}.png");
+        }
+        GD.Print($"[ANIMTOOL] monster sheet: {types.Count} monsters, {foes.FindAll(e => e.HasModel).Count} with models, {missing} poses missing");
+        GetTree().Quit();
+    }
     /// <summary>--attack-sheet: photographs every attack animation (data/avatar.json "attackAnims") at wind-up, impact and follow-through: bot_out/attacks/.</summary>
     static bool Sheet => Array.IndexOf(OS.GetCmdlineUserArgs(), "--attack-sheet") >= 0;
 
@@ -55,6 +86,7 @@ public partial class AnimTool : Node
     public override async void _Ready()
     {
         if (Sheet) { await RunSheet(); return; }
+        if (MonSheet) { await RunMonsterSheet(); return; }
         Avatar.UseSources = true;
         var av = new Avatar { Name = "Measure" }; AddChild(av);
         av.Build(new Appearance { Skin = new Color(.86f, .66f, .5f), Hair = new Color(.2f, .14f, .1f) }, "measure");

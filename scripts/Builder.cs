@@ -386,8 +386,11 @@ void fragment(){
 
     static void Spawns(Node3D over)
     {
-        string[][] k0 = { new[] { "bandit", "bandit", "bandit", "archer" }, new[] { "goblin", "goblin", "goblin", "goblin" }, new[] { "wolf", "wolf", "wolf", "wolf" }, new[] { "brute", "goblin", "goblin" }, new[] { "bandit", "archer", "archer", "brute" } };
-        string[][] k1 = { new[] { "skeleton", "skeleton", "skeleton", "wraith" }, new[] { "hound", "hound", "hound" }, new[] { "wraith", "wraith", "wraith" }, new[] { "revenant", "skeleton", "skeleton" }, new[] { "skeleton", "wraith", "hound", "hound" } };
+        // camp packs, from easy (near Oakhaven) to hard (far out); the 2026-11-11 monsters (slimes, orcs, ninjas, ghosts...) mixed in
+        string[][] k0 = { new[] { "slime", "slime", "slime", "spikeSlime" }, new[] { "bandit", "bandit", "bandit", "archer" }, new[] { "goblin", "goblin", "goblin", "goblin" }, new[] { "giantRat", "giantRat", "viper", "viper" }, new[] { "wolf", "wolf", "wolf", "wolf" },
+            new[] { "giantWasp", "giantWasp", "giantWasp" }, new[] { "brute", "goblin", "goblin" }, new[] { "hobgoblin", "hobgoblin", "orcWarrior" }, new[] { "bandit", "archer", "archer", "brute" }, new[] { "orcWarrior", "orcWarrior", "hobgoblin", "hobgoblin" } };
+        string[][] k1 = { new[] { "toxicBlob", "toxicBlob", "giantSpider" }, new[] { "skeleton", "skeleton", "skeleton", "wraith" }, new[] { "ghost", "ghost", "darkMage" }, new[] { "hound", "hound", "hound" }, new[] { "ninja", "ninja", "ninja" },
+            new[] { "wraith", "wraith", "wraith" }, new[] { "lesserDemon", "flameSkull", "flameSkull" }, new[] { "revenant", "skeleton", "skeleton" }, new[] { "kitsune", "ghost", "ghost" }, new[] { "skeleton", "wraith", "hound", "hound" } };
         int[] cnt = { 0, 0 }, need = { Tune.I("world.lightCamps", 15), Tune.I("world.shadowCamps", 13) }; int tries = 0; var camps = new List<(float x, float z, int realm, string[] kind)>();
         while ((cnt[0] < need[0] || cnt[1] < need[1]) && tries++ < 5000)
         {
@@ -410,5 +413,50 @@ void fragment(){
         for (int i = 0; i < 7; i++) { float a = i / 7f * Tau; SpawnOW(over, pack[i], sp.X + Mathf.Cos(a) * 13, sp.Z + Mathf.Sin(a) * 13, 2 + (i % 2)); }
         for (int i = 0; i < 3; i++) SpawnOW(over, "bandit", 48 + R(-4, 4), -46 + R(-4, 4), 2);
         var dr = World.GetPoi("drake")!; var dg = SpawnOW(over, "dragon", dr.X + 2, dr.Z + 2, 10); dg.NoLeash = true;
+        LandSpawns(over);
+    }
+
+    /// <summary>
+    /// The five lands across the bridges get monsters fitting their biome: packs at their caves, camps, ruins and tombs, plus wild packs
+    /// away from towns, and a world boss in two of them. Seeded per land, so every machine places the same monsters (multiplayer).
+    /// </summary>
+    static void LandSpawns(Node3D over)
+    {
+        var pools = new Dictionary<string, string[][]>
+        {
+            ["frost"] = new[] { new[] { "yeti", "goleling", "goleling" }, new[] { "earthGolem", "goleling" }, new[] { "wolf", "wolf", "yeti" }, new[] { "goleling", "goleling", "goleling" } },
+            ["sun"] = new[] { new[] { "cactusFiend", "cactusFiend", "viper" }, new[] { "raptor", "raptor", "raptor" }, new[] { "giantCrab", "giantCrab" }, new[] { "giantSpider", "viper", "viper" }, new[] { "bandit", "bandit", "raptor" } },
+            ["mire"] = new[] { new[] { "slime", "toxicBlob", "toxicBlob" }, new[] { "giantRat", "giantRat", "giantRat", "viper" }, new[] { "myconid", "myconid", "spikeSlime" }, new[] { "ghost", "ghost" }, new[] { "giantCrab", "slime", "slime" } },
+            ["ember"] = new[] { new[] { "lesserDemon", "flameSkull", "flameSkull" }, new[] { "oni", "hobgoblin", "hobgoblin" }, new[] { "orcWarrior", "orcWarrior", "hobgoblin" }, new[] { "kitsune", "kitsune" }, new[] { "flameSkull", "flameSkull", "flameSkull" } },
+            ["elder"] = new[] { new[] { "giantSpider", "giantSpider", "giantWasp" }, new[] { "myconid", "myconid", "myconid" }, new[] { "kitsune", "ghost" }, new[] { "ninja", "ninja" }, new[] { "giantWasp", "giantWasp", "giantWasp" } },
+        };
+        var bosses = new Dictionary<string, string> { ["ember"] = "wyvern", ["elder"] = "mushroomKing" };
+        foreach (var L in Lands.All)
+        {
+            if (!pools.TryGetValue(L.Id, out var pool)) continue;
+            var rg = World.Rng((uint)(Mathf.Abs(L.Seed) * 977 + 13)); float Rr(float a, float b) => a + rg() * (b - a);
+            var spots = new List<Vector2>();
+            foreach (var p in L.Places) if (p.Kind is "cave" or "camp" or "ruins" or "tombs" or "tomb") spots.Add(new Vector2(p.X + Rr(-6, 6), p.Z + Rr(-6, 6)));
+            bool Town(float x, float z) { foreach (var p in L.Places) if (p.Kind is "city" or "village" or "castle" or "stilts" && new Vector2(p.X - x, p.Z - z).Length() < p.R + 45) return true; return false; }
+            int want = spots.Count + 12, tries = 0;
+            while (spots.Count < want && tries++ < 600)
+            {
+                float x = L.Cx + Rr(-L.Half * .8f, L.Half * .8f), z = L.Cz + Rr(-L.Half * .8f, L.Half * .8f);
+                if (World.GroundAt(x, z) < 1.8f || Town(x, z)) continue;   // dry land, away from towns
+                bool near = false; foreach (var s in spots) if (s.DistanceTo(new Vector2(x, z)) < 45) { near = true; break; } if (near) continue;
+                spots.Add(new Vector2(x, z));
+            }
+            for (int si = 0; si < spots.Count; si++)
+            {
+                var s = spots[si]; var kind = pool[(int)(rg() * pool.Length) % pool.Length]; int lvl = Game.LevelAt(s.X, s.Y, 0);
+                for (int i = 0; i < kind.Length; i++) { float a = i / (float)kind.Length * Tau + Rr(0, 1), rr = Rr(2.5f, 6f); var e = SpawnOW(over, kind[i], s.X + Mathf.Cos(a) * rr, s.Y + Mathf.Sin(a) * rr, lvl); e.AnyRealm = true; }
+            }
+            if (bosses.TryGetValue(L.Id, out var boss) && spots.Count > 0)
+            {
+                // the boss holds the spot farthest from the land's middle
+                var far = spots[0]; foreach (var s in spots) if (s.DistanceTo(new Vector2(L.Cx, L.Cz)) > far.DistanceTo(new Vector2(L.Cx, L.Cz))) far = s;
+                var b = SpawnOW(over, boss, far.X + 8, far.Y + 8, Game.LevelAt(far.X, far.Y, 0) + 2); b.AnyRealm = true;
+            }
+        }
     }
 }

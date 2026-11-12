@@ -34,6 +34,12 @@ public class EnemyDef
     public bool NoLoot { get; set; }              // no gold or gear, only Drops
     public bool Emissive { get; set; }            // glowing body (shadow creatures); "glow" is already a colour field on some enemies
     public Dictionary<string, int[]>? Drops { get; set; }   // materials given on death: id -> [min, max]
+    // animated model (assets/models/monsters/<model>.glb): drawn instead of the built-in shapes, scaled to h metres tall, lifted by lift (fliers)
+    public string Model { get; set; } = "";
+    public float H { get; set; }
+    public float Lift { get; set; }
+    public float Size { get; set; }                 // extra scale for a model whose bounds mislead (0 = none)
+    public string Tint { get; set; } = "";          // hex colour multiplied over the model (e.g. a glowing shadow fox)
     // defenses (League of Legends style): armor reduces physical damage, mr (magic resist) reduces elemental damage, res adds per-type % resistance
     public float Armor { get; set; } = 10;
     public float Mr { get; set; } = 10;
@@ -71,6 +77,7 @@ public static class EnemyDb
             var opt = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
             foreach (var p in doc.RootElement.GetProperty("enemies").EnumerateObject())
             {
+                if (p.Name.StartsWith("_")) continue;   // notes
                 try { _defs[p.Name] = JsonSerializer.Deserialize<EnemyDef>(p.Value.GetRawText(), opt) ?? new EnemyDef(); }
                 catch (Exception e) { GD.PushError($"enemy '{p.Name}': {e.Message}"); }
             }

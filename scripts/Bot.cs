@@ -413,6 +413,30 @@ public partial class Bot : Node
             d.Bar = keepBar; Game.Notify(); await Wait(1f);
         });
 
+        await Step("monsters notice you and new monsters", async () =>
+        {
+            // dungeon monsters wander until a hero is close and in sight; far ones never come running
+            Dungeon.Enter("warrens", 1); await Wait(2.5f);
+            var mobs = new List<Enemy>(); foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Enemy e && e.FromDungeon && !e.Def.Boss && !e.Dead) mobs.Add(e);
+            int farHunting = mobs.Count(e => e.Hunting && e.GlobalPosition.DistanceTo(P.GlobalPosition) > 30f);
+            var p0 = mobs.ToDictionary(e => e, e => e.GlobalPosition); await Wait(5f);
+            int moved = mobs.Count(e => GodotObject.IsInstanceValid(e) && e.GlobalPosition.DistanceTo(p0[e]) > .7f);
+            int stillFar = mobs.Count(e => GodotObject.IsInstanceValid(e) && e.Hunting && e.GlobalPosition.DistanceTo(P.GlobalPosition) > 30f);
+            Check("far dungeon monsters do not hunt you", farHunting == 0 && stillFar == 0, $"{mobs.Count} monsters, {farHunting} far ones hunting at once, {stillFar} after 5 s");
+            Check("dungeon monsters wander", moved >= mobs.Count / 4, $"{moved} of {mobs.Count} moved in 5 s");
+            var near = mobs.Where(e => GodotObject.IsInstanceValid(e) && !e.Dead).OrderBy(e => e.GlobalPosition.DistanceTo(P.GlobalPosition)).FirstOrDefault();
+            if (near != null) { P.Teleport(ClearSpotNear(near, near.GlobalPosition), 0f); await Wait(1.2f); Check("a monster notices you up close", near.Hunting, $"{near.Def.N} at {near.GlobalPosition.DistanceTo(P.GlobalPosition):0.0} m"); }
+            Dungeon.Leave(false); await Wait(1f);
+            // the new monsters: animated models, on the home island and across the five lands
+            int models = 0, lands = 0; var kinds = new HashSet<string>();
+            foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Enemy e && e.Def.Model != "") { kinds.Add(e.Type); if (Mathf.Abs(e.GlobalPosition.X) > World.Half || Mathf.Abs(e.GlobalPosition.Z) > World.Half) lands++; else models++; }
+            Check("the new monsters live in the world and the five lands", kinds.Count >= 20 && lands > 60 && models > 5, $"{kinds.Count} kinds, {models} on the home island, {lands} in the lands");
+            var spot = World.OnGround(-60, 60, .6f); P.Teleport(spot, 0f); Heal();
+            var sl = new Enemy { Type = "orcWarrior", Level = 1, AnyRealm = true, NoLeash = true, Position = spot + new Vector3(0, 0, -3f) }; Game.Root!.AddChild(sl); await Wait(.4f);
+            Check("a model monster has its animated body", sl.HasModel, sl.Def.N);
+            bool dead = await Fight(sl); Check("a model monster can be fought and killed", dead);
+        });
+
         await Step("attack animations and weight", async () =>
         {
             // every chain step plays its own animation (data/attacks.json "anim"), and heavy swings make the next one wait (recovery)

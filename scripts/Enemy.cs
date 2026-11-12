@@ -75,7 +75,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         foreach (var m in Mods) if (m.Id != "") up.Add(m.Name); else gear = m.Name;
         return (up.Count > 0 ? string.Join(", ", up) : "") + (gear != "" ? (up.Count > 0 ? "  [" + gear + "]" : "[" + gear + "]") : "") + "\n";
     }
-    public float HeightM() => Def.Kind == "quad" ? Def.R * (2.4f + 0.75f * (LegK() - 1f)) : Def.Kind == "dragon" ? 5f : 1.9f * _scale;
+    public float HeightM() => Def.Model != "" ? (Def.H > 0 ? Def.H : 1.6f) * _scale + Def.Lift : Def.Kind == "quad" ? Def.R * (2.4f + 0.75f * (LegK() - 1f)) : Def.Kind == "dragon" ? 5f : 1.9f * _scale;
     float LegK() => Def.Look == "deer" ? 1.8f : Def.Look == "rabbit" ? 0.55f : Def.Look == "boar" ? 0.75f : 1f; // leg length relative to a wolf
 
     StandardMaterial3D Mat(Color c, float emission = 0f)
@@ -99,7 +99,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         _scale = Def.Scale <= 0 ? 1f : Def.Scale;
         float r = Def.R, s = _scale;
         bool quad = Def.Kind == "quad", dragon = Def.Kind == "dragon", wraith = Def.Kind == "wraith";
-        float h = quad ? HeightM() : dragon ? 5f : 1.8f * s;
+        float h = Def.Model != "" ? Mathf.Max(.6f, (Def.H > 0 ? Def.H : 1.6f) * s) : quad ? HeightM() : dragon ? 5f : 1.8f * s;
         AddChild(new CollisionShape3D { Shape = new CapsuleShape3D { Radius = Mathf.Min(r, h / 2 - 0.01f), Height = h }, Position = new Vector3(0, h / 2, 0) });
 
         Color col = Def.Color != 0x888888 ? JsonUtil.Hex(Def.Color) : DefaultColor(Type);
@@ -107,6 +107,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         _body = new Node3D { Name = "Body" }; AddChild(_body);
         var main = Mat(col); var dark = Mat(col.Darkened(0.5f)); var glow = Mat(wraith || Def.Emissive ? new Color(0.7f, 0.4f, 1f) : new Color(1f, 0.3f, 0.2f), 2f);
         if (Proxy) { }   // a duel stand-in has no body of its own: the remote hero is drawn instead
+        else if (Def.Model != "" && BuildModel(col)) { }   // an animated monster model (data/enemies.json "model")
         else if (quad) BuildQuad(r, main, dark, glow, col);
         else if (dragon)
         {
@@ -127,7 +128,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         else if (Avatar.Available && Avatar.Foe(Type) is { } fc) BuildAvatar(fc, s);
         else BuildHumanoid(r, s, col, main, dark, glow);
         BakeParts();
-        float labelY = quad ? r * 2.6f : dragon ? 6.2f : 2.2f * s;
+        float labelY = _mdl != null ? HeightM() + .1f : quad ? r * 2.6f : dragon ? 6.2f : 2.2f * s;
         _label = new Label3D
         {
             Text = Summoned ? "" : (UpgradeLine() + Def.N + (DefOverride != null ? "" : $"  Lv{Level}")), FontSize = 36, OutlineSize = 8, PixelSize = 0.006f,
@@ -146,7 +147,9 @@ public partial class Enemy : CharacterBody3D, IDamageable
         }
         _yaw = (float)GD.RandRange(0, Mathf.Tau);
         if (Def.Kind == "dragon") _state = State.Sleep;
-        if (Arena || Summoned || FromDungeon) { _state = State.Chase; AnyRealm = true; }
+        // arena waves, summoned adds and ambushers come for you at once; everything else (dungeon monsters too) wanders until it notices you
+        if (Arena || Summoned) { _state = State.Chase; AnyRealm = true; }
+        if (FromDungeon) AnyRealm = true;
         if (Ambusher) _state = State.Chase;
         _summonT = (float)GD.RandRange(5, 9);
     }
@@ -243,6 +246,106 @@ public partial class Enemy : CharacterBody3D, IDamageable
             Add(new BoxMesh { Size = new Vector3(.28f, .05f, .05f) * s }, leather, rh + new Vector3(0, 0, -.08f * s));
         }
     }
+    // ------------------------------------------------------------------ noticing heroes
+    float _seeT; bool _saw;
+    /// <summary>Within aggro range: outdoors that is enough; in a dungeon the monster must see the hero (no walls between), or hear them up close.</summary>
+    bool Notices(Node3D hero, float dist, float dt)
+    {
+        if (!FromDungeon || dist < 4f) return true;
+        _seeT -= dt; if (_seeT > 0) return _saw; _seeT = .25f + GD.Randf() * .1f;
+        var from = GlobalPosition + Vector3.Up * Mathf.Min(1.4f, HeightM() * .8f); var to = hero.GlobalPosition + Vector3.Up * 1.2f;
+        var q = PhysicsRayQueryParameters3D.Create(from, to, 1); q.Exclude = new Godot.Collections.Array<Rid> { GetRid() };
+        _saw = GetWorld3D().DirectSpaceState.IntersectRay(q).Count == 0;
+        return _saw;
+    }
+    /// <summary>This monster noticed a hero (or was struck): the idle pack around it (9 m) joins the fight.</summary>
+    void Alert()
+    {
+        foreach (var n in GetTree().GetNodesInGroup("enemies"))
+            if (n is Enemy e && e != this && !e.Dead && !e.Puppet && e._state == State.Idle && !e.Def.Flee && e.FromDungeon == FromDungeon && e.GlobalPosition.DistanceSquaredTo(GlobalPosition) < 81f) e.Wake();
+    }
+
+    // ------------------------------------------------------------------ animated monster models (assets/models/monsters, CC0)
+    Node3D? _mdl; AnimationPlayer? _mdlAp; string _aIdle = "", _aMove = "", _aAtk = "", _aHit = "", _aDie = "", _aCur = ""; int _aSerial = -1, _aSerialHit = -1, _swingSerial, _hitSerial;
+    static readonly Dictionary<string, PackedScene?> _models = new(); public static bool LogModels;
+    /// <summary>Loads Def.Model, scales it to Def.H metres, turns it to face forward (-Z), gives it its own materials (hit flash, status tint) and finds its clips.</summary>
+    bool BuildModel(Color col)
+    {
+        string path = $"res://assets/models/monsters/{Def.Model}.glb";
+        if (!_models.TryGetValue(path, out var ps)) _models[path] = ps = ResourceLoader.Exists(path) ? GD.Load<PackedScene>(path) : null;
+        if (ps == null) { GD.PushWarning($"[ENEMY] model missing: {path}"); return false; }
+        var inst = ps.Instantiate<Node3D>(); _mdl = new Node3D { Name = "Model" }; _mdl.AddChild(inst); _body.AddChild(_mdl);
+        // size: measure the meshes at rest (in the model's own space), scale to the wanted height, stand on the ground
+        var box = new Aabb(); bool any = false;
+        foreach (var n in inst.FindChildren("*", "MeshInstance3D", true, false))
+        {
+            if (n is not MeshInstance3D mi) continue;
+            var xf = Transform3D.Identity; Node? c = mi; while (c != null && c != inst) { if (c is Node3D n3) xf = n3.Transform * xf; c = c.GetParent(); }
+            var tb = xf * mi.GetAabb(); box = any ? box.Merge(tb) : tb; any = true;
+        }
+        float want = (Def.H > 0 ? Def.H : 1.6f) * _scale, k = any && box.Size.Y > .01f ? want / box.Size.Y : 1f;
+        if (Def.Size > 0) k *= Def.Size;   // per-monster correction (data/enemies.json "size") where the model's bounds mislead
+        if (LogModels) GD.Print($"[MODEL] {Type}: bounds {box.Size.X:0.00} x {box.Size.Y:0.00} x {box.Size.Z:0.00}, scale {k:0.000}");
+        _mdl.Scale = Vector3.One * k; _mdl.Rotation = new Vector3(0, Mathf.Pi, 0);   // glTF faces +Z, our monsters face -Z
+        _mdl.Position = new Vector3(0, -(any ? box.Position.Y : 0) * k + Def.Lift, 0);
+        // own copies of the materials, registered for the hit flash and status tint; tint / the Shadow realm colour the model
+        Color? tint = Def.Tint != "" ? Color.FromHtml(Def.Tint) : Realm_() == 1 ? new Color(.85f, .78f, 1f) : null;
+        foreach (var n in inst.FindChildren("*", "MeshInstance3D", true, false))
+        {
+            if (n is not MeshInstance3D mi || mi.Mesh == null) continue;
+            for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
+            {
+                if (mi.GetActiveMaterial(s) is not BaseMaterial3D m0) continue;
+                var m = (BaseMaterial3D)m0.Duplicate(); var c = tint is { } tc ? m.AlbedoColor * tc : m.AlbedoColor;
+                if (Def.Emissive) { m.EmissionEnabled = true; m.Emission = (tint ?? c).Darkened(.2f); m.EmissionEnergyMultiplier = .7f; }
+                m.AlbedoColor = c; mi.SetSurfaceOverrideMaterial(s, m);
+                if (m is StandardMaterial3D sm) { _mats.Add(sm); _baseCols.Add(c); }
+            }
+        }
+        _mdlAp = inst.FindChild("AnimationPlayer", true, false) as AnimationPlayer;
+        if (_mdlAp != null)
+        {
+            var names = new List<string>(); foreach (var x in _mdlAp.GetAnimationList()) names.Add(x.ToString());
+            string Pick(params string[] keys) { foreach (var key in keys) foreach (var nm in names) { var b = nm.Contains('|') ? nm[(nm.IndexOf('|') + 1)..] : nm; if (b.Contains(key, System.StringComparison.OrdinalIgnoreCase)) return nm; } return ""; }
+            _aIdle = Pick("Flying_Idle", "Idle"); _aMove = Pick("Run", "Gallop", "Fast_Flying", "Flying", "Walk");
+            _aAtk = Pick("Attack", "Bite_Front", "Weapon", "Punch", "Headbutt"); _aHit = Pick("HitRecieve", "HitReact", "Hit"); _aDie = Pick("Death");
+            foreach (var nm in new[] { _aIdle, _aMove }) if (nm != "" && _mdlAp.GetAnimation(nm) is { } a) a.LoopMode = Animation.LoopModeEnum.Linear;
+            if (_aIdle != "") _mdlAp.Play(_aIdle, 0); _aCur = _aIdle;
+        }
+        return true;
+    }
+    /// <summary>For the monster sheet tool: hold a clip (idle, move, attack, hit, death) at a fraction of its length.</summary>
+    public bool ModelPose(string role, float frac)
+    {
+        if (_mdlAp == null) return false; string n = role switch { "move" => _aMove, "attack" => _aAtk, "hit" => _aHit, "death" => _aDie, _ => _aIdle }; if (n == "") n = _aIdle; if (n == "") return false;
+        _mdlAp.ProcessMode = ProcessModeEnum.Always; _mdlAp.Play(n, 0); _mdlAp.Seek(_mdlAp.GetAnimation(n).Length * frac, true); _mdlAp.Pause(); return true;
+    }
+    public bool HasModel => _mdl != null;
+    /// <summary>Hunting a hero right now (chasing, winding up or recovering from a blow).</summary>
+    public bool Hunting => _state == State.Chase || _state == State.Wind || _state == State.Recover || _state == State.Breath;
+    /// <summary>The model's clip from the AI state: attack through the wind-up (stretched to it), flinch, death, move or idle.</summary>
+    void AnimateModel()
+    {
+        var ap = _mdlAp; if (ap == null) return;
+        string want; float speed = 1f; bool restart = false; float hs = new Vector2(Velocity.X, Velocity.Z).Length();
+        if (_state == State.Dead) want = _aDie;
+        else if (_state == State.Wind && _aAtk != "")
+        {
+            want = _aAtk; if (_aSerial != _swingSerial) { _aSerial = _swingSerial; restart = true; }
+            speed = Mathf.Clamp((float)ap.GetAnimation(want).Length * .5f / Mathf.Max(.15f, Def.Wind), .5f, 3f);   // the bite or blow lands as the wind-up ends
+        }
+        else if (_state == State.Stagger && _aHit != "") { want = _aHit; if (_aSerialHit != _hitSerial) { _aSerialHit = _hitSerial; restart = true; } }
+        else
+        {
+            if ((_aCur == _aAtk || _aCur == _aHit) && ap.IsPlaying() && ap.CurrentAnimationPosition < ap.CurrentAnimationLength * .95f && hs < .4f) return;   // let the blow play out
+            if (hs > .4f && _aMove != "") { want = _aMove; speed = Mathf.Clamp(hs / Mathf.Max(1f, Def.Spd * .7f), .6f, 2f); }
+            else want = _aIdle;
+        }
+        if (want == "") return;
+        if (want != _aCur || restart) { ap.Play(want, restart ? .05f : .15f); if (restart) ap.Seek(0, true); _aCur = want; }
+        ap.SpeedScale = speed;
+    }
+
     void BakeParts()
     {
         var groups = new Dictionary<(Node3D, Material), SurfaceTool>();
@@ -331,7 +434,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
     };
 
     // ------------------------------------------------------------------ public API
-    public void Stun(float t) { if (Dead) return; if (Puppet) { if (DuelPeer == 0) Net.I?.SendEnemyStun(this, t); return; } _stun = Mathf.Max(_stun, t); if (_state != State.Sleep) _state = State.Stagger; }
+    public void Stun(float t) { if (Dead) return; _hitSerial++; if (Puppet) { if (DuelPeer == 0) Net.I?.SendEnemyStun(this, t); return; } _stun = Mathf.Max(_stun, t); if (_state != State.Sleep) _state = State.Stagger; }
     public void Ignite(float t, float dps) => Status.Add("burn", t / 3f, 1, dps);
     public void Slow(float t) => Status.Add("chill", t / 3f, 0, 0);
     public void Wake() { if (Def.Flee && !Dead) { _state = State.Flee; return; } if (_state == State.Sleep || _state == State.Idle || _state == State.Return) { if (Overworld && !Puppet && Hp >= MaxHp - .5f) Rescale(false); _state = State.Chase; if (_state == State.Chase && Def.Kind == "dragon") Sfx.Play("roar"); } }
@@ -420,7 +523,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         if (away.LengthSquared() > 0.001f && !Def.Boss) _kb += away.Normalized() * h.Knock * 1.6f;
         if (h.Up > 0 && !Def.Boss && Def.Kind != "dragon") { _launch = h.Up; Stun(Mathf.Max(h.Stun, h.Up * .12f)); }
         if (h.Stun > 0 && !Def.Boss && Def.Kind != "dragon") Stun(h.Stun * 1f);
-        else if (_state == State.Idle || _state == State.Sleep || _state == State.Return) Wake();
+        else if (_state == State.Idle || _state == State.Sleep || _state == State.Return) { bool idle = _state == State.Idle; Wake(); if (idle) Alert(); }   // struck: the pack joins in
         Fx.Burst(GlobalPosition + new Vector3(0, HeightM() * 0.6f, 0), h.Crit ? new Color(1, 0.8f, 0.2f) : new Color(1, 0.3f, 0.2f), h.Crit ? 12 : 6, 4f, 0.35f, 0.08f);
         // recoil: the body jolts away from the hit and squashes, then springs back (local space, since the enemy node is yawed)
         Feel.Load();
@@ -499,8 +602,8 @@ public partial class Enemy : CharacterBody3D, IDamageable
         _heroT -= dt; if (_heroT <= 0 || _hero == null || !IsInstanceValid(_hero)) { _heroT = .3f; _hero = PickHero(); }
         var pl = _hero;
         float distP = pl == null ? 999f : (pl.GlobalPosition - GlobalPosition).Length();
-        if (distP > (Def.Look != "" ? 100f : 150f) && !Arena && !Dead) { Visible = false; return; } // small wildlife is not worth drawing far away
-        if (!Visible && Active) Visible = true;
+        if (distP > (Def.Look != "" ? 100f : 150f) && !Arena && !Dead) { Visible = false; if (_mdlAp != null) _mdlAp.Active = false; return; } // small wildlife is not worth drawing far away
+        if (!Visible && Active) { Visible = true; if (_mdlAp != null) _mdlAp.Active = true; }
 
         var v = Velocity;
         if (!IsOnFloor()) v.Y -= _gravity * dt; else v.Y = 0;
@@ -518,7 +621,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         if (_state == State.Dead)
         {
             _deadT += dt;
-            if (_av == null) _body.Rotation = new Vector3(Mathf.Lerp(0, Mathf.Pi / 2, Mathf.Clamp(_deadT / 0.5f, 0, 1)), 0, 0);
+            if (_av == null && _mdlAp == null) _body.Rotation = new Vector3(Mathf.Lerp(0, Mathf.Pi / 2, Mathf.Clamp(_deadT / 0.5f, 0, 1)), 0, 0);   // models play their own death
             AnimateAvatar();
             // dissolve: after the fall the body releases motes of light, then sinks, shrinks and fades away
             const float D0 = 1.4f, D1 = 2.8f;
@@ -573,14 +676,15 @@ public partial class Enemy : CharacterBody3D, IDamageable
                 if (dist < 30f) Wake();
                 break;
             case State.Idle:
-                if (dist < Def.Aggro && plOk) { Wake(); break; }
-                if (Def.Look != "")
+                // notice a hero only when close enough and (indoors) in plain sight; then the pack nearby joins in
+                if (plOk && dist < Def.Aggro && Notices(pl!, dist, dt)) { Wake(); Alert(); break; }
                 {
-                    // wildlife grazes: amble to a nearby spot, pause, pick another
+                    // wander: amble to a spot near home, pause, pick another (wildlife grazes slower and closer)
+                    bool wild = Def.Look != "";
                     _grazeT -= dt;
-                    if (_grazeT <= 0) { _grazeT = (float)GD.RandRange(3.0, 7.0); float a = (float)GD.RandRange(0, Mathf.Tau), d = (float)GD.RandRange(2.0, 8.0); _grazeTo = _home + new Vector3(Mathf.Cos(a) * d, 0, Mathf.Sin(a) * d); }
+                    if (_grazeT <= 0) { _grazeT = (float)GD.RandRange(3.0, 8.0); float a = (float)GD.RandRange(0, Mathf.Tau), d = (float)GD.RandRange(wild ? 2.0 : 1.5, wild ? 8.0 : FromDungeon ? 5.0 : 9.0); _grazeTo = _home + new Vector3(Mathf.Cos(a) * d, 0, Mathf.Sin(a) * d); }
                     var g = _grazeTo - GlobalPosition; g.Y = 0;
-                    if (g.Length() > 0.6f && _grazeT < 4.5f) { move = g.Normalized() * Def.Spd * 0.18f; _yaw = Mathf.LerpAngle(_yaw, Util.YawTo(g.X, g.Z), 1f - Mathf.Exp(-4f * dt)); }
+                    if (g.Length() > 0.6f && _grazeT < 4.5f) { move = g.Normalized() * Def.Spd * (wild ? 0.18f : 0.28f); _yaw = Mathf.LerpAngle(_yaw, Util.YawTo(g.X, g.Z), 1f - Mathf.Exp(-4f * dt)); }
                 }
                 break;
             case State.Flee:
@@ -594,6 +698,8 @@ public partial class Enemy : CharacterBody3D, IDamageable
             }
             case State.Chase:
                 if (!plOk || (!NoLeash && !Arena && !Summoned && !FromDungeon && (dist > Def.Aggro * 2.5f || (GlobalPosition - _home).Length() > 90f))) { _state = State.Return; break; }
+                // dungeon monsters give up when you get well away (or they are dragged too far from their room), and go back to wandering
+                if (FromDungeon && !Def.Boss && !Summoned && (dist > Def.Aggro * 3f || (GlobalPosition - _home).Length() > 45f)) { _state = State.Return; break; }
                 if (Def.Boss && CurrentBoss != this) CurrentBoss = this;
                 _yaw = Mathf.LerpAngle(_yaw, yawToP, 1f - Mathf.Exp(-10f * dt));
                 _timer -= dt;
@@ -604,12 +710,12 @@ public partial class Enemy : CharacterBody3D, IDamageable
                     if (dist > range * 0.9f) move = toP.Normalized() * Def.Spd;
                     else if (dist < keep) move = -toP.Normalized() * Def.Spd * 0.8f;
                     else { var side = new Vector3(-toP.Z, 0, toP.X).Normalized() * ((GetInstanceId() % 2 == 0) ? 1 : -1); move = side * Def.Spd * 0.4f; }
-                    if (dist <= range && _timer <= 0) { _state = State.Wind; _timer = Def.Wind; }
+                    if (dist <= range && _timer <= 0) { _state = State.Wind; _timer = Def.Wind; _swingSerial++; }
                 }
                 else
                 {
                     if (dist > Def.Reach * 0.8f) move = toP.Normalized() * Def.Spd;
-                    if (dist <= Def.Reach + 0.2f && _timer <= 0) { _state = State.Wind; _timer = Def.Wind; }
+                    if (dist <= Def.Reach + 0.2f && _timer <= 0) { _state = State.Wind; _timer = Def.Wind; _swingSerial++; }
                 }
                 break;
             case State.Wind:
@@ -709,6 +815,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
     /// <summary>Clip from the AI state: wind-up plays the attack (stretched to the wind-up), stagger a hit, death the death clip.</summary>
     void AnimateAvatar()
     {
+        AnimateModel();
         if (_av == null) return;
         float hs = new Vector2(Velocity.X, Velocity.Z).Length();
         switch (_state)
@@ -755,6 +862,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         if (!_netHas) { _netHas = true; GlobalPosition = _netPos; _yaw = _netYaw; }
         if (st == State.Dead) { if (!Dead) PuppetDie(); return; }
         if (Dead) { Respawn(); GlobalPosition = _netPos; }
+        if (st == State.Wind && _state != State.Wind) _swingSerial++;   // a new blow: the model restarts its attack
         _state = st; if (st == State.Wind) _timer = f[k + 6] * Def.Wind;
         if (st == State.Breath) _breathT = 1.2f;
     }
@@ -780,6 +888,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         GlobalPosition = before.DistanceTo(_netPos) > 8f ? _netPos : before.Lerp(_netPos, 1f - Mathf.Exp(-10f * dt));
         _yaw = Mathf.LerpAngle(_yaw, _netYaw, 1f - Mathf.Exp(-10f * dt)); Rotation = new Vector3(0, _yaw, 0);
         if (_state == State.Wind) _timer = Mathf.Max(0, _timer - dt);
+        if (_mdlAp != null) { Velocity = (GlobalPosition - before) / Mathf.Max(dt, .001f); AnimateModel(); }   // models animate from the host's movement
         if (_legs.Count > 0)
         {
             float hs = new Vector2(GlobalPosition.X - before.X, GlobalPosition.Z - before.Z).Length() / Mathf.Max(dt, .001f), amt = Mathf.Clamp(hs / Mathf.Max(1f, Def.Spd * 0.6f), 0, 1);

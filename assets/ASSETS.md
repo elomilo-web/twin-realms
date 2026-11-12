@@ -74,3 +74,36 @@ Sounds with no file (hit, hurt, fire, zap, level, portal, shift, die) use soft s
 
 ## Twin Realms kit (`models/kit/`, `textures/kit/`, `shaders/`)
 Original work made for this game by `tools/kit_gen/` (code-generated, CC0). 164 models, 36 spell animation sheets (`vfx/flipbooks/`), 8 eye textures (painted over Quaternius `T_Eye_Brown.png`, CC0), water and character shaders. See `docs/kit/README.md`.
+
+## Monsters (assets/models/monsters/, added 2026-11-11)
+
+Animated low-poly monsters by **Quaternius** (Ultimate Monsters, Animated Enemies, Animated Animal packs), **CC0 / Public Domain**, downloaded from poly.pizza. Used as data/enemies.json "model". Sources (ssets/models/monsters/_sources.tsv):
+
+| File | Original model | Page |
+|---|---|---|
+| `slime.glb` | Pink Slime | https://poly.pizza/m/AyP8sQmDLh |
+| `toxicBlob.glb` | Green Blob | https://poly.pizza/m/y4kJh8EeYS |
+| `spikeSlime.glb` | Green Spiky Blob | https://poly.pizza/m/IoWG5F9WUc |
+| `giantRat.glb` | Rat | https://poly.pizza/m/iltq5bVNaV |
+| `giantSpider.glb` | Spider | https://poly.pizza/m/yRYJiAJyiM |
+| `viper.glb` | Snake | https://poly.pizza/m/x9x0viZs8V |
+| `giantWasp.glb` | Wasp | https://poly.pizza/m/3aQgc75sUR |
+| `giantCrab.glb` | Crab Enemy | https://poly.pizza/m/Gs3yfsV5lB |
+| `flameSkull.glb` | Skull Enemy | https://poly.pizza/m/EHHwZ17lWD |
+| `orcWarrior.glb` | Orc | https://poly.pizza/m/5vO2YJsPEf |
+| `hobgoblin.glb` | Orc Enemy | https://poly.pizza/m/Q3z8ZX4kUy |
+| `ninja.glb` | Ninja | https://poly.pizza/m/mCNoqcqpvC |
+| `darkMage.glb` | Wizard | https://poly.pizza/m/o87Upt5uHX |
+| `yeti.glb` | Yeti | https://poly.pizza/m/S1E7idPFhe |
+| `lesserDemon.glb` | Demon | https://poly.pizza/m/Mo2ky6vkf8 |
+| `oni.glb` | Blue Demon | https://poly.pizza/m/S7jYW6Amye |
+| `ghost.glb` | Ghost | https://poly.pizza/m/Iip30bDHmu |
+| `myconid.glb` | Mushnub | https://poly.pizza/m/LWKmS30Xxl |
+| `mushroomKing.glb` | Mushroom King | https://poly.pizza/m/grnFTziU8u |
+| `goleling.glb` | Goleling | https://poly.pizza/m/71gomWolax |
+| `earthGolem.glb` | Goleling Evolved | https://poly.pizza/m/iHEuXiH6Aj |
+| `cactusFiend.glb` | Cactoro | https://poly.pizza/m/66CYX5UhRK |
+| `wyvern.glb` | Dragon | https://poly.pizza/m/3rUm1cN3yp |
+| `raptor.glb` | Dino | https://poly.pizza/m/wuerCFCWNR |
+| `kitsune.glb` | Fox | https://poly.pizza/m/Bc97C66HKi |
+
