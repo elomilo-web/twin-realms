@@ -38,7 +38,7 @@ public partial class Ui
             Info(at, n.Name, n.Branch.Col.Lightened(.3f), new[]
             {
                 (n.Desc, Colors.White, 14),
-                (n.Attack ? "Basic attacks: " + string.Join(", ", n.Tags) : "Fits: " + string.Join(", ", n.Tags), UiTheme.Dim, 12),
+                (n.Attack ? "Basic attacks: " + string.Join(", ", n.Tags) : "Fits every skill", UiTheme.Dim, 12),
                 (ModTree.Unlocked(n) ? "Unlocked" : why == null ? $"Double-click to unlock ({n.Cost} pt)" : why, ModTree.Unlocked(n) ? UiTheme.Accent : why == null ? UiTheme.Highlight : new Color(1f, .6f, .5f), 12),
             }, 260);
         };
@@ -51,7 +51,7 @@ public partial class Ui
         Lbl(b.Name.ToUpper() + (sel.Attack ? "   ·   BASIC ATTACKS" : ""), 13, b.Col, rv);
         Lbl(sel.Name, 22, UiTheme.Title, rv);
         Row(rv, sel.Desc, Colors.White, 15).CustomMinimumSize = new Vector2(270, 0);
-        Row(rv, (sel.Attack ? "Weapons: " : "Fits skills tagged: ") + string.Join(", ", sel.Tags), UiTheme.Dim, 13).CustomMinimumSize = new Vector2(270, 0);
+        Row(rv, sel.Attack ? "Weapons: " + string.Join(", ", sel.Tags) : "Fits every skill and combines with every other modifier.", UiTheme.Dim, 13).CustomMinimumSize = new Vector2(270, 0);
         Row(rv, $"Cost {sel.Cost} skill point" + (sel.Cost > 1 ? "s" : "") + $"   ·   level {sel.Req}" + (sel.Prev != null ? $"   ·   after {sel.Prev.Name}" : ""), UiTheme.Text, 13).CustomMinimumSize = new Vector2(270, 0);
         if (on) Lbl("UNLOCKED", 15, UiTheme.Accent, rv);
         else

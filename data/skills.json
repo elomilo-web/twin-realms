@@ -1,5 +1,5 @@
 {
- "_help": "Active skills and support modifiers (Path of Exile style). Skill: kind (projectile, nova, chain, heal, zone, strike, melee, spin, leap, dash, buff), tags (supports require one matching tag), type (damage type), mp/st cost, cd, cast (s), scale ('spell' = dmg + lvl*level times spell power; 'weapon' = mult x weapon damage), radius, speed, count, spread (deg), pierce, chain, homing, dur, tick, heal (fraction of max health), status {id: [chance, duration multiplier, power (0 = default)]}, knock, stun, up (knock-up), arc (deg), range, delay, buff {stat: value}, req (character level), cost (rank points to unlock). Ranks: each rank after the first adds rankP % damage and one more support socket every two ranks (max 3). Support: tags (any one), cost, req, mods: dmgP, aoeP, projSpeedP, projCount, homing, pierce, chain, echo, auto ('timer', 'hit' or 'crit'), autoCd, costP, cdP, castP, stun, knockP, up, leech, execute, convert (damage type), status {id: [chance, durMul, pow]}.",
+ "_help": "Active skills and support modifiers (Path of Exile style). Skill: kind (projectile, nova, chain, heal, zone, strike, melee, spin, leap, dash, buff), tags (supports require one matching tag), type (damage type), mp/st cost, cd, cast (s), scale ('spell' = dmg + lvl*level times spell power; 'weapon' = mult x weapon damage), radius, speed, count, spread (deg), pierce, chain, homing, dur, tick, heal (fraction of max health), status {id: [chance, duration multiplier, power (0 = default)]}, knock, stun, up (knock-up), arc (deg), range, delay, buff {stat: value}, req (character level), cost (rank points to unlock). Ranks: each rank after the first adds rankP % damage and one more support socket every two ranks (max 3). Support: every support fits every skill and all of them combine (tags only place it in the modifier tree). cost, req, mods: dmgP, aoeP, projSpeedP, projCount, homing, pierce, chain, echo (stacks, up to 3 repeats), auto ('timer', 'hit' or 'crit'; several triggers each fire), autoCd, costP, cdP, castP, stun, knockP, up, leech, execute, critC (crit chance %), durP (duration %), tickP (zone tick interval %), healP (heal %), selfHeal (% max health on use), manaBack (% of cost refunded on use), convert (damage type; the last one socketed wins), status {id: [chance, durMul, pow]}.",
  "rankP": 15,
  "maxRank": 5,
  "skills": {
@@ -51,6 +51,72 @@
   "vampiric":   { "n": "Vampiric",           "tags": ["spell", "attack"],     "cost": 1, "req": 3, "mods": { "leech": 5 }, "d": "5% of damage dealt heals you." },
   "quick":      { "n": "Quick Cast",         "tags": ["spell", "attack", "warcry", "poison"], "cost": 1, "req": 2, "mods": { "castP": -30, "cdP": -15 }, "d": "30% faster to use, 15% shorter cooldown." },
   "efficient":  { "n": "Efficiency",         "tags": ["spell", "attack", "warcry", "poison"], "cost": 1, "req": 1, "mods": { "costP": -30 }, "d": "Costs 30% less." },
-  "executioner":{ "n": "Executioner",        "tags": ["spell", "attack"],     "cost": 1, "req": 5, "mods": { "execute": 60 }, "d": "+60% damage to foes below 35% health." }
+  "executioner":{ "n": "Executioner",        "tags": ["spell", "attack"],     "cost": 1, "req": 5, "mods": { "execute": 60 }, "d": "+60% damage to foes below 35% health." },
+
+  "vast":       { "n": "Vast Reach",         "tags": ["aoe"], "cost": 1, "req": 6,  "mods": { "aoeP": 70, "dmgP": -15 }, "d": "+70% area, 15% less damage." },
+  "epicenter":  { "n": "Epicenter",          "tags": ["aoe"], "cost": 1, "req": 5,  "mods": { "aoeP": -15, "stun": 0.3, "dmgP": 15 }, "d": "15% smaller area, 15% more damage, +0.3 s stun." },
+  "shockwave":  { "n": "Shockwave",          "tags": ["aoe"], "cost": 1, "req": 3,  "mods": { "aoeP": 20, "knockP": 80 }, "d": "+20% area and 80% more knockback." },
+  "lingering":  { "n": "Lingering",          "tags": ["aoe"], "cost": 1, "req": 3,  "mods": { "durP": 50 }, "d": "Zones, buffs and other lasting effects last 50% longer." },
+  "pulse":      { "n": "Rapid Pulse",        "tags": ["aoe"], "cost": 1, "req": 5,  "mods": { "tickP": -35, "dmgP": -10 }, "d": "Lasting zones hit 35% more often, 10% less damage per hit." },
+
+  "twin":       { "n": "Twin Shot",          "tags": ["projectile"], "cost": 1, "req": 2,  "mods": { "projCount": 1, "dmgP": -10 }, "d": "One more projectile (and one more whirlwind turn), 10% less damage." },
+  "barrage":    { "n": "Barrage",            "tags": ["projectile"], "cost": 2, "req": 9,  "mods": { "projCount": 4, "dmgP": -40 }, "d": "Four more projectiles (and turns), 40% less damage each." },
+  "hypervel":   { "n": "Hypervelocity",      "tags": ["projectile"], "cost": 1, "req": 5,  "mods": { "projSpeedP": 120, "pierce": 1 }, "d": "Projectiles fly 120% faster and pierce one more foe." },
+  "ricochet":   { "n": "Ricochet",           "tags": ["chain"],      "cost": 1, "req": 6,  "mods": { "chain": 3, "dmgP": -20 }, "d": "Chains to three more foes, 20% less damage." },
+  "skewer":     { "n": "Skewer",             "tags": ["projectile"], "cost": 1, "req": 4,  "mods": { "pierce": 5, "dmgP": -10 }, "d": "Projectiles pierce five more foes, 10% less damage." },
+  "hunter":     { "n": "Hunter's Mark",      "tags": ["projectile"], "cost": 1, "req": 4,  "mods": { "homing": 1, "critC": 10 }, "d": "Projectiles seek foes; +10% crit chance." },
+
+  "ignite":     { "n": "Ignite",             "tags": ["fire"],      "cost": 1, "req": 3,  "mods": { "convert": "fire", "status": { "burn": [1, 1.2, 0] } }, "d": "Converts the damage to fire and always burns." },
+  "inferno":    { "n": "Inferno",            "tags": ["fire"],      "cost": 1, "req": 8,  "mods": { "dmgP": -10, "status": { "burn": [1, 1.5, 0.3] } }, "d": "Always burns, longer and hotter; 10% less hit damage." },
+  "glacial":    { "n": "Glacial",            "tags": ["frost"],     "cost": 1, "req": 3,  "mods": { "status": { "chill": [1, 1.5, 0] } }, "d": "Always chills, 50% longer." },
+  "deepfreeze": { "n": "Deep Freeze",        "tags": ["frost"],     "cost": 2, "req": 9,  "mods": { "status": { "freeze": [0.15, 1, 0] } }, "d": "15% chance to freeze solid." },
+  "static":     { "n": "Static Charge",      "tags": ["lightning"], "cost": 1, "req": 2,  "mods": { "status": { "shock": [0.6, 1, 0] } }, "d": "60% chance to shock (takes 15% more damage)." },
+  "thunder":    { "n": "Thunderstruck",      "tags": ["lightning"], "cost": 1, "req": 5,  "mods": { "convert": "lightning", "status": { "shock": [1, 1, 0] } }, "d": "Converts the damage to lightning and always shocks." },
+  "toxic":      { "n": "Toxic",              "tags": ["poison"],    "cost": 1, "req": 3,  "mods": { "convert": "poison", "status": { "poison": [1, 1, 0] } }, "d": "Converts the damage to poison and always poisons." },
+  "plague":     { "n": "Plague",             "tags": ["poison"],    "cost": 1, "req": 7,  "mods": { "status": { "poison": [1, 1.5, 0.1] } }, "d": "Always poisons, stronger and 50% longer." },
+  "lacerate":   { "n": "Lacerate",           "tags": ["attack"],    "cost": 1, "req": 2,  "mods": { "status": { "bleed": [0.6, 1, 0] } }, "d": "60% chance to cause bleeding (ignores armor)." },
+  "hemorrhage": { "n": "Hemorrhage",         "tags": ["attack"],    "cost": 1, "req": 7,  "mods": { "dmgP": -15, "status": { "bleed": [1, 1.4, 0.1] } }, "d": "Always bleeds, longer and deeper; 15% less hit damage." },
+  "sunder":     { "n": "Sunder",             "tags": ["attack"],    "cost": 1, "req": 4,  "mods": { "status": { "shred": [1, 1, 0] } }, "d": "Every hit sunders armor (stacks five times)." },
+  "judgment":   { "n": "Judgment",           "tags": ["holy"],      "cost": 1, "req": 4,  "mods": { "convert": "holy", "status": { "judged": [1, 1, 0] } }, "d": "Converts the damage to holy and judges the foe (takes 12% more damage)." },
+  "umbral":     { "n": "Umbral Touch",       "tags": ["shadow"],    "cost": 1, "req": 4,  "mods": { "convert": "shadow", "status": { "weaken": [0.6, 1, 0] } }, "d": "Converts the damage to shadow; 60% chance to weaken." },
+  "grasping":   { "n": "Grasping Roots",     "tags": ["poison"],    "cost": 1, "req": 5,  "mods": { "status": { "root": [0.35, 1, 0] } }, "d": "35% chance to root foes in place." },
+  "wither":     { "n": "Withering Curse",    "tags": ["curse"],     "cost": 1, "req": 6,  "mods": { "status": { "weaken": [1, 1.2, 0], "shock": [0.3, 1, 0] } }, "d": "Always weakens; 30% chance to shock." },
+  "truth":      { "n": "Piercing Truth",     "tags": ["spell"],     "cost": 2, "req": 12, "mods": { "convert": "true", "dmgP": -15 }, "d": "Deals true damage that ignores armor and resistances, 15% less." },
+  "prism":      { "n": "Elemental Fury",     "tags": ["spell"],     "cost": 2, "req": 10, "mods": { "dmgP": 15, "status": { "burn": [0.25, 1, 0], "chill": [0.25, 1, 0], "shock": [0.25, 1, 0] } }, "d": "15% more damage; 25% chance each to burn, chill and shock." },
+
+  "precise":    { "n": "Precision",          "tags": ["attack"], "cost": 1, "req": 2,  "mods": { "critC": 10 }, "d": "+10% crit chance." },
+  "deadly":     { "n": "Deadly Aim",         "tags": ["attack"], "cost": 1, "req": 6,  "mods": { "critC": 20, "dmgP": -10 }, "d": "+20% crit chance, 10% less damage." },
+  "assassin":   { "n": "Assassinate",        "tags": ["attack"], "cost": 2, "req": 10, "mods": { "execute": 100, "dmgP": -10 }, "d": "+100% damage to foes below 35% health, 10% less otherwise." },
+  "finisher":   { "n": "Coup de Grace",      "tags": ["attack"], "cost": 1, "req": 7,  "mods": { "execute": 40, "critC": 5 }, "d": "+40% damage to foes below 35% health and +5% crit chance." },
+  "keen":       { "n": "Keen Edge",          "tags": ["attack"], "cost": 1, "req": 4,  "mods": { "dmgP": 10, "critC": 5 }, "d": "10% more damage and +5% crit chance." },
+
+  "lifetap":    { "n": "Life Tap",           "tags": ["spell"], "cost": 1, "req": 5,  "mods": { "leech": 10, "dmgP": -10 }, "d": "10% of damage dealt heals you, 10% less damage." },
+  "bloodpact":  { "n": "Blood Pact",         "tags": ["spell"], "cost": 2, "req": 9,  "mods": { "leech": 15, "costP": 30 }, "d": "15% of damage dealt heals you; costs 30% more." },
+  "renewal":    { "n": "Renewal",            "tags": ["holy"],  "cost": 1, "req": 3,  "mods": { "selfHeal": 4 }, "d": "Using the skill heals you for 4% of your health." },
+  "restore":    { "n": "Restoration",        "tags": ["holy"],  "cost": 1, "req": 4,  "mods": { "healP": 40 }, "d": "Heals from the skill are 40% stronger." },
+  "manaflow":   { "n": "Mana Flow",          "tags": ["spell"], "cost": 1, "req": 4,  "mods": { "manaBack": 30 }, "d": "30% of the cost comes back each time the skill goes off." },
+  "siphon":     { "n": "Siphon",             "tags": ["spell"], "cost": 1, "req": 6,  "mods": { "manaBack": 15, "leech": 3 }, "d": "15% of the cost comes back; 3% of damage heals you." },
+  "sanctuary":  { "n": "Sanctuary",          "tags": ["holy"],  "cost": 2, "req": 8,  "mods": { "selfHeal": 2, "healP": 20, "durP": 20 }, "d": "Heals you for 2% on use, heals 20% more, lasts 20% longer." },
+
+  "haste":      { "n": "Haste",              "tags": ["spell"], "cost": 1, "req": 4,  "mods": { "castP": -50, "dmgP": -15 }, "d": "50% faster to use, 15% less damage." },
+  "rapid":      { "n": "Rapid Recovery",     "tags": ["spell"], "cost": 1, "req": 5,  "mods": { "cdP": -30, "costP": 20 }, "d": "30% shorter cooldown; costs 20% more." },
+  "frugal":     { "n": "Frugal",             "tags": ["spell"], "cost": 1, "req": 3,  "mods": { "costP": -50, "dmgP": -15 }, "d": "Costs 50% less, 15% less damage." },
+  "overcharge": { "n": "Overcharge",         "tags": ["spell"], "cost": 2, "req": 10, "mods": { "dmgP": 50, "costP": 60, "cdP": 25 }, "d": "50% more damage; costs 60% more and its cooldown is 25% longer." },
+  "fluid":      { "n": "Fluid Motion",       "tags": ["spell"], "cost": 1, "req": 6,  "mods": { "castP": -20, "cdP": -10, "costP": -10 }, "d": "20% faster, 10% shorter cooldown, 10% cheaper." },
+
+  "empower":    { "n": "Empower",            "tags": ["spell"], "cost": 1, "req": 3,  "mods": { "dmgP": 25, "costP": 25 }, "d": "25% more damage; costs 25% more." },
+  "ruin":       { "n": "Ruin",               "tags": ["spell"], "cost": 2, "req": 8,  "mods": { "dmgP": 45, "cdP": 40 }, "d": "45% more damage; cooldown 40% longer." },
+  "focus":      { "n": "Focus",              "tags": ["spell"], "cost": 1, "req": 2,  "mods": { "dmgP": 15, "aoeP": -10 }, "d": "15% more damage, 10% smaller area." },
+  "titan":      { "n": "Titan's Might",      "tags": ["melee"], "cost": 2, "req": 12, "mods": { "dmgP": 35, "castP": 25, "knockP": 40 }, "d": "35% more damage and 40% more knockback; 25% slower to use." },
+
+  "earthshaker":{ "n": "Earthshaker",        "tags": ["melee"], "cost": 1, "req": 5,  "mods": { "up": 4, "stun": 0.4, "dmgP": -10 }, "d": "Hits launch foes and stun them 0.4 s, 10% less damage." },
+  "stagger":    { "n": "Staggering Blow",    "tags": ["melee"], "cost": 1, "req": 4,  "mods": { "stun": 1, "cdP": 20 }, "d": "+1 s stun; cooldown 20% longer." },
+  "repulse":    { "n": "Repulse",            "tags": ["melee"], "cost": 1, "req": 2,  "mods": { "knockP": 150 }, "d": "150% more knockback." },
+  "juggernaut": { "n": "Juggernaut",         "tags": ["melee"], "cost": 1, "req": 6,  "mods": { "dmgP": 20, "stun": 0.3, "status": { "shred": [0.5, 1, 0] } }, "d": "20% more damage, +0.3 s stun, 50% chance to sunder armor." },
+
+  "resonance":  { "n": "Resonance",          "tags": ["spell"], "cost": 2, "req": 9,  "mods": { "echo": 1, "dmgP": -15, "costP": 50 }, "d": "The skill repeats once more, 15% weaker; costs 50% more. Stacks with Echo." },
+  "sentinel":   { "n": "Sentinel",           "tags": ["spell"], "cost": 2, "req": 8,  "mods": { "auto": "timer", "autoCd": 2.5, "dmgP": -35, "costP": 60 }, "d": "Casts itself every 2.5 s when foes are near, 35% weaker; costs 60% more." },
+  "vengeance":  { "n": "Vengeance",          "tags": ["spell"], "cost": 2, "req": 7,  "mods": { "auto": "hit", "autoCd": 1.5, "dmgP": -25 }, "d": "Casts itself when you are hit (every 1.5 s at most), 25% weaker." },
+  "bladestorm": { "n": "Storm of Blades",    "tags": ["spell"], "cost": 2, "req": 11, "mods": { "auto": "crit", "autoCd": 0.8, "dmgP": -40 }, "d": "Casts itself when your weapon crits (every 0.8 s at most), 40% weaker." }
  }
 }

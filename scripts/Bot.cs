@@ -206,6 +206,45 @@ public partial class Bot : Node
             Check("every skill fires and takes effect", bad.Count == 0, $"{ok}/{ok + bad.Count}" + (bad.Count > 0 ? " failed: " + string.Join(",", bad) : ""));
         });
 
+        await Step("modifiers fit every skill", async () =>
+        {
+            var d = Game.D; var sups = Skills.AllSupports.ToList(); var keepSup = new List<string>(d.Supports); foreach (var sp in sups) if (!d.Supports.Contains(sp.Id)) d.Supports.Add(sp.Id);
+            Check("about 50 new modifiers", sups.Count >= 70, $"{sups.Count} modifiers");
+            Check("every modifier is in the modifier tree", ModTree.Count(false) == sups.Count + Attacks.Mods.Count(), $"{ModTree.Count(false)} in tree");
+            // every modifier sockets into every skill; every skill with every modifier (and with three at once, in rolling groups) resolves to sane numbers
+            var keep = new Dictionary<string, SkillState>(d.Skills); var refused = new List<string>(); var broken = new List<string>(); int combos = 0;
+            bool Sane(SkillCalc c) => float.IsFinite(c.Dmg) && c.Dmg >= 0 && float.IsFinite(c.Cd) && c.Cd > 0 && c.Cast > 0 && c.Mp >= 0 && c.St >= 0 && float.IsFinite(c.Radius);
+            foreach (var k in Skills.All)
+            {
+                for (int i = 0; i < sups.Count; i++)
+                {
+                    d.Skills[k.Id] = new SkillState { Rank = Skills.MaxRank };
+                    if (Skills.Socket(k.Id, 0, sups[i].Id) is string err) { refused.Add($"{sups[i].Id}->{k.Id} ({err})"); continue; }
+                    Skills.Socket(k.Id, 1, sups[(i + 1) % sups.Count].Id); Skills.Socket(k.Id, 2, sups[(i + 7) % sups.Count].Id);
+                    var c = Skills.Compute(k.Id); combos++; if (!Sane(c)) broken.Add($"{k.Id}+{string.Join("+", d.Skills[k.Id].Sup)}");
+                }
+            }
+            d.Skills.Clear(); foreach (var kv in keep) d.Skills[kv.Key] = kv.Value;
+            Check("every modifier sockets into every skill", refused.Count == 0, refused.Count == 0 ? $"{Skills.All.Count()} skills x {sups.Count} modifiers" : string.Join(", ", refused.Take(6)));
+            Check("modifier combinations stay sane", broken.Count == 0, broken.Count == 0 ? $"{combos} combinations" : string.Join(", ", broken.Take(6)));
+            // the new kinds of modifier change the skill
+            d.Skills["consecrate"] = new SkillState { Rank = Skills.MaxRank }; var b0 = Skills.Compute("consecrate");
+            Skills.Socket("consecrate", 0, "lingering"); Skills.Socket("consecrate", 1, "precise"); Skills.Socket("consecrate", 2, "restore"); var b1 = Skills.Compute("consecrate");
+            Check("duration, crit and heal modifiers apply", b1.Dur > b0.Dur && b1.CritC >= 10 && b1.Heal > b0.Heal, $"dur {b0.Dur:0.0}->{b1.Dur:0.0}, crit +{b1.CritC:0}, heal {b0.Heal:0.000}->{b1.Heal:0.000}");
+            d.Skills["fire"] = new SkillState { Rank = Skills.MaxRank }; Skills.Socket("fire", 0, "echo"); Skills.Socket("fire", 1, "resonance"); Skills.Socket("fire", 2, "renewal");
+            var f = Skills.Compute("fire"); Check("echoes stack and heal-on-use applies", f.Echo == 2 && f.SelfHeal > 0, $"echo {f.Echo}, heal on use {f.SelfHeal}%");
+            // a melee skill with projectile, area and element modifiers still fires and hurts
+            d.Skills["cleave"] = new SkillState { Rank = Skills.MaxRank }; Skills.Socket("cleave", 0, "multi"); Skills.Socket("cleave", 1, "ignite"); Skills.Socket("cleave", 2, "manaflow");
+            var cc = Skills.Compute("cleave"); Check("a melee skill takes projectile and element modifiers", cc.Type == "fire" && cc.ManaBack > 0, $"type {cc.Type}, refund {cc.ManaBack}%");
+            var spot = World.OnGround(-70, -95, .5f); P.Teleport(spot, 0f); Heal(); await Wait(.2f);
+            Game.D.Eq["weapon"] = new Item { Name = "Bot sword", Slot = "weapon", Wt = "sword", Dmg = 10 }; Game.D.Bar[0] = "cleave"; Game.Notify();
+            var e = new Enemy { Type = "brute", Level = 40, AnyRealm = true, NoLeash = true, Position = P.GlobalPosition + new Vector3(0, 0, -2.6f) }; Game.Root!.AddChild(e); await Wait(.3f); e.Stun(30f); Targeting.Set(e); Face(e.GlobalPosition);
+            float hp0 = e.Hp; Press("spell1", true); await Wait(.05f); Press("spell1", false); await Wait(cc.Cast + .8f);
+            Check("modified melee skill hits", !GodotObject.IsInstanceValid(e) || e.Hp < hp0, GodotObject.IsInstanceValid(e) ? $"hp {hp0:0} -> {e.Hp:0}" : "killed");
+            Targeting.Clear(); if (GodotObject.IsInstanceValid(e)) e.QueueFree(); d.Skills.Clear(); foreach (var kv in keep) d.Skills[kv.Key] = kv.Value;
+            d.Supports.Clear(); d.Supports.AddRange(keepSup); Game.Notify();   // later steps unlock modifiers themselves
+        });
+
         await Step("classes, races, skill tree, passives and storage", async () =>
         {
             TreeDb.Load(); var d = Game.D;

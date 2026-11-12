@@ -167,7 +167,10 @@ public partial class Shots : Node
         var uiT = typeof(Ui); void SetF(string f, object val) => uiT.GetField(f, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)?.SetValue(null, val);
         SetF("_selSkill", "fire"); if (!d.Skills["fire"].Sup.Contains("wide")) d.Skills["fire"].Rank = 3;
         await M("skills", () => Ui.I!.OpenSkills());
-        SetF("_openSocket", 0); await M("skills_socket", () => Ui.I!.OpenSkills()); SetF("_openSocket", -1);
+        SetF("_openSocket", 0); await M("skills_socket", () => Ui.I!.OpenSkills());
+        // the socket picker at its fullest: every modifier unlocked
+        var keepSup = new List<string>(d.Supports); foreach (var sp in TwinRealms.Skills.AllSupports) if (!d.Supports.Contains(sp.Id)) d.Supports.Add(sp.Id);
+        await M("skills_socket_all", () => Ui.I!.OpenSkills()); d.Supports.Clear(); d.Supports.AddRange(keepSup); SetF("_openSocket", -1);
         SetF("_skillFilter", "spell"); await M("skills_spells", () => Ui.I!.OpenSkills()); SetF("_skillFilter", "all");
         if (Ui.I!.GetType().GetMethod("OpenMods") is { } om) await M("modifiers", () => om.Invoke(Ui.I, null));
         await M("tree", () => Ui.I!.OpenTree());

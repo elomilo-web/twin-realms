@@ -198,7 +198,7 @@ public partial class Player
         return AimPoint(range);
     }
     Vector3 Ground(Vector3 p) { if (Dungeon.Active) return new Vector3(p.X, GlobalPosition.Y, p.Z); return new Vector3(p.X, World.GroundAt(p.X, p.Z), p.Z); }
-    bool Crit(SkillCalc c) => c.Def.Crit || GD.Randf() < Game.D.CritChance();
+    bool Crit(SkillCalc c) => c.Def.Crit || GD.Randf() < Game.D.CritChance() + c.CritC / 100f;
 
     void Execute(SkillCalc c, Enemy? forced = null, bool echo = false)
     {
@@ -308,7 +308,15 @@ public partial class Player
                 break;
             }
         }
-        if (c.Echo > 0 && !echo && k.Kind is not ("leap" or "dash" or "buff" or "heal")) GetTree().CreateTimer(.3f).Timeout += () => { if (!Dead) Execute(c, forced, true); };
+        if (!echo)
+        {
+            // modifiers that pay back on use: health and a share of the cost
+            if (c.SelfHeal > 0) { float amt = Game.D.MaxHp() * c.SelfHeal / 100f; Hp = Mathf.Min(Game.D.MaxHp(), Hp + amt); FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.1f, 0), "+" + Mathf.RoundToInt(amt), new Color(.5f, 1f, .6f), .8f); }
+            if (c.ManaBack > 0) { Mp = Mathf.Min(Game.D.MaxMp(), Mp + c.Mp * c.ManaBack / 100f); St = Mathf.Min(Game.D.MaxSt(), St + c.St * c.ManaBack / 100f); }
+            // echoes stack: each one repeats the skill once more, .3 s apart
+            if (c.Echo > 0 && k.Kind is not ("leap" or "dash" or "buff" or "heal"))
+                for (int i = 1; i <= Mathf.Min(c.Echo, 3); i++) GetTree().CreateTimer(.3f * i).Timeout += () => { if (!Dead) Execute(c, forced, true); };
+        }
     }
     static Gradient Ramp(Color c) { var g = new Gradient(); g.SetColor(0, Colors.White); g.SetColor(1, new Color(c, 0)); return g; }
 

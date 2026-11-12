@@ -22,6 +22,9 @@ public class SkillCalc
 {
     public SkillDef Def = null!; public string Type = "physical";
     public float Dmg, Mp, St, Cd, Cast, Radius, Speed, Spread, Knock, Stun, Up, Leech, Execute, Heal, Dur, Tick, AutoCd;
+    public float CritC;      // extra crit chance (%) from modifiers
+    public float SelfHeal;   // % of max health restored each time the skill goes off
+    public float ManaBack;   // % of the mana and stamina cost refunded each time the skill goes off
     public int Count, Pierce, Chain, Echo; public bool Homing; public string Auto = "";
     public Vector3? At;      // aimed skills: where the player put the preview while holding the key
     public float Charge;     // charged skills: 0..1, how long the key was held (empowers the cast)
@@ -83,7 +86,8 @@ public static class Skills
 
     // ---------------------------------------------------------------- rules
     public static int Sockets(int rank) => Math.Min(3, 1 + rank / 2);
-    public static bool Fits(SupportDef s, SkillDef k) => s.Tags.Exists(t => k.Tags.Contains(t));
+    /// <summary>Every modifier fits every skill and they all combine (a support's tags only place it in the modifier tree).</summary>
+    public static bool Fits(SupportDef s, SkillDef k) => true;
     public static bool Known(string id) => Game.D.Skills.ContainsKey(id);
 
     /// <summary>Old saves and new characters: class skills are learned and put on the bar.</summary>
@@ -131,7 +135,7 @@ public static class Skills
     {
         Load(); var d = Game.D; var TS = Game.TS; var k = _s[id]; var st = d.Skills.GetValueOrDefault(id) ?? new SkillState();
         var c = new SkillCalc { Def = k, Type = k.Type, Radius = k.Radius, Speed = k.Speed, Spread = k.Spread, Knock = k.Knock, Stun = k.Stun, Up = k.Up, Leech = k.Leech, Heal = k.Heal, Dur = k.Dur, Tick = k.Tick, Count = k.Count, Pierce = k.Pierce, Chain = k.Chain, Homing = k.Homing };
-        float more = 1 + RankP * (st.Rank - 1) / 100f, aoe = 1 + TS["aoeP"] / 100f, spd = 1, cost = 1 + TS["mcost"] / 100f, cd = 1 - TS["cdr"] / 100f, cast = 1, knock = 1;
+        float more = 1 + RankP * (st.Rank - 1) / 100f, aoe = 1 + TS["aoeP"] / 100f, spd = 1, cost = 1 + TS["mcost"] / 100f, cd = 1 - TS["cdr"] / 100f, cast = 1, knock = 1, dur = 1, tick = 1, heal = 1;
         foreach (var kv in k.Status) c.Status.Add((kv.Key, kv.Value.Length > 0 ? kv.Value[0] : 1, kv.Value.Length > 1 ? kv.Value[1] : 1, kv.Value.Length > 2 ? kv.Value[2] : 0));
         foreach (var sid in st.Sup)
         {
@@ -139,7 +143,9 @@ public static class Skills
             more *= 1 + N("dmgP") / 100f; aoe += N("aoeP") / 100f; spd += N("projSpeedP") / 100f; cost += N("costP") / 100f; cd += N("cdP") / 100f; cast += N("castP") / 100f; knock += N("knockP") / 100f;
             c.Count += (int)N("projCount"); c.Pierce += (int)N("pierce"); c.Chain += (int)N("chain"); c.Echo += (int)N("echo"); c.Homing |= N("homing") > 0;
             c.Stun += N("stun"); c.Up += N("up"); c.Leech += N("leech"); c.Execute += N("execute");
-            if (s.Auto != "") { c.Auto = s.Auto; c.AutoCd = N("autoCd"); }
+            dur += N("durP") / 100f; tick += N("tickP") / 100f; heal += N("healP") / 100f; c.CritC += N("critC"); c.SelfHeal += N("selfHeal"); c.ManaBack += N("manaBack");
+            // several triggers combine: each fires on its own; the shown auto-cast is the first one, its delay the shortest
+            if (s.Auto != "") { if (c.Auto == "") c.Auto = s.Auto; float a = N("autoCd"); c.AutoCd = c.AutoCd > 0 ? Mathf.Min(c.AutoCd, a) : a; }
             if (s.Convert != "") c.Type = s.Convert;
             foreach (var kv in s.Status) c.Status.Add((kv.Key, kv.Value[0], kv.Value.Length > 1 ? kv.Value[1] : 1, kv.Value.Length > 2 ? kv.Value[2] : 0));
         }
@@ -147,6 +153,7 @@ public static class Skills
         float baseDmg = k.Scale == "weapon" ? d.WpnDmg() * k.Mult : (k.Dmg + k.Lvl * d.Level) * d.SpellPow();
         c.Dmg = baseDmg * more * (1 + TS["skillP"] / 100f) * (k.Scale == "weapon" ? 1 : 1);
         c.Radius = k.Radius * Mathf.Max(.3f, aoe); c.Speed = k.Speed * Mathf.Max(.3f, spd); c.Knock *= knock;
+        c.Dur = k.Dur * Mathf.Max(.3f, dur); c.Tick = k.Tick * Mathf.Max(.25f, tick); c.Heal = k.Heal * Mathf.Max(0, heal); c.ManaBack = Mathf.Min(c.ManaBack, 90f);
         c.Mp = k.Mp * Mathf.Max(0, cost) * (1f - (d.Weapon?.Mc ?? 0f)); c.St = k.St * Mathf.Max(0, cost);
         c.Cd = k.Cd * Mathf.Max(.2f, cd); c.Cast = k.Cast * Mathf.Max(.3f, cast) / (k.Scale == "weapon" ? d.AtkSpeed() : 1f + TS["castSpd"] / 100f);
         return c;

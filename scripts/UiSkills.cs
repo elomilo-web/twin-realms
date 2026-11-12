@@ -159,7 +159,10 @@ public partial class Ui
         if (sk.Kind == "projectile") Stat("Speed", $"{c.Speed:0} m/s");
         if (c.Pierce > 0) Stat("Pierce", c.Pierce.ToString()); if (c.Chain > 0) Stat("Chains", c.Chain.ToString());
         if (c.Homing) Stat("Homing", "yes"); if (c.Stun > 0) Stat("Stun", $"{c.Stun:0.0} s"); if (c.Up > 0) Stat("Knock-up", $"{c.Up:0}");
-        if (c.Echo > 0) Stat("Echo", "repeats"); if (c.Leech > 0) Stat("Leech", $"{c.Leech:0}%");
+        if (c.Echo > 0) Stat("Echo", c.Echo > 1 ? $"repeats x{Mathf.Min(c.Echo, 3)}" : "repeats"); if (c.Leech > 0) Stat("Leech", $"{c.Leech:0}%");
+        if (c.CritC > 0) Stat("Crit chance", $"+{c.CritC:0}%"); if (c.Execute > 0) Stat("Execute", $"+{c.Execute:0}%");
+        if (c.SelfHeal > 0) Stat("Heals on use", $"{c.SelfHeal:0.#}% hp"); if (c.ManaBack > 0) Stat("Cost refund", $"{c.ManaBack:0}%");
+        if (c.Dur > 0 && sk.Kind is "zone" or "buff") Stat("Duration", $"{c.Dur:0.#} s");
         if (c.Auto != "") Stat("Auto-cast", c.Auto == "timer" ? $"every {c.AutoCd:0} s" : c.Auto == "hit" ? "when hit" : "on crit");
         if (c.Status.Count > 0) Row(v, "Effects: " + string.Join(", ", c.Status.Select(s => $"{Dmg.Status(s.id)?.Name ?? s.id} {s.chance * 100:0}%")), new Color(.8f, .9f, 1f), 13);
 
@@ -187,9 +190,12 @@ public partial class Ui
         {
             // the picker: every unlocked modifier that fits this skill
             int sock = _openSocket;
-            var pick = new HFlowContainer(); pick.AddThemeConstantOverride("h_separation", 6); pick.AddThemeConstantOverride("v_separation", 6); v.AddChild(pick);
+            // in its own scroll box (there are many modifiers), grouped by their lane in the modifier tree
+            var pickScroll = new ScrollContainer { CustomMinimumSize = new Vector2(0, 230), HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; v.AddChild(pickScroll);
+            var pick = new HFlowContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; pick.AddThemeConstantOverride("h_separation", 6); pick.AddThemeConstantOverride("v_separation", 6); pickScroll.AddChild(pick);
             int shown = 0;
-            foreach (var sp in Skills.AllSupports)
+            var order = Skills.AllSupports.OrderBy(sp => ModTree.Get(ModTree.KeyOf(sp.Id, false)) is { } n ? ModTree.Branches.IndexOf(n.Branch) * 100 + n.Index : 9999).ToList();
+            foreach (var sp in order)
             {
                 if (!d.Supports.Contains(sp.Id) || !Skills.Fits(sp, sk)) continue;
                 bool here = ss.Sup[sock] == sp.Id, elsewhere = !here && ss.Sup.Contains(sp.Id); string sid = sp.Id; var mn = ModTree.Get(ModTree.KeyOf(sp.Id, false)); var col = mn?.Branch.Col ?? UiTheme.Accent;
