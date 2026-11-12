@@ -1,7 +1,8 @@
 # PowerShell version of tools/bot.sh and tools/observe.sh, for Windows machines without bash.
 #   powershell -File tools/run.ps1 bot       -> builds, runs the self-test bot, prints FAIL lines and the total
 #   powershell -File tools/run.ps1 bot scaling,dungeons -> only the bot steps whose names contain these words
-#   powershell -File tools/run.ps1 observe   -> builds, runs the observer, writes observe_out/
+#   powershell -File tools/run.ps1 showcase  -> builds, takes ~10 showcase pictures of the game into screenshots/showcase/
+#   powershell -File tools/run.ps1 observe  -> builds, runs the observer, writes observe_out/
 #   powershell -File tools/run.ps1 release   -> exports the Windows game and zips it into beta/ (the zip is not committed)
 #   powershell -File tools/run.ps1 upload    -> uploads the zip already in beta/ (no rebuild)
 #   powershell -File tools/run.ps1 publish   -> release, then uploads the zip as a GitHub Release v<version> (notes: tools/release_notes.md)
@@ -38,6 +39,14 @@ if ($mode -eq "bot") {
   "SHOTS: $n screenshots in screenshots/ (log: shots_log.txt)"
   $err = Get-Content shots_log.txt | Select-String "ERROR|SCRIPT ERROR|Unhandled|Exception|\[SPELLFX\]|\[KIT\]|\[WEAPONS\]|\[GENSHIN\]"
   if ($err) { "ENGINE ERRORS FOUND"; $err | Select-Object -First 30 }
+} elseif ($mode -eq "showcase") {
+  # showcase bot (scripts/Showcase.cs): ~10 good-looking pictures of the game on top graphics -> screenshots/showcase/
+  if (Test-Path screenshots/showcase) { Get-ChildItem screenshots/showcase -Filter *.png | Remove-Item }
+  & $godot --path . -- --showcase 2>&1 | ForEach-Object { "$_" } | Out-File -Encoding utf8 showcase_log.txt
+  $n = (Get-ChildItem screenshots/showcase -Filter *.png -ErrorAction SilentlyContinue).Count
+  "SHOWCASE: $n pictures in screenshots/showcase/ (log: showcase_log.txt)"
+  $err = Get-Content showcase_log.txt | Select-String "ERROR|SCRIPT ERROR|Unhandled|Exception|missing place"
+  if ($err) { "ENGINE ERRORS FOUND"; $err | Select-Object -First 20 }
 } elseif ($mode -eq "mp") {
   # two game windows on this computer: one hosts, one joins 127.0.0.1 and plays through the multiplayer checks
   New-Item -ItemType Directory -Force bot_out | Out-Null

@@ -21,3 +21,5 @@ __pycache__/
 shots_log.txt
 fit_log.txt
 beta/*.zip
+screenshots/showcase/
+showcase_log.txt
