@@ -2,6 +2,7 @@
 #   powershell -File tools/run.ps1 bot       -> builds, runs the self-test bot, prints FAIL lines and the total
 #   powershell -File tools/run.ps1 bot scaling,dungeons -> only the bot steps whose names contain these words
 #   powershell -File tools/run.ps1 showcase  -> builds, takes ~10 showcase pictures of the game into screenshots/showcase/
+#   powershell -File tools/run.ps1 quit      -> builds, plays a hero, quits to the title and plays again (QUIT_OK / QUIT_FAIL)
 #   powershell -File tools/run.ps1 observe  -> builds, runs the observer, writes observe_out/
 #   powershell -File tools/run.ps1 release   -> exports the Windows game and zips it into beta/ (the zip is not committed)
 #   powershell -File tools/run.ps1 upload    -> uploads the zip already in beta/ (no rebuild)
@@ -47,6 +48,12 @@ if ($mode -eq "bot") {
   "SHOWCASE: $n pictures in screenshots/showcase/ (log: showcase_log.txt)"
   $err = Get-Content showcase_log.txt | Select-String "ERROR|SCRIPT ERROR|Unhandled|Exception|missing place"
   if ($err) { "ENGINE ERRORS FOUND"; $err | Select-Object -First 20 }
+} elseif ($mode -eq "quit") {
+  # quit-to-title check (Main.cs --quit-test): starts a hero, quits to the title, then plays the hero again
+  & $godot --path . -- --quit-test 2>&1 | ForEach-Object { "$_" } | Out-File -Encoding utf8 quit_log.txt
+  $l = Get-Content quit_log.txt; $l | Select-String "\[QT\]"
+  if (($l | Select-String "title up=True") -and ($l | Select-String "replay started=True player=True")) { "QUIT_OK" } else { "QUIT_FAIL (see quit_log.txt)" }
+  $err = $l | Select-String "ERROR|Unhandled|Exception"; if ($err) { "ENGINE ERRORS FOUND"; $err | Select-Object -First 20 }
 } elseif ($mode -eq "mp") {
   # two game windows on this computer: one hosts, one joins 127.0.0.1 and plays through the multiplayer checks
   New-Item -ItemType Directory -Force bot_out | Out-Null

@@ -25,10 +25,17 @@ public partial class Torch : Node3D
     {
         _ph = GD.Randf() * 6f;
         var m = new StandardMaterial3D { AlbedoColor = Col, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded };
-        AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = 0.14f * Size, Height = 0.4f * Size, RadialSegments = 6, Rings = 3 }, MaterialOverride = m });
-        var fx = new CpuParticles3D { Amount = 10, Lifetime = 0.6f, Direction = Vector3.Up, Spread = 15f, InitialVelocityMin = 0.6f, InitialVelocityMax = 1.3f, Gravity = new Vector3(0, 1.5f, 0), Emitting = true,
-            Mesh = new SphereMesh { Radius = 0.06f * Size, Height = 0.12f * Size, RadialSegments = 4, Rings = 2, Material = m } };
-        AddChild(fx);
+        AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = 0.08f * Size, Height = 0.16f * Size, RadialSegments = 6, Rings = 3 }, MaterialOverride = m });   // the hot ember core under the flames
+        // licking flames (Kenney flame sprites) over the glowing core, with a wisp of smoke above
+        var g = Vfx.Ramp((0, new Color(1f, .95f, .6f, 0)), (.12f, new Color(1f, .78f, .32f, .95f)), (.45f, new Color(1f, .5f, .12f, .85f)), (1, new Color(1f, .3f, .05f, 0)));
+        var sc = new Curve(); sc.AddPoint(new Vector2(0, .6f)); sc.AddPoint(new Vector2(.3f, 1f)); sc.AddPoint(new Vector2(1, .2f));
+        var fx = new CpuParticles3D { Amount = 12, Lifetime = 0.6f, Direction = Vector3.Up, Spread = 12f, InitialVelocityMin = 0.5f, InitialVelocityMax = 1.1f, Gravity = new Vector3(0, 1.5f, 0), Emitting = true,
+            Mesh = new QuadMesh { Size = new Vector2(.42f * Size, .42f * Size), Material = Vfx.SpriteMat(false, "fire") }, ColorRamp = g, ScaleAmountCurve = sc, EmissionShape = CpuParticles3D.EmissionShapeEnum.Sphere, EmissionSphereRadius = .05f * Size };
+        Vfx.Spin(fx, "fire", 60f); AddChild(fx);
+        var sg = Vfx.Ramp((0, new Color(.85f, .82f, .78f, 0)), (.3f, new Color(.9f, .88f, .85f, .12f)), (1, new Color(1f, 1f, 1f, 0)));   // pale wisps (the textures are mid-grey, so the colour runs light)
+        var smoke = new CpuParticles3D { Amount = 5, Lifetime = 2.2f, Direction = Vector3.Up, Spread = 10f, InitialVelocityMin = .4f, InitialVelocityMax = .7f, Gravity = new Vector3(.15f, .3f, 0), Emitting = true, Position = new Vector3(0, .4f * Size, 0),
+            Mesh = new QuadMesh { Size = new Vector2(.6f * Size, .6f * Size), Material = Vfx.SpriteMat(false, "smoke") }, ColorRamp = sg, ScaleAmountMin = .7f, ScaleAmountMax = 1.4f };
+        Vfx.Spin(smoke, "smoke", 30f); AddChild(smoke);
         if (Light) { _l = new OmniLight3D { LightColor = Col, OmniRange = Range, LightEnergy = 1.4f, Position = new Vector3(0, 0.4f, 0) }; AddChild(_l); }
     }
     public override void _Process(double delta) { if (_l != null) _l.LightEnergy = 1.3f + Mathf.Sin(Game.PlayTime * 9f + _ph) * 0.2f + Mathf.Sin(Game.PlayTime * 23f + _ph) * 0.1f; }

@@ -23,3 +23,7 @@ fit_log.txt
 beta/*.zip
 screenshots/showcase/
 showcase_log.txt
+quit_log.txt
+quit_err.txt
+part_log.txt
+part_err.txt

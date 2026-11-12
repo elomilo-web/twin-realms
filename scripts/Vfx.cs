@@ -20,18 +20,79 @@ public static class Vfx
             return _soft = new GradientTexture2D { Gradient = g, Fill = GradientTexture2D.FillEnum.Radial, FillFrom = new Vector2(.5f, .5f), FillTo = new Vector2(1f, .5f), Width = 64, Height = 64 };
         }
     }
-    /// <summary>Billboard particle material: additive glow, or normal alpha for smoke.</summary>
-    public static StandardMaterial3D SpriteMat(bool additive = true) => new()
+    /// <summary>
+    /// Particle looks: sets of white-on-clear textures from Kenney's Particle Pack (CC0, assets/vfx/particles/), tinted by each effect's colours.
+    /// "" = the plain soft dot made in code. A set picks one of its textures at random per effect, so repeated bursts do not look stamped.
+    /// </summary>
+    public static readonly Dictionary<string, string[]> Sets = new()
     {
-        ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, BlendMode = additive ? BaseMaterial3D.BlendModeEnum.Add : BaseMaterial3D.BlendModeEnum.Mix,
-        BillboardMode = BaseMaterial3D.BillboardModeEnum.Particles, VertexColorUseAsAlbedo = true, AlbedoTexture = Soft, NoDepthTest = false,
+        ["fire"] = new[] { "flame_01", "flame_02", "flame_03", "flame_04", "fire_01", "fire_02" },
+        ["smoke"] = new[] { "smoke_01", "smoke_02", "smoke_03", "smoke_04", "smoke_05" },
+        ["spark"] = new[] { "spark_01", "spark_02", "spark_03", "spark_04" },
+        ["star"] = new[] { "star_01", "star_02", "star_04", "star_06" },
+        ["magic"] = new[] { "magic_01", "magic_02", "magic_03", "magic_04", "magic_05" },
+        ["twirl"] = new[] { "twirl_01", "twirl_02", "twirl_03" },
+        ["light"] = new[] { "light_01", "light_02", "light_03" },
+        ["scorch"] = new[] { "scorch_01", "scorch_02", "scorch_03" },
+        ["dirt"] = new[] { "dirt_01", "dirt_02", "dirt_03" },
+        ["circle"] = new[] { "circle_02", "circle_03", "circle_05" },
+        ["slash"] = new[] { "slash_01", "slash_02", "slash_03" },
     };
+    static readonly Dictionary<string, Texture2D?> _texCache = new();
+    /// <summary>A random texture of a set (or Soft when the set is "" or its files are missing).</summary>
+    public static Texture2D Tex(string set)
+    {
+        if (set == "" || !Sets.TryGetValue(set, out var names)) return Soft;
+        string n = names[(int)(GD.Randi() % (uint)names.Length)];
+        if (!_texCache.TryGetValue(n, out var t)) { string p = $"res://assets/vfx/particles/{n}.png"; _texCache[n] = t = ResourceLoader.Exists(p) ? GD.Load<Texture2D>(p) : null; }
+        return t ?? Soft;
+    }
+    static readonly Dictionary<(Texture2D, bool), StandardMaterial3D> _mats = new();
+    /// <summary>Billboard particle material: additive glow, or normal alpha for smoke. set = a texture set (see Sets). Shared per texture.</summary>
+    public static StandardMaterial3D SpriteMat(bool additive = true, string set = "")
+    {
+        var tex = Tex(set);
+        if (_mats.TryGetValue((tex, additive), out var m)) return m;
+        return _mats[(tex, additive)] = new StandardMaterial3D
+        {
+            ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, BlendMode = additive ? BaseMaterial3D.BlendModeEnum.Add : BaseMaterial3D.BlendModeEnum.Mix,
+            BillboardMode = BaseMaterial3D.BillboardModeEnum.Particles, VertexColorUseAsAlbedo = true, AlbedoTexture = tex, NoDepthTest = false,
+        };
+    }
+    /// <summary>Particles drawn with a texture set turn each sprite a random way (a field of identical flames looks fake).</summary>
+    public static void Spin(CpuParticles3D p, string set, float spin = 0f)
+    {
+        if (set == "") return;
+        p.AngleMin = 0; p.AngleMax = 360; if (spin != 0) { p.AngularVelocityMin = -spin; p.AngularVelocityMax = spin; }
+    }
+
+    /// <summary>A texture lying flat on the ground (scorch mark, frost rime, rune circle) that fades out. Lit like the ground around it.</summary>
+    public static void GroundMark(Vector3 pos, string set, float size, Color c, float hold, float fade, bool glow = false)
+    {
+        if (!Dungeon.Active && World.GroundAt(pos.X, pos.Z) > -50f) pos.Y = Mathf.Max(pos.Y, World.GroundAt(pos.X, pos.Z));
+        var mat = new StandardMaterial3D
+        {
+            AlbedoTexture = Tex(set), AlbedoColor = c, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, Roughness = 1f, CullMode = BaseMaterial3D.CullModeEnum.Disabled,
+            ShadingMode = glow ? BaseMaterial3D.ShadingModeEnum.Unshaded : BaseMaterial3D.ShadingModeEnum.PerPixel, BlendMode = glow ? BaseMaterial3D.BlendModeEnum.Add : BaseMaterial3D.BlendModeEnum.Mix,
+        };
+        // tilted to the slope (sampled across the mark) and lifted over the grass, so hillsides and meadows do not swallow it
+        var up = Vector3.Up; float lift = .06f;
+        if (!Dungeon.Active && World.GroundAt(pos.X, pos.Z) > -50f)
+        {
+            float e = size * .4f, hx = World.GroundAt(pos.X + e, pos.Z) - World.GroundAt(pos.X - e, pos.Z), hz = World.GroundAt(pos.X, pos.Z + e) - World.GroundAt(pos.X, pos.Z - e);
+            up = new Vector3(-hx, 2 * e, -hz).Normalized(); lift = .18f;
+        }
+        var m = Add(new MeshInstance3D { Mesh = new PlaneMesh { Size = new Vector2(size, size) }, MaterialOverride = mat, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off }, pos + up * lift);
+        float spin = GD.Randf() * Mathf.Tau; var fwd = up.Cross(new Vector3(Mathf.Cos(spin), 0, Mathf.Sin(spin))).Normalized();
+        if (fwd.LengthSquared() > .5f) m.Basis = Basis.LookingAt(fwd, up);
+        m.CreateTween().TweenProperty(mat, "albedo_color:a", 0f, fade).SetDelay(hold); Later(m, hold + fade + .1f);
+    }
     static StandardMaterial3D Glow(Color c, float alpha = 1f, bool add = true) => new()
     {
         ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, BlendMode = add ? BaseMaterial3D.BlendModeEnum.Add : BaseMaterial3D.BlendModeEnum.Mix,
         AlbedoColor = new Color(c, alpha), CullMode = BaseMaterial3D.CullModeEnum.Disabled,
     };
-    static Gradient Ramp(params (float t, Color c)[] pts)
+    public static Gradient Ramp(params (float t, Color c)[] pts)
     {
         var g = new Gradient(); g.SetColor(0, pts[0].c); g.SetOffset(0, pts[0].t); g.SetColor(1, pts[^1].c); g.SetOffset(1, pts[^1].t);
         for (int i = 1; i < pts.Length - 1; i++) g.AddPoint(pts[i].t, pts[i].c); return g;
@@ -43,15 +104,16 @@ public static class Vfx
     static T Add<T>(T n, Vector3 pos) where T : Node3D { Game.Root?.AddChild(n); n.GlobalPosition = pos; return n; }
 
     /// <summary>One-shot burst of soft glowing sprites.</summary>
-    public static CpuParticles3D Sparks(Vector3 pos, Gradient ramp, int count, float speed, float life, float size, float gravity = -4f, bool additive = true, float spread = 180f, Vector3? dir = null, float emitR = 0.1f)
+    public static CpuParticles3D Sparks(Vector3 pos, Gradient ramp, int count, float speed, float life, float size, float gravity = -4f, bool additive = true, float spread = 180f, Vector3? dir = null, float emitR = 0.1f, string set = "")
     {
         var p = new CpuParticles3D
         {
             Amount = count, Lifetime = life, OneShot = true, Explosiveness = .95f, Emitting = true, Direction = dir ?? Vector3.Up, Spread = spread,
             InitialVelocityMin = speed * .35f, InitialVelocityMax = speed, Gravity = new Vector3(0, gravity, 0), DampingMin = 1f, DampingMax = 3f,
-            Mesh = new QuadMesh { Size = new Vector2(size, size), Material = SpriteMat(additive) }, ColorRamp = ramp, ScaleAmountMin = .5f, ScaleAmountMax = 1.3f, ScaleAmountCurve = additive ? Shrink() : Grow(),
+            Mesh = new QuadMesh { Size = new Vector2(size, size), Material = SpriteMat(additive, set) }, ColorRamp = ramp, ScaleAmountMin = .5f, ScaleAmountMax = 1.3f, ScaleAmountCurve = set is "smoke" or "fire" || (set == "" && !additive) ? Grow() : Shrink(),   // smoke and flames swell; sparks, stars and wisps shrink away
             EmissionShape = CpuParticles3D.EmissionShapeEnum.Sphere, EmissionSphereRadius = emitR, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
         };
+        Spin(p, set, set is "smoke" or "fire" ? 90f : 0f);
         Add(p, pos); Later(p, life + .4f); return p;
     }
 
@@ -66,12 +128,14 @@ public static class Vfx
     public static void Explosion(Vector3 pos, float radius)
     {
         Flash(pos + Vector3.Up * .5f, new Color(1f, .55f, .2f), 7f, radius * 3.5f, .45f);
-        var core = Add(new MeshInstance3D { Mesh = new SphereMesh { Radius = 1, Height = 2, RadialSegments = 16, Rings = 8 }, MaterialOverride = Glow(new Color(1f, .6f, .2f), .9f), Scale = Vector3.One * .3f, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off }, pos);
+        var core = Add(new MeshInstance3D { Mesh = new SphereMesh { Radius = 1, Height = 2, RadialSegments = 16, Rings = 8 }, MaterialOverride = Glow(new Color(1f, .6f, .2f), .25f), Scale = Vector3.One * .3f, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off }, pos);
         var tw = core.CreateTween().SetParallel(); tw.TweenProperty(core, "scale", Vector3.One * radius * .75f, .22f).SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Cubic);
         tw.TweenProperty(core.MaterialOverride, "albedo_color:a", 0f, .4f); Later(core, .45f);
-        Sparks(pos, Ramp((0, new Color(1, .95f, .7f)), (.3f, new Color(1, .55f, .15f)), (1, new Color(.6f, .1f, .02f, 0))), 46, 11f, .8f, .5f, -6f);
-        Sparks(pos + Vector3.Up * .4f, Ramp((0, new Color(.25f, .22f, .2f, 0)), (.2f, new Color(.2f, .18f, .17f, .55f)), (1, new Color(.3f, .3f, .3f, 0))), 14, 2.2f, 1.6f, 1.6f, 1.2f, false, 60f, null, radius * .3f);
+        Sparks(pos, Ramp((0, new Color(1, .82f, .4f)), (.3f, new Color(1, .5f, .12f)), (1, new Color(.5f, .08f, .02f, 0))), 30, 7f, .7f, radius * .45f + .4f, 1.5f, false, 180f, null, radius * .25f, "fire");   // rolling flames (unshaded, normal blend: they read on bright ground too)
+        Sparks(pos, Ramp((0, new Color(1, .95f, .7f)), (.4f, new Color(1, .6f, .2f)), (1, new Color(.6f, .1f, .02f, 0))), 26, 13f, .55f, .35f, -9f, true, 180f, null, .1f, "spark");   // flying embers
+        Sparks(pos + Vector3.Up * .4f, Ramp((0, new Color(.25f, .22f, .2f, 0)), (.2f, new Color(.2f, .18f, .17f, .55f)), (1, new Color(.3f, .3f, .3f, 0))), 12, 2.2f, 1.8f, 2.2f, 1.2f, false, 60f, null, radius * .3f, "smoke");
         Ring(pos + Vector3.Up * .08f, radius, new Color(1f, .5f, .15f), .5f);
+        GroundMark(pos, "scorch", radius * 1.6f, new Color(.08f, .06f, .05f, .85f), 4f, 3f);   // a burnt patch that lingers
     }
 
     /// <summary>Flat ring on the ground that expands and fades.</summary>
@@ -102,7 +166,9 @@ public static class Vfx
             var tw = m.CreateTween(); tw.TweenProperty(m, "scale", new Vector3(s, s, s), .12f + i % 3 * .03f).SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
             tw.TweenInterval(.55f); tw.TweenProperty(m, "scale", new Vector3(s * .6f, .01f, s * .6f), .35f).SetEase(Tween.EaseType.In); Later(m, 1.2f);
         }
-        Sparks(pos + Vector3.Up * .5f, Ramp((0, new Color(1, 1, 1, .7f)), (1, new Color(.5f, .85f, 1f, 0))), 30, 7f, .9f, .16f, -1f, true, 70f, Vector3.Up, radius * .4f);
+        Sparks(pos + Vector3.Up * .5f, Ramp((0, new Color(1, 1, 1, .7f)), (1, new Color(.5f, .85f, 1f, 0))), 30, 7f, .9f, .3f, -1f, true, 70f, Vector3.Up, radius * .4f, "star");
+        Sparks(pos + Vector3.Up * .3f, Ramp((0, new Color(.8f, .95f, 1f, 0)), (.2f, new Color(.75f, .9f, 1f, .4f)), (1, new Color(.6f, .8f, 1f, 0))), 14, radius * 1.4f, 1.1f, 1.8f, 0f, false, 180f, Vector3.Right, .3f, "smoke").Flatness = 1f;   // cold mist rolling outward along the ground
+        GroundMark(pos, "circle", radius * 2.1f, new Color(.6f, .9f, 1f, .7f), .6f, 1.2f, true);   // frost rime on the ground
     }
 
     /// <summary>Healing: a rising pillar of green-gold light with motes spiralling up.</summary>
@@ -117,7 +183,8 @@ public static class Vfx
             var tw = col.CreateTween().SetParallel(); tw.TweenProperty(col, "scale", new Vector3(1f, 1f, 1f), .18f).SetEase(Tween.EaseType.Out); tw.TweenProperty(col.MaterialOverride, "albedo_color:a", 0f, t).SetDelay(.12f); Later(col, t + .2f);
         }
         Ring(pos + Vector3.Up * .1f, 2.2f, new Color(1f, .9f, .45f), .6f);
-        Sparks(pos + Vector3.Up * .3f, Ramp((0, new Color(1, 1, .7f)), (.5f, new Color(.5f, 1f, .5f)), (1, new Color(.4f, 1f, .4f, 0))), 36, 4f, 1.2f, .22f, 2.5f, true, 25f, Vector3.Up, .8f);
+        Sparks(pos + Vector3.Up * .3f, Ramp((0, new Color(1, 1, .7f)), (.5f, new Color(.5f, 1f, .5f)), (1, new Color(.4f, 1f, .4f, 0))), 36, 4f, 1.2f, .4f, 2.5f, true, 25f, Vector3.Up, .8f, "star");
+        Sparks(pos + Vector3.Up * 1f, Ramp((0, new Color(1, 1, .8f, 0)), (.3f, new Color(.6f, 1f, .5f, .6f)), (1, new Color(.4f, 1f, .4f, 0))), 4, .5f, .8f, 2.6f, 1f, true, 20f, Vector3.Up, .2f, "light");   // a soft bloom around the hero
     }
 
     /// <summary>A column of light striking down at a point (Smite), with a ground ring.</summary>
@@ -127,14 +194,15 @@ public static class Vfx
         var col = Add(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = radius * .35f, BottomRadius = radius * .55f, Height = 9f, RadialSegments = 20, CapTop = false, CapBottom = false }, MaterialOverride = Glow(c, .6f), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off }, pos + Vector3.Up * 4.5f);
         var tw = col.CreateTween().SetParallel(); tw.TweenProperty(col, "scale", new Vector3(.2f, 1, .2f), .35f).SetEase(Tween.EaseType.In); tw.TweenProperty(col.MaterialOverride, "albedo_color:a", 0f, .35f); Later(col, .4f);
         Ring(pos + Vector3.Up * .1f, radius, c, .4f);
-        Sparks(pos + Vector3.Up * .3f, Ramp((0, Colors.White), (1, new Color(c, 0))), 30, 6f, .6f, .22f, -2f);
+        Sparks(pos + Vector3.Up * .3f, Ramp((0, Colors.White), (1, new Color(c, 0))), 30, 6f, .6f, .4f, -2f, true, 180f, null, .1f, "star");
+        GroundMark(pos, "circle", radius * 2.2f, new Color(c, .8f), .3f, .8f, true);
     }
 
     /// <summary>Jagged lightning between two points (core and glow), re-forking a few times before it fades.</summary>
     public static void Lightning(Vector3 a, Vector3 b, Color c, float time = .25f)
     {
         var bolt = new LightningBolt { A = a, B = b, Col = c, Life = time }; Game.Root?.AddChild(bolt);
-        Flash(b, c, 3f, 6f, time); Sparks(b, Ramp((0, Colors.White), (1, new Color(c, 0))), 10, 6f, .3f, .18f, -3f);
+        Flash(b, c, 3f, 6f, time); Sparks(b, Ramp((0, Colors.White), (1, new Color(c, 0))), 12, 6f, .3f, .45f, -3f, true, 180f, null, .1f, "spark");
     }
 }
 

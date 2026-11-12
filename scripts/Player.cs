@@ -113,7 +113,7 @@ public partial class Player : CharacterBody3D, IDamageable
         string wt = d.WType();
         if (wt != _atkClass && Attacks.HasStyle(wt))
         {
-            bool first = _atkClass != ""; _atkClass = wt; var b = Attacks.Build(wt); _combo = 0; _comboT = 0;
+            bool first = _atkClass != ""; _atkClass = wt; var b = Attacks.Build(wt); _combo = 0; _comboT = 0; _hasQueue = false;   // a click buffered for the old weapon does not carry over
             if (first) Ui.Note($"{Attacks.StyleName(wt)} on {Inputs.KeyOf(Inputs.Attack)}: {string.Join(" > ", b.Chain.Select(s => Attacks.Step(wt, s)?.Name ?? s))}  ({Inputs.KeyOf(Inputs.AttacksUi)} to edit)", new Color(1f, .85f, .5f));
         }
         _rig.ApplyGear(d);
@@ -228,14 +228,14 @@ public partial class Player : CharacterBody3D, IDamageable
 
     void Die()
     {
-        Flag.Event("DIED"); CancelCast(); Dead = true; Hp = 0; _deadT = 0; _atkT = 0; _blocking = false; if (Mounted) ToggleMount(true);
+        Flag.Event("DIED"); CancelCast(); Dead = true; Statuses.Clear();   // death cleanses: nothing burns or slows the hero after respawning Hp = 0; _deadT = 0; _atkT = 0; _blocking = false; if (Mounted) ToggleMount(true);
         Sfx.Play("die");
         if (Arenas.Active) Arenas.OnPlayerDeath();
     }
 
     public void Revive(Vector3 pos)
     {
-        Dead = false; Hp = Game.D.MaxHp(); Mp = Game.D.MaxMp(); St = Game.D.MaxSt(); _model.Rotation = new Vector3(0, _modelYaw, 0);
+        Dead = false; Statuses.Clear(); _stagger = 0; Hp = Game.D.MaxHp(); Mp = Game.D.MaxMp(); St = Game.D.MaxSt(); _model.Rotation = new Vector3(0, _modelYaw, 0);
         GlobalPosition = pos; Velocity = Vector3.Zero; _inv = 2f;
     }
 
@@ -245,7 +245,7 @@ public partial class Player : CharacterBody3D, IDamageable
 
     public void Teleport(Vector3 pos, float yaw = 0f)
     {
-        GlobalPosition = pos; Velocity = Vector3.Zero; _kb = Vector3.Zero; _hitKb = Vector3.Zero; _walkV = Vector3.Zero; if (_castT > 0 || _atkSkill != null) CancelCast();
+        GlobalPosition = pos; Velocity = Vector3.Zero; _kb = Vector3.Zero; _hitKb = Vector3.Zero; _walkV = Vector3.Zero; _hasQueue = false; if (_castT > 0 || _atkSkill != null) CancelCast();
         if (Rig != null) { Rig.GlobalPosition = pos + new Vector3(0, 1.6f, 0); Rig.Rotation = new Vector3(0, yaw, 0); }
         _modelYaw = yaw;
     }
@@ -305,7 +305,7 @@ public partial class Player : CharacterBody3D, IDamageable
         else { _step = null; _atk = power ? w.Power : w.Combo[Mathf.Min(_combo, w.Combo.Count - 1)]; }
         UseStamina(cost * (_step?.Stamina ?? 1f));
         Fought(); _atkPower = power; _atkDur = _atk.Dur / (Game.D.AtkSpeed() * w.Speed * (_step?.Speed ?? 1f)); _atkT = _atkDur; _hitDone = false; _atkSerial++;
-        _recPending = (_step?.Recover ?? (power ? .5f : .05f)) / Game.D.AtkSpeed(); _comboT = _atkDur + _recPending + 0.55f;   // recovery counts toward keeping the chain going
+        _recPending = (_step?.Recover ?? (power ? .5f : .05f)) / Game.D.AtkSpeed(); _comboT = _atkDur + _recPending + Tune.F("player.chainWindow", 1.3f);   // recovery counts toward keeping the chain going; then this long to press again before it starts over
         NetAtkAnim = _step != null && _step.Anim != "" ? Avatar.AttackIndex(_step.Anim) : 0; NetAtkHit = _atk.Hit * _atkDur;
         float camYaw = Rig?.Yaw ?? _modelYaw; float face = camYaw;
         var tgt = Targeting.Aim; _magnet = null;
@@ -508,10 +508,13 @@ public partial class Player : CharacterBody3D, IDamageable
         // attack (left mouse): tap = next step of the chain, hold = keep swinging the chain.
         // heavy (right mouse): pressing starts a short gather; the heavy attack fires by itself when it ends (not on release)
         bool lmb = captured && Input.IsActionPressed(Inputs.Attack);
-        if (captured && Input.IsActionJustPressed(Inputs.Attack)) { if (!TryAttack(false)) { _hasQueue = true; _queuePower = false; _queueT = Mathf.Max(0.3f, _recT + .15f); } }   // a press during recovery waits for it
+        // a press during a swing or its recovery waits for them (it used to give up after 0.3 s, so a press early in a slow swing was lost)
+        if (captured && Input.IsActionJustPressed(Inputs.Attack)) { if (!TryAttack(false)) { _hasQueue = true; _queuePower = false; _queueT = Mathf.Max(0.3f, Mathf.Min(_atkT, .8f) + Mathf.Max(_recT, _recPending) + .15f); } }
         else if (lmb && !_hasQueue && _atkT <= 0 && _heavyT <= 0) TryAttack(false);   // held: the chain on repeat
-        if (captured && Input.IsActionJustPressed(Inputs.Heavy) && _heavyT <= 0 && !Dead) { _heavyT = HeavyGather; FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.1f, 0), "Heavy", new Color(1f, .8f, .45f), .35f); }
-        if (_heavyT > 0) { _heavyT -= dt; if (_heavyT <= 0 && !TryAttack(true)) { _hasQueue = true; _queuePower = true; _queueT = Mathf.Max(0.3f, _recT + .15f); } }
+        // pressing heavy drops a buffered light press, so the light swing cannot start during the gather and take the heavy's turn
+        if (captured && Input.IsActionJustPressed(Inputs.Heavy) && _heavyT <= 0 && !Dead) { _heavyT = HeavyGather; if (!_queuePower) _hasQueue = false; FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.1f, 0), "Heavy", new Color(1f, .8f, .45f), .35f); }
+        if (_heavyT > 0) { _heavyT -= dt; if (_heavyT <= 0 && !TryAttack(true)) { _hasQueue = true; _queuePower = true; _queueT = Mathf.Max(0.3f, Mathf.Min(_atkT, .8f) + Mathf.Max(_recT, _recPending) + .15f); } }
+        if (_hasQueue && _heavyT > 0 && !_queuePower) _hasQueue = false;   // no light swing while a heavy gathers
         if (_hasQueue) { _queueT -= dt; if (_queueT <= 0) _hasQueue = false; else if (_atkT <= 0 && TryAttack(_queuePower)) _hasQueue = false; }
 
         // ---- block

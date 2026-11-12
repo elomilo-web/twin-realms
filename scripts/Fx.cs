@@ -5,18 +5,12 @@ namespace TwinRealms;
 /// <summary>Cheap visual effects: particle bursts and expanding rings.</summary>
 public static class Fx
 {
-    public static void Burst(Vector3 pos, Color col, int count = 12, float speed = 4f, float life = 0.5f, float size = 0.12f, float gravity = -6f)
+    /// <summary>A burst of glowing flashes (Kenney star textures, tinted). set = another texture set from Vfx.Sets.</summary>
+    public static void Burst(Vector3 pos, Color col, int count = 12, float speed = 4f, float life = 0.5f, float size = 0.12f, float gravity = -6f, string set = "star")
     {
-        var root = Game.Root; if (root == null) return;
-        var p = new CpuParticles3D
-        {
-            Amount = count, Lifetime = life, OneShot = true, Explosiveness = 1f, Emitting = true,
-            Direction = Vector3.Up, Spread = 180f, InitialVelocityMin = speed * 0.4f, InitialVelocityMax = speed,
-            Gravity = new Vector3(0, gravity, 0),
-            Mesh = new SphereMesh { Radius = size, Height = size * 2, RadialSegments = 6, Rings = 3, Material = new StandardMaterial3D { AlbedoColor = col, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded } },
-        };
-        root.AddChild(p); p.GlobalPosition = pos;
-        root.GetTree().CreateTimer(life + 0.3).Timeout += p.QueueFree;
+        if (Game.Root == null) return;
+        var g = new Gradient(); g.SetColor(0, col.Lerp(Colors.White, .2f)); g.SetColor(1, new Color(col, 0)); g.AddPoint(.35f, col);
+        Vfx.Sparks(pos, g, count, speed, life, size * 6f, gravity, false, 180f, null, .1f, set);   // unshaded, normal blend: bright on dark ground and on sunny grass alike
     }
 
     public static void Ring(Vector3 pos, float radius, Color col, float time = 0.45f)

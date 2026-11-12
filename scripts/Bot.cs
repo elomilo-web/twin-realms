@@ -573,6 +573,7 @@ public partial class Bot : Node
             d.Eq["shield"] = null; d.Eq["weapon"] = new Item { Name = "Fine Sword", Slot = "weapon", Wt = "sword", Dmg = 5 }; Game.Notify(); Heal();
             var spot = World.OnGround(-40, 40, .6f); P.Teleport(spot, 0f); await Wait(.5f);
             var b = Attacks.Build("sword"); b.Chain.Clear(); b.Chain.AddRange(new[] { "cut", "backcut", "thrust" });
+            await Wait(Tune.F("player.chainWindow", 1.3f) + 1f);   // let any chain left open by the step before run out, so this one starts at "cut"
             var seen = new List<string>(); var av = P.Av;
             async Task Free() { float w = 0; while (w < 3f && (P.Attacking || P.Recovering)) { await Wait(.02f); w += .02f; } }
             for (int i = 0; i < 3; i++)
@@ -620,8 +621,25 @@ public partial class Bot : Node
             var spot = World.OnGround(-80, -80, .5f); P.Teleport(spot, 0f);
             var foe = new Enemy { Type = "golem", Level = 20, AnyRealm = true, NoLeash = true, Position = spot + new Vector3(0, 0, -2.2f) }; Game.Root!.AddChild(foe); await Wait(.5f); Targeting.Set(foe); foe.Stun(10f);   // a still target: its blows would (rightly) interrupt the chain
             var seen = new List<string>();
+            for (float w = 0; w < 4f && (P.Attacking || P.Recovering); w += .05f) await Wait(.05f);   // the step before may still be finishing a heavy swing
             for (int i = 0; i < 3; i++) { Heal(); MouseRaw(MouseButton.Left, true); await Wait(.06f); MouseRaw(MouseButton.Left, false); await Wait(.08f); seen.Add(P.CurrentStep?.Id ?? "-"); await Wait(.45f); }
             Check("taps walk the chain in order", string.Join(",", seen) == "flurry,cut,rend", string.Join(",", seen));
+            // a full rank-5 chain: every added step swings, each with its own animation
+            foreach (var sid in new[] { "riposte", "whirl" }) Attacks.UnlockStep("sword", sid);
+            while (Attacks.Build("sword").Rank < Attacks.MaxRank) { d.RankPts++; Attacks.RankUp("sword"); }
+            var longChain = new[] { "cut", "backcut", "thrust", "flurry", "rend", "riposte", "whirl" };
+            b.Chain.Clear(); b.Chain.AddRange(longChain); b.Mods.Clear(); await Wait(1.5f);
+            var ids = new List<string>(); var clips = new List<string>();
+            for (int i = 0; i < longChain.Length; i++)
+            {
+                Heal(); foe.Stun(10f); P.Teleport(spot, 0f); MouseRaw(MouseButton.Left, true); await Wait(.06f); MouseRaw(MouseButton.Left, false);
+                for (float t = 0; t < 1.5f && !P.Attacking; t += .03f) await Wait(.03f);   // a tap during a finisher's recovery waits for it
+                await Wait(.1f); ids.Add(P.CurrentStep?.Id ?? "-"); clips.Add(P.AvClip);
+                while (P.Attacking) await Wait(.03f); await Wait(.8f);   // a human pause between taps keeps the chain going
+            }
+            Check("a 7-step chain swings all 7 steps in order", string.Join(",", ids) == string.Join(",", longChain), string.Join(",", ids));
+            var want = longChain.Select(s => Avatar.AtkName(JsonUtil.S(Attacks.Step("sword", s)!.Raw, "anim"))).ToList();
+            Check("each chain step plays its own animation", clips.SequenceEqual(want), string.Join(",", clips) + " | want " + string.Join(",", want));
             // bow: twin shot fires two arrows (into open ground: arrows that hit vanish before they can be counted)
             Targeting.Clear(); foe.QueueFree(); await Wait(.2f);
             d.Eq["weapon"] = new Item { Name = "Hunting Bow", Slot = "weapon", Wt = "bow", Dmg = 5, Two = true }; Game.Notify(); await Wait(.2f);
@@ -798,9 +816,11 @@ public partial class Bot : Node
         await Step("death and respawn", async () =>
         {
             var e = Nearest(); if (e != null) P.Teleport(e.GlobalPosition + new Vector3(0, 0.5f, 3f), 0f);
+            foreach (var sid in new[] { "burn", "poison", "chill", "bleed" }) P.Statuses.Add(sid, 10f, 0, 5f);   // long statuses that would outlast the respawn
             P.TakeHit(new HitInfo { Damage = 99999, From = P.GlobalPosition + Vector3.Forward, NoBlock = true });
             await Wait(0.5f); Check("player can die", P.Dead || P.Hp <= 0); await Shot("17_dead"); await Wait(4.5f);
             Check("player respawns", !P.Dead, "dead=" + P.Dead);
+            Check("death cleanses every status", P.Statuses.List.Count == 0, string.Join(",", P.Statuses.List.Select(s => s.Def.Id)));
         });
 
         Finish();

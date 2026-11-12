@@ -52,7 +52,7 @@ public partial class Ui
         var quit = Big(_confirmQuit ? "Really quit to title?" : "Quit to title", () =>
         {
             if (!_confirmQuit) { _confirmQuit = true; OpenPause(); return; }
-            GD.Print("[UI] quit to title"); _confirmQuit = false; Game.Save(); Net.I?.Shutdown(); GetTree().Paused = false; InGame = false; GetTree().ReloadCurrentScene();
+            QuitToTitle();
         });
         if (_confirmQuit)
         {
@@ -60,6 +60,12 @@ public partial class Ui
             var l = Row(r, "Your hero is saved first. Click again to quit, or Resume to stay.", Dim, 13); l.HorizontalAlignment = HorizontalAlignment.Center;
         }
         var hint = Row(v, $"{K(Inputs.Pause)} resumes.   Every key can be changed in Settings > Controls.", Dim, 13); hint.HorizontalAlignment = HorizontalAlignment.Center;
+    }
+
+    /// <summary>Saves, leaves multiplayer and reloads the scene, which starts on the title screen.</summary>
+    public void QuitToTitle()
+    {
+        GD.Print("[UI] quit to title"); _confirmQuit = false; Game.Save(); Net.I?.Shutdown(); GetTree().Paused = false; InGame = false; GetTree().ReloadCurrentScene();
     }
 
     /// <summary>Labelled bar with "value / max" on the right.</summary>

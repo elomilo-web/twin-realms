@@ -69,6 +69,9 @@ All from ambientCG (ambientcg.com), CC0 1.0, 1K JPG. Colour map kept for each, t
 
 Sounds with no file (hit, hurt, fire, zap, level, portal, shift, die) use soft synthesised bells in `Sfx.cs`.
 
+## Particle textures (`vfx/particles/`, added 2026-11-12)
+Kenney "Particle Pack" 1.1 by Kenney Vleugels (www.kenney.nl), CC0 (license in `vfx/particles/LICENSE_Kenney.txt`). 43 of its 80 sprites, scaled to 256x256: flames, smoke, sparks, stars, magic wisps, twirls, light, scorch, dirt, circles, slashes. Taken from the Godot packaging at https://github.com/Calinou/kenney-particle-pack (original page: https://kenney.nl/assets/particle-pack). Used by `scripts/Vfx.cs` (`Vfx.Sets`).
+
 ## Shader
 `scripts/Toon.cs` â€” toon lighting + screen-space outline, written for this project (no third-party code).
 

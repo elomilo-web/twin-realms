@@ -57,8 +57,10 @@ public partial class Projectile : Node3D
             AddChild(new MeshInstance3D { Mesh = new QuadMesh { Size = new Vector2(r * 4.5f, r * 4.5f) }, MaterialOverride = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, BlendMode = BaseMaterial3D.BlendModeEnum.Add, BillboardMode = BaseMaterial3D.BillboardModeEnum.Enabled, AlbedoTexture = Vfx.Soft, AlbedoColor = new Color(c, .9f) }, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
             var g = new Gradient(); g.SetColor(0, fire ? new Color(1, .9f, .5f, .9f) : new Color(c.Lerp(Colors.White, .4f), .8f)); g.SetColor(1, fire ? new Color(.5f, .08f, .02f, 0) : new Color(c, 0)); g.AddPoint(.4f, fire ? new Color(1, .45f, .1f, .7f) : new Color(c, .5f));
             var sc = new Curve(); sc.AddPoint(new Vector2(0, 1)); sc.AddPoint(new Vector2(1, .1f));
-            AddChild(new CpuParticles3D { Amount = fire ? 48 : 26, Lifetime = fire ? .45f : .3f, LocalCoords = false, Gravity = new Vector3(0, fire ? 2.5f : 0f, 0), Spread = 180, InitialVelocityMin = .1f, InitialVelocityMax = fire ? 1.2f : .5f,
-                Mesh = new QuadMesh { Size = new Vector2(r * 2.4f, r * 2.4f), Material = Vfx.SpriteMat() }, ColorRamp = g, ScaleAmountCurve = sc, EmissionShape = CpuParticles3D.EmissionShapeEnum.Sphere, EmissionSphereRadius = r * .5f });
+            string look = fire ? "fire" : "magic";   // Kenney flame sprites behind fire, swirling magic wisps behind everything else
+            var trail = new CpuParticles3D { Amount = fire ? 48 : 26, Lifetime = fire ? .45f : .3f, LocalCoords = false, Gravity = new Vector3(0, fire ? 2.5f : 0f, 0), Spread = 180, InitialVelocityMin = .1f, InitialVelocityMax = fire ? 1.2f : .5f,
+                Mesh = new QuadMesh { Size = new Vector2(r * 3.6f, r * 3.6f), Material = Vfx.SpriteMat(!fire, look) }, ColorRamp = g, ScaleAmountCurve = sc, EmissionShape = CpuParticles3D.EmissionShapeEnum.Sphere, EmissionSphereRadius = r * .5f };
+            Vfx.Spin(trail, look, 180f); AddChild(trail);
             AddChild(new OmniLight3D { LightColor = c, OmniRange = fire ? 8f : 6f, LightEnergy = fire ? 2.2f : 1.2f });
         }
         if (Vel.LengthSquared() > 0.01f && Kind == "arrow") LookAt(GlobalPosition + Vel, Vector3.Up);
@@ -150,7 +152,7 @@ public partial class Projectile : Node3D
         }
         else if (Aoe > 0)
         {
-            Fx.Burst(to, new Color(1, 0.4f, 0.1f), 24, 6f, 0.6f, 0.2f);
+            Fx.Burst(to, new Color(1, 0.4f, 0.1f), 24, 6f, 0.6f, 0.2f, -6f, "fire");
             foreach (var hero in Heroes()) if (hero.GlobalPosition.DistanceTo(to) < Aoe) ((IDamageable)hero).TakeHit(new HitInfo { Damage = Dmg, From = to, Knock = 5f, NoBlock = true, Stagger = true });
         }
         QueueFree();

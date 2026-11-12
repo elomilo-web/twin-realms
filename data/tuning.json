@@ -22,7 +22,8 @@
       "spellPerMag": 0.08, "spellPerLevel": 0.02,
       "hpRegenBase": 0, "hpRegenPerVit": 0.02, "mpRegenBase": 1.5, "mpRegenPerMag": 0.05,
       "healthPotion": 0.5, "manaPotion": 0.6,
-      "combatStanceSeconds": 6
+      "combatStanceSeconds": 6,
+      "chainWindow": 1.3
     },
     "stamina": {
       "_help": "Stamina cost of each action. Sprint drain and refill speed are in files > feel.json > move. twoHandedMul / daggerMul scale melee costs for two-handed weapons and daggers. blockPerDamage: stamina lost per point of damage blocked.",

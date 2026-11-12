@@ -328,14 +328,14 @@ public partial class Player
                 {
                     // shadow step: appear behind the target facing it, then strike with a guaranteed crit
                     var back = new Vector3(Mathf.Sin(target.Rotation.Y), 0, Mathf.Cos(target.Rotation.Y)); var to = target.GlobalPosition + back * (target.Def.R + 1.1f);
-                    Vfx.Sparks(GlobalPosition + Vector3.Up, Ramp(new Color(.6f, .3f, 1f)), 24, 3, .5f, .3f, 1f);
+                    Vfx.Sparks(GlobalPosition + Vector3.Up, Ramp(new Color(.6f, .3f, 1f)), 24, 3, .5f, .6f, 1f, true, 180f, null, .3f, "twirl");
                     GlobalPosition = Ground(to) + Vector3.Up * .2f; var dd = target.GlobalPosition - GlobalPosition; _modelYaw = Util.YawTo(dd.X, dd.Z);
-                    Vfx.Sparks(GlobalPosition + Vector3.Up, Ramp(new Color(.6f, .3f, 1f)), 24, 3, .5f, .3f, 1f);
+                    Vfx.Sparks(GlobalPosition + Vector3.Up, Ramp(new Color(.6f, .3f, 1f)), 24, 3, .5f, .6f, 1f, true, 180f, null, .3f, "twirl");
                     target.TakeHit(c.Hit(c.Dmg, GlobalPosition, true)); Rig?.Shake(.15f);
                     SpellFx.Skill(k.Id, "hit", target.GlobalPosition + Vector3.Up * target.HeightM() * .55f);
                     // more "projectiles": shadow copies strike the target again for half; echoes strike again in full; chains leap from it
                     var tg = target;
-                    for (int i = 1; i < c.Count; i++) GetTree().CreateTimer(.12f * i).Timeout += () => { if (IsInstanceValid(tg) && !tg.Dead) { tg.TakeHit(c.Hit(c.Dmg * .5f, GlobalPosition, Crit(c))); Vfx.Sparks(tg.GlobalPosition + Vector3.Up, Ramp(new Color(.6f, .3f, 1f)), 10, 2, .3f, .2f, 1f); } };
+                    for (int i = 1; i < c.Count; i++) GetTree().CreateTimer(.12f * i).Timeout += () => { if (IsInstanceValid(tg) && !tg.Dead) { tg.TakeHit(c.Hit(c.Dmg * .5f, GlobalPosition, Crit(c))); Vfx.Sparks(tg.GlobalPosition + Vector3.Up, Ramp(new Color(.6f, .3f, 1f)), 10, 2, .3f, .45f, 1f, true, 180f, null, .1f, "twirl"); } };
                     if (c.Echo > 0 && !echo) GetTree().CreateTimer(.3f).Timeout += () => { if (IsInstanceValid(tg) && !tg.Dead) tg.TakeHit(c.Hit(c.Dmg, GlobalPosition, Crit(c))); };
                     if (c.Chain > 0) ChainFrom(c, target.GlobalPosition, c.Chain);
                 }
@@ -442,7 +442,10 @@ public partial class Player
     {
         float r = Mathf.Max(2.5f, c.Radius);
         AreaHit(c, at, r, mul); SpellFx.Skill(c.Def.Id, "hit", at, FxFit(c.Def.Id, "hit", r)); Vfx.Ring(at + Vector3.Up * .1f, r, W.Trail, .35f);
-        Vfx.Sparks(at, Ramp(new Color(.7f, .6f, .5f)), mul >= 1 ? 30 : 14, 6, .5f, .3f, -8f); Rig?.Shake(mul >= 1 ? .3f : .12f);
+        var dust = new Gradient(); dust.SetColor(0, new Color(.55f, .48f, .4f, .8f)); dust.SetColor(1, new Color(.5f, .45f, .4f, 0));
+        Vfx.Sparks(at, dust, mul >= 1 ? 24 : 12, 6, .6f, .7f, -8f, false, 180f, null, .3f, "dirt");   // thrown-up earth
+        if (mul >= 1) Vfx.GroundMark(at, "scorch", r * 1.3f, new Color(.12f, .1f, .08f, .7f), 2f, 2f);   // a dent in the ground
+        Rig?.Shake(mul >= 1 ? .3f : .12f);
     }
     void PathHit(SkillCalc c, Vector3 a, Vector3 b, float mul)
     {
@@ -507,7 +510,8 @@ public partial class SkillZone : Node3D
             var g = new Gradient(); g.SetColor(0, new Color(Col, 0)); g.AddPoint(.3f, new Color(Col, .8f)); g.SetColor(1, new Color(Col, 0));
             _fx = new CpuParticles3D { Amount = Rain ? 60 : 30, Lifetime = Rain ? .5f : 1.2f, EmissionShape = CpuParticles3D.EmissionShapeEnum.Box, EmissionBoxExtents = new Vector3(r * .8f, .1f, r * .8f), Position = Vector3.Up * (Rain ? 9f : .2f),
                 Gravity = new Vector3(0, Rain ? -60f : 1.5f, 0), Direction = Rain ? Vector3.Down : Vector3.Up, InitialVelocityMin = Rain ? 15 : .3f, InitialVelocityMax = Rain ? 20 : 1f, ColorRamp = g,
-                Mesh = new QuadMesh { Size = Rain ? new Vector2(.06f, .7f) : new Vector2(.3f, .3f), Material = Vfx.SpriteMat() }, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
+                Mesh = new QuadMesh { Size = Rain ? new Vector2(.06f, .7f) : new Vector2(.6f, .6f), Material = Vfx.SpriteMat(true, Rain ? "" : "magic") }, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
+            if (!Rain) Vfx.Spin(_fx, "magic", 90f);   // swirling wisps rise from the zone
             AddChild(_fx);
         }
         else if (Calc.Type == "fire")

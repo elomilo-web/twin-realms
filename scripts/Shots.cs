@@ -56,6 +56,31 @@ public partial class Shots : Node
         _free.GlobalPosition = from.Value; _free.LookAt(at, Vector3.Up); _free.Current = true;
     }
 
+    /// <summary>The particle effects (Kenney textures, Vfx.Sets) one at a time in an open field, from a close side camera.</summary>
+    async Task ParticleShots()
+    {
+        var at = World.OnGround(-52, 40, 0); P.Teleport(at + new Vector3(2.5f, .5f, 1.5f), 0f); World.TimeOfDay = .55f; await Wait(1f); Free(at + new Vector3(0, 2.4f, 5.5f), at + Vector3.Up * .8f); await Wait(1f);
+        var mid = at + Vector3.Up * 1f;
+        foreach (var (name, fx, delay) in new (string, Action, float)[]
+        {
+            ("explosion", () => Vfx.Explosion(at, 3f), .15f),
+            ("explosion_scorch", () => { }, 1.4f),
+            ("frost_nova", () => Vfx.FrostNova(at, 4f), .2f),
+            ("heal", () => Vfx.HealPillar(P), .3f),
+            ("smite", () => Vfx.HealPillarAt(at, new Color(1f, .85f, .4f), 2.5f), .15f),
+            ("lightning", () => Vfx.Lightning(at + new Vector3(-3, 3, 0), at + Vector3.Up, new Color(.6f, .8f, 1f)), .08f),
+            ("hit_sparks", () => { for (int i = 0; i < 3; i++) Fx.Burst(mid + new Vector3(i - 1, 0, 0), new Color(1, .8f, .2f), 12, 4f, .35f, .08f); }, .1f),
+            ("death_wisps", () => Fx.Burst(mid, new Color(.8f, .2f, .2f), 16, 5f, .6f, .12f, -6f, "magic"), .2f),
+            ("fire_bolt", () => { Game.Root!.AddChild(new Projectile { Kind = "fire", Own = 'x', Vel = Vector3.Right * 3f, Life = 3f, Position = mid + Vector3.Left * 2f }); }, .6f),
+            ("shadow_bolt", () => { Game.Root!.AddChild(new Projectile { Kind = "bolt", Own = 'x', Vel = Vector3.Right * 3f, Life = 3f, Tint = new Color(.6f, .3f, 1f), Position = mid + Vector3.Left * 2f }); }, .6f),
+            ("torch", () => { Game.Root!.AddChild(new Torch { Size = 2f, Position = at + Vector3.Up * .5f }); }, 1.2f),
+        })
+        {
+            ClearField(); if (name != "explosion_scorch") await Wait(.8f);
+            fx(); await Wait(delay); await Shot("particles_" + name);
+        }
+    }
+
     async Task Run()
     {
         try { await Tour(); } catch (Exception e) { GD.PrintErr("[SHOTS] tour threw: " + e); }
@@ -77,6 +102,7 @@ public partial class Shots : Node
         if (OS.GetCmdlineUserArgs().Contains("--lands")) { await LandsTour(); return; }
         if (OS.GetCmdlineUserArgs().Contains("--menus")) { await MenuShots(); return; }
         if (OS.GetCmdlineUserArgs().Contains("--perf")) { await PerfCheck(); return; }
+        if (OS.GetCmdlineUserArgs().Contains("--particles")) { await ParticleShots(); return; }
         if (OS.GetCmdlineUserArgs().Contains("--hands"))
         {
             // which hand each clip reaches out with (model space: -Z is forward, +X is the model's left after the 180 turn)

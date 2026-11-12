@@ -547,7 +547,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         float lvlF = Level < D.Level - Tune.F("monsters.lowLevelGap", 4) ? Tune.F("monsters.lowLevelXp", .5f) : 1f;   // data/tuning.json "game.monsters"
         int xp = Mathf.RoundToInt(Def.Xp * (1 + Tune.F("monsters.xpPerLevel", .12f) * (Level - 1)) * Tune.F("monsters.xpMul", 1f) * (netKill ? 1f : lvlF) * (Summoned ? Tune.F("monsters.summonedXp", .3f) : 1f) * _xpMul);
         if (DefOverride != null || Arena) xp = 0;   // no experience from Wave Survival or the Shadow Duel
-        Fx.Burst(GlobalPosition + Vector3.Up, Def.Kind == "wraith" ? new Color(0.7f, 0.4f, 1f) : new Color(0.8f, 0.2f, 0.2f), 16, 5f, 0.6f);
+        Fx.Burst(GlobalPosition + Vector3.Up, Def.Kind == "wraith" ? new Color(0.7f, 0.4f, 1f) : new Color(0.8f, 0.2f, 0.2f), 16, 5f, 0.6f, 0.12f, -6f, "magic");
         var mats = new System.Text.StringBuilder();
         bool noDrops = Arenas.NoDrops(this);   // Wave Survival pays valor only
         if (Def.Drops != null && !Summoned && !noDrops)
@@ -770,7 +770,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
                     _tick += dt;
                     var fwd = new Vector3(-Mathf.Sin(_yaw), 0, -Mathf.Cos(_yaw));
                     var mouth = GlobalPosition + fwd * 4f + Vector3.Up * 4.4f;
-                    for (int i = 0; i < 2; i++) Fx.Burst(mouth + fwd * (float)GD.RandRange(0, 14), new Color(1f, 0.5f + GD.Randf() * 0.3f, 0.1f), 2, 3f, 0.5f, 0.35f, 1f);
+                    for (int i = 0; i < 2; i++) Fx.Burst(mouth + fwd * (float)GD.RandRange(0, 14), new Color(1f, 0.5f + GD.Randf() * 0.3f, 0.1f), 2, 3f, 0.5f, 0.35f, 1f, "fire");
                     if (_tick >= 0.25f)
                     {
                         _tick = 0;
@@ -871,7 +871,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         _state = State.Dead; _deadT = 0; CollisionLayer = 0; _label.Visible = false; Hp = 0;
         if (CurrentBoss == this) CurrentBoss = null; RespawnTime = Ambusher ? 0 : 1e9f; if (_aura != null) _aura.Visible = false;   // ambushers never come back: free them after the fade
         Status.Clear();
-        Fx.Burst(GlobalPosition + Vector3.Up, Def.Kind == "wraith" ? new Color(0.7f, 0.4f, 1f) : new Color(0.8f, 0.2f, 0.2f), 16, 5f, 0.6f);
+        Fx.Burst(GlobalPosition + Vector3.Up, Def.Kind == "wraith" ? new Color(0.7f, 0.4f, 1f) : new Color(0.8f, 0.2f, 0.2f), 16, 5f, 0.6f, 0.12f, -6f, "magic");
         if (FromDungeon && Def.Boss) { Ui.Banner(Def.N, "has fallen"); Sfx.Play("level"); Dungeon.OnBossDown(this); }   // party dungeon: the way down opens for everyone
     }
     /// <summary>Client puppet: glide toward the host's position and heading; legs follow the actual speed.</summary>

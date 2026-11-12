@@ -5,7 +5,7 @@ namespace TwinRealms;
 /// <summary>Game root: shows the title screen, then builds the world, player, camera and HUD.</summary>
 public partial class Main : Node3D
 {
-    float _autosave; bool _started;
+    float _autosave; bool _started; static int QuitTestRuns;
 
     public override void _Ready()
     {
@@ -13,6 +13,8 @@ public partial class Main : Node3D
         if (System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--bake-anims") >= 0) { Avatar.Bake(); GetTree().Quit(); return; }   // tools: rebuild assets/models/anim/clips.res
         if (AnimTool.Wanted()) { Game.Root = this; AddChild(new AnimTool { Name = "AnimTool" }); return; }   // tools: measure attack clips (impact timing)
         GD.Print("[MAIN] scene start"); Inputs.Setup(); Game.Root = this; Dungeon.Active = false; Arenas.Active = false; Threat.Reset(); World.Realm = 0; World.RealmT = 0; Ui.InGame = false;
+        // "Quit to title" reloads this scene: forget the nodes of the old world, which are freed by now (applying the settings below touched the old sun and crashed)
+        World.I = null; FloraField.I = null; Player.Instance = null; Enemy.CurrentBoss = null;
         bool testing = Observer.Wanted() || Bot.Wanted() || Shots.Wanted() || Showcase.Wanted() || FitBot.Wanted() || MpBot.Wanted() != null;
         if (testing) Game.SetPath = "user://test_settings.json";
         Game.LoadSettings();
@@ -43,6 +45,17 @@ public partial class Main : Node3D
         if (Observer.Wanted()) { Game.NewGame("warrior", "Observer"); Begin(); AddChild(new Observer { Name = "Observer" }); return; }
         if (Bot.Wanted()) { Game.NewGame("warrior", "Bot"); Begin(); AddChild(new Bot { Name = "Bot" }); return; }
         if (MpBot.Wanted() is string mode) { AddChild(new MpBot { Name = "MpBot", Mode = mode }); if (mode == "host") { Game.NewGame("paladin", "HostBot", "dwarf"); Begin(); } return; }
+        if (System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--quit-test") >= 0)
+        {
+            Game.SavePath = "user://test_save.json"; QuitTestRuns++;
+            if (QuitTestRuns == 1) { Game.NewGame("warrior", "QuitTest"); Begin(); GetTree().CreateTimer(8).Timeout += () => { GD.Print("[QT] quitting"); Ui.I!.OpenPause(); Ui.I.QuitToTitle(); }; return; }
+            else GetTree().CreateTimer(4).Timeout += () =>
+            {
+                GD.Print($"[QT] title up={Ui.I?.Visible} started={_started}"); GetViewport().GetTexture().GetImage().SavePng("res://bot_out/quit_test.png");
+                Ui.OnContinue?.Invoke();   // play the hero again: the second world must build as well as the first
+                GetTree().CreateTimer(5).Timeout += () => { GD.Print($"[QT] replay started={_started} player={Player.Instance != null && IsInstanceValid(Player.Instance)} hp={Player.Instance?.Hp}"); GetTree().Quit(); };
+            };
+        }
         ui.ShowTitle();
         // a calm backdrop behind the title screen
         var cam = new Camera3D { Name = "TitleCam", Position = new Vector3(0, 30, 60), RotationDegrees = new Vector3(-12, 0, 0), Current = true }; AddChild(cam);
