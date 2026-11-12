@@ -51,15 +51,16 @@ public class PlayerStats
     }
     [JsonIgnore] public Item? Weapon => Eq.GetValueOrDefault("weapon");
     public string WType() => Weapon?.Wt ?? "sword";
-    public int MaxHp() => Math.Max(30, (int)Math.Round((100 + Level * 8 + Vit * 7 + EqStat("hp") + TS["hp"]) * (1 + TS["hpP"] / 100f)));
-    public int MaxMp() => (int)Math.Round((50 + Mag * 6 + Level * 2 + EqStat("mp") + TS["mp"]) * (1 + TS["mpP"] / 100f));
-    public int MaxSt() => (int)Math.Round(90 + Dex * 3 + TS["st"]);
-    public int Defense() => (int)(EqStat("def") + Vit / 2 + TS["def"]);
+    // base numbers in data/tuning.json "game.player" (the defaults here are the old built-in values)
+    public int MaxHp() => Math.Max(30, (int)Math.Round((Tune.F("player.hpBase", 100) + Level * Tune.F("player.hpPerLevel", 8) + Vit * Tune.F("player.hpPerVit", 7) + EqStat("hp") + TS["hp"]) * (1 + TS["hpP"] / 100f)));
+    public int MaxMp() => (int)Math.Round((Tune.F("player.mpBase", 50) + Mag * Tune.F("player.mpPerMag", 6) + Level * Tune.F("player.mpPerLevel", 2) + EqStat("mp") + TS["mp"]) * (1 + TS["mpP"] / 100f));
+    public int MaxSt() => (int)Math.Round(Tune.F("player.staminaBase", 90) + Dex * Tune.F("player.staminaPerDex", 3) + TS["st"]);
+    public int Defense() => (int)(EqStat("def") + Vit * Tune.F("player.defensePerVit", .5f) + TS["def"]);
     public int XpNeed() => Progression.XpNeed(Level);   // curve in data/progression.json
-    public float AtkSpeed() => (1 + Dex * .012f) * (1 + TS["aspd"] / 100f);
-    public float CritChance() => .05f + Dex * .005f + TS["crit"] / 100f;
-    public float CritMult() => 1.8f + TS["critD"] / 100f;
-    public float SpellPow() => (1 + Mag * .08f + Level * .02f) * (1 + TS["spellP"] / 100f) * (1 + EqStat("sp")) * (1 + TS["allP"] / 100f);
+    public float AtkSpeed() => (1 + Dex * Tune.F("player.attackSpeedPerDex", .012f)) * (1 + TS["aspd"] / 100f);
+    public float CritChance() => Tune.F("player.critBase", .05f) + Dex * Tune.F("player.critPerDex", .005f) + TS["crit"] / 100f;
+    public float CritMult() => Tune.F("player.critDamage", 1.8f) + TS["critD"] / 100f;
+    public float SpellPow() => (1 + Mag * Tune.F("player.spellPerMag", .08f) + Level * Tune.F("player.spellPerLevel", .02f)) * (1 + TS["spellP"] / 100f) * (1 + EqStat("sp")) * (1 + TS["allP"] / 100f);
     /// <summary>
     /// Weapon hit damage before crits: base 5 plus attribute scaling from data/weapons.json (str/dex/mag per point) plus item damage,
     /// times the weapon's damage factor, times the matching passive bonus (melee, bow, or spell for wands and staves) and all-damage.
@@ -67,10 +68,11 @@ public class PlayerStats
     public float WpnDmg()
     {
         string wt = WType(); var w = Weapons.Get(wt); float wd = Weapon?.Dmg ?? 0, all = 1 + TS["allP"] / 100f;
-        if (wt == "bow") return (5 + Dex * w.Dex + Str * w.Str + wd + Str * TS["strToBow"] + Mag * TS["magToBow"]) * w.Dmg * (1 + TS["rangedP"] / 100f) * all;
-        if (wt == "wand" || wt == "staff") return (4 + Mag * w.Mag + wd) * w.Dmg * (1 + TS["spellP"] / 100f) * (1 + EqStat("sp")) * all;
+        float b = Tune.F("player.weaponBase", 5);
+        if (wt == "bow") return (b + Dex * w.Dex + Str * w.Str + wd + Str * TS["strToBow"] + Mag * TS["magToBow"]) * w.Dmg * (1 + TS["rangedP"] / 100f) * all;
+        if (wt == "wand" || wt == "staff") return (Tune.F("player.magicWeaponBase", 4) + Mag * w.Mag + wd) * w.Dmg * (1 + TS["spellP"] / 100f) * (1 + EqStat("sp")) * all;
         float wpnType = 1 + TS[wt + "P"] / 100f;                                    // e.g. "axeP": +% axe damage
-        return (5 + Str * w.Str + Dex * w.Dex + Mag * w.Mag + wd + Mag * TS["magToDmg"]) * w.Dmg * (1 + TS["meleeP"] / 100f) * wpnType * all;
+        return (b + Str * w.Str + Dex * w.Dex + Mag * w.Mag + wd + Mag * TS["magToDmg"]) * w.Dmg * (1 + TS["meleeP"] / 100f) * wpnType * all;
     }
     [JsonIgnore] public float ShieldDef => Eq.GetValueOrDefault("shield")?.Def ?? 0;
 

@@ -1,6 +1,9 @@
 # Port status
 
-**Scaling and loot overhaul (2026-11-11), uncommitted on `new-content`.**
+**Master tuning file (2026-11-11).** `data/tuning.json`: "game" = numbers moved out of code (player base stats, regen, potions, stamina costs, monster xp/gold/drop chances/respawns, area levels, camp counts, item stat formulas, shop prices, arena waves; `Tune.F`), "files" = overrides laid over the other data files in `JsonUtil.Load` (progression, enemies, loot, items, feel, valor, wildlife). enemies.json now also loads through JsonUtil. Bot step "master tuning file".
+- F8 playtest flag (`Flag.cs`), fairer sprint and faster run (feel.json "move") - see git log.
+
+**Scaling and loot overhaul (2026-11-11), on `new-content`.**
 - Monster scaling (`data/progression.json` "scaling", `Progression.cs`, `Enemy.Rescale`): health/damage = level curve (linear x gentle exponential) with a floor tied to the hero's own weapon hit and max health; hero armor now K/(K+armor) with K growing with the attacker's level (was armor x5, which reached ~87% reduction). 2 attribute points per level (was 3).
 - Overworld monsters follow the heroes' level (multiplayer: lobby average), x1.5 health/damage with 2+ players ("party.statMul"). Play-time threat (`Threat.cs`, "threat"): every 8 min stronger monsters, faster respawns, ambush packs (local to each machine, not networked). Arena waves are bigger.
 - Dungeons: x3 monsters ("dungeon.mobMul"), tier every 5 floors ("dungeon.tiers"), more gear tiers. Each dungeon has its own drop table, named uniques and a set (`data/loot.json`, `LootTables.cs`); rarity rises with depth; set pieces from floor 10, bonuses applied in `Game.RecalcTree` (Game.Notify now recalcs).

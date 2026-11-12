@@ -18,6 +18,7 @@ Engine: **Godot 4.x (.NET build), C#**. Goal: **simple and efficient**. Prefer t
 - `docs/spec/reference_logic.js`: the working **JavaScript prototype logic**. Port the behaviour, not the syntax.
 - `docs/spec/browser_prototype.html`: the playable prototype. Open it in a browser to see how a thing is meant to feel.
 - `data/*.json`: game data extracted from the prototype. **Load these at runtime. Never hard-code stats in C#.**
+- `data/tuning.json`: the user's master tuning file. Its `files` section overrides values in the other data files (applied in `JsonUtil.Load`), so a value listed there wins: change it there, or the change in the other file has no effect. Its `game` section holds numbers that used to be in code, read with `Tune.F("path", oldDefault)`. New balance numbers go into `game` (or the relevant data file plus a copy in `files`).
 
 ## Conventions
 - C# 12, nullable enabled. One system per file in `scripts/`. Namespace `TwinRealms`.

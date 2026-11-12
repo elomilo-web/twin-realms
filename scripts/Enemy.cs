@@ -441,8 +441,8 @@ public partial class Enemy : CharacterBody3D, IDamageable
         bool dshared = FromDungeon && Dungeon.IsOwner && NetIdx >= 0, netKill = shared || dshared;
         if (dshared) RespawnTime = 1e9f;   // keep the dead body (hidden) so its index stays valid for friends who arrive later
         long killer = _lastPeer < 0 ? Net.MyId : _lastPeer;
-        float lvlF = Level < D.Level - 4 ? 0.5f : 1f;
-        int xp = Mathf.RoundToInt(Def.Xp * (1 + 0.12f * (Level - 1)) * (netKill ? 1f : lvlF) * (Summoned ? 0.3f : 1f) * _xpMul);
+        float lvlF = Level < D.Level - Tune.F("monsters.lowLevelGap", 4) ? Tune.F("monsters.lowLevelXp", .5f) : 1f;   // data/tuning.json "game.monsters"
+        int xp = Mathf.RoundToInt(Def.Xp * (1 + Tune.F("monsters.xpPerLevel", .12f) * (Level - 1)) * Tune.F("monsters.xpMul", 1f) * (netKill ? 1f : lvlF) * (Summoned ? Tune.F("monsters.summonedXp", .3f) : 1f) * _xpMul);
         if (DefOverride != null || Arena) xp = 0;   // no experience from Wave Survival or the Shadow Duel
         Fx.Burst(GlobalPosition + Vector3.Up, Def.Kind == "wraith" ? new Color(0.7f, 0.4f, 1f) : new Color(0.8f, 0.2f, 0.2f), 16, 5f, 0.6f);
         var mats = new System.Text.StringBuilder();
@@ -454,21 +454,21 @@ public partial class Enemy : CharacterBody3D, IDamageable
                 if (netKill) mats.Append(kv.Key).Append(':').Append(n).Append(';'); else GatherDb.Give(kv.Key, n, GlobalPosition);
             }
         bool lootable = !Summoned && DefOverride == null && !Def.NoLoot && !noDrops;
-        int gold = GD.RandRange(2 + Level, 6 + Level * 2) * (Def.Boss ? 12 : 1);
-        float chance = Def.Boss ? 1f : Arena ? .12f : .2f + (Def.Realm == 1 ? .06f : 0f) + .06f * UpgradeCount(), bonus = (Def.Boss ? 2 : 0) + (Def.Realm == 1 ? 1 : 0) + _lootBonus;
-        if (dshared) { Net.I!.DunKill(this, xp, killer, mats.ToString(), lootable, gold, chance, bonus, Def.Boss ? .6f : .07f); lootable = false; }
+        int gold = Mathf.RoundToInt(GD.RandRange(Tune.F("monsters.goldMin", 2) + Level * Tune.F("monsters.goldMinPerLevel", 1), Tune.F("monsters.goldMax", 6) + Level * Tune.F("monsters.goldMaxPerLevel", 2)) * (Def.Boss ? Tune.F("monsters.bossGoldMul", 12) : 1) * Tune.F("monsters.goldMul", 1));
+        float chance = Def.Boss ? 1f : Mathf.Min(1f, Tune.F("monsters.itemChance", .2f) + (Def.Realm == 1 ? Tune.F("monsters.shadowItemChance", .06f) : 0f) + Tune.F("monsters.upgradeItemChance", .06f) * UpgradeCount()), bonus = (Def.Boss ? Tune.F("monsters.bossLootBonus", 2) : 0) + (Def.Realm == 1 ? Tune.F("monsters.shadowLootBonus", 1) : 0) + _lootBonus;
+        if (dshared) { Net.I!.DunKill(this, xp, killer, mats.ToString(), lootable, gold, chance, bonus, Def.Boss ? Tune.F("monsters.bossPotionChance", .6f) : Tune.F("monsters.potionChance", .07f)); lootable = false; }
         else if (shared) Net.I!.KillRewards(this, xp, killer, mats.ToString());
         else { D.Kills++; if (xp > 0 && p != null) p.AddXp(xp, GlobalPosition); }
         if (lootable)
         {
             if (shared)
             {
-                Net.I!.DropLoot(GlobalPosition, Level, chance, bonus, gold, Def.Boss ? .6f : .07f, killer);
+                Net.I!.DropLoot(GlobalPosition, Level, chance, bonus, gold, Def.Boss ? Tune.F("monsters.bossPotionChance", .6f) : Tune.F("monsters.potionChance", .07f), killer);
                 if (Def.Boss) { Net.I.DropLoot(GlobalPosition, Level, 1f, 3f, 0, 0f, killer); Net.I.DropLoot(GlobalPosition, Level, .6f, 2f, 0, 0f, killer); }
             }
             else
             {
-                Loot.DropFrom(GlobalPosition, Level, chance, bonus, gold, Def.Boss ? .6f : .07f);
+                Loot.DropFrom(GlobalPosition, Level, chance, bonus, gold, Def.Boss ? Tune.F("monsters.bossPotionChance", .6f) : Tune.F("monsters.potionChance", .07f));
                 if (Def.Boss) { Loot.DropFrom(GlobalPosition + new Vector3(1, 0, 1), Level, 1f, 3f, 0, 0f); Loot.DropFrom(GlobalPosition + new Vector3(-1, 0, -1), Level, .6f, 2f, 0, 0f); }
                 if (FromDungeon) LootTables.TrySetDrop(GlobalPosition, Level, UpgradeCount() > 0, Def.Boss);   // set gear: deep floors only
             }
@@ -477,7 +477,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         if (Arena) Arenas.OnEnemyDown(this);
         else if (!netKill) Quests.OnKill(Type, Def.Realm, Def.Boss);
         if (Def.Boss) { Ui.Banner(Def.N, "has fallen"); Sfx.Play("level"); if (FromDungeon) Dungeon.OnBossDown(this); }
-        if (!Arena && !Summoned && !FromDungeon && !Ambusher && RespawnTime <= 0) RespawnTime = (Def.Boss ? 600f : 260f) * Threat.RespawnMul;   // the land refills faster the longer you play
+        if (!Arena && !Summoned && !FromDungeon && !Ambusher && RespawnTime <= 0) RespawnTime = (Def.Boss ? Tune.F("monsters.bossRespawn", 600) : Tune.F("monsters.respawn", 260)) * Threat.RespawnMul;   // the land refills faster the longer you play
         Game.Save();
     }
 

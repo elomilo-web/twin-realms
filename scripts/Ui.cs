@@ -160,7 +160,7 @@ public partial class Ui : CanvasLayer
 
     // ---------------------------------------------------------------- shop and smith
     static int _stockLvl = -1; static List<Item> _stock = new();
-    static int BuyPrice(Item it) => it.Value * 3 + 12;
+    static int BuyPrice(Item it) => Mathf.RoundToInt(it.Value * Tune.F("shop.buyMul", 3) + Tune.F("shop.buyAdd", 12));   // data/tuning.json "game.shop"
     public void OpenShop(string tab)
     {
         var d = Game.D; if (_stockLvl != d.Level) { _stockLvl = d.Level; _stock.Clear(); for (int i = 0; i < 6; i++) _stock.Add(Items.Roll(d.Level + 1, .2f)); }
@@ -169,9 +169,10 @@ public partial class Ui : CanvasLayer
         var sc = Scroll(v, 420); var list = Inner(sc);
         if (tab == "buy")
         {
-            AddRow(list, "Health potion  (have " + d.HpPot + ")", Colors.White, "Buy 30g", () => { if (d.Gold < 30) { Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= 30; d.HpPot++; Sfx.Play("coin"); OpenShop(tab); });
-            AddRow(list, "Mana potion  (have " + d.MpPot + ")", Colors.White, "Buy 35g", () => { if (d.Gold < 35) { Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= 35; d.MpPot++; Sfx.Play("coin"); OpenShop(tab); });
-            if (!d.Horse) AddRow(list, "Horse (ride with T)", Colors.White, "Buy 350g", () => { if (d.Gold < 350) { Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= 350; d.Horse = true; Sfx.Play("coin"); Note("You bought a horse. Press T to ride.", Gold); OpenShop(tab); });
+            int hpc = Tune.I("shop.healthPotion", 30), mpc = Tune.I("shop.manaPotion", 35), hc = Tune.I("shop.horse", 350);
+            AddRow(list, "Health potion  (have " + d.HpPot + ")", Colors.White, $"Buy {hpc}g", () => { if (d.Gold < hpc) { Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= hpc; d.HpPot++; Sfx.Play("coin"); OpenShop(tab); });
+            AddRow(list, "Mana potion  (have " + d.MpPot + ")", Colors.White, $"Buy {mpc}g", () => { if (d.Gold < mpc) { Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= mpc; d.MpPot++; Sfx.Play("coin"); OpenShop(tab); });
+            if (!d.Horse) AddRow(list, "Horse (ride with T)", Colors.White, $"Buy {hc}g", () => { if (d.Gold < hc) { Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= hc; d.Horse = true; Sfx.Play("coin"); Note("You bought a horse. Press T to ride.", Gold); OpenShop(tab); });
             for (int i = 0; i < _stock.Count; i++) { int k = i; var it = _stock[i]; ItemRow(list, it, BuyPrice(it) + "g", () => { int c = BuyPrice(it); if (d.Gold < c) { Note("Not enough gold", new Color(1, .5f, .5f)); return; } if (d.Inv.Count >= 28) { Note("Pack is full", new Color(1, .5f, .5f)); return; } d.Gold -= c; d.Inv.Add(it); _stock.RemoveAt(k); Sfx.Play("coin"); OpenShop(tab); }); }
         }
         else

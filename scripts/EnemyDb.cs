@@ -65,11 +65,9 @@ public static class EnemyDb
     {
         if (_defs != null) return;
         _defs = new Dictionary<string, EnemyDef>();
-        using var f = Godot.FileAccess.Open("res://data/enemies.json", Godot.FileAccess.ModeFlags.Read);
-        if (f == null) { GD.PushError("Could not open res://data/enemies.json"); return; }
         try
         {
-            using var doc = JsonDocument.Parse(f.GetAsText());
+            using var doc = JsonUtil.Load("res://data/enemies.json");   // through JsonUtil so data/tuning.json can override monster stats
             var opt = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
             foreach (var p in doc.RootElement.GetProperty("enemies").EnumerateObject())
             {

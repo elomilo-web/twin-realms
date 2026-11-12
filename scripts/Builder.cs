@@ -388,7 +388,7 @@ void fragment(){
     {
         string[][] k0 = { new[] { "bandit", "bandit", "bandit", "archer" }, new[] { "goblin", "goblin", "goblin", "goblin" }, new[] { "wolf", "wolf", "wolf", "wolf" }, new[] { "brute", "goblin", "goblin" }, new[] { "bandit", "archer", "archer", "brute" } };
         string[][] k1 = { new[] { "skeleton", "skeleton", "skeleton", "wraith" }, new[] { "hound", "hound", "hound" }, new[] { "wraith", "wraith", "wraith" }, new[] { "revenant", "skeleton", "skeleton" }, new[] { "skeleton", "wraith", "hound", "hound" } };
-        int[] cnt = { 0, 0 }, need = { 15, 13 }; int tries = 0; var camps = new List<(float x, float z, int realm, string[] kind)>();
+        int[] cnt = { 0, 0 }, need = { Tune.I("world.lightCamps", 15), Tune.I("world.shadowCamps", 13) }; int tries = 0; var camps = new List<(float x, float z, int realm, string[] kind)>();
         while ((cnt[0] < need[0] || cnt[1] < need[1]) && tries++ < 5000)
         {
             float x = R(-World.Half + 36, World.Half - 36), z = R(-World.Half + 36, World.Half - 36), d = new Vector2(x, z).Length();

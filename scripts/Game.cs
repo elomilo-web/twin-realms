@@ -177,5 +177,5 @@ public static class Game
     public static QuestState Q(string id) { if (!D.Quests.TryGetValue(id, out var s)) D.Quests[id] = s = new QuestState(); return s; }
 
     // ---- level helpers
-    public static int LevelAt(float x, float z, int realm) => Mathf.Clamp(1 + (int)(new Vector2(x, z).Length() / 38f) + realm, 1, 12);
+    public static int LevelAt(float x, float z, int realm) => Mathf.Clamp(1 + (int)(new Vector2(x, z).Length() / Tune.F("world.metresPerAreaLevel", 38)) + realm * Tune.I("world.shadowAreaBonus", 1), 1, Tune.I("world.maxAreaLevel", 12));   // data/tuning.json "game.world"
 }

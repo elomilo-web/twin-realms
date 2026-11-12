@@ -548,6 +548,21 @@ public partial class Bot : Node
             await Task.CompletedTask;
         });
 
+        await Step("master tuning file", async () =>
+        {
+            // data/tuning.json: readable, "game" numbers reach the code, "files" overrides are laid over the other data files
+            var tj = JsonUtil.Tuning();
+            Check("tuning.json loads", tj != null && tj["game"] != null && tj["files"] != null);
+            Check("game numbers are read (including [base, perLevel] lists)", Tune.F("player.hpBase", -1) == 100 && Mathf.IsEqualApprox(Tune.F("items.armor.def.1", -1), 1.1f) && Tune.F("no.such.key", 7) == 7,
+                $"hpBase {Tune.F("player.hpBase", -1)}, armor def/level {Tune.F("items.armor.def.1", -1)}");
+            using var prog = JsonUtil.Load("res://data/progression.json"); using var en = JsonUtil.Load("res://data/enemies.json");
+            float want = (float)(tj!["files"]!["progression.json"]!["scaling"]!["hpExp"]!.GetValue<double>()), got = prog.RootElement.GetProperty("scaling").GetProperty("hpExp").GetSingle();
+            bool kept = en.RootElement.GetProperty("enemies").GetProperty("wolf").TryGetProperty("r", out _);   // a field only in enemies.json survives the merge
+            Check("file overrides apply and keep the rest of each file", Mathf.IsEqualApprox(want, got) && kept && EnemyDb.Get("dragon").Hp == (float)tj["files"]!["enemies.json"]!["enemies"]!["dragon"]!["hp"]!.GetValue<double>(), $"hpExp {got}, dragon hp {EnemyDb.Get("dragon").Hp}");
+            var hero = new PlayerStats(); Check("a new hero's health follows the file", hero.MaxHp() == Mathf.RoundToInt((100 + 8 + hero.Vit * 7 + Game.TS["hp"]) * (1 + Game.TS["hpP"] / 100f)), $"{hero.MaxHp()}");
+            await Task.CompletedTask;
+        });
+
         await Step("movement and stamina", async () =>
         {
             // sprint 3 s on open flat ground: speed should reach the sprint speed, stamina should drain at sprintDrain per second

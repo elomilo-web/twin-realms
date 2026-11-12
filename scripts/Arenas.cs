@@ -76,8 +76,8 @@ public static class Arenas
             if (Mode == "waves")
             {
                 // waves swell fast: 4 foes at wave 1, 18 at wave 10, 24 from wave 14
-                int w = Wave, n = Math.Min(24, 3 + w + w / 2); string[] pool = w < 3 ? new[] { "wolf", "goblin", "bandit" } : w < 5 ? new[] { "goblin", "bandit", "archer", "skeleton", "wolf" } : w < 8 ? new[] { "bandit", "archer", "skeleton", "wraith", "hound", "goblin" } : new[] { "skeleton", "wraith", "hound", "archer", "bandit", "revenant" };
-                int lvl = Math.Max(1, Game.D.Level + w / 2 - 1); var list = new List<string>(); for (int i = 0; i < n; i++) list.Add(pool[Rn.Next(pool.Length)]);
+                int w = Wave, n = Math.Min(Tune.I("arena.maxFoes", 24), Tune.I("arena.foesBase", 3) + (int)(w * Tune.F("arena.foesPerWave", 1.5f))); string[] pool = w < 3 ? new[] { "wolf", "goblin", "bandit" } : w < 5 ? new[] { "goblin", "bandit", "archer", "skeleton", "wolf" } : w < 8 ? new[] { "bandit", "archer", "skeleton", "wraith", "hound", "goblin" } : new[] { "skeleton", "wraith", "hound", "archer", "bandit", "revenant" };
+                int lvl = Math.Max(1, Game.D.Level + (int)(w * Tune.F("arena.levelsPerWave", .5f)) - 1); var list = new List<string>(); for (int i = 0; i < n; i++) list.Add(pool[Rn.Next(pool.Length)]);
                 if (w % 5 == 0) list.Add(w >= 10 ? "revenant" : "brute");
                 for (int i = 0; i < list.Count; i++) SpawnOne(list[i], lvl, i, list.Count, null);
                 Ui.Banner("Wave " + w, list.Count + " foes"); Sfx.Play("roar");
@@ -102,7 +102,7 @@ public static class Arenas
                 int v = Valor.ForDuel(Streak); Game.D.BestDuel = Math.Max(Game.D.BestDuel, Streak); Quests.OnDuel(Streak);
                 Ui.Banner("Victory!", (v > 0 ? $"+{v} valor. " : "") + "Streak " + Streak); Valor.Give(v); RunValor += v; Streak++;
             }
-            p.Hp = Mathf.Min(Game.D.MaxHp(), p.Hp + Game.D.MaxHp() * .35f); p.Mp = Game.D.MaxMp(); Sfx.Play("level"); Game.Save();
+            p.Hp = Mathf.Min(Game.D.MaxHp(), p.Hp + Game.D.MaxHp() * Tune.F("arena.healBetweenWaves", .35f)); p.Mp = Game.D.MaxMp(); Sfx.Play("level"); Game.Save();
         }
     }
 

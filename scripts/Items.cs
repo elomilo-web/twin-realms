@@ -73,7 +73,7 @@ public static class Items
         // rarity weights from data/loot.json; loot bonus (deeper floors, upgraded monsters, bosses) shifts the weight toward rarer items
         int idx = LootTables.RollRarity(bonus);
         if (rarity >= 0) idx = Math.Clamp(rarity, 0, 4);
-        level = Math.Max(1, level);
+        level = Math.Max(1, level); _lvl = level;
         if (slot == null) { float q = GD.Randf(); slot = q < .28f ? "weapon" : q < .44f ? "armor" : q < .55f ? "shield" : q < .67f ? "head" : q < .78f ? "hands" : q < .89f ? "feet" : q < .95f ? "cape" : "trinket"; }
         float m = _mult[idx];
         var it = new Item { Slot = slot, Rar = idx, Lvl = level };
@@ -82,19 +82,20 @@ public static class Items
             // any weapon type from data/weapons.json; damage factors live there, so item damage rolls the same for all
             var types = new List<string>(Weapons.Types); if (wt == null || !types.Contains(wt)) wt = types[(int)(GD.Randf() * types.Count) % types.Count];
             it.Wt = wt; var wd = Weapons.Get(wt);
-            float dm = wt == "wand" ? .62f : wt == "staff" ? .8f : 1f;
-            it.Dmg = (int)Math.Floor((3 + level * 2.2f) * m * dm);
-            if (wt == "wand") it.Sp = (float)Math.Round((.06f + level * .006f) * m, 2);
-            if (wt == "staff") { it.Sp = (float)Math.Round((.12f + level * .01f) * m, 2); it.Mc = .1f; }
+            float dm = wt == "wand" ? Tune.F("items.weapon.wandDamageMul", .62f) : wt == "staff" ? Tune.F("items.weapon.staffDamageMul", .8f) : 1f;
+            it.Dmg = (int)Math.Floor(St("weapon", "dmg", 3, 2.2f) * m * dm);
+            if (wt == "wand") it.Sp = (float)Math.Round(St("weapon", "wandSpell", .06f, .006f) * m, 2);
+            if (wt == "staff") { it.Sp = (float)Math.Round(St("weapon", "staffSpell", .12f, .01f) * m, 2); it.Mc = Tune.F("items.weapon.staffManaCost", .1f); }
             it.Two = wd.Hands > 1;
         }
-        else if (slot == "armor") { it.Def = (int)Math.Floor((1 + level * 1.1f) * m); it.Hp = (int)Math.Floor(level * 2 * m); }
-        else if (slot == "shield") { it.Def = (int)Math.Floor((1 + level * .9f) * m); it.Hp = (int)Math.Floor(level * m); }
-        else if (slot == "head") { it.Def = (int)Math.Floor((1 + level * .6f) * m); it.Mp = (int)Math.Floor(level * 1.5f * m); }
-        else if (slot == "hands") { it.Def = (int)Math.Floor((1 + level * .4f) * m); it.Dmg = idx >= 2 ? (int)Math.Floor(level * .4f * m) : 0; }
-        else if (slot == "feet") { it.Def = (int)Math.Floor((1 + level * .5f) * m); it.Hp = (int)Math.Floor(level * 1.2f * m); }
-        else if (slot == "cape") { it.Def = (int)Math.Floor((1 + level * .35f) * m); it.Mp = (int)Math.Floor(level * 1.2f * m); }
-        else { it.Hp = (int)Math.Floor((6 + level * 3) * m); it.Mp = (int)Math.Floor((4 + level * 2) * m); it.Def = idx >= 2 ? (int)Math.Floor(level * .5f * m) : 0; }
+        // stat = (base + level x perLevel) x rarity multiplier; every base/perLevel is in data/tuning.json "game.items.<slot>"
+        else if (slot == "armor") { it.Def = Fl(St(slot, "def", 1, 1.1f) * m); it.Hp = Fl(St(slot, "hp", 0, 2) * m); }
+        else if (slot == "shield") { it.Def = Fl(St(slot, "def", 1, .9f) * m); it.Hp = Fl(St(slot, "hp", 0, 1) * m); }
+        else if (slot == "head") { it.Def = Fl(St(slot, "def", 1, .6f) * m); it.Mp = Fl(St(slot, "mp", 0, 1.5f) * m); }
+        else if (slot == "hands") { it.Def = Fl(St(slot, "def", 1, .4f) * m); it.Dmg = idx >= 2 ? Fl(St(slot, "dmg", 0, .4f) * m) : 0; }
+        else if (slot == "feet") { it.Def = Fl(St(slot, "def", 1, .5f) * m); it.Hp = Fl(St(slot, "hp", 0, 1.2f) * m); }
+        else if (slot == "cape") { it.Def = Fl(St(slot, "def", 1, .35f) * m); it.Mp = Fl(St(slot, "mp", 0, 1.2f) * m); }
+        else { it.Hp = Fl(St("trinket", "hp", 6, 3) * m); it.Mp = Fl(St("trinket", "mp", 4, 2) * m); it.Def = idx >= 2 ? Fl(St("trinket", "def", 0, .5f) * m) : 0; }
         string baseName;
         if (slot == "weapon") { var names = _wn.GetValueOrDefault(it.Wt!, new[] { "Weapon" }); baseName = names[Math.Min(names.Length - 1, (int)(GD.Randf() * 5))]; }
         else { var names = _in.GetValueOrDefault(slot, new[] { "Item" }); baseName = names[GD.RandRange(0, names.Length - 1)]; }
@@ -102,6 +103,11 @@ public static class Items
         it.Name = _pre[idx] + " " + (GearFx.Get(it.Elem) is { } el ? el.Word + " " : "") + baseName + (idx == 4 ? " of the Rift" : "");
         return it;
     }
+
+    static int Fl(float x) => (int)Math.Floor(x);
+    /// <summary>base + level x perLevel for one item stat, from data/tuning.json "game.items.slot.stat" = [base, perLevel] (the defaults are the old built-in numbers).</summary>
+    static float St(string slot, string stat, float b, float perLevel) => Tune.F($"items.{slot}.{stat}.0", b) + _lvl * Tune.F($"items.{slot}.{stat}.1", perLevel);
+    static int _lvl;
 
     /// <summary>Multiplies every stat of an item (uniques and set pieces are stronger than rolled gear of their rarity).</summary>
     public static void Boost(Item it, float k)

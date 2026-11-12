@@ -174,7 +174,7 @@ public partial class Player : CharacterBody3D, IDamageable
                 return;
             }
             float red = Mathf.Clamp(0.55f + D.ShieldDef * 0.012f + TS["block"] / 100f, 0.5f, 0.92f);
-            dmg = baseDmg * (1f - red); UseStamina(h.Damage * 0.3f); Sfx.Play("block");
+            dmg = baseDmg * (1f - red); UseStamina(h.Damage * Tune.F("stamina.blockPerDamage", .3f)); Sfx.Play("block");
             if (St <= 0) { _blocking = false; _stagger = 0.7f; FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.3f, 0), "Guard broken", new Color(1, 0.6f, 0.45f)); }
         }
         else
@@ -280,7 +280,7 @@ public partial class Player : CharacterBody3D, IDamageable
         if (Dead || _atkT > 0 || _rollT > 0 || _stagger > 0 || _castT > 0) return false;
         if (Mounted) { Ui.Note("Dismount to fight (T)", new Color(0.7f, 0.8f, 1)); return false; }
         var w = W; bool ranged = w.Ranged;
-        float cost = ranged ? (power ? 16f : 7f) : (power ? 26f : 9f) * (w.Hands > 1 ? 1.25f : w.Id == "dagger" ? .6f : 1f);
+        float cost = ranged ? (power ? Tune.F("stamina.heavyRanged", 16) : Tune.F("stamina.lightRanged", 7)) : (power ? Tune.F("stamina.heavyMelee", 26) : Tune.F("stamina.lightMelee", 9)) * (w.Hands > 1 ? Tune.F("stamina.twoHandedMul", 1.25f) : w.Id == "dagger" ? Tune.F("stamina.daggerMul", .6f) : 1f);   // data/tuning.json "game.stamina"
         if (St < 4f)
         {   // one message at a time: queued and repeated presses used to stack several on top of each other
             if (Time.GetTicksMsec() - _noStMsg > 1000) { _noStMsg = Time.GetTicksMsec(); FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.2f, 0), "Out of stamina", new Color(0.6f, 0.8f, 1f), 0.8f); }
@@ -425,8 +425,8 @@ public partial class Player : CharacterBody3D, IDamageable
     void UsePotion(bool hp)
     {
         var D = Game.D;
-        if (hp) { if (D.HpPot <= 0) { Ui.Note("No health potions", new Color(1, .5f, .5f)); return; } if (Hp >= D.MaxHp()) return; D.HpPot--; float a = D.MaxHp() * 0.5f; Hp = Mathf.Min(D.MaxHp(), Hp + a); FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.2f, 0), "+" + Mathf.RoundToInt(a), new Color(0.5f, 1f, 0.6f)); }
-        else { if (D.MpPot <= 0) { Ui.Note("No mana potions", new Color(.5f, .6f, 1f)); return; } if (Mp >= D.MaxMp()) return; D.MpPot--; Mp = Mathf.Min(D.MaxMp(), Mp + D.MaxMp() * 0.6f); }
+        if (hp) { if (D.HpPot <= 0) { Ui.Note("No health potions", new Color(1, .5f, .5f)); return; } if (Hp >= D.MaxHp()) return; D.HpPot--; float a = D.MaxHp() * Tune.F("player.healthPotion", .5f); Hp = Mathf.Min(D.MaxHp(), Hp + a); FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.2f, 0), "+" + Mathf.RoundToInt(a), new Color(0.5f, 1f, 0.6f)); }
+        else { if (D.MpPot <= 0) { Ui.Note("No mana potions", new Color(.5f, .6f, 1f)); return; } if (Mp >= D.MaxMp()) return; D.MpPot--; Mp = Mathf.Min(D.MaxMp(), Mp + D.MaxMp() * Tune.F("player.manaPotion", .6f)); }
         Sfx.Play("heal"); Game.Notify();
     }
 
@@ -526,10 +526,10 @@ public partial class Player : CharacterBody3D, IDamageable
         }
         else
         {
-            if (captured && Input.IsActionJustPressed(Inputs.Roll) && IsOnFloor() && _rollCd <= 0 && _atkT <= 0 && _stagger <= 0 && St >= 12f && !Mounted)
+            if (captured && Input.IsActionJustPressed(Inputs.Roll) && IsOnFloor() && _rollCd <= 0 && _atkT <= 0 && _stagger <= 0 && St >= Tune.F("stamina.roll", 14) * .85f && !Mounted)
             {
                 _rollDir = dir.LengthSquared() > 0.01f ? dir.Normalized() : new Vector3(-Mathf.Sin(_modelYaw), 0, -Mathf.Cos(_modelYaw));
-                _rollT = RollTime; _rollCd = 0.6f; UseStamina(14f); _modelYaw = Util.YawTo(_rollDir.X, _rollDir.Z);
+                _rollT = RollTime; _rollCd = 0.6f; UseStamina(Tune.F("stamina.roll", 14)); _modelYaw = Util.YawTo(_rollDir.X, _rollDir.Z);
             }
             if (captured && Input.IsActionJustPressed(Inputs.Jump) && IsOnFloor() && _atkT <= 0 && _stagger <= 0) v.Y = JumpVelocity;
 
@@ -563,8 +563,8 @@ public partial class Player : CharacterBody3D, IDamageable
 
         // ---- regeneration
         if (_stLockT <= 0 && !_blocking && _atkT <= 0) St = Mathf.Min(D.MaxSt(), St + Feel.StRegen * dt);
-        Hp = Mathf.Min(D.MaxHp(), Hp + (TS["regenHp"] + D.Vit * 0.02f) * dt);
-        Mp = Mathf.Min(D.MaxMp(), Mp + (1.5f + TS["regenMp"] + D.Mag * 0.05f) * dt);
+        Hp = Mathf.Min(D.MaxHp(), Hp + (TS["regenHp"] + Tune.F("player.hpRegenBase", 0) + D.Vit * Tune.F("player.hpRegenPerVit", .02f)) * dt);
+        Mp = Mathf.Min(D.MaxMp(), Mp + (Tune.F("player.mpRegenBase", 1.5f) + TS["regenMp"] + D.Mag * Tune.F("player.mpRegenPerMag", .05f)) * dt);
 
         // ---- facing
         var flat = new Vector3(v.X, 0, v.Z);

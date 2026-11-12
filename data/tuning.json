@@ -1,0 +1,153 @@
+{
+  "_README": [
+    "MASTER TUNING FILE. Change numbers here; no code needed. Restart the game to see changes.",
+    "Two parts:",
+    "  game  = numbers that used to be written in the code (player base stats, stamina, monster rewards, respawns, spawns, item formulas, prices, arena).",
+    "  files = overrides for the other files in data/. Anything written here WINS over the same value in that file (e.g. files > progression.json > scaling > hpExp).",
+    "         Objects merge key by key; a list [ ... ] replaces the whole list. Only the values listed here are overridden; the rest of each file still applies.",
+    "Keys starting with _ are notes and are ignored. Keep commas between entries and no comma after the last one, or the game cannot read the file (an error is logged).",
+    "Current values below are the game's values as of 2026-11-11."
+  ],
+
+  "game": {
+    "player": {
+      "_help": "Hero base stats. Max health = hpBase + level x hpPerLevel + Vitality x hpPerVit (+ gear, tree). Mana, stamina likewise. defensePerVit: armor per Vitality. critBase 0.05 = 5%. critDamage 1.8 = crits deal 180%. weaponBase: flat damage every weapon hit starts from (magicWeaponBase for wands and staves). spellPerMag / spellPerLevel: spell power per Magic / level. Regen per second. Potions heal this share of max health / mana.",
+      "hpBase": 100, "hpPerLevel": 8, "hpPerVit": 7,
+      "mpBase": 50, "mpPerMag": 6, "mpPerLevel": 2,
+      "staminaBase": 90, "staminaPerDex": 3,
+      "defensePerVit": 0.5,
+      "attackSpeedPerDex": 0.012,
+      "critBase": 0.05, "critPerDex": 0.005, "critDamage": 1.8,
+      "weaponBase": 5, "magicWeaponBase": 4,
+      "spellPerMag": 0.08, "spellPerLevel": 0.02,
+      "hpRegenBase": 0, "hpRegenPerVit": 0.02, "mpRegenBase": 1.5, "mpRegenPerMag": 0.05,
+      "healthPotion": 0.5, "manaPotion": 0.6
+    },
+    "stamina": {
+      "_help": "Stamina cost of each action. Sprint drain and refill speed are in files > feel.json > move. twoHandedMul / daggerMul scale melee costs for two-handed weapons and daggers. blockPerDamage: stamina lost per point of damage blocked.",
+      "lightMelee": 9, "heavyMelee": 26, "lightRanged": 7, "heavyRanged": 16,
+      "twoHandedMul": 1.25, "daggerMul": 0.6,
+      "roll": 14, "blockPerDamage": 0.3
+    },
+    "monsters": {
+      "_help": "Rewards and respawns for every monster (stats and scaling are under files > enemies.json and files > progression.json). xp = base xp x (1 + xpPerLevel x (level-1)) x xpMul. Killing a monster more than lowLevelGap levels below you gives lowLevelXp of the xp. Gold = random between goldMin + level x goldMinPerLevel and goldMax + level x goldMaxPerLevel, x goldMul (bosses x bossGoldMul). itemChance: chance a normal monster drops an item (+ shadowItemChance in the Shadow realm, + upgradeItemChance per dungeon upgrade). Loot bonus raises rarity. respawn: seconds before an overworld monster comes back.",
+      "xpPerLevel": 0.12, "xpMul": 1, "lowLevelGap": 4, "lowLevelXp": 0.5, "summonedXp": 0.3,
+      "goldMin": 2, "goldMinPerLevel": 1, "goldMax": 6, "goldMaxPerLevel": 2, "goldMul": 1, "bossGoldMul": 12,
+      "itemChance": 0.2, "shadowItemChance": 0.06, "upgradeItemChance": 0.06,
+      "bossLootBonus": 2, "shadowLootBonus": 1,
+      "potionChance": 0.07, "bossPotionChance": 0.6,
+      "respawn": 260, "bossRespawn": 600
+    },
+    "world": {
+      "_help": "Area level = 1 + distance from Oakhaven / metresPerAreaLevel (+ shadowAreaBonus in the Shadow realm), at most maxAreaLevel. Overworld monsters are at least this level (they also follow your level: files > progression.json > overworld). lightCamps / shadowCamps: monster camps placed on the island when the world is built.",
+      "metresPerAreaLevel": 38, "shadowAreaBonus": 1, "maxAreaLevel": 12,
+      "lightCamps": 15, "shadowCamps": 13
+    },
+    "items": {
+      "_help": "Item stats: [base, perLevel] -> (base + item level x perLevel) x rarity multiplier (files > items.json > rarityMult). Weapons: dmg for every type; wands and staves get less damage (wandDamageMul, staffDamageMul) but spell power (wandSpell, staffSpell, as a share: 0.06 = +6%). Hands give damage and trinkets defense only at Rare or better.",
+      "weapon": { "dmg": [3, 2.2], "wandDamageMul": 0.62, "staffDamageMul": 0.8, "wandSpell": [0.06, 0.006], "staffSpell": [0.12, 0.01], "staffManaCost": 0.1 },
+      "armor": { "def": [1, 1.1], "hp": [0, 2] },
+      "shield": { "def": [1, 0.9], "hp": [0, 1] },
+      "head": { "def": [1, 0.6], "mp": [0, 1.5] },
+      "hands": { "def": [1, 0.4], "dmg": [0, 0.4] },
+      "feet": { "def": [1, 0.5], "hp": [0, 1.2] },
+      "cape": { "def": [1, 0.35], "mp": [0, 1.2] },
+      "trinket": { "hp": [6, 3], "mp": [4, 2], "def": [0, 0.5] }
+    },
+    "shop": {
+      "_help": "Brynn's prices. Items cost value x buyMul + buyAdd (they sell for their value).",
+      "healthPotion": 30, "manaPotion": 35, "horse": 350, "buyMul": 3, "buyAdd": 12
+    },
+    "arena": {
+      "_help": "Wave Survival: foes per wave = foesBase + wave x foesPerWave (at most maxFoes); foe level = your level + wave x levelsPerWave - 1. healBetweenWaves: share of max health restored after each wave. Valor rewards: files > valor.json.",
+      "foesBase": 3, "foesPerWave": 1.5, "maxFoes": 24, "levelsPerWave": 0.5, "healBetweenWaves": 0.35
+    }
+  },
+
+  "files": {
+    "progression.json": {
+      "_help": "Levelling and monster scaling. See the _help notes inside data/progression.json for every field.",
+      "xp": { "base": 40, "lin": 20, "quad": 6, "cube": 0.15 },
+      "levelUp": { "attr": 2, "rank": 1, "tree": 2 },
+      "scaling": {
+        "hpLin": 0.2, "hpExp": 1.045, "dmgLin": 0.13, "dmgExp": 1.03,
+        "power": { "on": true, "refHp": 50, "hpHits": 5, "refDmg": 10, "hitPct": 0.06, "shape": 0.75, "defenseRespect": 0.5, "maxHitPct": 0.45 },
+        "armor": { "k": 14, "perLevel": 6 }
+      },
+      "overworld": { "follow": true, "offset": 0, "areaWeight": 0.5, "bossBonus": 3 },
+      "party": { "xpPool": 0.9, "dropMul": 1.15, "dungeonOffset": 3, "statMul": 1.5, "minPlayers": 2 },
+      "threat": {
+        "minutesPerLevel": 8, "max": 10, "hpP": 8, "dmgP": 5, "respawnP": 7,
+        "interval": 90, "intervalPerLevel": 6, "minInterval": 30,
+        "packBase": 2, "packPerLevel": 1, "aliveBase": 6, "alivePerLevel": 4,
+        "ambushDist": 38, "safeRadius": 70
+      },
+      "dungeon": {
+        "levelOffset": 2, "perDepth": 1, "bossBonus": 1, "mobMul": 3,
+        "tiers": { "every": 5, "hpMul": 1.7, "dmgMul": 1.4, "levels": 2, "extraUpgrades": 1 },
+        "upgrades": { "base": 1, "perDepth": 0.5, "max": 4, "bossExtra": 2 }
+      }
+    },
+
+    "enemies.json": {
+      "_help": "Monster base stats at level 1 (they grow with the scaling above). hp, dmg per blow, xp, spd (m/s), aggro (distance they notice you), cd (seconds between attacks), armor, mr (magic resist). More fields per monster in data/enemies.json.",
+      "enemies": {
+      "deer": { "hp": 30, "dmg": 0, "xp": 6, "spd": 8.2, "aggro": 15, "cd": 1.5, "armor": 5, "mr": 5 },
+      "rabbit": { "hp": 8, "dmg": 0, "xp": 2, "spd": 8.8, "aggro": 9, "cd": 1.5, "armor": 0, "mr": 0 },
+      "boar": { "hp": 55, "dmg": 8, "xp": 14, "spd": 6.4, "aggro": 6, "cd": 1.4, "armor": 18, "mr": 5 },
+      "shadeStag": { "hp": 45, "dmg": 0, "xp": 10, "spd": 8.6, "aggro": 18, "cd": 1.5, "armor": 10, "mr": 30 },
+      "wolf": { "hp": 38, "dmg": 7, "xp": 12, "spd": 5.9, "aggro": 22, "cd": 1, "armor": 8, "mr": 5 },
+      "bandit": { "hp": 62, "dmg": 9, "xp": 18, "spd": 3.9, "aggro": 20, "cd": 1.3, "armor": 18, "mr": 8 },
+      "archer": { "hp": 46, "dmg": 9, "xp": 20, "spd": 3.5, "aggro": 32, "cd": 2.1, "armor": 10, "mr": 8 },
+      "goblin": { "hp": 34, "dmg": 6, "xp": 11, "spd": 4.8, "aggro": 20, "cd": 0.9, "armor": 10, "mr": 12 },
+      "brute": { "hp": 210, "dmg": 22, "xp": 64, "spd": 2.9, "aggro": 20, "cd": 2.2, "armor": 40, "mr": 10 },
+      "skeleton": { "hp": 72, "dmg": 10, "xp": 22, "spd": 3.3, "aggro": 19, "cd": 1.4, "armor": 28, "mr": 12 },
+      "wraith": { "hp": 58, "dmg": 13, "xp": 32, "spd": 2.9, "aggro": 28, "cd": 2.6, "armor": 5, "mr": 40 },
+      "hound": { "hp": 52, "dmg": 11, "xp": 26, "spd": 6.7, "aggro": 26, "cd": 0.9, "armor": 14, "mr": 25 },
+      "revenant": { "hp": 250, "dmg": 25, "xp": 70, "spd": 3.1, "aggro": 24, "cd": 1.9, "armor": 45, "mr": 30 },
+      "barrowKing": { "hp": 1100, "dmg": 32, "xp": 340, "spd": 3.3, "aggro": 40, "cd": 1.7, "armor": 55, "mr": 40 },
+      "warchief": { "hp": 1300, "dmg": 36, "xp": 460, "spd": 3.8, "aggro": 40, "cd": 1.6, "armor": 60, "mr": 25 },
+      "golem": { "hp": 2000, "dmg": 44, "xp": 760, "spd": 2.6, "aggro": 40, "cd": 2.2, "armor": 90, "mr": 20 },
+      "dragon": { "hp": 4200, "dmg": 52, "xp": 2200, "spd": 4.6, "aggro": 46, "cd": 2.4, "armor": 70, "mr": 45 }
+      }
+    },
+
+    "loot.json": {
+      "_help": "Drop rarity: weights for Common, Fine, Rare, Epic, Legendary; each point of loot bonus shifts weight toward rarer items (bonusPerPoint). Dungeon floors add bonusPerDepth per floor and bonusPerTier per 5-floor tier. Set gear: first floor (minDepth) and drop chances per kill (normal, upgraded 'elite', boss), +perDepth per floor deeper. Per-dungeon tables, uniques, scraps and crafting costs: data/loot.json.",
+      "rarity": { "weights": [55, 27, 12, 4.5, 1.5], "bonusPerPoint": 0.35 },
+      "dungeonDrop": { "bonusPerDepth": 0.45, "bonusPerTier": 1.5 },
+      "sets": {
+        "barrowlord": { "minDepth": 10, "chance": 0.004, "eliteChance": 0.015, "bossChance": 0.3, "perDepth": 0.1, "statMul": 1.25 },
+        "warchief":   { "minDepth": 10, "chance": 0.004, "eliteChance": 0.015, "bossChance": 0.3, "perDepth": 0.1, "statMul": 1.25 },
+        "colossus":   { "minDepth": 10, "chance": 0.004, "eliteChance": 0.015, "bossChance": 0.3, "perDepth": 0.1, "statMul": 1.25 }
+      }
+    },
+
+    "items.json": {
+      "_help": "Stat multiplier per rarity: Common, Fine, Rare, Epic, Legendary.",
+      "rarityMult": [1, 1.3, 1.7, 2.3, 3.2]
+    },
+
+    "feel.json": {
+      "_help": "Movement: run / sprint speed (m/s; if you change these, change avatar.json gait run/sprint by the same ratio so legs match), sprint stamina drain per second, delay before stamina refills, refill per second.",
+      "move": { "run": 5.6, "sprint": 8.0, "sprintDrain": 4, "sprintRegenDelay": 0.3, "staminaRegen": 24 }
+    },
+
+    "valor.json": {
+      "_help": "Arena currency. Valor for clearing milestone waves, Shadow Duel rounds (duelPerRound x streak, at most duelMax), gacha pull costs.",
+      "milestones": [ { "wave": 3, "valor": 10 }, { "wave": 5, "valor": 20 }, { "wave": 8, "valor": 30 }, { "wave": 10, "valor": 45 }, { "wave": 15, "valor": 70 }, { "wave": 20, "valor": 100 } ],
+      "duelPerRound": 5, "duelMax": 60,
+      "gacha": { "cost": 15, "costTen": 135, "pity": 10 }
+    },
+
+    "wildlife.json": {
+      "_help": "Animal herds: groups = herds on the island, size = [min, max] animals per herd.",
+      "herds": [
+        { "type": "deer",      "groups": 14, "size": [2, 4], "where": "meadow", "minH": 2, "maxH": 24 },
+        { "type": "rabbit",    "groups": 22, "size": [1, 3], "where": "meadow", "minH": 2, "maxH": 20 },
+        { "type": "boar",      "groups": 10, "size": [1, 2], "where": "forest", "minH": 2, "maxH": 28 },
+        { "type": "shadeStag", "groups": 9,  "size": [1, 3], "where": "meadow", "minH": 2, "maxH": 30 }
+      ]
+    }
+  }
+}
