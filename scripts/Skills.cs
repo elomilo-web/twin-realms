@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using Godot;
 
@@ -26,10 +27,18 @@ public class SkillCalc
     public float SelfHeal;   // % of max health restored each time the skill goes off
     public float ManaBack;   // % of the mana and stamina cost refunded each time the skill goes off
     public int Count, Pierce, Chain, Echo; public bool Homing; public string Auto = "";
+    // where a modifier has no natural meaning for a kind of skill it is turned into one that does (Skills.Compute):
+    public float Range, Arc;        // melee and dash reach (area modifiers widen them)
+    public float Delay;             // strikes: time before the hit lands (speed modifiers shorten it)
+    public float Jump = 10f;        // how far chained arcs leap between foes
+    public float SpinStep = .26f;   // whirlwind: time per turn
+    public float MoveMul = 1f;      // leap and dash travel time
+    public bool Burst; public float BurstR = 4f;   // heals and buffs: a burst around you that carries the on-hit modifiers
     public Vector3? At;      // aimed skills: where the player put the preview while holding the key
     public float Charge;     // charged skills: 0..1, how long the key was held (empowers the cast)
     public List<(string id, float chance, float durMul, float pow)> Status = new();
-    public HitInfo Hit(float dmg, Vector3 from, bool crit) => new() { Damage = dmg, From = from, Knock = Knock, Stun = Stun, Up = Up, Crit = crit, IsPlayer = true, Attacker = Player.Instance, Type = Type, Statuses = Status, Leech = Leech, Execute = Execute, Fire = Type == "fire", Stagger = Stun > 0 || Up > 0 || Knock >= 6f };
+    /// <summary>A hit from this skill; a critical one deals the hero's crit multiplier.</summary>
+    public HitInfo Hit(float dmg, Vector3 from, bool crit) => new() { Damage = crit ? dmg * Game.D.CritMult() : dmg, From = from, Knock = Knock, Stun = Stun, Up = Up, Crit = crit, IsPlayer = true, Attacker = Player.Instance, Type = Type, Statuses = Status, Leech = Leech, Execute = Execute, Fire = Type == "fire", Stagger = Stun > 0 || Up > 0 || Knock >= 6f };
 }
 
 /// <summary>Active skills and support modifiers from data/skills.json, the player's skill state, and how supports change a skill.</summary>
@@ -136,10 +145,15 @@ public static class Skills
         Load(); var d = Game.D; var TS = Game.TS; var k = _s[id]; var st = d.Skills.GetValueOrDefault(id) ?? new SkillState();
         var c = new SkillCalc { Def = k, Type = k.Type, Radius = k.Radius, Speed = k.Speed, Spread = k.Spread, Knock = k.Knock, Stun = k.Stun, Up = k.Up, Leech = k.Leech, Heal = k.Heal, Dur = k.Dur, Tick = k.Tick, Count = k.Count, Pierce = k.Pierce, Chain = k.Chain, Homing = k.Homing };
         float more = 1 + RankP * (st.Rank - 1) / 100f, aoe = 1 + TS["aoeP"] / 100f, spd = 1, cost = 1 + TS["mcost"] / 100f, cd = 1 - TS["cdr"] / 100f, cast = 1, knock = 1, dur = 1, tick = 1, heal = 1;
+        float supMore = 1, supAoe = 1; bool off = false, offCrit = false;   // the modifiers' own share, for the stand-in effects below
         foreach (var kv in k.Status) c.Status.Add((kv.Key, kv.Value.Length > 0 ? kv.Value[0] : 1, kv.Value.Length > 1 ? kv.Value[1] : 1, kv.Value.Length > 2 ? kv.Value[2] : 0));
         foreach (var sid in st.Sup)
         {
             var s = Sup(sid); if (s == null || !Fits(s, k)) continue; float N(string key) => s.Num.GetValueOrDefault(key);
+            supMore *= 1 + N("dmgP") / 100f; supAoe += N("aoeP") / 100f;
+            off |= s.Status.Count > 0 || s.Convert != "" || N("stun") > 0 || N("up") > 0 || N("knockP") > 0 || N("execute") > 0 || N("pierce") > 0 || N("leech") > 0;
+            offCrit |= N("critC") > 0 || N("homing") > 0;
+            if (N("homing") > 0 && k.Homing) c.CritC += 10;   // a skill that already seeks: it seeks weak spots instead
             more *= 1 + N("dmgP") / 100f; aoe += N("aoeP") / 100f; spd += N("projSpeedP") / 100f; cost += N("costP") / 100f; cd += N("cdP") / 100f; cast += N("castP") / 100f; knock += N("knockP") / 100f;
             c.Count += (int)N("projCount"); c.Pierce += (int)N("pierce"); c.Chain += (int)N("chain"); c.Echo += (int)N("echo"); c.Homing |= N("homing") > 0;
             c.Stun += N("stun"); c.Up += N("up"); c.Leech += N("leech"); c.Execute += N("execute");
@@ -149,13 +163,107 @@ public static class Skills
             if (s.Convert != "") c.Type = s.Convert;
             foreach (var kv in s.Status) c.Status.Add((kv.Key, kv.Value[0], kv.Value.Length > 1 ? kv.Value[1] : 1, kv.Value.Length > 2 ? kv.Value[2] : 0));
         }
-        if (k.Kind == "projectile" && k.Count > 1) more *= 1; // spread skills keep per-projectile damage
+        string kind = k.Kind; bool support = kind is "heal" or "buff";
         float baseDmg = k.Scale == "weapon" ? d.WpnDmg() * k.Mult : (k.Dmg + k.Lvl * d.Level) * d.SpellPow();
-        c.Dmg = baseDmg * more * (1 + TS["skillP"] / 100f) * (k.Scale == "weapon" ? 1 : 1);
-        c.Radius = k.Radius * Mathf.Max(.3f, aoe); c.Speed = k.Speed * Mathf.Max(.3f, spd); c.Knock *= knock;
-        c.Dur = k.Dur * Mathf.Max(.3f, dur); c.Tick = k.Tick * Mathf.Max(.25f, tick); c.Heal = k.Heal * Mathf.Max(0, heal); c.ManaBack = Mathf.Min(c.ManaBack, 90f);
+        if (support && baseDmg <= 0) baseDmg = (8 + 1.6f * d.Level) * d.SpellPow();   // heals and buffs: what their burst hits for
+        c.Dmg = baseDmg * more * (1 + TS["skillP"] / 100f);
+        c.Radius = k.Radius * Mathf.Max(.3f, aoe); c.Knock *= knock;
+        c.Dur = k.Dur * Mathf.Max(.3f, dur); c.Tick = k.Tick; c.Heal = k.Heal * Mathf.Max(0, heal); c.ManaBack = Mathf.Min(c.ManaBack, 90f);
+        c.Speed = k.Speed; c.Range = k.Range; c.Arc = k.Arc; c.Delay = k.Delay;
         c.Mp = k.Mp * Mathf.Max(0, cost) * (1f - (d.Weapon?.Mc ?? 0f)); c.St = k.St * Mathf.Max(0, cost);
-        c.Cd = k.Cd * Mathf.Max(.2f, cd); c.Cast = k.Cast * Mathf.Max(.3f, cast) / (k.Scale == "weapon" ? d.AtkSpeed() : 1f + TS["castSpd"] / 100f);
+        float cdMul = Mathf.Max(.2f, cd), castMul = Mathf.Max(.3f, cast);
+
+        // ---- every modifier does something on every kind of skill: where its natural effect has no meaning, it gets a stand-in
+        // speed: projectiles fly faster; anything else is quicker to use, strikes land sooner, leaps and dashes travel faster
+        if (kind == "projectile") c.Speed = k.Speed * Mathf.Max(.3f, spd);
+        else if (spd > 1) { float q = 1 + (spd - 1) * .5f; castMul /= q; c.Delay = k.Delay / spd; c.MoveMul = 1f / q; }
+        // pierce: projectiles pass through foes; anything else sunders armor (25% chance per point)
+        if (kind != "projectile") { int extra = c.Pierce - k.Pierce; if (extra > 0) c.Status.Add(("shred", Mathf.Min(1f, .25f * extra), 1, 0)); c.Pierce = 0; }
+        // homing: projectiles seek; placed zones drift after foes; chains leap farther; anything else finds weak spots (+10% crit)
+        if (c.Homing && !k.Homing && kind != "projectile")
+        {
+            if (kind == "zone" && !k.Self) { }
+            else { c.Homing = false; if (kind == "chain") c.Jump *= 1.5f; else c.CritC += 10; }
+        }
+        // area, on skills without an area of their own: projectiles explode, melee and dash reach farther and wider, chains leap farther,
+        // heals heal more, buffs last longer
+        float sa = Mathf.Max(.3f, supAoe);
+        if (k.Radius <= 0 && supAoe != 1)
+            switch (kind)
+            {
+                case "projectile": if (supAoe > 1) c.Radius = 3f * (supAoe - 1); break;
+                case "melee": c.Range = k.Range * sa; c.Arc = Mathf.Min(180, k.Arc * sa); break;
+                case "dash": c.Range = k.Range * sa; break;
+                case "chain": c.Jump *= sa; break;
+                case "heal": c.Heal *= 1 + (supAoe - 1) * .5f; break;
+                case "buff": c.Dur *= 1 + (supAoe - 1) * .5f; break;
+            }
+        c.BurstR = 4f * Mathf.Max(.5f, sa);
+        // knockback on a skill that had none: a shove
+        if (k.Knock <= 0 && knock > 1) c.Knock = (knock - 1) * 2.5f;
+        // tick rate: zones pulse faster, whirlwind turns faster, anything else recovers faster
+        if (kind == "zone") c.Tick = k.Tick * Mathf.Max(.25f, tick);
+        else if (kind == "spin") c.SpinStep = .26f * Mathf.Max(.4f, tick);
+        else if (tick != 1) cdMul *= Mathf.Max(.2f, 1 + (tick - 1) * .5f);
+        // duration: statuses last longer; heals heal more; instant skills with nothing lasting daze longer
+        if (dur != 1)
+        {
+            for (int i = 0; i < c.Status.Count; i++) { var s = c.Status[i]; c.Status[i] = (s.id, s.chance, s.durMul * Mathf.Max(.3f, dur), s.pow); }
+            if (kind == "heal") c.Heal *= 1 + (dur - 1) * .5f;
+            else if (k.Dur <= 0 && c.Status.Count == 0 && dur > 1) c.Stun += .5f * (dur - 1);
+        }
+        // healing power on a skill that does not heal: it heals you a little when used
+        if (k.Heal <= 0 && heal > 1) c.SelfHeal += (heal - 1) * 5f;
+        // heals: damage modifiers make the heal stronger; on-hit modifiers add a burst of light around you that carries them
+        if (kind == "heal") c.Heal *= Mathf.Max(.1f, supMore);
+        if (support) c.Burst = off || (kind == "buff" && offCrit);
+        // more "projectiles" on buffs: each one adds a quarter to the duration (the other kinds use Count directly, see PlayerSkills.Execute)
+        if (kind == "buff" && c.Count > k.Count) c.Dur *= 1 + .25f * (c.Count - k.Count);
+
+        c.Cd = k.Cd * cdMul; c.Cast = k.Cast * castMul / (k.Scale == "weapon" ? d.AtkSpeed() : 1f + TS["castSpd"] / 100f);
         return c;
     }
+
+    /// <summary>What a modifier does on this particular skill when its usual effect does not apply there ("" when it works as described).</summary>
+    public static string OnSkill(SupportDef s, SkillDef k)
+    {
+        Load(); var l = new List<string>(); float N(string key) => s.Num.GetValueOrDefault(key); string kind = k.Kind; bool proj = kind == "projectile";
+        int n = (int)N("projCount");
+        if (n > 0 && !proj && kind != "spin")
+            l.Add(kind switch
+            {
+                "nova" => $"{n} more novas burst around you", "chain" => $"{n} more bolts, each from a new foe", "heal" => $"{n} follow-up heal pulses",
+                "zone" => $"{n} more zones around the first", "strike" => $"{n} more strikes around the first", "melee" => $"the swing sends out {n} blade waves",
+                "leap" => $"{n} aftershocks around where you land", "dash" => k.Behind ? $"{n} shadow strikes on the target" : $"{n} afterimages sweep the path again",
+                _ => $"lasts {25 * n}% longer",
+            });
+        if (N("projSpeedP") > 0 && !proj) l.Add(kind == "strike" ? "faster to use and lands sooner" : kind is "leap" or "dash" ? "faster to use and to travel" : "faster to use");
+        if (N("pierce") > 0 && !proj) l.Add("hits sunder armor");
+        if (N("homing") > 0 && k.Homing) l.Add("it already seeks: +10% crit chance instead");
+        else if (N("homing") > 0 && !proj) l.Add(kind == "zone" && !k.Self ? "the zone drifts after foes" : kind == "chain" ? "arcs leap 50% farther" : "+10% crit chance");
+        if (N("aoeP") != 0 && k.Radius <= 0)
+        {
+            string? a = kind switch { "projectile" => N("aoeP") > 0 ? "projectiles explode" : null, "melee" => "reaches farther and wider", "dash" => "dashes farther", "chain" => "arcs leap farther", "heal" => "heals more", "buff" => "lasts longer", _ => null };
+            if (a != null) l.Add(N("aoeP") < 0 ? a.Replace("farther", "less far").Replace("more", "less").Replace("longer", "shorter") : a);
+        }
+        if (N("knockP") > 0 && k.Knock <= 0) l.Add("shoves foes back");
+        if (N("tickP") != 0 && kind != "zone") l.Add(kind == "spin" ? "spins faster" : "shorter cooldown");
+        if (N("durP") > 0 && k.Dur <= 0) l.Add(kind == "heal" ? "heals more" : "statuses last longer" + (k.Status.Count == 0 && s.Status.Count == 0 ? "; hits daze foes longer" : ""));
+        if (N("healP") > 0 && k.Heal <= 0) l.Add("heals you a little on use");
+        if (N("chain") > 0 && !proj && kind is not ("chain" or "melee")) l.Add($"arcs leap to {(int)N("chain")} foes nearby");
+        if (N("echo") > 0 && kind is "leap" or "dash") l.Add(kind == "leap" ? "slams again" : "strikes again");
+        if (s.Auto != "" && kind is "leap" or "dash") l.Add("when it triggers, you slam where you stand");
+        if (kind == "heal" && N("dmgP") != 0) l.Add(N("dmgP") > 0 ? "heals more" : "heals less");
+        bool offensive = s.Status.Count > 0 || s.Convert != "" || N("stun") > 0 || N("up") > 0 || N("knockP") > 0 || N("execute") > 0 || N("pierce") > 0 || N("leech") > 0 || (kind == "buff" && (N("critC") > 0 || N("homing") > 0));
+        if (kind is "heal" or "buff" && offensive) l.Add("a burst around you carries the on-hit effects");
+        if (kind == "heal" && N("critC") > 0) l.Add("heals can crit for 50% more");
+        return string.Join("; ", l.Distinct());
+    }
+
+    /// <summary>Everything a resolved skill does, as text: two different texts mean the skill behaves differently (bot check: every modifier changes every skill).</summary>
+    public static string Fingerprint(SkillCalc c) =>
+        string.Join("|", c.Type, c.Dmg.ToString("0.###"), c.Mp.ToString("0.###"), c.St.ToString("0.###"), c.Cd.ToString("0.###"), c.Cast.ToString("0.###"), c.Radius.ToString("0.###"), c.Speed.ToString("0.###"),
+            c.Knock.ToString("0.###"), c.Stun.ToString("0.###"), c.Up.ToString("0.###"), c.Leech, c.Execute, c.Heal.ToString("0.####"), c.Dur.ToString("0.###"), c.Tick.ToString("0.###"), c.Auto, c.AutoCd, c.Count, c.Pierce, c.Chain, c.Echo, c.Homing,
+            c.CritC, c.SelfHeal.ToString("0.###"), c.ManaBack, c.Range.ToString("0.###"), c.Arc.ToString("0.###"), c.Delay.ToString("0.###"), c.Jump.ToString("0.###"), c.SpinStep.ToString("0.###"), c.MoveMul.ToString("0.###"), c.Burst, c.Burst ? c.BurstR.ToString("0.#") : "",
+            string.Join(",", c.Status.Select(s => $"{s.id}:{s.chance:0.##}:{s.durMul:0.##}:{s.pow:0.##}")));
 }

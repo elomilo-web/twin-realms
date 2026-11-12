@@ -16,6 +16,8 @@ public partial class Player
     Vector3 _moveFrom, _moveTo; float _moveT, _moveDur, _moveArc; SkillCalc? _moveSkill; float _spinLeft, _spinStep; int _spinHits;
 
     public float CdOf(string? id) => id != null && _skillCd.TryGetValue(id, out var v) ? v : 0;
+    /// <summary>Every skill ready again (test bots).</summary>
+    public void ResetCooldowns() { _skillCd.Clear(); _skillCdMax.Clear(); _autoCd.Clear(); }
     public bool Staggered => _stagger > 0; public bool Casting => _castT > 0;
     public float CdMaxOf(string? id) => id != null && _skillCdMax.TryGetValue(id, out var v) ? Mathf.Max(.01f, v) : 1;
     public bool Busy => _castT > 0 || _atkT > 0 || _moveT > 0 || _spinLeft > 0;
@@ -87,8 +89,7 @@ public partial class Player
 
     void TryCast(int slot, Vector3? at = null, float charge = 0)
     {
-        var D = Game.D; if (slot >= D.Bar.Length) return; var id = D.Bar[slot];
-        if (string.IsNullOrEmpty(id) || !D.Skills.ContainsKey(id) || Skills.Get(id) == null) { Ui.Note($"No skill on key {Inputs.KeyOf("spell" + (slot + 1))}. Press {Inputs.KeyOf(Inputs.SkillsUi)} to set one.", new Color(.7f, .8f, 1)); return; }
+        var D = Game.D; if (slot >= D.Bar.Length) return; var id = D.Bar[slot];        if (string.IsNullOrEmpty(id) || !D.Skills.ContainsKey(id) || Skills.Get(id) == null) { Ui.Note($"No skill on key {Inputs.KeyOf("spell" + (slot + 1))}. Press {Inputs.KeyOf(Inputs.SkillsUi)} to set one.", new Color(.7f, .8f, 1)); return; }
         if (Dead || Busy || _rollT > 0 || _stagger > 0) return;
         if (Mounted) { Ui.Note("You cannot use skills while mounted", new Color(0.7f, 0.8f, 1)); return; }
         if (CdOf(id) > 0) return;
@@ -155,7 +156,7 @@ public partial class Player
         {
             // whirlwind: hits all around once per turn
             _spinLeft -= dt; _modelYaw += dt * Mathf.Tau * 2.2f; _spinStep -= dt;
-            if (_spinStep <= 0 && _spinHits > 0) { _spinStep = .26f; _spinHits--; AreaHit(_atkSkill, GlobalPosition, _atkSkill.Radius, 1f, true); Vfx.Ring(GlobalPosition + Vector3.Up * .1f, _atkSkill.Radius, W.Trail, .25f); }
+            if (_spinStep <= 0 && _spinHits > 0) { _spinStep = _atkSkill.SpinStep; _spinHits--; AreaHit(_atkSkill, GlobalPosition, _atkSkill.Radius, 1f, true); Vfx.Ring(GlobalPosition + Vector3.Up * .1f, _atkSkill.Radius, W.Trail, .25f); }
             if (_spinLeft <= 0) _atkSkill = null;
         }
         if (_moveT > 0 && _moveSkill != null)
@@ -186,7 +187,7 @@ public partial class Player
         if (c.Def.Tags.Contains("bow") && Game.D.WType() != "bow") return;
         Mp -= c.Mp; if (c.St > 0) St -= c.St; _autoCd[id] = Mathf.Max(.5f, c.AutoCd);
         var foe = NearestFoe(25f); if (foe != null) { var d = foe.GlobalPosition - GlobalPosition; _modelYaw = Util.YawTo(d.X, d.Z); }
-        if (c.Def.Kind is "leap" or "dash") return; // movement skills never fire by themselves
+        if (c.Def.Kind is "leap" or "dash") { Slam(c, GlobalPosition, 1f); return; }   // movement skills never move you by themselves: they slam where you stand
         Execute(c, foe);
     }
     void TriggerAuto(string trigger) { foreach (var id in Game.D.Bar) if (!string.IsNullOrEmpty(id)) AutoFire(id, trigger); }
@@ -222,65 +223,107 @@ public partial class Player
                 break;
             }
             case "nova":
-                if (c.Type == "frost") Vfx.FrostNova(GlobalPosition, c.Radius); else { Vfx.Ring(GlobalPosition + Vector3.Up * .1f, c.Radius, col, .45f); Vfx.Flash(GlobalPosition + Vector3.Up, col, 4f, c.Radius * 2, .5f); }
-                SpellFx.Skill(k.Id, "ground", GlobalPosition, FxFit(k.Id, "ground", c.Radius));
-                Rig?.Shake(.15f); AreaHit(c, GlobalPosition, c.Radius, 1f, true); break;
+            {
+                NovaAt(c, GlobalPosition, true);
+                // more "projectiles": more novas burst in a ring around you, one after another
+                for (int i = 1; i < c.Count; i++)
+                {
+                    float a = _modelYaw + i * Mathf.Tau / (c.Count - 1); var at = Ground(GlobalPosition + new Vector3(-Mathf.Sin(a), 0, -Mathf.Cos(a)) * c.Radius * 1.1f);
+                    GetTree().CreateTimer(.14f * i).Timeout += () => { if (!Dead) NovaAt(c, at, false); };
+                }
+                if (c.Chain > 0) ChainFrom(c, GlobalPosition, c.Chain);
+                break;
+            }
             case "chain":
             {
                 var (t, cur) = Aim(k.Range, forced); cur ??= NearestFoe(28f);
                 if (cur == null) { Vfx.Lightning(origin, t, col); BeamFx(k.Id, origin, t); break; }
-                var prev = origin; float dm = c.Dmg; var seen = new HashSet<Enemy>();
+                var seen = new HashSet<Enemy>();
                 int hitsN = System.Math.Max(1, c.Chain) + (k.Id == "zap" ? (int)Game.TS["chain"] : 0);
-                for (int j = 0; j < hitsN && cur != null; j++)
+                // more "projectiles": more bolts, each starting at a foe the others have not touched
+                for (int b = 0; b < Mathf.Max(1, c.Count) && cur != null; b++)
                 {
-                    var pt = cur.GlobalPosition + new Vector3(0, cur.HeightM() * .55f, 0); Vfx.Lightning(prev, pt, col, .28f); seen.Add(cur);
-                    BeamFx(k.Id, prev, pt); SpellFx.Skill(k.Id, "hit", pt);
-                    cur.TakeHit(c.Hit(dm, GlobalPosition, Crit(c))); dm *= .82f; prev = pt; cur = NearestFoe(10f, cur.GlobalPosition, seen);
+                    var prev = origin; float dm = c.Dmg * (b == 0 ? 1f : .8f);
+                    for (int j = 0; j < hitsN && cur != null; j++)
+                    {
+                        var pt = cur.GlobalPosition + new Vector3(0, cur.HeightM() * .55f, 0); Vfx.Lightning(prev, pt, col, .28f); seen.Add(cur);
+                        BeamFx(k.Id, prev, pt); SpellFx.Skill(k.Id, "hit", pt);
+                        cur.TakeHit(c.Hit(dm, GlobalPosition, Crit(c))); dm *= .82f; prev = pt; cur = NearestFoe(c.Jump, cur.GlobalPosition, seen);
+                    }
+                    cur = NearestFoe(28f, GlobalPosition, seen);
                 }
                 break;
             }
             case "heal":
             {
-                float amt = Game.D.MaxHp() * c.Heal * (1 + Game.TS["healP"] / 100f); Hp = Mathf.Min(Game.D.MaxHp(), Hp + amt); Statuses.List.RemoveAll(s => s.Def.Kind is "dot" or "slow" or "weaken");
-                Vfx.HealPillar(this); FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.2f, 0), "+" + Mathf.RoundToInt(amt), new Color(0.5f, 1f, 0.6f)); break;
+                bool cr = Crit(c);   // critical heals restore half again as much
+                float amt = Game.D.MaxHp() * c.Heal * (1 + Game.TS["healP"] / 100f) * (cr ? 1.5f : 1f); Hp = Mathf.Min(Game.D.MaxHp(), Hp + amt); Statuses.List.RemoveAll(s => s.Def.Kind is "dot" or "slow" or "weaken");
+                Vfx.HealPillar(this); FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.2f, 0), "+" + Mathf.RoundToInt(amt) + (cr ? "!" : ""), new Color(0.5f, 1f, 0.6f));
+                // more "projectiles": follow-up pulses, each a third of the heal
+                for (int i = 1; i < c.Count; i++)
+                    GetTree().CreateTimer(.5f * i).Timeout += () =>
+                    {
+                        if (Dead) return; float a2 = Game.D.MaxHp() * c.Heal * (1 + Game.TS["healP"] / 100f) / 3f; Hp = Mathf.Min(Game.D.MaxHp(), Hp + a2);
+                        Vfx.Ring(GlobalPosition + Vector3.Up * .1f, 1.6f, new Color(.5f, 1f, .6f), .35f); FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.2f, 0), "+" + Mathf.RoundToInt(a2), new Color(0.5f, 1f, 0.6f), .8f);
+                    };
+                if (c.Burst) Burst(c, GlobalPosition);
+                if (c.Chain > 0) ChainFrom(c, GlobalPosition, c.Chain);
+                break;
             }
             case "zone":
             {
                 var at = k.Self ? GlobalPosition : c.At ?? Ground(Aim(40f, forced).pt);
-                var z = new SkillZone { Calc = c, Col = col, Rain = k.Id == "rain" }; Game.Root!.AddChild(z); z.GlobalPosition = at; break;
+                var z = new SkillZone { Calc = c, Col = col, Rain = k.Id == "rain", Follow = k.Self }; Game.Root!.AddChild(z); z.GlobalPosition = at;
+                // more "projectiles": more zones around the first (they stay where they land)
+                for (int i = 1; i < c.Count; i++) { var z2 = new SkillZone { Calc = c, Col = col, Rain = k.Id == "rain" }; Game.Root!.AddChild(z2); z2.GlobalPosition = Ground(Around(at, i, c.Count, c.Radius * 1.7f)); }
+                if (c.Chain > 0) ChainFrom(c, at, c.Chain);
+                break;
             }
             case "strike":
             {
                 var at = c.At ?? Ground(Aim(45f, forced).pt);
-                var s = new SkillZone { Calc = c, Col = col, Strike = true }; Game.Root!.AddChild(s); s.GlobalPosition = at; break;
+                var s = new SkillZone { Calc = c, Col = col, Strike = true }; Game.Root!.AddChild(s); s.GlobalPosition = at;
+                // more "projectiles": more strikes around the first, each a moment later
+                for (int i = 1; i < c.Count; i++) { var s2 = new SkillZone { Calc = c, Col = col, Strike = true, Late = .12f * i }; Game.Root!.AddChild(s2); s2.GlobalPosition = Ground(Around(at, i, c.Count, c.Radius * 1.6f)); }
+                if (c.Chain > 0) GetTree().CreateTimer(Mathf.Max(.05f, c.Delay)).Timeout += () => { if (!Dead) ChainFrom(c, at, c.Chain); };
+                break;
             }
             case "melee":
             {
-                var fw = new Vector3(-Mathf.Sin(_modelYaw), 0, -Mathf.Cos(_modelYaw)); var hit = ArcHit(c, fw, Mathf.DegToRad(Mathf.Min(180, k.Arc)), k.Range);
-                if (k.Arc >= 120 || k.Range > 4) Vfx.Ring(GlobalPosition + Vector3.Up * .1f + (k.Range > 4 ? fw * k.Range * .5f : Vector3.Zero), k.Range > 4 ? k.Range * .5f : k.Range, W.Trail, .3f);
+                var fw = new Vector3(-Mathf.Sin(_modelYaw), 0, -Mathf.Cos(_modelYaw)); var hit = ArcHit(c, fw, Mathf.DegToRad(Mathf.Min(180, c.Arc)), c.Range);
+                if (c.Arc >= 120 || c.Range > 4) Vfx.Ring(GlobalPosition + Vector3.Up * .1f + (c.Range > 4 ? fw * c.Range * .5f : Vector3.Zero), c.Range > 4 ? c.Range * .5f : c.Range, W.Trail, .3f);
+                // more "projectiles": the swing also sends out blade waves, half damage each
+                for (int i = 1; i < c.Count; i++)
+                {
+                    float a = c.Count > 2 ? ((i - 1) / (float)(c.Count - 2) - .5f) * .7f : 0; var dv = fw.Rotated(Vector3.Up, a);
+                    var p = Projectile.Spawn("bolt", 'p', GlobalPosition + Vector3.Up * 1.1f + dv * .8f, dv * 26f, c.Dmg * .5f, 1.1f, Crit(c), false, 0f, false);
+                    p.Calc = c; p.PierceLeft = 2; p.Tint = c.Type == "physical" ? W.Trail : col;
+                }
                 if (hit != null) SpellFx.Skill(k.Id, "hit", hit.GlobalPosition + Vector3.Up * hit.HeightM() * .55f);
-                var front = GlobalPosition + fw * Mathf.Min(k.Range * .5f, 2.5f);
-                SpellFx.Skill(k.Id, "ground", front, FxFit(k.Id, "ground", k.Range * .6f)); SpellFx.Skill(k.Id, "after", front, FxFit(k.Id, "after", k.Range * .6f));
+                var front = GlobalPosition + fw * Mathf.Min(c.Range * .5f, 2.5f);
+                SpellFx.Skill(k.Id, "ground", front, FxFit(k.Id, "ground", c.Range * .6f)); SpellFx.Skill(k.Id, "after", front, FxFit(k.Id, "after", c.Range * .6f));
                 if (c.Chain > 0 && hit != null)
                 {
                     // arcs jump from the struck foe to the next ones
-                    var seen = new HashSet<Enemy> { hit }; var prev = hit.GlobalPosition + Vector3.Up; var cur = NearestFoe(9f, hit.GlobalPosition, seen);
-                    for (int j = 0; j < c.Chain && cur != null; j++) { var pt = cur.GlobalPosition + Vector3.Up; Vfx.Lightning(prev, pt, col, .25f); cur.TakeHit(c.Hit(c.Dmg * .6f, GlobalPosition, false)); seen.Add(cur); prev = pt; cur = NearestFoe(9f, cur.GlobalPosition, seen); }
+                    var seen = new HashSet<Enemy> { hit }; var prev = hit.GlobalPosition + Vector3.Up; var cur = NearestFoe(c.Jump, hit.GlobalPosition, seen);
+                    for (int j = 0; j < c.Chain && cur != null; j++) { var pt = cur.GlobalPosition + Vector3.Up; Vfx.Lightning(prev, pt, col, .25f); cur.TakeHit(c.Hit(c.Dmg * .6f, GlobalPosition, false)); seen.Add(cur); prev = pt; cur = NearestFoe(c.Jump, cur.GlobalPosition, seen); }
                 }
                 break;
             }
             case "spin":
-                _spinLeft = .26f * c.Count + .05f; _spinStep = 0; _spinHits = c.Count; _atkSkill = c;
-                SpellFx.SkillAttach(k.Id, "ground", this, Vector3.Up * .06f, FxFit(k.Id, "ground", c.Radius), _spinLeft); break;
+                _spinLeft = c.SpinStep * c.Count + .05f; _spinStep = 0; _spinHits = c.Count; _atkSkill = c;
+                SpellFx.SkillAttach(k.Id, "ground", this, Vector3.Up * .06f, FxFit(k.Id, "ground", c.Radius), _spinLeft);
+                if (c.Chain > 0) ChainFrom(c, GlobalPosition, c.Chain);
+                break;
             case "leap":
             {
-                var target = forced ?? Targeting.Aim; var to = c.At ?? (target != null && IsInstanceValid(target) ? target.GlobalPosition : Aim(k.Range).pt);
-                var d = to - GlobalPosition; d.Y = 0; if (d.Length() > k.Range) d = d.Normalized() * k.Range; if (d.Length() > 1.4f) d -= d.Normalized() * 1.2f;
-                _moveFrom = GlobalPosition; _moveTo = Ground(GlobalPosition + d) + Vector3.Up * .1f; _moveDur = .45f; _moveT = _moveDur; _moveArc = 2.6f; _moveSkill = c; break;
+                var target = forced ?? Targeting.Aim; var to = c.At ?? (target != null && IsInstanceValid(target) ? target.GlobalPosition : Aim(c.Range).pt);
+                var d = to - GlobalPosition; d.Y = 0; if (d.Length() > c.Range) d = d.Normalized() * c.Range; if (d.Length() > 1.4f) d -= d.Normalized() * 1.2f;
+                _moveFrom = GlobalPosition; _moveTo = Ground(GlobalPosition + d) + Vector3.Up * .1f; _moveDur = .45f * c.MoveMul; _moveT = _moveDur; _moveArc = 2.6f; _moveSkill = c; break;
             }
             case "dash":
             {
-                var target = forced ?? Targeting.Aim ?? (k.Behind ? NearestFoe(k.Range) : null);
+                var target = forced ?? Targeting.Aim ?? (k.Behind ? NearestFoe(c.Range) : null);
                 if (k.Behind && target != null && IsInstanceValid(target))
                 {
                     // shadow step: appear behind the target facing it, then strike with a guaranteed crit
@@ -290,11 +333,16 @@ public partial class Player
                     Vfx.Sparks(GlobalPosition + Vector3.Up, Ramp(new Color(.6f, .3f, 1f)), 24, 3, .5f, .3f, 1f);
                     target.TakeHit(c.Hit(c.Dmg, GlobalPosition, true)); Rig?.Shake(.15f);
                     SpellFx.Skill(k.Id, "hit", target.GlobalPosition + Vector3.Up * target.HeightM() * .55f);
+                    // more "projectiles": shadow copies strike the target again for half; echoes strike again in full; chains leap from it
+                    var tg = target;
+                    for (int i = 1; i < c.Count; i++) GetTree().CreateTimer(.12f * i).Timeout += () => { if (IsInstanceValid(tg) && !tg.Dead) { tg.TakeHit(c.Hit(c.Dmg * .5f, GlobalPosition, Crit(c))); Vfx.Sparks(tg.GlobalPosition + Vector3.Up, Ramp(new Color(.6f, .3f, 1f)), 10, 2, .3f, .2f, 1f); } };
+                    if (c.Echo > 0 && !echo) GetTree().CreateTimer(.3f).Timeout += () => { if (IsInstanceValid(tg) && !tg.Dead) tg.TakeHit(c.Hit(c.Dmg, GlobalPosition, Crit(c))); };
+                    if (c.Chain > 0) ChainFrom(c, target.GlobalPosition, c.Chain);
                 }
                 else
                 {
                     var fw = new Vector3(-Mathf.Sin(_modelYaw), 0, -Mathf.Cos(_modelYaw));
-                    _moveFrom = GlobalPosition; _moveTo = Ground(GlobalPosition + fw * k.Range) + Vector3.Up * .1f; _moveDur = .22f; _moveT = _moveDur; _moveArc = .15f; _moveSkill = c;
+                    _moveFrom = GlobalPosition; _moveTo = Ground(GlobalPosition + fw * c.Range) + Vector3.Up * .1f; _moveDur = .22f * c.MoveMul; _moveT = _moveDur; _moveArc = .15f; _moveSkill = c;
                 }
                 break;
             }
@@ -304,7 +352,10 @@ public partial class Player
                 Vfx.Ring(GlobalPosition + Vector3.Up * .1f, Mathf.Max(3, c.Radius), col.Lerp(new Color(1, .8f, .4f), .4f), .5f);
                 SpellFx.Skill(k.Id, "ground", GlobalPosition, FxFit(k.Id, "ground", Mathf.Max(3, c.Radius)));
                 FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.4f, 0), k.Name, new Color(1, .85f, .45f));
-                if (c.Radius > 0) AreaHit(c, GlobalPosition, c.Radius, 0f);
+                // a war cry's ring carries only its statuses, unless on-hit modifiers make it a real burst; buffs without a ring get one then
+                if (c.Radius > 0) AreaHit(c, GlobalPosition, c.Radius, c.Burst ? 1f : 0f);
+                else if (c.Burst) Burst(c, GlobalPosition);
+                if (c.Chain > 0) ChainFrom(c, GlobalPosition, c.Chain);
                 break;
             }
         }
@@ -314,7 +365,8 @@ public partial class Player
             if (c.SelfHeal > 0) { float amt = Game.D.MaxHp() * c.SelfHeal / 100f; Hp = Mathf.Min(Game.D.MaxHp(), Hp + amt); FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.1f, 0), "+" + Mathf.RoundToInt(amt), new Color(.5f, 1f, .6f), .8f); }
             if (c.ManaBack > 0) { Mp = Mathf.Min(Game.D.MaxMp(), Mp + c.Mp * c.ManaBack / 100f); St = Mathf.Min(Game.D.MaxSt(), St + c.St * c.ManaBack / 100f); }
             // echoes stack: each one repeats the skill once more, .3 s apart
-            if (c.Echo > 0 && k.Kind is not ("leap" or "dash" or "buff" or "heal"))
+            // (leaps and dashes echo when they land, see Land; heals heal again; buffs renew and ring again)
+            if (c.Echo > 0 && k.Kind is not ("leap" or "dash"))
                 for (int i = 1; i <= Mathf.Min(c.Echo, 3); i++) GetTree().CreateTimer(.3f * i).Timeout += () => { if (!Dead) Execute(c, forced, true); };
         }
     }
@@ -359,7 +411,7 @@ public partial class Player
             var d = e.GlobalPosition - GlobalPosition; d.Y = 0; float dist = d.Length() - e.Def.R * e.ScaleF();
             if (dist > range || Mathf.Abs(e.GlobalPosition.Y - GlobalPosition.Y) > 3.5f + e.Def.R) continue;
             if (dist > .6f && arc < Mathf.Pi - .01f && Mathf.Abs(Util.AngDiff(_modelYaw, Util.YawTo(d.X, d.Z))) > arc) continue;
-            bool cr = Crit(c); e.TakeHit(c.Hit(c.Dmg * (float)GD.RandRange(.9, 1.1) * (cr ? Game.D.CritMult() : 1f), GlobalPosition, cr)); hits++;
+            bool cr = Crit(c); e.TakeHit(c.Hit(c.Dmg * (float)GD.RandRange(.9, 1.1), GlobalPosition, cr)); hits++;   // (Hit applies the crit multiplier)
             if (cr) TriggerAuto("crit");
             if (dist < fd) { fd = dist; first = e; }
         }
@@ -368,18 +420,65 @@ public partial class Player
     }
     void Land(SkillCalc c)
     {
-        if (c.Def.Kind == "leap") { AreaHit(c, GlobalPosition, c.Radius, 1f); SpellFx.Skill(c.Def.Id, "hit", GlobalPosition, FxFit(c.Def.Id, "hit", c.Radius)); Vfx.Ring(GlobalPosition + Vector3.Up * .1f, c.Radius, W.Trail, .35f); Vfx.Sparks(GlobalPosition, Ramp(new Color(.7f, .6f, .5f)), 30, 6, .5f, .3f, -8f); Rig?.Shake(.3f); _landT = .22f; }
+        var at = GlobalPosition;
+        if (c.Def.Kind == "leap")
+        {
+            Slam(c, at, 1f); _landT = .22f;
+            // more "projectiles": aftershocks ring the landing spot; an echo slams again
+            for (int i = 1; i < c.Count; i++) { var p = Ground(Around(at, i, c.Count, c.Radius * 1.3f)); GetTree().CreateTimer(.1f * i).Timeout += () => { if (!Dead) Slam(c, p, .6f); }; }
+            if (c.Echo > 0) GetTree().CreateTimer(.3f).Timeout += () => { if (!Dead) Slam(c, at, 1f); };
+        }
         else
         {
-            // lunge: everything along the dash line takes the hit
-            var a = _moveFrom; var b = GlobalPosition;
-            foreach (var n in GetTree().GetNodesInGroup("enemies"))
-                if (n is Enemy e && !e.Dead && e.Active)
-                {
-                    var p = e.GlobalPosition; var ab = b - a; ab.Y = 0; float t = ab.LengthSquared() > .01f ? Mathf.Clamp(new Vector3(p.X - a.X, 0, p.Z - a.Z).Dot(ab) / ab.LengthSquared(), 0, 1) : 0;
-                    var cp = a + ab * t; if (new Vector2(p.X - cp.X, p.Z - cp.Z).Length() < 1.6f + e.Def.R) { bool cr = Crit(c); e.TakeHit(c.Hit(c.Dmg * (cr ? Game.D.CritMult() : 1f), a, cr)); SpellFx.Skill(c.Def.Id, "hit", p + Vector3.Up * e.HeightM() * .55f); }
-                }
+            // lunge: everything along the dash line takes the hit; more "projectiles" are afterimages that sweep it again; an echo sweeps it in full
+            var a = _moveFrom; PathHit(c, a, at, 1f);
+            for (int i = 1; i < c.Count; i++) GetTree().CreateTimer(.12f * i).Timeout += () => { if (!Dead) PathHit(c, a, at, .5f); };
+            if (c.Echo > 0) GetTree().CreateTimer(.3f).Timeout += () => { if (!Dead) PathHit(c, a, at, 1f); };
             Rig?.Shake(.12f);
+        }
+        if (c.Chain > 0) ChainFrom(c, at, c.Chain);
+    }
+    void Slam(SkillCalc c, Vector3 at, float mul)
+    {
+        float r = Mathf.Max(2.5f, c.Radius);
+        AreaHit(c, at, r, mul); SpellFx.Skill(c.Def.Id, "hit", at, FxFit(c.Def.Id, "hit", r)); Vfx.Ring(at + Vector3.Up * .1f, r, W.Trail, .35f);
+        Vfx.Sparks(at, Ramp(new Color(.7f, .6f, .5f)), mul >= 1 ? 30 : 14, 6, .5f, .3f, -8f); Rig?.Shake(mul >= 1 ? .3f : .12f);
+    }
+    void PathHit(SkillCalc c, Vector3 a, Vector3 b, float mul)
+    {
+        foreach (var n in GetTree().GetNodesInGroup("enemies"))
+            if (n is Enemy e && !e.Dead && e.Active)
+            {
+                var p = e.GlobalPosition; var ab = b - a; ab.Y = 0; float t = ab.LengthSquared() > .01f ? Mathf.Clamp(new Vector3(p.X - a.X, 0, p.Z - a.Z).Dot(ab) / ab.LengthSquared(), 0, 1) : 0;
+                var cp = a + ab * t; if (new Vector2(p.X - cp.X, p.Z - cp.Z).Length() < 1.6f + e.Def.R) { e.TakeHit(c.Hit(c.Dmg * mul, a, Crit(c))); SpellFx.Skill(c.Def.Id, "hit", p + Vector3.Up * e.HeightM() * .55f); }
+            }
+        if (mul < 1) Vfx.Lightning(a + Vector3.Up, b + Vector3.Up, W.Trail, .2f);
+    }
+
+    // ---------------------------------------------------------------- stand-in effects for modifiers (see Skills.Compute)
+    /// <summary>A point on a ring around a center: the i-th of n-1 extra copies (n = total count).</summary>
+    Vector3 Around(Vector3 center, int i, int n, float dist) { float a = _modelYaw + i * Mathf.Tau / Mathf.Max(1, n - 1); return center + new Vector3(-Mathf.Sin(a), 0, -Mathf.Cos(a)) * dist; }
+    void NovaAt(SkillCalc c, Vector3 at, bool main)
+    {
+        var col = Dmg.TypeColor(c.Type);
+        if (c.Type == "frost") Vfx.FrostNova(at, c.Radius); else { Vfx.Ring(at + Vector3.Up * .1f, c.Radius, col, .45f); Vfx.Flash(at + Vector3.Up, col, 4f, c.Radius * 2, .5f); }
+        SpellFx.Skill(c.Def.Id, "ground", at, FxFit(c.Def.Id, "ground", c.Radius));
+        Rig?.Shake(main ? .15f : .06f); AreaHit(c, at, c.Radius, 1f, true);
+    }
+    /// <summary>Heals and buffs with on-hit modifiers: a burst of light around you that carries them.</summary>
+    void Burst(SkillCalc c, Vector3 at)
+    {
+        var col = Dmg.TypeColor(c.Type); Vfx.Ring(at + Vector3.Up * .1f, c.BurstR, col, .4f); Vfx.Flash(at + Vector3.Up, col, 3f, c.BurstR * 1.6f, .35f);
+        AreaHit(c, at, c.BurstR, 1f, true);
+    }
+    /// <summary>Chain modifiers on skills that do not chain by themselves: arcs leap from the nearest foe to the next, half damage each.</summary>
+    void ChainFrom(SkillCalc c, Vector3 from, int n)
+    {
+        var col = Dmg.TypeColor(c.Type); var seen = new HashSet<Enemy>(); var cur = NearestFoe(Mathf.Max(c.Jump, 8f), from, seen); var prev = from + Vector3.Up;
+        for (int j = 0; j < n && cur != null; j++)
+        {
+            var pt = cur.GlobalPosition + Vector3.Up * cur.HeightM() * .55f; Vfx.Lightning(prev, pt, col, .25f);
+            cur.TakeHit(c.Hit(c.Dmg * .5f, from, Crit(c))); seen.Add(cur); prev = pt; cur = NearestFoe(c.Jump, cur.GlobalPosition, seen);
         }
     }
 
@@ -391,6 +490,8 @@ public partial class Player
 public partial class SkillZone : Node3D
 {
     public SkillCalc Calc = null!; public Color Col; public bool Strike, Rain;
+    public bool Follow;   // stays on the hero (Consecrate); extra copies from modifiers stay where they land
+    public float Late;    // extra strikes from modifiers land this much later
     float _t, _tick; MeshInstance3D? _disc; CpuParticles3D? _fx;
     public override void _Ready()
     {
@@ -413,7 +514,7 @@ public partial class SkillZone : Node3D
         {
             // meteor: a burning rock falls during the delay
             var rock = new MeshInstance3D { Mesh = Gfx.Boulder(2), Scale = Vector3.One * .9f, Position = new Vector3(6, 22, 6), MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(.3f, .15f, .1f), EmissionEnabled = true, Emission = new Color(1, .4f, .1f), EmissionEnergyMultiplier = 2f } };
-            AddChild(rock); rock.CreateTween().TweenProperty(rock, "position", Vector3.Up * .5f, Mathf.Max(.1f, Calc.Def.Delay)).SetEase(Tween.EaseType.In).SetTrans(Tween.TransitionType.Quad);
+            AddChild(rock); rock.CreateTween().TweenProperty(rock, "position", Vector3.Up * .5f, Mathf.Max(.1f, Calc.Delay + Late)).SetEase(Tween.EaseType.In).SetTrans(Tween.TransitionType.Quad);
         }
     }
     public override void _Process(double delta)
@@ -421,7 +522,7 @@ public partial class SkillZone : Node3D
         float dt = (float)delta; _t += dt; var p = Player.Instance;
         if (Strike)
         {
-            if (_t < Calc.Def.Delay) return;
+            if (_t < Calc.Delay + Late) return;
             if (Calc.Type == "fire") Vfx.Explosion(GlobalPosition + Vector3.Up * .4f, Calc.Radius);
             else { Vfx.HealPillarAt(GlobalPosition, Col, Calc.Radius); }
             var id = Calc.Def.Id; float big = SpellFx.SizeOf(SpellFx.For(id, "hit"));
@@ -431,7 +532,14 @@ public partial class SkillZone : Node3D
         }
         _tick -= dt;
         if (_tick <= 0) { _tick = Calc.Tick; Hit(1f); if (Calc.Heal > 0 && p != null && (p.GlobalPosition - GlobalPosition).Length() < Calc.Radius) p.Hp = Mathf.Min(Game.D.MaxHp(), p.Hp + Game.D.MaxHp() * Calc.Heal * (1 + Game.TS["healP"] / 100f)); }
-        if (Calc.Def.Self && p != null) GlobalPosition = p.GlobalPosition;
+        if (Follow && p != null) GlobalPosition = p.GlobalPosition;
+        else if (Calc.Homing && _t < Calc.Dur)
+        {
+            // seeking modifiers: the zone drifts after the nearest foe
+            Enemy? best = null; float bd = 14f;
+            foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Enemy e && !e.Dead && e.Active) { float dd = new Vector2(e.GlobalPosition.X - GlobalPosition.X, e.GlobalPosition.Z - GlobalPosition.Z).Length(); if (dd < bd) { bd = dd; best = e; } }
+            if (best != null && bd > .4f) { var to = best.GlobalPosition - GlobalPosition; to.Y = 0; var np = GlobalPosition + to.Normalized() * Mathf.Min(bd, 2.5f * dt); np.Y = Dungeon.Active ? GlobalPosition.Y : World.GroundAt(np.X, np.Z); GlobalPosition = np; }
+        }
         if (_t > Calc.Dur) { if (_fx != null) _fx.Emitting = false; Scale = Scale.Lerp(Vector3.Zero, .2f); if (_t > Calc.Dur + .4f) QueueFree(); }
     }
     void Hit(float mul)
@@ -439,7 +547,8 @@ public partial class SkillZone : Node3D
         foreach (var n in GetTree().GetNodesInGroup("enemies"))
             if (n is Enemy e && !e.Dead && e.Active && new Vector2(e.GlobalPosition.X - GlobalPosition.X, e.GlobalPosition.Z - GlobalPosition.Z).Length() - e.Def.R < Calc.Radius && Mathf.Abs(e.GlobalPosition.Y - GlobalPosition.Y) < 4f)
             {
-                var h = Calc.Hit(Calc.Dmg * mul, GlobalPosition, false); if (!Strike) h.Knock = 0; e.TakeHit(h);
+                bool cr = Calc.Def.Crit || GD.Randf() < Game.D.CritChance() + Calc.CritC / 100f;
+                var h = Calc.Hit(Calc.Dmg * mul, GlobalPosition, cr); if (!Strike) h.Knock *= .5f; e.TakeHit(h);   // zones have no knockback of their own; knockback modifiers give them a gentle push
                 if (!Strike) SpellFx.Skill(Calc.Def.Id, "hit", e.GlobalPosition + Vector3.Up * e.HeightM() * .5f, 1f, Mathf.Min(1f, Calc.Tick * 2f));
             }
     }

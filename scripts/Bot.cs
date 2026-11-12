@@ -227,6 +227,14 @@ public partial class Bot : Node
             d.Skills.Clear(); foreach (var kv in keep) d.Skills[kv.Key] = kv.Value;
             Check("every modifier sockets into every skill", refused.Count == 0, refused.Count == 0 ? $"{Skills.All.Count()} skills x {sups.Count} modifiers" : string.Join(", ", refused.Take(6)));
             Check("modifier combinations stay sane", broken.Count == 0, broken.Count == 0 ? $"{combos} combinations" : string.Join(", ", broken.Take(6)));
+            // every modifier, alone, changes what every skill does (its own effect or the stand-in for that kind of skill)
+            var idle = new List<string>(); int pairs = 0;
+            foreach (var k in Skills.All)
+            {
+                d.Skills[k.Id] = new SkillState { Rank = Skills.MaxRank }; string bare = Skills.Fingerprint(Skills.Compute(k.Id));
+                foreach (var sp in sups) { d.Skills[k.Id] = new SkillState { Rank = Skills.MaxRank }; Skills.Socket(k.Id, 0, sp.Id); pairs++; if (Skills.Fingerprint(Skills.Compute(k.Id)) == bare) idle.Add($"{sp.Id} on {k.Id}"); }
+            }
+            Check("every modifier does something on every skill", idle.Count == 0, idle.Count == 0 ? $"{pairs} pairs" : $"{idle.Count} idle: " + string.Join(", ", idle.Take(12)));
             // the new kinds of modifier change the skill
             d.Skills["consecrate"] = new SkillState { Rank = Skills.MaxRank }; var b0 = Skills.Compute("consecrate");
             Skills.Socket("consecrate", 0, "lingering"); Skills.Socket("consecrate", 1, "precise"); Skills.Socket("consecrate", 2, "restore"); var b1 = Skills.Compute("consecrate");
@@ -241,7 +249,21 @@ public partial class Bot : Node
             var e = new Enemy { Type = "brute", Level = 40, AnyRealm = true, NoLeash = true, Position = P.GlobalPosition + new Vector3(0, 0, -2.6f) }; Game.Root!.AddChild(e); await Wait(.3f); e.Stun(30f); Targeting.Set(e); Face(e.GlobalPosition);
             float hp0 = e.Hp; Press("spell1", true); await Wait(.05f); Press("spell1", false); await Wait(cc.Cast + .8f);
             Check("modified melee skill hits", !GodotObject.IsInstanceValid(e) || e.Hp < hp0, GodotObject.IsInstanceValid(e) ? $"hp {hp0:0} -> {e.Hp:0}" : "killed");
-            Targeting.Clear(); if (GodotObject.IsInstanceValid(e)) e.QueueFree(); d.Skills.Clear(); foreach (var kv in keep) d.Skills[kv.Key] = kv.Value;
+            Targeting.Clear(); if (GodotObject.IsInstanceValid(e)) e.QueueFree(); await Wait(.2f);
+            // Frost Nova with Multiple Projectiles: the extra novas reach a foe the first one cannot
+            d.Skills["nova"] = new SkillState { Rank = Skills.MaxRank }; Skills.Socket("nova", 0, "multi"); Game.D.Bar[0] = "nova"; Game.Notify();
+            var nc = Skills.Compute("nova"); P.Teleport(spot, 0f); Heal(); P.ResetCooldowns(); await Wait(.2f);
+            var far = new Enemy { Type = "brute", Level = 40, AnyRealm = true, NoLeash = true, Position = World.OnGround(spot.X, spot.Z - nc.Radius * 1.75f, .3f) }; Game.Root!.AddChild(far); await Wait(.3f); far.Stun(30f); Targeting.Set(far); Face(far.GlobalPosition);
+            float hpF = far.Hp; Press("spell1", true); await Wait(.05f); Press("spell1", false); await Wait(nc.Cast + .8f);
+            Check("multiple projectiles on frost nova: more novas around you", nc.Count == 3 && GodotObject.IsInstanceValid(far) && far.Hp < hpF, $"count {nc.Count}, radius {nc.Radius:0.0}, foe at {nc.Radius * 1.75f:0.0} m: hp {hpF:0} -> {(GodotObject.IsInstanceValid(far) ? far.Hp : 0):0}");
+            Targeting.Clear(); if (GodotObject.IsInstanceValid(far)) far.QueueFree(); await Wait(.2f);
+            // Healing Light with Toxic: the heal bursts around you and poisons
+            d.Skills["heal"] = new SkillState { Rank = Skills.MaxRank }; Skills.Socket("heal", 0, "toxic"); Game.D.Bar[0] = "heal"; Game.Notify();   // (Toxic always poisons: the check does not depend on a roll)
+            P.Teleport(spot, 0f); await Wait(.2f); Heal(); P.ResetCooldowns(); P.Hp = Game.D.MaxHp() * .4f;
+            var near = new Enemy { Type = "brute", Level = 40, AnyRealm = true, NoLeash = true, Position = P.GlobalPosition + new Vector3(0, 0, -2.2f) }; Game.Root!.AddChild(near); await Wait(.3f); near.Stun(30f);
+            float hpN = near.Hp, hpP = P.Hp; Press("spell1", true); await Wait(.05f); Press("spell1", false); await Wait(Skills.Compute("heal").Cast + .6f);
+            Check("on-hit modifiers on a heal: a burst that carries them", P.Hp > hpP + Game.D.MaxHp() * .2f && GodotObject.IsInstanceValid(near) && near.Hp < hpN && near.Status.List.Count > 0, $"hero {hpP:0}->{P.Hp:0} of {Game.D.MaxHp():0} (heal {Skills.Compute("heal").Heal:0.00}), foe {hpN:0}->{(GodotObject.IsInstanceValid(near) ? near.Hp : 0):0}, statuses {(GodotObject.IsInstanceValid(near) ? near.Status.List.Count : 0)}");
+            if (GodotObject.IsInstanceValid(near)) near.QueueFree(); d.Skills.Clear(); foreach (var kv in keep) d.Skills[kv.Key] = kv.Value;
             d.Supports.Clear(); d.Supports.AddRange(keepSup); Game.Notify();   // later steps unlock modifiers themselves
         });
 

@@ -202,7 +202,8 @@ public partial class Ui
                 var b = Btn(sp.Name, () => { _openSocket = -1; Do(Skills.Socket(sk.Id, sock, sid), ""); }, true);
                 b.Disabled = elsewhere || here; b.CustomMinimumSize = new Vector2(0, 32);
                 b.AddThemeStyleboxOverride("normal", UiTheme.Box(col with { A = .12f }, col with { A = .8f }, 1, 10, 3, 0)); b.AddThemeColorOverride("font_color", col.Lightened(.4f));
-                var spc = sp; b.MouseEntered += () => Info(GetViewport().GetMousePosition(), spc.Name, col.Lightened(.3f), new[] { (spc.Desc, Colors.White, 14), (elsewhere ? "Already in another socket" : here ? "In this socket" : "Click to socket", UiTheme.Dim, 12) }); b.MouseExited += HideInfo;
+                var spc = sp; string on = Skills.OnSkill(sp, sk);
+                b.MouseEntered += () => Info(GetViewport().GetMousePosition(), spc.Name, col.Lightened(.3f), new[] { (spc.Desc, Colors.White, 14), (on != "" ? $"On {sk.Name}: {on}." : "", UiTheme.Highlight, 13), (elsewhere ? "Already in another socket" : here ? "In this socket" : "Click to socket", UiTheme.Dim, 12) }); b.MouseExited += HideInfo;
                 pick.AddChild(b); shown++;
             }
             if (ss.Sup[sock] != "") pick.AddChild(Btn("Empty the socket", () => { _openSocket = -1; Do(Skills.Socket(sk.Id, sock, ""), ""); }, true));
@@ -210,7 +211,7 @@ public partial class Ui
         }
         else
         {
-            foreach (var sid in ss.Sup) if (Skills.Sup(sid) is { } sp) Row(v, $"{sp.Name}:  {sp.Desc}", UiTheme.Text, 13);
+            foreach (var sid in ss.Sup) if (Skills.Sup(sid) is { } sp) { string on = Skills.OnSkill(sp, sk); Row(v, $"{sp.Name}:  {sp.Desc}" + (on != "" ? $"  On {sk.Name}: {on}." : ""), UiTheme.Text, 13); }
             int fits = Skills.AllSupports.Count(sp => Skills.Fits(sp, sk)), have = Skills.AllSupports.Count(sp => Skills.Fits(sp, sk) && d.Supports.Contains(sp.Id));
             Row(v, $"{have} of the {fits} modifiers that fit this skill are unlocked. Click a socket to change it; unlock more in the modifier tree ({Inputs.KeyOf(Inputs.ModsUi)}).", Dim, 13);
         }
