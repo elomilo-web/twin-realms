@@ -728,13 +728,13 @@ public partial class Enemy : CharacterBody3D, IDamageable
     Node3D? PickHero()
     {
         var me = Player.Instance;
-        if (!Net.Active || Puppet || Arena || Ambusher || (FromDungeon && !Dungeon.Shared)) return me;
+        if (!Net.Active || Puppet || Arena || (Ambusher && NetIdx < 0) || (FromDungeon && !Dungeon.Shared)) return me;   // shared ambushers hunt any hero
         Node3D? best = null; float bd = float.MaxValue;
         foreach (var h in FromDungeon ? Net.DungeonHeroes() : Net.WorldHeroes()) { float d = h.GlobalPosition.DistanceSquaredTo(GlobalPosition); if (d < bd) { bd = d; best = h; } }
         return best ?? me;
     }
 
-    public const int NetStride = 10;   // index + x, y, z, yaw, hp, state, wind-up progress, max hp, level
+    public const int NetStride = 11;   // index + x, y, z, yaw, hp, state, wind-up progress, max hp, level, statuses (bits)
     /// <summary>Enemies per snapshot packet: keeps each packet under one network frame (~1100 of ~1400 bytes); bigger unreliable packets broke the connection.</summary>
     public const int NetPerPacket = 1100 / (4 * NetStride);
     /// <summary>Host: this enemy's state for a snapshot.</summary>
@@ -743,6 +743,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         var p = GlobalPosition; b.Add(p.X); b.Add(p.Y); b.Add(p.Z); b.Add(_yaw); b.Add(Hp); b.Add((float)_state);
         b.Add(_state == State.Wind ? Mathf.Clamp(_timer / Mathf.Max(.01f, Def.Wind), 0, 1) : 1f);
         b.Add(MaxHp); b.Add(Level);   // scaling depends on the host's hero and the lobby, so friends take the host's numbers
+        b.Add(Dmg.Mask(Status));      // statuses live on the host's copy: friends see the icons (and the tint) too
     }
     /// <summary>Client: apply a snapshot from the host.</summary>
     public void NetRead(float[] f, int k)
@@ -750,6 +751,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         _netPos = new Vector3(f[k], f[k + 1], f[k + 2]); _netYaw = f[k + 3]; Hp = f[k + 4]; var st = (State)(int)f[k + 5];
         MaxHp = Mathf.Max(1, f[k + 7]); int lv = (int)f[k + 8];
         if (lv != Level && lv > 0) { Level = lv; if (!Summoned && DefOverride == null && _label != null) _label.Text = UpgradeLine() + Def.N + $"  Lv{Level}"; }
+        Dmg.FromMask(f[k + 9], Status);   // display only: puppets never tick statuses
         if (!_netHas) { _netHas = true; GlobalPosition = _netPos; _yaw = _netYaw; }
         if (st == State.Dead) { if (!Dead) PuppetDie(); return; }
         if (Dead) { Respawn(); GlobalPosition = _netPos; }
@@ -759,7 +761,8 @@ public partial class Enemy : CharacterBody3D, IDamageable
     void PuppetDie()
     {
         _state = State.Dead; _deadT = 0; CollisionLayer = 0; _label.Visible = false; Hp = 0;
-        if (CurrentBoss == this) CurrentBoss = null; RespawnTime = 1e9f; if (_aura != null) _aura.Visible = false;
+        if (CurrentBoss == this) CurrentBoss = null; RespawnTime = Ambusher ? 0 : 1e9f; if (_aura != null) _aura.Visible = false;   // ambushers never come back: free them after the fade
+        Status.Clear();
         Fx.Burst(GlobalPosition + Vector3.Up, Def.Kind == "wraith" ? new Color(0.7f, 0.4f, 1f) : new Color(0.8f, 0.2f, 0.2f), 16, 5f, 0.6f);
         if (FromDungeon && Def.Boss) { Ui.Banner(Def.N, "has fallen"); Sfx.Play("level"); Dungeon.OnBossDown(this); }   // party dungeon: the way down opens for everyone
     }

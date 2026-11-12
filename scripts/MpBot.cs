@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Godot;
@@ -68,12 +69,16 @@ public partial class MpBot : Node
             Ui.I!.OpenMultiplayer(); await Wait(.5f); await Shot("mp_host_lobby"); Ui.I.Close();
             Check("the lobby shows join codes", Net.LocalAddresses().Count > 0 && JoinCode.Make(Net.LocalAddresses()[0], Port) != "", Net.PublicAddress != "" ? "internet address found" : "no internet address (offline?)");
             // the client drives the rest; keep our hero alive until the duel, then let the duel play out
-            float t = 0;
+            float t = 0; bool sawIcons = false;
             while ((!_joinDone || (_dunStarted && !_hostDunDone)) && t < 300f)
             {
                 if (N.Duel == null) { P.Hp = Game.D.MaxHp(); }
+                if (N.HeroOf(friend) is { StatusIcons: > 0 }) sawIcons = true;
                 await Wait(.25f); t += .25f;
             }
+            Check("we saw the friend's status icon", sawIcons);
+            Check("we saw the friend's spell effect", N.Stats.GetValueOrDefault("fxIn") > 0, $"{N.Stats.GetValueOrDefault("fxIn")} effects");
+            Check("we saw the friend's damage numbers", N.Stats.GetValueOrDefault("numbersIn") > 0, $"{N.Stats.GetValueOrDefault("numbersIn")} numbers");
             Check("the friend finished their tests", _joinDone);
             Check("the party dungeon tests ran", _dunStarted && _hostDunDone);
             Check("the friend's hits reached our enemies", N.Stats.GetValueOrDefault("remoteHits") > 0, $"{N.Stats.GetValueOrDefault("remoteHits")} hits");
@@ -89,6 +94,8 @@ public partial class MpBot : Node
         Finish();
     }
     [Rpc(MultiplayerApi.RpcMode.AnyPeer)] void R_Done() { _joinDone = true; }
+    /// <summary>The friend asks for an ambush on them (the host runs ambushes for everyone).</summary>
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer)] void R_HostAmbush() { long f = Multiplayer.GetRemoteSenderId(); if (N.HeroOf(f) is { } h) Threat.SpawnFor(h.GlobalPosition, f); }
 
     // ---- party dungeon (the joiner asks us to follow it in)
     bool _hostDunFought, _hostDunDone, _dunStarted;
@@ -184,6 +191,26 @@ public partial class MpBot : Node
                 }
                 Check("loot is claimed through the host", N.Stats.GetValueOrDefault("gotLoot") > 0 && Game.D.Gold > gold0, $"gold {gold0} -> {Game.D.Gold}");
             }
+
+            // ---- shared ambush: the host spawns it on us; we see the monsters, hit them through the host and kill one
+            RpcId(1, MethodName.R_HostAmbush);
+            bool amb = await Until(() => World.NetExtra.Values.Any(e => IsInstanceValid(e) && e.Puppet && !e.Dead), 10f);
+            Check("an ambush the host spawns reaches us as shared monsters", amb, $"{World.NetExtra.Count} ambushers");
+            if (amb)
+            {
+                var a = World.NetExtra.Values.First(e => IsInstanceValid(e) && e.Puppet && !e.Dead); float at = 0; int kills1 = Game.D.Kills;
+                while (at < 40f && IsInstanceValid(a) && !a.Dead)
+                {
+                    P.Hp = Game.D.MaxHp(); Face(a.GlobalPosition + Vector3.Up); var d = a.GlobalPosition - P.GlobalPosition; d.Y = 0;
+                    if (d.Length() > 2.6f) P.Teleport(a.GlobalPosition - d.Normalized() * 1.8f + new Vector3(0, .5f, 0), Util.YawTo(d.X, d.Z));
+                    Mouse(true); await Wait(.08f); Mouse(false); await Wait(.15f); at += .23f;
+                }
+                Check("we kill a shared ambusher (the host decides, credit comes back)", !IsInstanceValid(a) || a.Dead, $"{(IsInstanceValid(a) ? a.Def.N + " hp " + a.Hp.ToString("0") : "gone")}, {at:0.0} s");
+                await Until(() => Game.D.Kills > kills1, 4f); Check("ambush kill credit", Game.D.Kills > kills1);
+            }
+            // ---- what the host sees of us: a skill effect, damage numbers (from the fights above), a status icon
+            P.Teleport(N.HeroOf(1)!.GlobalPosition + new Vector3(-2.5f, .5f, 2.5f), 0f); await Wait(.5f);
+            SpellFx.Skill("fire", "hit", P.GlobalPosition + Vector3.Up); P.Statuses.Add("chill", 4f, 0, 1); await Wait(1.5f);
 
             // ---- party
             P.Teleport(N.HeroOf(1)!.GlobalPosition + new Vector3(-2.5f, .5f, 2.5f), 0f);

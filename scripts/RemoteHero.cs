@@ -105,6 +105,29 @@ public partial class RemoteHero : Node3D, IDamageable, IInteractable
         _trail.Emit = p[26] > .5f; _trail.Col = new Color(p[27], p[28], p[29]);
         _horse.Visible = p[30] > .5f; _horse.Rotation = new Vector3(0, _yaw, 0);
         if (_av != null) AnimateAvatar(dt, p);
+        ShowStatuses(p.Length > 35 ? p[35] : 0);
+    }
+
+    // ---- the friend's statuses: a coloured letter each, in a row above the name (Settings > Game > Friends' status icons)
+    readonly List<Label3D> _icons = new(); float _mask = -1; readonly StatusSet _st = new();
+    /// <summary>How many status icons are showing (the multiplayer bot checks it).</summary>
+    public int StatusIcons => _st.List.Count;
+    void ShowStatuses(float mask)
+    {
+        if (!Game.Set.OthersStatus) mask = 0;
+        if (mask == _mask) return; _mask = mask; Dmg.FromMask(mask, _st);
+        while (_icons.Count < _st.List.Count)
+        {
+            var l = new Label3D { FontSize = 34, OutlineSize = 9, PixelSize = .005f, Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, NoDepthTest = false, VisibilityRangeEnd = 45f };
+            AddChild(l); _icons.Add(l);
+        }
+        float w = .2f, x0 = -(_st.List.Count - 1) * w / 2f;
+        for (int i = 0; i < _icons.Count; i++)
+        {
+            var l = _icons[i]; l.Visible = i < _st.List.Count; if (!l.Visible) continue;
+            var d = _st.List[i].Def; l.Text = d.Name[..1].ToUpper(); l.Modulate = d.Col.Lightened(.15f);
+            l.Position = _tag.Position + new Vector3(x0 + i * w, .22f, 0);
+        }
     }
 
     // the model is animated from what the pose packet says: movement, swing (trail on), roll, mount, death

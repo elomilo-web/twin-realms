@@ -29,7 +29,7 @@ public class PartyInfo
 public partial class Net : Node
 {
     public static Net? I;
-    public const int DefaultPort = 24565, Protocol = 4, MaxPlayers = 8;   // Protocol 4: monster scaling (snapshots carry max health and level); older builds are told to update
+    public const int DefaultPort = 24565, Protocol = 5, MaxPlayers = 8;   // Protocol 5: shared ambushes, friends' effects, numbers and statuses (snapshots carry statuses); older builds are told to update
     const int Channels = 8;   // 0 reliable events, 1 poses, 2 enemy snapshots, 3 clock, 4 shots (both sides must open the same number)
     public static bool Active => I != null && I._live;
     public static bool IsHost => Active && I!._server;
@@ -112,7 +112,8 @@ public partial class Net : Node
         _peer = null; _live = false; _server = false; _myId = 1; Players.Clear(); Parties.Clear(); Duel = null;
         foreach (var h in Heroes.Values) if (IsInstanceValid(h)) h.QueueFree(); Heroes.Clear();
         foreach (var l in LootNodes.Values) if (IsInstanceValid(l)) l.QueueFree(); LootNodes.Clear(); _lootRecs.Clear();
-        ClearProxies(); Dungeon.Detach();
+        ClearProxies(); Dungeon.Detach(); _askedAmbush = false;
+        foreach (var e in World.NetExtra.Values) if (IsInstanceValid(e) && e.Puppet) e.Puppet = false;   // left the lobby: their ambushers fight on locally
         if (World.I != null) foreach (var e in World.NetEnemies) if (IsInstanceValid(e)) e.Puppet = false;
     }
 
@@ -226,6 +227,7 @@ public partial class Net : Node
         if (!Active) return; float dt = (float)delta; var me = Player.Instance;
         if (me == null) return;
         if (Heroes.Count != Math.Max(0, Players.Count - 1)) SyncHeroes();
+        if (!_askedAmbush) AskAmbushes();   // once our world exists: the ambushers already roaming
         // our pose 20 times a second to everyone
         _poseT -= dt; if (_poseT <= 0) { _poseT = .05f; Rpc(MethodName.R_Pose, me.NetPacket()); if (Players.TryGetValue(MyId, out var mi)) { mi.Hp = me.Hp; mi.MaxHp = Game.D.MaxHp(); mi.Zone = MyZone; } }
         // level, gear or zone changed: tell the host (it re-sends the roster)
@@ -283,13 +285,14 @@ public partial class Net : Node
             var h = kv.Value; if (!IsInstanceValid(h) || !h.HasPose || h.Zone != 0) continue;
             // packets stay under one network frame (~1400 bytes): Enemy.NetPerPacket enemies each
             var buf = new List<float>(300); var at = h.GlobalPosition;
-            for (int i = 0; i < list.Count; i++)
+            void Put(int i, Enemy e)
             {
-                var e = list[i]; if (!IsInstanceValid(e)) continue;
-                if (e.GlobalPosition.DistanceSquaredTo(at) > 120f * 120f) continue;
+                if (!IsInstanceValid(e) || e.GlobalPosition.DistanceSquaredTo(at) > 120f * 120f) return;
                 buf.Add(i); e.NetWrite(buf);
                 if (buf.Count >= Enemy.NetPerPacket * Enemy.NetStride) { RpcId(kv.Key, MethodName.R_Enemies, buf.ToArray()); buf.Clear(); }
             }
+            for (int i = 0; i < list.Count; i++) Put(i, list[i]);
+            foreach (var (i, e) in World.NetExtra) Put(i, e);   // ambushes
             if (buf.Count > 0) RpcId(kv.Key, MethodName.R_Enemies, buf.ToArray());
         }
     }
@@ -299,8 +302,8 @@ public partial class Net : Node
         var list = World.NetEnemies;
         for (int k = 0; k + Enemy.NetStride <= f.Length; k += Enemy.NetStride)
         {
-            int i = (int)f[k]; if (i < 0 || i >= list.Count || !IsInstanceValid(list[i])) continue;
-            list[i].NetRead(f, k + 1);
+            var e = World.NetGet((int)f[k]); if (e == null) continue;   // built with the world, or an ambush
+            e.NetRead(f, k + 1);
         }
     }
 
@@ -316,8 +319,9 @@ public partial class Net : Node
     [Rpc(MultiplayerApi.RpcMode.AnyPeer)]
     void R_EnemyHit(int idx, float[] f, string type, string statuses)
     {
-        if (!_server || idx < 0 || idx >= World.NetEnemies.Count) return; var e = World.NetEnemies[idx]; if (!IsInstanceValid(e) || e.Dead) return;
-        var h = Unpack(f, type, statuses); h.Remote = true; h.Peer = Sender; e.TakeHit(h); Count("remoteHits");
+        if (!_server || World.NetGet(idx) is not Enemy e || e.Dead) return;
+        // NoText: the friend shows (and shares) their own damage number, so we do not draw a second one
+        var h = Unpack(f, type, statuses); h.Remote = true; h.Peer = Sender; h.NoText = true; e.TakeHit(h); Count("remoteHits");
     }
     static HitInfo Unpack(float[] f, string type, string statuses)
     {
@@ -340,7 +344,7 @@ public partial class Net : Node
         if (e.FromDungeon) { if (Dungeon.Shared && !Dungeon.IsOwner) RpcId(Dungeon.Owner, MethodName.R_DunStun, Dungeon.Seed, e.NetIdx, t); return; }
         if (e.DuelPeer == 0 && e.NetIdx >= 0) RpcId(1, MethodName.R_EnemyStun, e.NetIdx, t);
     }
-    [Rpc(MultiplayerApi.RpcMode.AnyPeer)] void R_EnemyStun(int idx, float t) { if (_server && idx >= 0 && idx < World.NetEnemies.Count && IsInstanceValid(World.NetEnemies[idx])) World.NetEnemies[idx].Stun(Mathf.Min(t, 2f)); }
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer)] void R_EnemyStun(int idx, float t) { if (_server && World.NetGet(idx) is Enemy e) e.Stun(Mathf.Min(t, 2f)); }
 
     /// <summary>Host: one of our enemies hit a friend's hero. Their game applies it to their hero (their armour, block, parry and evade).</summary>
     public void HitPeer(long peer, HitInfo h)
@@ -355,7 +359,7 @@ public partial class Net : Node
         var p = Player.Instance; if (p == null || MyZone != 0) return;
         var h = Unpack(new float[] { f[0], f[1], 0, 0, f[2], f[3], f[4], 0, 0, 0, 0, 0 }, type, statuses);
         h.NoBlock = f[5] > .5f; h.IsProjectile = f[6] > .5f;
-        if (src >= 0 && src < World.NetEnemies.Count) h.Attacker = World.NetEnemies[src];
+        if (World.NetGet(src) is Enemy a) h.Attacker = a;
         p.TakeHit(h);
     }
 

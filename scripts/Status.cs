@@ -39,6 +39,17 @@ public static class Dmg
         return raw * mult * (1 - Mathf.Clamp(resPct, -100, 90) / 100f);
     }
 
+    // ---- statuses as bits, for the network (enemy snapshots, hero poses): one bit per status, in name order (same on every machine)
+    static List<StatusDef>? _order;
+    static List<StatusDef> Order() { if (_order == null) { Load(); _order = new List<StatusDef>(_s.Values); _order.Sort((a, b) => string.CompareOrdinal(a.Id, b.Id)); } return _order; }
+    public static float Mask(StatusSet s) { var o = Order(); int m = 0; foreach (var st in s.List) { int i = o.IndexOf(st.Def); if (i >= 0 && i < 24) m |= 1 << i; } return m; }
+    /// <summary>The statuses in a mask, for display only (no timers: the owner's game ticks them).</summary>
+    public static void FromMask(float mask, StatusSet into)
+    {
+        var o = Order(); int m = (int)mask; into.List.Clear();
+        for (int i = 0; i < o.Count && i < 24; i++) if ((m & (1 << i)) != 0) into.List.Add(new StatusInst { Def = o[i], T = 1, Stacks = 1 });
+    }
+
     public static Color TypeColor(string t) => t switch
     {
         "fire" => new Color(1f, .6f, .25f), "frost" => new Color(.6f, .88f, 1f), "lightning" => new Color(.8f, .78f, 1f), "poison" => new Color(.55f, .9f, .35f),

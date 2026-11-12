@@ -105,7 +105,7 @@ public partial class Net
     {
         if (!Dungeon.IsOwner || seed != Dungeon.Seed || idx < 0 || idx >= Dungeon.NetList.Count) return;
         var e = Dungeon.NetList[idx]; if (e == null || !IsInstanceValid(e) || e.Dead) return;
-        var h = Unpack(f, type, statuses); h.Remote = true; h.Peer = Sender; e.TakeHit(h); Count("dunRemoteHits");
+        var h = Unpack(f, type, statuses); h.Remote = true; h.Peer = Sender; h.NoText = true; e.TakeHit(h); Count("dunRemoteHits");   // the friend shares their own number
     }
     [Rpc(MultiplayerApi.RpcMode.AnyPeer)]
     void R_DunStun(int seed, int idx, float t)

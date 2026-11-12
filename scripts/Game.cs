@@ -24,6 +24,8 @@ public class Settings
     public bool ShowFps = false;
     public float Shake = 1f;              // camera shake strength
     public int AutoTarget = 0;            // auto target when nothing is locked: 0 off, 1 monsters that hit you (or you hit), 2 nearest, 3 lowest health
+    // multiplayer: what we see of other players (Settings > Game); all on by default, older settings files get true
+    public bool OthersFx = true, OthersNumbers = true, OthersStatus = true;
     public Dictionary<string, string> Binds = new();   // rebound controls: action -> "k:keycode" / "m:button" (older settings files: empty = defaults)
 }
 

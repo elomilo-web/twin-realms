@@ -44,8 +44,17 @@ public static class Util
 /// <summary>Floating damage numbers and notices.</summary>
 public static class FloatText
 {
+    static readonly System.Text.RegularExpressions.Regex Num = new(@"^[+\-]?\d+!?$");
     public static void Spawn(Node context, Vector3 pos, string text, Color col, float size = 1f)
     {
+        // damage and healing numbers we show are shared with friends nearby (they can turn them off: Settings > Game)
+        if (Net.Active && Num.IsMatch(text)) Net.I!.Number(pos, text, col, size);
+        SpawnRemote(context, pos, text, col, size);
+    }
+    /// <summary>Draws a number without sharing it (a friend's number, or anything local only).</summary>
+    public static void SpawnRemote(Node context, Vector3 pos, string text, Color col, float size = 1f)
+    {
+        if (!GodotObject.IsInstanceValid(context) || !context.IsInsideTree()) return;
         var scene = context.GetTree().CurrentScene;
         if (scene == null) return;
         var l = new Label3D

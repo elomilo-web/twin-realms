@@ -787,8 +787,19 @@ void fragment(){
 
     /// <summary>Overworld enemies in build order: the same list on every machine, so a client's puppet and the host's enemy share an index.</summary>
     public static List<Enemy> NetEnemies = new();
+    /// <summary>Overworld enemies that appear later (ambushes the host spawns), by network number (from ExtraBase up, never reused).</summary>
+    public static readonly Dictionary<int, Enemy> NetExtra = new();
+    public const int ExtraBase = 1_000_000; static int _extraNext = ExtraBase;
+    public static int AddNetExtra(Enemy e) { int i = _extraNext++; e.NetIdx = i; NetExtra[i] = e; return i; }
+    /// <summary>An overworld enemy by network number: built with the world, or added later.</summary>
+    public static Enemy? NetGet(int idx)
+    {
+        Enemy? e = idx >= 0 && idx < NetEnemies.Count ? NetEnemies[idx] : NetExtra.GetValueOrDefault(idx);
+        return e != null && GodotObject.IsInstanceValid(e) ? e : null;
+    }
     void IndexEnemies()
     {
+        NetExtra.Clear();
         NetEnemies = new List<Enemy>();
         foreach (var n in Over.FindChildren("*", "", true, false)) if (n is Enemy e && !e.Ambusher) { e.NetIdx = NetEnemies.Count; e.Puppet = Net.IsClient; NetEnemies.Add(e); }
         GD.Print($"[WORLD] {NetEnemies.Count} overworld enemies, fingerprint {Fingerprint()}");

@@ -81,15 +81,22 @@ void fragment() {
     }
 
     /// <summary>Play the animation data/spellfx.json gives this skill for this moment. Does nothing if there is none.</summary>
+    /// <summary>True while playing an effect a friend sent us (so it is not sent on again).</summary>
+    public static bool Remote;
     public static SpellFxSprite? Skill(string skillId, string moment, Vector3 pos, float scale = 1f, float life = 0f)
     {
-        string n = For(skillId, moment); return n == "" ? null : Play(n, pos, scale, life);
+        string n = For(skillId, moment); if (n == "") return null;
+        if (!Remote) Net.I?.Fx(skillId, moment, pos, scale, life, false);   // multiplayer: friends nearby see our skills (Settings > Game)
+        return Play(n, pos, scale, life);
     }
 
     /// <summary>Like Skill, but the animation follows a node (see Attach).</summary>
     public static SpellFxSprite? SkillAttach(string skillId, string moment, Node3D to, Vector3? offset = null, float scale = 1f, float life = 0f)
     {
-        string n = For(skillId, moment); return n == "" ? null : Attach(n, to, offset, scale, life);
+        string n = For(skillId, moment); if (n == "") return null;
+        // effects on our own hero follow our drawn hero on friends' screens (projectile trails are drawn by the shared projectile itself)
+        if (!Remote && to is Player) Net.I?.Fx(skillId, moment, offset ?? Vector3.Zero, scale, life, true);
+        return Attach(n, to, offset, scale, life);
     }
 
     /// <summary>The drawn size in metres of an animation (0 if unknown); divide a radius by half of it to get a scale.</summary>

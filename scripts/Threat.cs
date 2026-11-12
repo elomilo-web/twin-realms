@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using Godot;
 
@@ -38,23 +39,39 @@ public static class Threat
     /// <summary>A new session (scene start): calm again.</summary>
     public static void Reset() { _t = 0; _spawnT = 60f; _shown = 0; _live.Clear(); }
 
+    /// <summary>Test hook (MpBot): skip the wait and spawn an ambush now (threat counted as at least 1).</summary>
+    public static bool ForceNext;
+    /// <summary>Test hook (MpBot): an ambush on this spot now, announced to this player.</summary>
+    public static void SpawnFor(Vector3 at, long peer) { Load(); if (World.I != null) Ambush(Mathf.Max(1, Level), at, peer); }
+
     public static void Tick(float dt)
     {
         Load(); var p = Player.Instance; if (p == null || World.I == null) return;
-        if (Dungeon.Active || Arenas.Active || p.Dead) return;   // only time out in the world counts
+        // multiplayer: the host runs the ambushes for everyone (they are shared monsters); friends only see them
+        if (Net.IsClient) return;
+        bool hosting = Net.IsHost && Net.I!.Players.Count > 1;
+        if (!hosting && (Dungeon.Active || Arenas.Active || p.Dead)) return;   // only time out in the world counts
         _t += dt;
         int lv = Level;
         if (lv > _shown) { _shown = lv; Ui.Note($"The land grows restless (threat {lv}): monsters are stronger and roam in greater numbers", new Color(1f, .55f, .4f)); }
         _live.RemoveAll(e => !GodotObject.IsInstanceValid(e) || e.Dead);
-        _spawnT -= dt; if (_spawnT > 0) return;
+        foreach (var k in World.NetExtra.Where(kv => !GodotObject.IsInstanceValid(kv.Value)).Select(kv => kv.Key).ToList()) World.NetExtra.Remove(k);   // gone ambushers
+        _spawnT -= dt; if (_spawnT > 0 && !ForceNext) return;
         _spawnT = Mathf.Max(_intMin, _int - _intPer * lv);
-        if (lv <= 0 || Bot.Wanted() || Observer.Wanted() || Shots.Wanted() || MpBot.Wanted() != null) return;   // the test bots need a calm world
-        var at = p.GlobalPosition; if (new Vector2(at.X, at.Z).Length() < _safe) return;   // Oakhaven stays safe
-        if (_live.Count >= _aliveBase + _alivePer * lv) return;
-        Ambush(lv, at);
+        bool force = ForceNext; ForceNext = false; if (force) lv = Mathf.Max(1, lv);
+        if (!force && (lv <= 0 || Bot.Wanted() || Observer.Wanted() || Shots.Wanted() || MpBot.Wanted() != null)) return;   // the test bots need a calm world
+        // who gets ambushed: any hero out in the world, away from Oakhaven (ours, or in a hosted world any player's)
+        var spots = new List<(Vector3 at, long peer)>();
+        if (hosting) { foreach (var h in Net.WorldHeroes()) spots.Add((h.GlobalPosition, h is RemoteHero rh ? rh.Peer : Net.MyId)); }
+        else if (!p.Dead) spots.Add((p.GlobalPosition, Net.MyId));
+        spots.RemoveAll(s => new Vector2(s.at.X, s.at.Z).Length() < _safe && !force);   // Oakhaven stays safe
+        if (spots.Count == 0) return;
+        if (_live.Count >= (_aliveBase + _alivePer * lv) * Mathf.Max(1, spots.Count)) return;
+        var (at, peer) = spots[(int)(GD.Randi() % (uint)spots.Count)];
+        Ambush(lv, at, peer);
     }
 
-    static void Ambush(int lv, Vector3 at)
+    static void Ambush(int lv, Vector3 at, long peer)
     {
         var over = World.I!.Over;
         if (!_pools.TryGetValue(World.Realm, out var pool) || pool.Length == 0) return;
@@ -66,8 +83,12 @@ public static class Threat
         {
             float a = i / (float)n * Mathf.Tau, r = 2f + GD.Randf() * 3f;
             var e = new Enemy { Type = pool[(int)(GD.Randi() % (uint)pool.Length)], Level = lvl, Ambusher = true, NoLeash = true, AnyRealm = false, RespawnTime = 0, Position = World.OnGround(c.X + Mathf.Cos(a) * r, c.Z + Mathf.Sin(a) * r, .3f) };
+            // hosting: a shared monster with its own network number; every friend gets a copy they can see, hit and kill
+            if (Net.IsHost) World.AddNetExtra(e);
             over.AddChild(e); _live.Add(e);
+            if (Net.IsHost) Net.I!.AmbushSpawn(e);
         }
-        Ui.Note($"An ambush! {n} foes close in", new Color(1f, .5f, .35f));
+        string msg = $"An ambush! {n} foes close in";
+        if (Net.IsHost) Net.I!.NoteTo(peer, msg); else Ui.Note(msg, new Color(1f, .5f, .35f));
     }
 }
