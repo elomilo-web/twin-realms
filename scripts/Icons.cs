@@ -193,8 +193,13 @@ public static class Icons
                 ci.DrawLine(c + new Vector2(.35f, -.35f) * s, c + new Vector2(.75f, -.75f) * s, A(new Color(.95f, .92f, .85f)), Mathf.Max(2.5f, s * .16f), true);
                 break;
             default:
-                Poly(ci, P(c, s, 0, -.7f, .6f, 0, 0, .7f, -.6f, 0), A(UiTheme.Accent), ol);
+            {
+                // scraps and other materials without a drawing: a cut gem in the material's colour
+                var gc = GatherDb.ColorOfName(id) ?? UiTheme.Accent;
+                Poly(ci, P(c, s, 0, -.7f, .6f, 0, 0, .7f, -.6f, 0), A(gc), ol);
+                Poly(ci, P(c, s, 0, -.7f, .3f, -.1f, 0, .05f, -.3f, -.1f), A(gc.Lightened(.45f) with { A = .8f }));
                 break;
+            }
         }
     }
 

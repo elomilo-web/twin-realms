@@ -1,22 +1,52 @@
 {
-  "_help": "Levelling and dungeon scaling. xp: experience needed to go from level L to L+1 = base + lin*(L-1) + quad*(L-1)^2 + cube*(L-1)^3 (easy early, steep later). levelUp: points granted per level (attr = attribute points, rank = skill points for the Skills menu, tree = skill tree points). dungeon: monster level = your level + levelOffset + perDepth*(depth-1); bossBonus is added for the boss. gear: the best tier whose depth <= the current depth is worn by every dungeon monster (hpP/dmgP in %, armor/mr flat, lootBonus raises item rarity). upgrades: rolled per monster; count = base + perDepth*(depth-1) (capped at max), bosses get bossExtra more. Upgrade fields: hpP, dmgP, spdP, cdP (attack cooldown %), windP (wind-up %), armor, mr, res {type: %}, onHit {status: chance 0-1}, dmgType, reach (%), xpP and lootBonus.",
+  "_help": "Levelling and monster scaling. xp: experience needed to go from level L to L+1 = base + lin*(L-1) + quad*(L-1)^2 + cube*(L-1)^3 (easy early, steep later). levelUp: points granted per level (attr = attribute points, rank = skill points for the Skills menu, tree = skill tree points). dungeon: monster level = your level + levelOffset + perDepth*(depth-1); bossBonus is added for the boss. gear: the best tier whose depth <= the current depth is worn by every dungeon monster (hpP/dmgP in %, armor/mr flat, lootBonus raises item rarity). upgrades: rolled per monster; count = base + perDepth*(depth-1) (capped at max), bosses get bossExtra more. Upgrade fields: hpP, dmgP, spdP, cdP (attack cooldown %), windP (wind-up %), armor, mr, res {type: %}, onHit {status: chance 0-1}, dmgType, reach (%), xpP and lootBonus.",
   "xp": { "base": 40, "lin": 20, "quad": 6, "cube": 0.15 },
-  "levelUp": { "attr": 3, "rank": 1, "tree": 2 },
+  "levelUp": { "attr": 2, "rank": 1, "tree": 2 },
+  "scaling": {
+    "_help": "Monster health and damage by level: base x (1 + lin*(L-1)) x exp^(L-1), a smooth curve that keeps bending upward so monsters out-grow a hero's gear. power: a floor tied to the hero being fought, so gear never makes monsters trivial: health is at least hpHits x the hero's weapon hit x (monster base hp / refHp)^shape, and every blow deals at least hitPct of the hero's max health x (base dmg / refDmg)^shape before armor (armor still counts, to the power defenseRespect: 1 = fully, 0 = not at all). armor: the hero's physical (and, with half armor + magic resist, elemental) damage taken = K / (K + armor), K = k + perLevel x attacker level, so armor has to keep up with the monsters' level instead of stacking to immunity.",
+    "hpLin": 0.2, "hpExp": 1.045,
+    "dmgLin": 0.13, "dmgExp": 1.03,
+    "power": { "on": true, "refHp": 50, "hpHits": 5, "refDmg": 10, "hitPct": 0.06, "shape": 0.75, "defenseRespect": 0.5, "maxHitPct": 0.45 },
+    "armor": { "k": 14, "perLevel": 6 }
+  },
+  "overworld": {
+    "_help": "Overworld monsters follow the hero: level = max(the area's level, hero level + offset + (area level - 1) x areaWeight). Bosses add bossBonus. In multiplayer the hero level is the average of everyone in the world.",
+    "follow": true, "offset": 0, "areaWeight": 0.5, "bossBonus": 3
+  },
   "party": {
-    "_help": "Multiplayer parties. xpPool: a party kill pays this share of the normal experience, split evenly between the party members nearby (or in the same dungeon). dropMul: item drop chance multiplier for party kills. dungeonOffset: a party's shared dungeon uses the average level of the party members + this (+ dungeon.perDepth per floor deeper).",
+    "_help": "Multiplayer parties. xpPool: a party kill pays this share of the normal experience, split evenly between the party members nearby (or in the same dungeon). dropMul: item drop chance multiplier for party kills. dungeonOffset: a party's shared dungeon uses the average level of the party members + this (+ dungeon.perDepth per floor deeper). statMul: with minPlayers or more heroes in the world, every monster (overworld, dungeons, world bosses) gets this much more health and damage.",
     "xpPool": 0.9,
     "dropMul": 1.15,
-    "dungeonOffset": 3
+    "dungeonOffset": 3,
+    "statMul": 1.5,
+    "minPlayers": 2
+  },
+  "threat": {
+    "_help": "The longer you play in one sitting, the harder the land pushes back. One threat level per minutesPerLevel minutes in the world (up to max); each level gives overworld monsters hpP/dmgP % more health and damage and makes them respawn respawnP % faster. Ambushes: every interval seconds (minus intervalPerLevel per level) a pack of packBase + packPerLevel x threat monsters appears ambushDist metres away and hunts you, while fewer than aliveBase + alivePerLevel x threat ambushers live. Never inside safeRadius of the village, in dungeons or the arena. Pools by realm.",
+    "minutesPerLevel": 8, "max": 10,
+    "hpP": 8, "dmgP": 5, "respawnP": 7,
+    "interval": 90, "intervalPerLevel": 6, "minInterval": 30,
+    "packBase": 2, "packPerLevel": 1, "aliveBase": 6, "alivePerLevel": 4,
+    "ambushDist": 38, "safeRadius": 70,
+    "pools": { "0": ["wolf", "bandit", "goblin", "archer", "wolf", "brute"], "1": ["skeleton", "hound", "wraith", "skeleton", "revenant"] }
   },
   "dungeon": {
     "levelOffset": 2,
     "perDepth": 1,
     "bossBonus": 1,
+    "mobMul": 3,
+    "tiers": {
+      "_help": "Every 'every' floors the dungeon jumps a tier (floors 1-5 tier 0, 6-10 tier 1, ...). Each tier compounds: health x hpMul, damage x dmgMul, +levels, +extraUpgrades rolled on every monster. The tier also raises item rarity (data/loot.json dungeonDrop.bonusPerTier).",
+      "every": 5, "hpMul": 1.7, "dmgMul": 1.4, "levels": 2, "extraUpgrades": 1
+    },
     "gear": [
-      { "depth": 1, "name": "Iron-clad",  "hpP": 10, "dmgP": 8,  "armor": 8,  "mr": 4,  "lootBonus": 0.5 },
-      { "depth": 2, "name": "Steel-clad", "hpP": 20, "dmgP": 15, "armor": 16, "mr": 10, "lootBonus": 1.0 },
-      { "depth": 4, "name": "Runed",      "hpP": 35, "dmgP": 25, "armor": 26, "mr": 20, "lootBonus": 1.5 },
-      { "depth": 6, "name": "Abyssal",    "hpP": 55, "dmgP": 40, "armor": 40, "mr": 32, "lootBonus": 2.0 }
+      { "depth": 1,  "name": "Iron-clad",   "hpP": 10,  "dmgP": 8,   "armor": 8,   "mr": 4,   "lootBonus": 0.5 },
+      { "depth": 2,  "name": "Steel-clad",  "hpP": 20,  "dmgP": 15,  "armor": 16,  "mr": 10,  "lootBonus": 1.0 },
+      { "depth": 4,  "name": "Runed",       "hpP": 35,  "dmgP": 25,  "armor": 26,  "mr": 20,  "lootBonus": 1.5 },
+      { "depth": 6,  "name": "Abyssal",     "hpP": 55,  "dmgP": 40,  "armor": 40,  "mr": 32,  "lootBonus": 2.0 },
+      { "depth": 11, "name": "Dread",       "hpP": 80,  "dmgP": 55,  "armor": 60,  "mr": 48,  "lootBonus": 2.5 },
+      { "depth": 16, "name": "Rift-touched","hpP": 110, "dmgP": 75,  "armor": 85,  "mr": 70,  "lootBonus": 3.0 },
+      { "depth": 21, "name": "Godforged",   "hpP": 150, "dmgP": 100, "armor": 120, "mr": 100, "lootBonus": 3.5 }
     ],
     "upgrades": {
       "base": 1, "perDepth": 0.5, "max": 4, "bossExtra": 2,

@@ -25,6 +25,9 @@ public static class Valor
     /// <summary>The next milestone wave after this one (for the HUD and the arena master).</summary>
     public static int NextMilestone(int wave) { for (int w = wave + 1; w < wave + 200; w++) if (ForWave(w) > 0) return w; return 0; }
 
+    /// <summary>Valor for winning a Shadow Duel round (duelPerRound x streak, capped at duelMax).</summary>
+    public static int ForDuel(int streak) => Math.Min((int)JsonUtil.F(C, "duelMax", 60), (int)JsonUtil.F(C, "duelPerRound", 5) * Math.Max(1, streak));
+
     public static void Give(int v) { if (v <= 0) return; Game.D.Valor += v; Ui.Note($"+{v} valor  ({Game.D.Valor})", new Color(1f, .78f, .35f)); Sfx.Play("coin"); }
 
     public static IEnumerable<(int valor, int gold)> GoldTrades() { foreach (var g in C.GetProperty("gold").EnumerateArray()) yield return (g.GetProperty("valor").GetInt32(), g.GetProperty("gold").GetInt32()); }

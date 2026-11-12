@@ -82,7 +82,7 @@ public partial class Net
         {
             var e = list[i]; if (e == null || !IsInstanceValid(e)) continue;
             buf.Add(i); e.NetWrite(buf);
-            if (buf.Count >= 36 * Enemy.NetStride) { chunks.Add(buf.ToArray()); buf.Clear(); }
+            if (buf.Count >= Enemy.NetPerPacket * Enemy.NetStride) { chunks.Add(buf.ToArray()); buf.Clear(); }
         }
         if (buf.Count > 0) chunks.Add(buf.ToArray());
         foreach (var p in peers) foreach (var c in chunks) RpcId(p, MethodName.R_DunEnemies, Dungeon.Seed, c);
@@ -166,5 +166,6 @@ public partial class Net
         if (!loot) return;
         Loot.DropFrom(at, lvl, chance, bonus, gold, pot);
         if (boss) { Loot.DropFrom(at + new Vector3(1, 0, 1), lvl, 1f, 3f, 0, 0f); Loot.DropFrom(at + new Vector3(-1, 0, -1), lvl, .6f, 2f, 0, 0f); }
+        LootTables.TrySetDrop(at, lvl, chance >= .3f, boss);   // everyone rolls their own set drop (upgraded monsters have a higher drop chance)
     }
 }

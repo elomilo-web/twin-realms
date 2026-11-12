@@ -33,7 +33,9 @@ public class PlayerStats
     public List<int> Tree = new();
     public Dictionary<string, QuestState> Quests = new();
     public List<string> Disc = new() { "village" };
-    public Dictionary<string, int> Mats = new();   // gathered materials by id (data/gather.json); older saves load with an empty bag
+    public Dictionary<string, int> Mats = new();   // gathered materials and disassembly scraps by id (data/gather.json); older saves load with an empty bag
+    // pickup filter (Pack > Pickup filter): items below PickRar or of a slot in PickSkip are left on the ground (PickScrap: disassembled instead). Set pieces are always picked up.
+    public int PickRar = 0; public List<string> PickSkip = new(); public bool PickScrap = false;
 
     // ---- derived stats (methods so they are not serialised)
     static TreeStats TS => Game.TS;
@@ -84,6 +86,7 @@ public class PlayerStats
 
 public static class Scaling
 {
-    public static float EnemyHp(float baseHp, int lvl) => baseHp * (1f + 0.2f * (lvl - 1));
-    public static float EnemyDmg(float baseDmg, int lvl) => baseDmg * (1f + 0.13f * (lvl - 1));
+    // curves in data/progression.json "scaling"; Enemy.Rescale adds the hero-power floor and the party, threat and dungeon tier multipliers
+    public static float EnemyHp(float baseHp, int lvl) => baseHp * Progression.HpCurve(lvl);
+    public static float EnemyDmg(float baseDmg, int lvl) => baseDmg * Progression.DmgCurve(lvl);
 }

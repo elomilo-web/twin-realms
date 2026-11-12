@@ -1,5 +1,6 @@
 # PowerShell version of tools/bot.sh and tools/observe.sh, for Windows machines without bash.
 #   powershell -File tools/run.ps1 bot       -> builds, runs the self-test bot, prints FAIL lines and the total
+#   powershell -File tools/run.ps1 bot scaling,dungeons -> only the bot steps whose names contain these words
 #   powershell -File tools/run.ps1 observe   -> builds, runs the observer, writes observe_out/
 #   powershell -File tools/run.ps1 release   -> exports the Windows game and zips it into beta/ (the zip is not committed)
 #   powershell -File tools/run.ps1 upload    -> uploads the zip already in beta/ (no rebuild)
@@ -15,7 +16,9 @@ if ($LASTEXITCODE -ne 0) { $b -split "`n" | Select-String "error" | Select-Objec
 if ($mode -eq "bot") {
   if (Test-Path bot_out) { Remove-Item -Recurse -Force bot_out }
   New-Item -ItemType Directory -Force bot_out | Out-Null; New-Item -ItemType File -Force bot_out/.gdignore | Out-Null   # keeps Godot from importing test pictures
-  & $godot --path . -- --bot 2>&1 | ForEach-Object { "$_" } | Out-File -Encoding utf8 bot_log.txt
+  # optional: tools/run.ps1 bot scaling,dungeons  -> only the steps whose names contain those words (fast checks while working on one thing)
+  $only = @(); if ($args.Count -gt 0) { $only += "--only=" + ($args -join ",") }
+  & $godot --path . -- --bot @only 2>&1 | ForEach-Object { "$_" } | Out-File -Encoding utf8 bot_log.txt
   if (Test-Path bot_out/report.txt) { Get-Content bot_out/report.txt | Select-String "FAIL|passed" } else { "NO REPORT: the game crashed before the bot finished. See bot_log.txt"; exit 1 }
   $err = Get-Content bot_log.txt | Select-String "ERROR|SCRIPT ERROR|Unhandled|leaked"
   if ($err) { "ENGINE ERRORS FOUND"; $err | Select-Object -First 20 }
@@ -40,9 +43,10 @@ if ($mode -eq "bot") {
   New-Item -ItemType Directory -Force bot_out | Out-Null
   Remove-Item bot_out/mp_*.txt -ErrorAction SilentlyContinue
   $h = Start-Process -FilePath $godot -ArgumentList "--path", ".", "--", "--mp-host" -RedirectStandardOutput mp_host_log.txt -RedirectStandardError mp_host_err.txt -PassThru -WindowStyle Normal
-  Start-Sleep -Seconds 6
+  # the host needs ~25 s to build the world: start the joiner 30 s later; the joiner itself waits another 30 s before it joins (MpBot)
+  Start-Sleep -Seconds 30
   & $godot --path . -- --mp-join 2>&1 | ForEach-Object { "$_" } | Out-File -Encoding utf8 mp_join_log.txt
-  if (-not $h.WaitForExit(240000)) { $h.Kill(); "HOST TIMED OUT" }
+  if (-not $h.WaitForExit(420000)) { $h.Kill(); "HOST TIMED OUT" }
   foreach ($s in "host", "join") {
     if (Test-Path "bot_out/mp_$s.txt") { "--- $s"; Get-Content "bot_out/mp_$s.txt" | Select-String "FAIL|passed" } else { "NO REPORT from $s (see mp_${s}_log.txt)" }
   }

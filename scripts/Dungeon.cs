@@ -82,7 +82,10 @@ public static class Dungeon
         w.SetDungeonLook(true, JsonUtil.Hex(th.GetProperty("torch").GetInt32()).Darkened(0.55f).Lerp(new Color(.35f, .38f, .45f), .35f));
         var start = Origin + new Vector3((_rooms[0].Cx + .5f) * Tile, 1f, (_rooms[0].Cz + .5f) * Tile + 3f);
         Player.Instance.Teleport(start, 0f);
-        Ui.Banner(th.GetProperty("name").GetString() ?? "Dungeon", "depth " + depth); Ui.Flash(Colors.Black);
+        int tier = Progression.Tier(depth);
+        Ui.Banner(th.GetProperty("name").GetString() ?? "Dungeon", "depth " + depth + (tier > 0 ? $"  -  tier {tier + 1}" : "")); Ui.Flash(Colors.Black);
+        if (tier > 0 && (depth - 1) % 5 == 0) Ui.Note($"Tier {tier + 1}: the monsters here are far stronger, and so is their loot", new Color(1f, .5f, .35f));
+        if (LootTables.SetMinDepth(key) is int sd && depth >= sd) Ui.Note($"Set gear of {LootTables.SetName(key)} can drop on this floor", LootTables.SetColor(key));
         Game.D.Deepest = Math.Max(Game.D.Deepest, depth - 1);
         Game.Save();
     }
@@ -212,11 +215,14 @@ public static class Dungeon
             if (i == bi)
             {
                 _boss = Spawn(bossType, cx, cz, (int)_baseLvl + Progression.DunBoss);
-                if (bossType != "golem") for (int k = 0; k < 2; k++) { var mt = mobs.FindAll(m => m != "brute"); Spawn(mt[ri(0, mt.Count - 1)], cx + (k == 1 ? 6 : -6), cz + 4, (int)_baseLvl); }
+                // the boss's guard grows with the dungeon's monster count (data/progression.json dungeon.mobMul)
+                if (bossType != "golem") for (int k = 0; k < 2 * Progression.DunMobMul; k++) { var mt = mobs.FindAll(m => m != "brute"); float ga = k / (2f * Progression.DunMobMul) * Mathf.Tau; Spawn(mt[ri(0, mt.Count - 1)], cx + Mathf.Cos(ga) * 6.5f, cz + Mathf.Sin(ga) * 6.5f, (int)_baseLvl); }
                 continue;
             }
-            int n = ri(2, 4) + (depth > 2 ? 1 : 0);
-            for (int k = 0; k < n; k++) { float a = k / (float)n * Mathf.Tau, rr2 = ri(2, 5) * 1.1f; Spawn(mobs[ri(0, mobs.Count - 1)], cx + Mathf.Cos(a) * rr2, cz + Mathf.Sin(a) * rr2, (int)_baseLvl + (rnd() < .3f ? 1 : 0)); }
+            // monsters per room: the old count times mobMul, spread over two rings so they do not stack
+            int n = (ri(2, 4) + (depth > 2 ? 1 : 0)) * Progression.DunMobMul;
+            float roomR = Mathf.Max(3f, (Math.Min(r.W, r.H) * .5f - 1f) * Tile);
+            for (int k = 0; k < n; k++) { float a = k / (float)n * Mathf.Tau + (k % 2) * .4f, rr2 = Mathf.Min(roomR, (k % 2 == 0 ? 2.5f : 5.5f) + ri(0, 2)); Spawn(mobs[ri(0, mobs.Count - 1)], cx + Mathf.Cos(a) * rr2, cz + Mathf.Sin(a) * rr2, (int)_baseLvl + (rnd() < .3f ? 1 : 0)); }
             if (rnd() < .55f) MakeChest((r.X + r.W - 1.2f) * Tile, (r.Z + r.H - 1.2f) * Tile, depth > 1 ? 2 : 1, (int)_baseLvl);
         }
     }
@@ -340,7 +346,7 @@ public static class Dungeon
     {
         var mods = new List<MobMod>(); var gear = Progression.GearFor(_depth); if (gear != null) mods.Add(gear);
         mods.AddRange(Progression.RollUpgrades(_depth, EnemyDb.Get(type).Boss, _mrng));
-        var e = new Enemy { Type = type, Level = Math.Max(1, lvl), FromDungeon = true, NoLeash = true, AnyRealm = true, Mods = mods, Position = new Vector3(x, 0.4f, z) };
+        var e = new Enemy { Type = type, Level = Math.Max(1, lvl), FromDungeon = true, NoLeash = true, AnyRealm = true, Mods = mods, Position = new Vector3(x, 0.4f, z), TierHp = Progression.TierHp(_depth), TierDmg = Progression.TierDmg(_depth) };
         if (Inst != 0) { e.NetIdx = NetList.Count; e.Puppet = Owner != Net.MyId; NetList.Add(e); }
         Root!.AddChild(e); return e;
     }

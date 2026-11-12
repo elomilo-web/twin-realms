@@ -53,11 +53,11 @@ public partial class MpBot : Node
             await Wait(1.5f);
             P.Teleport(World.OnGround(0, 9, .6f), 0f);
             Check("host starts", N.Host(Port), Net.Status);
-            bool joined = await Until(() => N.Players.Count >= 2, 60f);
+            bool joined = await Until(() => N.Players.Count >= 2, 180f);   // the joiner starts 30 s after us and waits 30 s more
             Check("a friend joins", joined, $"{N.Players.Count} players");
             if (!joined) { Finish(); return; }
             long friend = 0; foreach (var id in N.Players.Keys) if (id != 1) friend = id;
-            bool seen = await Until(() => N.HeroOf(friend) is { HasPose: true } h && h.Visible, 15f);
+            bool seen = await Until(() => N.HeroOf(friend) is { HasPose: true } h && h.Visible, 90f);   // they build the world first (~25 s)
             Check("the friend's hero is drawn in our world", seen);
             var fh = N.HeroOf(friend);
             int meshes = 0; if (fh != null) foreach (var _ in fh.FindChildren("*", "MeshInstance3D", true, false)) meshes++;
@@ -134,7 +134,7 @@ public partial class MpBot : Node
     {
         try
         {
-            await Wait(2.5f);
+            await Wait(30f);   // give the host time to finish building its world before we knock
             Game.NewGame("ranger", "JoinBot", "elf"); Game.D.Eq["weapon"] = new Item { Name = "Bot Blade", Slot = "weapon", Wt = "sword", Dmg = 140 };
             Game.D.Eq["head"] = Items.Roll(5, 1, "head"); Game.D.Eq["armor"] = Items.Roll(5, 1, "armor");
             bool started = false;
@@ -142,7 +142,7 @@ public partial class MpBot : Node
             string code = JoinCode.Make("127.0.0.1", Port); bool decoded = JoinCode.TryRead(code.ToLowerInvariant(), out var ip, out var jport);
             Check("a join code carries the address and port", decoded && ip == "127.0.0.1" && jport == Port, $"{code} -> {ip}:{jport}");
             N.Join(ip, jport, () => { ((Main)Game.Root!).JoinWorld(); started = true; });
-            bool ok = await Until(() => started && Player.Instance != null, 40f);
+            bool ok = await Until(() => started && Player.Instance != null, 120f);
             Check("joins the host's world", ok, Net.Status);
             if (!ok) { Finish(); return; }
             await Wait(2f);

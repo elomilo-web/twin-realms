@@ -54,8 +54,9 @@ public partial class Chest : Node3D, IInteractable
     {
         if (_open) return; _open = true; Game.D.Disc.Add(Id); Sfx.Play("coin");
         var tw = _lid.CreateTween(); tw.TweenProperty(_lid, "rotation:x", -1.9f, 0.4f);
-        Loot.DropFrom(GlobalPosition + Vector3.Up * 0.3f, Level, 1f, Bonus, GD.RandRange(10, 30) + Level * 6, 0.5f);
-        if (GD.Randf() < 0.45f) Loot.Drop(GlobalPosition + Vector3.Up * 0.3f, item: Items.Roll(Level, Bonus));
+        int lvl = Dungeon.Active ? Level : Progression.OverworldLevel(Level, false);   // overworld chests keep up with the heroes, like the monsters
+        Loot.DropFrom(GlobalPosition + Vector3.Up * 0.3f, lvl, 1f, Bonus, GD.RandRange(10, 30) + lvl * 6, 0.5f);
+        if (GD.Randf() < 0.45f) Loot.Drop(GlobalPosition + Vector3.Up * 0.3f, item: LootTables.Roll(lvl, Bonus));
         Fx.Burst(GlobalPosition + Vector3.Up * 0.6f, new Color(1, 0.85f, 0.3f), 14, 3f, 0.6f, 0.08f);
         Game.Save();
     }

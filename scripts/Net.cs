@@ -29,7 +29,7 @@ public class PartyInfo
 public partial class Net : Node
 {
     public static Net? I;
-    public const int DefaultPort = 24565, Protocol = 3, MaxPlayers = 8;   // Protocol 3: beta 1.1 (the wider world, modifier tree); older builds are told to update
+    public const int DefaultPort = 24565, Protocol = 4, MaxPlayers = 8;   // Protocol 4: monster scaling (snapshots carry max health and level); older builds are told to update
     const int Channels = 8;   // 0 reliable events, 1 poses, 2 enemy snapshots, 3 clock, 4 shots (both sides must open the same number)
     public static bool Active => I != null && I._live;
     public static bool IsHost => Active && I!._server;
@@ -119,6 +119,7 @@ public partial class Net : Node
     void OnConnected()
     {
         _live = true; _myId = Multiplayer.GetUniqueId(); Status = "Connected, waiting for the host ...";
+        _peer?.GetPeer(1)?.SetTimeout(4096, 90000, 120000);   // the host may also stall (saving, building); same patience on our side
         RpcId(1, MethodName.R_Hello, Protocol, ToJson(MeInfo()));
     }
     void OnFailed() { Status = "Could not reach the host. Check the address, the port, and that the host's firewall allows the game."; _peer = null; _live = false; Multiplayer.MultiplayerPeer = new OfflineMultiplayerPeer(); }
@@ -134,8 +135,9 @@ public partial class Net : Node
     void OnPeerConnected(long id)
     {
         GD.Print($"[NET] peer {id} connected");
-        // building the world takes a joining game a few seconds without network traffic: allow up to a minute of silence before giving up
-        _peer?.GetPeer((int)id)?.SetTimeout(32, 15000, 60000);
+        // building the (1.1, much bigger) world blocks a joining game for well over 15 s without network traffic. The old limit (32 retries,
+        // 15 s minimum) dropped the friend while their world was still loading: they then played on alone, unheard. Allow two minutes of silence.
+        _peer?.GetPeer((int)id)?.SetTimeout(4096, 90000, 120000);
     }
     void OnPeerDisconnected(long id)
     {
@@ -279,14 +281,14 @@ public partial class Net : Node
         foreach (var kv in Heroes)
         {
             var h = kv.Value; if (!IsInstanceValid(h) || !h.HasPose || h.Zone != 0) continue;
-            // packets stay under one network frame (~1400 bytes): at most 36 enemies (288 numbers) each
+            // packets stay under one network frame (~1400 bytes): Enemy.NetPerPacket enemies each
             var buf = new List<float>(300); var at = h.GlobalPosition;
             for (int i = 0; i < list.Count; i++)
             {
                 var e = list[i]; if (!IsInstanceValid(e)) continue;
                 if (e.GlobalPosition.DistanceSquaredTo(at) > 120f * 120f) continue;
                 buf.Add(i); e.NetWrite(buf);
-                if (buf.Count >= 36 * Enemy.NetStride) { RpcId(kv.Key, MethodName.R_Enemies, buf.ToArray()); buf.Clear(); }
+                if (buf.Count >= Enemy.NetPerPacket * Enemy.NetStride) { RpcId(kv.Key, MethodName.R_Enemies, buf.ToArray()); buf.Clear(); }
             }
             if (buf.Count > 0) RpcId(kv.Key, MethodName.R_Enemies, buf.ToArray());
         }

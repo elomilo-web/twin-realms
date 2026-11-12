@@ -178,8 +178,9 @@ public partial class Ui : CanvasLayer
         {
             if (d.Inv.Count == 0) Row(list, "Your pack is empty.");
             // gathered materials sell by the stack
-            int matGold = 0; foreach (var kv in d.Mats) matGold += kv.Value * GatherDb.Mat(kv.Key).Value;
-            if (matGold > 0) list.AddChild(Btn($"Sell all materials ({matGold}g)", () => { d.Gold += matGold; d.Mats.Clear(); Sfx.Play("coin"); Game.Notify(); OpenShop(tab); }, true));
+            // "sell all" keeps crafting scraps (sell those one stack at a time below)
+            int matGold = 0; foreach (var kv in d.Mats) if (!GatherDb.Mat(kv.Key).Scrap) matGold += kv.Value * GatherDb.Mat(kv.Key).Value;
+            if (matGold > 0) list.AddChild(Btn($"Sell all gathered materials ({matGold}g, keeps scraps)", () => { d.Gold += matGold; foreach (var k in d.Mats.Keys.ToList()) if (!GatherDb.Mat(k).Scrap) d.Mats.Remove(k); Sfx.Play("coin"); Game.Notify(); OpenShop(tab); }, true));
             foreach (var kv in new List<KeyValuePair<string, int>>(d.Mats))
             {
                 if (kv.Value <= 0) continue; var m = GatherDb.Mat(kv.Key); string id = kv.Key; int n = kv.Value;
@@ -296,6 +297,16 @@ public partial class Ui : CanvasLayer
         var right = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; right.AddThemeConstantOverride("separation", 6); cols.AddChild(right);
         var hdr = new HBoxContainer(); right.AddChild(hdr); var il = Lbl("ITEMS", 15, UiTheme.Accent, hdr); il.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         hdr.AddChild(Btn("Sort", () => { d.Inv.Sort((a, b) => b.Rar != a.Rar ? b.Rar.CompareTo(a.Rar) : string.Compare(a.Slot, b.Slot, StringComparison.Ordinal)); Sfx.Play("click"); OpenPack(); }, true));
+        var sb = Btn(_scrapMode ? "Disassemble: ON" : "Disassemble", () => { _scrapMode = !_scrapMode; OpenPack(); }, true); Mark(sb, _scrapMode); hdr.AddChild(sb);
+        hdr.AddChild(Btn("Scrap commons", () =>
+        {
+            int n = 0; var parts = new Dictionary<string, int>();
+            foreach (var it in d.Inv.FindAll(x => x.Rar == 0 && x.Set == null && !x.Unique)) { foreach (var (id, c) in LootTables.Scraps(it)) { d.Mats[id] = d.Mats.GetValueOrDefault(id) + c; parts[id] = parts.GetValueOrDefault(id) + c; } d.Inv.Remove(it); n++; }
+            if (n > 0) { Note($"Scrapped {n} common items: " + string.Join(", ", parts.Select(kv => $"+{kv.Value} {GatherDb.Mat(kv.Key).Name}")), Dim); Sfx.Play("hit"); }
+            Game.Notify(); OpenPack();
+        }, true));
+        hdr.AddChild(Btn("Pickup filter", OpenPickFilter, true));
+        hdr.AddChild(Btn("Crafting", () => OpenCraft("gear"), true));
         var grid = new GridContainer { Columns = 7 }; grid.AddThemeConstantOverride("h_separation", 6); grid.AddThemeConstantOverride("v_separation", 6); right.AddChild(grid);
         for (int i = 0; i < 28; i++)
         {
@@ -303,10 +314,20 @@ public partial class Ui : CanvasLayer
             var cell = new ItemSlot { Item = it, CustomMinimumSize = new Vector2(66, 66) }; grid.AddChild(cell);
             if (it == null) continue;
             cell.Hover += on => ShowTip(on ? it : null, cell, d.Eq.GetValueOrDefault(it.Slot));
-            cell.Clicked += rightBtn => { HideTip(); if (rightBtn) { d.Inv.RemoveAt(k); Sfx.Play("click"); OpenPack(); } else Equip(k); };
+            cell.Clicked += rightBtn =>
+            {
+                HideTip();
+                // right-click: drop it on the ground in front of you (a friend can take it, or walk away and back to pick it up again)
+                if (rightBtn) { d.Inv.RemoveAt(k); Loot.DropFromPack(it); Game.Notify(); OpenPack(); }
+                else if (_scrapMode) { d.Inv.RemoveAt(k); Note($"Scrapped {it.Name}: {LootTables.Disassemble(it)}", Dim); OpenPack(); }
+                else Equip(k);
+            };
         }
-        Lbl("Click: equip     Right-click: drop     Hover: compare with what you wear", 13, Dim, right);
+        Lbl(_scrapMode ? "Disassemble is ON: click an item to break it into scraps for crafting.     Right-click: drop on the ground" : "Click: equip     Right-click: drop on the ground     Hover: compare with what you wear", 13, _scrapMode ? new Color(1, .7f, .45f) : Dim, right);
+        string filt = d.PickRar > 0 || d.PickSkip.Count > 0 ? $"Pickup filter: {Items.RarityName(d.PickRar)} and better" + (d.PickSkip.Count > 0 ? $", skipping {string.Join(", ", d.PickSkip)}" : "") + (d.PickScrap ? " (the rest is scrapped)" : " (the rest stays on the ground)") : "Pickup filter: everything";
+        Lbl(filt, 12, Dim, right);
     }
+    static bool _scrapMode;
     void ShowTip(Item? it, Control anchor, Item? worn)
     {
         if (it == null) { HideTip(); return; }

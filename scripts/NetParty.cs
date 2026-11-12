@@ -64,10 +64,19 @@ public partial class Net
     [Rpc(MultiplayerApi.RpcMode.Authority)]
     void R_LootSpawn(int id, Vector3 pos, string json, long owner, string ownerName) { var d = FromJson<LootData>(json); if (d != null) MakeLootNode(id, pos, d, owner, ownerName); }
 
+    /// <summary>We dropped an item from our pack (right-click): the host puts it on the ground for anyone to take, us included.</summary>
+    public void DropItem(Item it, Vector3 pos)
+    {
+        string json = ToJson(new LootData { Item = it });
+        if (_server) HostDropItem(json, pos); else RpcId(1, MethodName.R_DropItem, json, pos);
+    }
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer)] void R_DropItem(string json, Vector3 pos) { if (_server) HostDropItem(json, pos); }
+    void HostDropItem(string json, Vector3 pos) { var d = FromJson<LootData>(json); if (d?.Item != null) { Spawn(pos, d, 0, false); Count("drops"); } }
+
     /// <summary>Walking over a shared drop asks the host for it; the host checks who may take it.</summary>
     public void Claim(Loot l)
     {
-        if (l.Item != null && Game.D.Inv.Count >= 28) { Ui.Note("Pack is full", new Color(1, .5f, .5f)); return; }
+        if (l.Item != null && Game.D.Inv.Count >= 28 && !(Game.D.PickScrap && !Loot.Wanted(l.Item))) { Ui.Note("Pack is full", new Color(1, .5f, .5f)); return; }
         if (_server) HostClaim(MyId, l.NetId); else RpcId(1, MethodName.R_LootClaim, l.NetId);
     }
     [Rpc(MultiplayerApi.RpcMode.AnyPeer)] void R_LootClaim(int id) { if (_server) HostClaim(Sender, id); }
@@ -85,7 +94,8 @@ public partial class Net
         var d = FromJson<LootData>(json); if (d == null) return; var D = Game.D;
         if (d.Gold > 0) { D.Gold += d.Gold; Ui.Note("+" + d.Gold + " gold" + (why != "" ? " (" + why + ")" : ""), new Color(1, .85f, .3f)); Sfx.Play("coin"); }
         if (d.Pot != null) { if (d.Pot == "hp") D.HpPot++; else D.MpPot++; Ui.Note(d.Pot == "hp" ? "Health potion" : "Mana potion", d.Pot == "hp" ? new Color(1, .5f, .5f) : new Color(.5f, .7f, 1f)); Sfx.Play("pickup"); }
-        if (d.Item != null) { if (D.Inv.Count < 28) D.Inv.Add(d.Item); else D.Stash.Add(d.Item); Ui.Note(d.Item.Describe(), d.Item.Color); Sfx.Play("pickup"); }
+        if (d.Item != null && D.PickScrap && !Loot.Wanted(d.Item)) Ui.Note($"Scrapped {d.Item.Name}: {LootTables.Disassemble(d.Item)}", Ui.Dim);   // pickup filter: auto-disassemble
+        else if (d.Item != null) { if (D.Inv.Count < 28) D.Inv.Add(d.Item); else D.Stash.Add(d.Item); Ui.Note(d.Item.Describe(), d.Item.Color); Sfx.Play("pickup"); }
         Count("gotLoot"); Game.Notify();
     }
     float _deniedT;

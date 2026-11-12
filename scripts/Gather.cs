@@ -3,7 +3,7 @@ using Godot;
 
 namespace TwinRealms;
 
-public class MatDef { public string Id = "", Name = ""; public int Value; public Color Col = Colors.White; }
+public class MatDef { public string Id = "", Name = ""; public int Value; public Color Col = Colors.White; public bool Scrap; }   // Scrap: from disassembly, used in crafting
 public class NodeDef { public string Id = "", Shape = "herb", Verb = "Gather", Mat = ""; public int A0 = 1, A1 = 1, Count, Realm = -1; public string Where = "meadow"; public float MinH, MaxH = 99, Respawn = 180; }
 
 /// <summary>Materials and gatherable node types from data/gather.json, and the scattering of nodes over the island.</summary>
@@ -18,7 +18,7 @@ public static class GatherDb
         if (Mats.Count > 0) return;
         using var doc = JsonUtil.Load("res://data/gather.json"); var r = doc.RootElement; _seed = (int)JsonUtil.F(r, "seed", 9137);
         foreach (var p in r.GetProperty("materials").EnumerateObject())
-            Mats[p.Name] = new MatDef { Id = p.Name, Name = JsonUtil.S(p.Value, "n", p.Name), Value = (int)JsonUtil.F(p.Value, "value", 1), Col = Color.FromHtml(JsonUtil.S(p.Value, "color", "#ffffff")) };
+            Mats[p.Name] = new MatDef { Id = p.Name, Name = JsonUtil.S(p.Value, "n", p.Name), Value = (int)JsonUtil.F(p.Value, "value", 1), Col = Color.FromHtml(JsonUtil.S(p.Value, "color", "#ffffff")), Scrap = p.Value.TryGetProperty("scrap", out var sc) && sc.ValueKind == System.Text.Json.JsonValueKind.True };
         foreach (var p in r.GetProperty("nodes").EnumerateObject())
         {
             var e = p.Value; var d = new NodeDef { Id = p.Name, Shape = JsonUtil.S(e, "shape", "herb"), Verb = JsonUtil.S(e, "verb", "Gather"), Mat = JsonUtil.S(e, "mat"), Count = (int)JsonUtil.F(e, "count"), Where = JsonUtil.S(e, "where", "meadow"),
@@ -28,6 +28,8 @@ public static class GatherDb
         }
     }
     public static MatDef Mat(string id) { Load(); return Mats.TryGetValue(id, out var m) ? m : new MatDef { Id = id, Name = id }; }
+    /// <summary>Colour of the material with this display name (scrap icons are drawn as gems in their colour).</summary>
+    public static Color? ColorOfName(string name) { Load(); foreach (var m in Mats.Values) if (m.Name == name) return m.Col; return null; }
 
     /// <summary>Gives the player materials, with a floating "+2 Sunleaf" and a note.</summary>
     public static void Give(string mat, int n, Vector3 at)

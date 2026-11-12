@@ -790,7 +790,7 @@ void fragment(){
     void IndexEnemies()
     {
         NetEnemies = new List<Enemy>();
-        foreach (var n in Over.FindChildren("*", "", true, false)) if (n is Enemy e) { e.NetIdx = NetEnemies.Count; e.Puppet = Net.IsClient; NetEnemies.Add(e); }
+        foreach (var n in Over.FindChildren("*", "", true, false)) if (n is Enemy e && !e.Ambusher) { e.NetIdx = NetEnemies.Count; e.Puppet = Net.IsClient; NetEnemies.Add(e); }
         GD.Print($"[WORLD] {NetEnemies.Count} overworld enemies, fingerprint {Fingerprint()}");
     }
     /// <summary>Type and rounded position of every overworld enemy, hashed: host and friends must match or their enemies would not line up.</summary>

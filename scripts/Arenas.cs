@@ -75,8 +75,9 @@ public static class Arenas
             _delay -= dt; if (_delay > 0) return;
             if (Mode == "waves")
             {
-                int w = Wave, n = Math.Min(10, 2 + w); string[] pool = w < 3 ? new[] { "wolf", "goblin", "bandit" } : w < 5 ? new[] { "goblin", "bandit", "archer", "skeleton", "wolf" } : w < 8 ? new[] { "bandit", "archer", "skeleton", "wraith", "hound", "goblin" } : new[] { "skeleton", "wraith", "hound", "archer", "bandit", "revenant" };
-                int lvl = Math.Max(1, Game.D.Level + w / 3 - 1); var list = new List<string>(); for (int i = 0; i < n; i++) list.Add(pool[Rn.Next(pool.Length)]);
+                // waves swell fast: 4 foes at wave 1, 18 at wave 10, 24 from wave 14
+                int w = Wave, n = Math.Min(24, 3 + w + w / 2); string[] pool = w < 3 ? new[] { "wolf", "goblin", "bandit" } : w < 5 ? new[] { "goblin", "bandit", "archer", "skeleton", "wolf" } : w < 8 ? new[] { "bandit", "archer", "skeleton", "wraith", "hound", "goblin" } : new[] { "skeleton", "wraith", "hound", "archer", "bandit", "revenant" };
+                int lvl = Math.Max(1, Game.D.Level + w / 2 - 1); var list = new List<string>(); for (int i = 0; i < n; i++) list.Add(pool[Rn.Next(pool.Length)]);
                 if (w % 5 == 0) list.Add(w >= 10 ? "revenant" : "brute");
                 for (int i = 0; i < list.Count; i++) SpawnOne(list[i], lvl, i, list.Count, null);
                 Ui.Banner("Wave " + w, list.Count + " foes"); Sfx.Play("roar");
@@ -95,13 +96,18 @@ public static class Arenas
                 Ui.Banner("Wave " + Wave + " cleared", v > 0 ? $"+{v} valor" : nx > 0 ? $"valor at wave {nx}" : "");
                 Valor.Give(v); RunValor += v; Wave++;
             }
-            else { int g = 45 * Streak; Game.D.Gold += g; Game.D.BestDuel = Math.Max(Game.D.BestDuel, Streak); Quests.OnDuel(Streak); Ui.Banner("Victory!", "+" + g + " gold. Streak " + Streak); Loot.DropFrom(Center + new Vector3(0, 1, 0), Game.D.Level + 1, .6f, 2f, 0, .3f); Streak++; }
+            else
+            {
+                // the Shadow Duel pays no experience, gold or items: a won round pays valor (data/valor.json "duelPerRound")
+                int v = Valor.ForDuel(Streak); Game.D.BestDuel = Math.Max(Game.D.BestDuel, Streak); Quests.OnDuel(Streak);
+                Ui.Banner("Victory!", (v > 0 ? $"+{v} valor. " : "") + "Streak " + Streak); Valor.Give(v); RunValor += v; Streak++;
+            }
             p.Hp = Mathf.Min(Game.D.MaxHp(), p.Hp + Game.D.MaxHp() * .35f); p.Mp = Game.D.MaxMp(); Sfx.Play("level"); Game.Save();
         }
     }
 
-    /// <summary>Wave Survival pays only valor: its foes drop no items, gold or materials.</summary>
-    public static bool NoDrops(Enemy e) => e.Arena && Mode == "waves";
+    /// <summary>The arena pays only valor: Wave Survival foes and your Shadow drop no items, gold or materials (and give no experience).</summary>
+    public static bool NoDrops(Enemy e) => e.Arena;
 
     static void SpawnOne(string type, int lvl, int i, int n, EnemyDef? over)
     {

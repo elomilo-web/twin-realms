@@ -108,6 +108,15 @@ public partial class ItemTip : PanelContainer
                 dl.AddThemeFontSizeOverride("font_size", 13); dl.AddThemeColorOverride("font_color", up ? new Color("5be37d") : new Color("ff6a5f")); h.AddChild(dl);
             }
         }
+        if (it.Unique) L("Unique", 13, new Color("ffd27a"));
+        if (LootTables.SetOf(it.Set) is { } set)
+        {
+            // set bonuses: lit when you wear enough pieces
+            int n = LootTables.Worn(Game.D, set.Id);
+            L($"{set.Name}  ({n}/{set.Pieces.Count} worn)", 14, set.Col);
+            foreach (var (need, mods) in set.Bonuses)
+                L($"  {need}: " + string.Join(", ", System.Linq.Enumerable.Select(mods, kv => TreeDb.StatText(kv.Key, kv.Value))), 12, n >= need ? set.Col.Lightened(.3f) : UiTheme.Dim);
+        }
         if (worn == null && it.Slot != "") L("Nothing worn in this slot", 12, UiTheme.Dim);
         else if (worn != null && worn != it) L($"vs worn: {worn.Name}", 12, UiTheme.Dim);
         L($"Sells for {it.Value} G", 12, new Color("e3b04b"));

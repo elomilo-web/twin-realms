@@ -1,5 +1,16 @@
 # Port status
 
+**Scaling and loot overhaul (2026-11-11), uncommitted on `new-content`.**
+- Monster scaling (`data/progression.json` "scaling", `Progression.cs`, `Enemy.Rescale`): health/damage = level curve (linear x gentle exponential) with a floor tied to the hero's own weapon hit and max health; hero armor now K/(K+armor) with K growing with the attacker's level (was armor x5, which reached ~87% reduction). 2 attribute points per level (was 3).
+- Overworld monsters follow the heroes' level (multiplayer: lobby average), x1.5 health/damage with 2+ players ("party.statMul"). Play-time threat (`Threat.cs`, "threat"): every 8 min stronger monsters, faster respawns, ambush packs (local to each machine, not networked). Arena waves are bigger.
+- Dungeons: x3 monsters ("dungeon.mobMul"), tier every 5 floors ("dungeon.tiers"), more gear tiers. Each dungeon has its own drop table, named uniques and a set (`data/loot.json`, `LootTables.cs`); rarity rises with depth; set pieces from floor 10, bonuses applied in `Game.RecalcTree` (Game.Notify now recalcs).
+- No experience or loot from Wave Survival or the Shadow Duel (duel rounds pay valor, `valor.json` duelPerRound).
+- Settings > Game > Auto target (off / hit you / nearest / lowest HP) via `Targeting.Aim`. Pack: right-click drops on the ground (networked through the host in multiplayer), Disassemble mode + Scrap commons, Pickup filter, Crafting window (`UiCraft.cs`). Scraps are materials in `gather.json` ("scrap": true).
+- Network: Protocol 4, enemy snapshots carry max health and level (NetStride 10, `Enemy.NetPerPacket`).
+- Bot: `tools/run.ps1 bot scaling,dungeons` runs only matching steps. Verified: full bot 122/122 once; focused scaling/dungeons/wave 41/41.
+- Fixed the 1.1 multiplayer break ("a joining friend's moves and hits may not reach the host"): building the bigger world blocks a game 15-30 s with no network traffic, and the host's ENet timeout (32 retries, 15 s minimum) dropped the friend while they loaded; they then played on alone, unheard (falling, wolves that would not die, disconnect at the loot pickup). Timeouts are now 90-120 s on both sides (`Net.OnPeerConnected`, `Net.OnConnected`). `[MAIN] world built in N s` is logged. MP test: the joiner starts 30 s after the host and waits 30 s more before joining. Verified: host 21/21, join 24/24.
+- Test bots run muted; bot and mp also on the lowest graphics (`Main._Ready`, not saved). observe/shots/fit keep full graphics for their pictures.
+
 **New content (2026-11-10), branch `new-content`, not merged into main yet.** main + `origin/genshin-shader` + `origin/asset-kit-2` (both merged cleanly).
 - Imported in Godot 4.7.2 (164 kit models, 36 flipbooks, 8 eye textures, 3 shaders), no import errors. `Genshin.cs` and `SpellFx.cs` compiled with no errors as merged.
 - Fixed in `SpellFx.cs`: looping animations played free in the world never ended (buff_aura, poison_cloud, whirlwind, circles, drain beam); sprites now take a `Life` (free loops default 2 s). Ground animations tilt to the terrain under them (they sank into slopes). Added `SkillAttach`, `SizeOf`.

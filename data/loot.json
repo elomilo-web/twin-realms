@@ -1,0 +1,117 @@
+{
+  "_help": "Loot: rarity weights, per-dungeon drop tables, set gear, disassembly scraps and crafting. rarity.weights = chance weight of Common..Legendary; every point of loot bonus multiplies the weight of rarity r by (1 + bonusPerPoint * bonus * r), so deeper floors and upgraded monsters shift drops toward rarer items. dungeons.<key>: slots = slot weights for items dropped there, elements = element weights (element ids from data/gear_fx.json, '' = none), uniqueChance = chance (plus uniquePerDepth per floor) that a dropped item is one of that dungeon's named uniques, uniques = named items (statMul multiplies the rolled stats, minDepth = first floor it can drop), set = that dungeon's set id. sets.<id>: minDepth = first floor its pieces drop, chance = per kill (boss = bossChance, upgraded monster = eliteChance), perDepth adds to every chance per floor past minDepth; bonuses = { pieces worn: { stat key from docs/STATS.md: value } }.",
+  "rarity": { "weights": [55, 27, 12, 4.5, 1.5], "bonusPerPoint": 0.35 },
+  "dungeonDrop": { "bonusPerDepth": 0.45, "bonusPerTier": 1.5 },
+  "dungeons": {
+    "barrow": {
+      "slots": { "weapon": 22, "armor": 14, "shield": 10, "head": 18, "hands": 8, "feet": 8, "cape": 12, "trinket": 8 },
+      "elements": { "": 50, "shadow": 25, "frost": 15, "holy": 10 },
+      "uniqueChance": 0.03, "uniquePerDepth": 0.004,
+      "uniques": [
+        { "name": "Gravewarden's Helm", "slot": "head", "rar": 3, "statMul": 1.35, "elem": "shadow", "minDepth": 2 },
+        { "name": "Shroud of the Hollow", "slot": "cape", "rar": 3, "statMul": 1.4, "elem": "frost", "minDepth": 3 },
+        { "name": "Bonepicker Dagger", "slot": "weapon", "wt": "dagger", "rar": 3, "statMul": 1.3, "elem": "shadow", "minDepth": 4 },
+        { "name": "Lantern of the Restless", "slot": "trinket", "rar": 4, "statMul": 1.3, "minDepth": 7 },
+        { "name": "Kingsbane Longsword", "slot": "weapon", "wt": "sword", "rar": 4, "statMul": 1.35, "elem": "holy", "minDepth": 9 }
+      ],
+      "set": "barrowlord"
+    },
+    "warrens": {
+      "slots": { "weapon": 28, "armor": 12, "shield": 14, "head": 10, "hands": 14, "feet": 12, "cape": 4, "trinket": 6 },
+      "elements": { "": 55, "venom": 25, "fire": 12, "storm": 8 },
+      "uniqueChance": 0.03, "uniquePerDepth": 0.004,
+      "uniques": [
+        { "name": "Snaggletooth Hatchet", "slot": "weapon", "wt": "axe", "rar": 3, "statMul": 1.3, "elem": "venom", "minDepth": 2 },
+        { "name": "Scrap-Iron Buckler", "slot": "shield", "rar": 3, "statMul": 1.4, "minDepth": 3 },
+        { "name": "Trapper's Gauntlets", "slot": "hands", "rar": 3, "statMul": 1.4, "elem": "venom", "minDepth": 4 },
+        { "name": "Warlord's Morningstar", "slot": "weapon", "wt": "mace", "rar": 4, "statMul": 1.35, "elem": "fire", "minDepth": 7 },
+        { "name": "Tunnelrunner Boots", "slot": "feet", "rar": 4, "statMul": 1.35, "elem": "storm", "minDepth": 9 }
+      ],
+      "set": "warchief"
+    },
+    "depths": {
+      "slots": { "weapon": 24, "armor": 16, "shield": 8, "head": 10, "hands": 10, "feet": 10, "cape": 10, "trinket": 12 },
+      "elements": { "": 40, "fire": 35, "storm": 15, "shadow": 10 },
+      "uniqueChance": 0.03, "uniquePerDepth": 0.004,
+      "uniques": [
+        { "name": "Cinderheart Plate", "slot": "armor", "rar": 3, "statMul": 1.35, "elem": "fire", "minDepth": 2 },
+        { "name": "Emberglass Orb", "slot": "weapon", "wt": "wand", "rar": 3, "statMul": 1.35, "elem": "fire", "minDepth": 3 },
+        { "name": "Ashwalker Greaves", "slot": "feet", "rar": 3, "statMul": 1.4, "elem": "fire", "minDepth": 4 },
+        { "name": "Molten Core Talisman", "slot": "trinket", "rar": 4, "statMul": 1.35, "minDepth": 7 },
+        { "name": "Magmaforged Greatsword", "slot": "weapon", "wt": "greatsword", "rar": 4, "statMul": 1.35, "elem": "fire", "minDepth": 9 }
+      ],
+      "set": "colossus"
+    }
+  },
+  "sets": {
+    "barrowlord": {
+      "name": "Regalia of the Barrow Lord", "prefix": "Barrowlord's", "color": "#3fe0c0", "elem": "shadow",
+      "pieces": ["weapon", "head", "armor", "cape", "trinket"],
+      "minDepth": 10, "chance": 0.004, "eliteChance": 0.015, "bossChance": 0.3, "perDepth": 0.1,
+      "statMul": 1.25,
+      "bonuses": {
+        "2": { "hpP": 12, "res_shadow": 20 },
+        "3": { "leech": 3, "shadowP": 20 },
+        "4": { "undying": 1, "def": 40 },
+        "5": { "allP": 25, "regenHp": 12 }
+      }
+    },
+    "warchief": {
+      "name": "Trophies of the Warchief", "prefix": "Warchief's", "color": "#9ee03f", "elem": "venom",
+      "pieces": ["weapon", "shield", "hands", "feet", "head"],
+      "minDepth": 10, "chance": 0.004, "eliteChance": 0.015, "bossChance": 0.3, "perDepth": 0.1,
+      "statMul": 1.25,
+      "bonuses": {
+        "2": { "aspd": 10, "poisonChance": 15 },
+        "3": { "meleeP": 20, "rangedP": 20, "poisonP": 30 },
+        "4": { "crit": 8, "critD": 40 },
+        "5": { "allP": 25, "move": 10, "cleave": 1 }
+      }
+    },
+    "colossus": {
+      "name": "Shell of the Ashen Colossus", "prefix": "Colossus", "color": "#ff7a3f", "elem": "fire",
+      "pieces": ["weapon", "armor", "hands", "feet", "cape"],
+      "minDepth": 10, "chance": 0.004, "eliteChance": 0.015, "bossChance": 0.3, "perDepth": 0.1,
+      "statMul": 1.25,
+      "bonuses": {
+        "2": { "def": 30, "res_fire": 25 },
+        "3": { "fireP": 25, "burnChance": 20 },
+        "4": { "spellP": 25, "skillP": 20 },
+        "5": { "allP": 25, "hpP": 20, "thorns": 25 }
+      }
+    }
+  },
+  "scraps": {
+    "_help": "What disassembling gives. base: by slot, [scrap id, min, max] (weapons by weapon type first, then slot). rarity: extra scraps by rarity index (0 Common .. 4 Legendary). element: each element's core, given once for elemental items. set: given for set pieces. Every amount grows by levelPer per item level (rounded). Scrap ids are materials in data/gather.json.",
+    "levelPer": 0.04,
+    "base": {
+      "sword": ["ironscrap", 2, 4], "greatsword": ["ironscrap", 3, 5], "axe": ["ironscrap", 2, 4], "mace": ["ironscrap", 2, 4], "dagger": ["ironscrap", 1, 3], "spear": ["ironscrap", 2, 4],
+      "bow": ["leatherstrip", 2, 4], "wand": ["arcanedust", 2, 4], "staff": ["arcanedust", 3, 5],
+      "armor": ["ironscrap", 3, 5], "shield": ["ironscrap", 2, 4], "head": ["ironscrap", 1, 3], "hands": ["leatherstrip", 1, 3], "feet": ["leatherstrip", 1, 3], "cape": ["leatherstrip", 2, 3], "trinket": ["arcanedust", 2, 3]
+    },
+    "rarity": [
+      [],
+      [["arcanedust", 1, 1]],
+      [["runeshard", 1, 2]],
+      [["runeshard", 2, 3], ["voidessence", 1, 1]],
+      [["voidessence", 1, 2], ["riftprism", 1, 1]]
+    ],
+    "element": { "fire": "embercore", "frost": "frostcore", "storm": "stormcore", "venom": "venomcore", "holy": "holycore", "shadow": "shadowcore" },
+    "set": [["setfragment", 2, 4], ["riftprism", 1, 1]]
+  },
+  "crafting": {
+    "_help": "Recipes at the pack's Crafting tab. gear: craft an item of a chosen slot at your level (+levelBonus) and rarity; cost = materials. elemental: a gear recipe that also picks the element (needs that element's core; core ids from scraps.element). potions: cost -> potion. sets: craft a random piece of a set you already wear or carry a piece of.",
+    "gear": [
+      { "rar": 1, "levelBonus": 0, "cost": { "ironscrap": 6, "leatherstrip": 3, "arcanedust": 2 } },
+      { "rar": 2, "levelBonus": 0, "cost": { "ironscrap": 10, "leatherstrip": 5, "arcanedust": 4, "runeshard": 3 } },
+      { "rar": 3, "levelBonus": 1, "cost": { "ironscrap": 16, "leatherstrip": 8, "arcanedust": 8, "runeshard": 6, "voidessence": 2 } },
+      { "rar": 4, "levelBonus": 2, "cost": { "runeshard": 12, "voidessence": 5, "riftprism": 2 } }
+    ],
+    "elemental": { "rar": 3, "levelBonus": 1, "cores": 4, "cost": { "runeshard": 5, "arcanedust": 6 } },
+    "potions": [
+      { "pot": "hp", "n": 3, "cost": { "leatherstrip": 2, "arcanedust": 2 } },
+      { "pot": "mp", "n": 3, "cost": { "arcanedust": 4 } }
+    ],
+    "sets": { "levelBonus": 0, "cost": { "setfragment": 14, "riftprism": 2, "voidessence": 3 } }
+  }
+}

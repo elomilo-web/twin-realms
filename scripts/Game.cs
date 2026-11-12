@@ -23,6 +23,7 @@ public class Settings
     public int SetVer = 0;
     public bool ShowFps = false;
     public float Shake = 1f;              // camera shake strength
+    public int AutoTarget = 0;            // auto target when nothing is locked: 0 off, 1 monsters that hit you (or you hit), 2 nearest, 3 lowest health
     public Dictionary<string, string> Binds = new();   // rebound controls: action -> "k:keycode" / "m:button" (older settings files: empty = defaults)
 }
 
@@ -50,8 +51,10 @@ public static class Game
         foreach (var kv in Races.Get(D.Race).Mods) TS[kv.Key] += kv.Value;
         foreach (var kv in Classes.Get(D.Class).Mods) TS[kv.Key] += kv.Value;
         if (Player.Instance != null) foreach (var b in Player.Instance.Buffs) foreach (var kv in b.mods) TS[kv.Key] += kv.Value;   // timed skill buffs (War Cry, Venom Blade)
+        LootTables.Apply(D, TS);   // set bonuses for set pieces worn together (data/loot.json "sets")
     }
-    public static void Notify() => Changed?.Invoke();
+    /// <summary>Saved data changed: refresh the stat table (equipment may have changed, and with it set bonuses), then the UI.</summary>
+    public static void Notify() { RecalcTree(); Changed?.Invoke(); }
 
     // ---- save file: one file holds up to three heroes (character slots). Older single-hero saves load into slot 1.
     public const int MaxSlots = 3;

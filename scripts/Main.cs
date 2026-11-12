@@ -11,11 +11,19 @@ public partial class Main : Node3D
     {
         if (System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--list-anims") >= 0) { Avatar.ListSources(); GetTree().Quit(); return; }
         if (System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--bake-anims") >= 0) { Avatar.Bake(); GetTree().Quit(); return; }   // tools: rebuild assets/models/anim/clips.res
-        GD.Print("[MAIN] scene start"); Inputs.Setup(); Game.Root = this; Dungeon.Active = false; Arenas.Active = false; World.Realm = 0; World.RealmT = 0; Ui.InGame = false;
+        GD.Print("[MAIN] scene start"); Inputs.Setup(); Game.Root = this; Dungeon.Active = false; Arenas.Active = false; Threat.Reset(); World.Realm = 0; World.RealmT = 0; Ui.InGame = false;
         bool testing = Observer.Wanted() || Bot.Wanted() || Shots.Wanted() || FitBot.Wanted() || MpBot.Wanted() != null;
         if (testing) Game.SetPath = "user://test_settings.json";
         Game.LoadSettings();
         if (testing) Inputs.ResetAll(false);   // test bots press the default keys
+        if (testing)
+        {
+            // test bots: no sound; the gameplay bots (bot, mp) also run on the lowest graphics so they render fast.
+            // The picture bots (observe, shots, fit) keep full graphics, since their screenshots are the point. Nothing is saved.
+            var s = Game.Set; s.Master = 0;
+            if (Bot.Wanted() || MpBot.Wanted() != null) { s.Quality = 0; s.RenderScale = .5f; s.ViewDist = 300f; s.Grass = 0f; s.VSync = false; s.Outlines = false; }
+            Sfx.ApplyVolumes(); Game.ApplyDisplay();
+        }
         AddChild(new Sfx { Name = "Sfx" });
         AddChild(new Net { Name = "Net" });
         var ui = new Ui { Name = "Ui" }; AddChild(ui);
@@ -52,7 +60,8 @@ public partial class Main : Node3D
         GetNodeOrNull("TitleCam")?.QueueFree(); GetNodeOrNull("TitleEnv")?.QueueFree();
         Game.RecalcTree();
         AddChild(new Toon { Name = "Toon" });   // first, so every mesh built after it gets the toon look
-        var world = new World { Name = "World" }; AddChild(world);
+        ulong t0 = Time.GetTicksMsec(); var world = new World { Name = "World" }; AddChild(world);
+        GD.Print($"[MAIN] world built in {(Time.GetTicksMsec() - t0) / 1000f:0.0} s");   // a joining game is silent on the network this long
         float px = Game.D.PosX, pz = Game.D.PosZ; var pos = World.OnGround(px, pz, 0.6f);
         var player = new Player { Name = "Player", Position = pos };
         var rig = new CameraRig { Name = "CameraRig", Target = player, Position = pos + new Vector3(0, 1.6f, 0) };
@@ -68,7 +77,7 @@ public partial class Main : Node3D
     public override void _Process(double delta)
     {
         if (!_started) return;
-        float dt = (float)delta; Game.PlayTime += dt; Game.D.Played += dt; Arenas.Tick(dt);
+        float dt = (float)delta; Game.PlayTime += dt; Game.D.Played += dt; Arenas.Tick(dt); Threat.Tick(dt);
         _autosave += dt; if (_autosave > 60f && !Arenas.Active) { _autosave = 0; Game.Save(); }
     }
 }

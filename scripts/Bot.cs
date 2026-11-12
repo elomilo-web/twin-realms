@@ -84,8 +84,11 @@ public partial class Bot : Node
         return !GodotObject.IsInstanceValid(e) || e.Dead;
     }
 
+    /// <summary>--only=a,b: run just the steps whose names contain one of these words (tools/run.ps1 bot a,b). Empty = every step.</summary>
+    static readonly string[] Only = Array.Find(OS.GetCmdlineUserArgs(), a => a.StartsWith("--only="))?.Substring(7).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? Array.Empty<string>();
     async Task Step(string name, Func<Task> f)
     {
+        if (Only.Length > 0 && !Array.Exists(Only, o => name.Contains(o, StringComparison.OrdinalIgnoreCase))) return;
         Say("--- " + name);
         try { await f(); } catch (Exception e) { Check(name + " threw", false, e.Message); }
     }
@@ -334,6 +337,7 @@ public partial class Bot : Node
                 Dungeon.Enter(key, 1); await Wait(1.5f); Check($"dungeon {key} active", Dungeon.Active);
                 int mobs = 0; bool boss = false; foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Enemy e && e.FromDungeon) { mobs++; if (e.Def.Boss) boss = true; }
                 Check($"dungeon {key} spawns mobs", mobs > 0, mobs + " mobs"); Check($"dungeon {key} has a boss", boss);
+                Check($"dungeon {key} is crowded (x{Progression.DunMobMul} monsters)", mobs >= 6 * Progression.DunMobMul, mobs + " mobs");
                 if (key == "barrow")
                 {
                     // monsters are your level + 2 (boss + 1 more) and wear gear plus upgrades on a private copy of their stats
@@ -512,7 +516,28 @@ public partial class Bot : Node
             for (int l = 1; l < 40; l++) if (Progression.XpNeed(l + 1) - Progression.XpNeed(l) < Progression.XpNeed(l) - Progression.XpNeed(Math.Max(1, l - 1))) rising = false;
             Check("xp curve is easy early and gets harder", n1 <= 60 && n2 > n1 && rising && n20 > n10 * 3, $"need L1 {n1}, L2 {n2}, L10 {n10}, L20 {n20}");
             var t = new PlayerStats { Level = 1, AttrPts = 0, SkillPts = 0, RankPts = 0 }; int ups = t.GainXp(Progression.XpNeed(1));
-            Check("level up gives 3 attribute, 1 skill, 2 skill tree points", ups == 1 && t.Level == 2 && t.AttrPts == 3 && t.RankPts == 1 && t.SkillPts == 2, $"attr {t.AttrPts}, skill {t.RankPts}, tree {t.SkillPts}");
+            Check("level up gives the points in progression.json", ups == 1 && t.Level == 2 && t.AttrPts == Progression.AttrPerLevel && t.RankPts == Progression.RankPerLevel && t.SkillPts == Progression.TreePerLevel, $"attr {t.AttrPts}, skill {t.RankPts}, tree {t.SkillPts}");
+            await Task.CompletedTask;
+        });
+
+        await Step("scaling and loot", async () =>
+        {
+            // monster scaling: the curve keeps bending up, and the power floor keeps a wolf at several hits however strong the hero is
+            bool curveUp = true; for (int l = 2; l < 60; l++) if (Progression.HpCurve(l + 1) - Progression.HpCurve(l) < Progression.HpCurve(l) - Progression.HpCurve(l - 1)) curveUp = false;
+            float bigHit = 5000f; Check("monster health curve bends upward; a wolf takes 3+ hits even from a huge hit", curveUp && Progression.PowerHp(38, bigHit) / bigHit >= 3f, $"L10 x{Progression.HpCurve(10):0.0}, L30 x{Progression.HpCurve(30):0.0}, L50 x{Progression.HpCurve(50):0.0}");
+            Check("armor is measured against the attacker's level", Progression.ArmorTaken(100, 1) < Progression.ArmorTaken(100, 30) && Progression.ArmorTaken(0, 10) == 1f, $"100 armor takes {Progression.ArmorTaken(100, 1):0.00} at L1, {Progression.ArmorTaken(100, 30):0.00} at L30");
+            Check("dungeon tiers every 5 floors", Progression.Tier(5) == 0 && Progression.Tier(6) == 1 && Progression.Tier(11) == 2 && Progression.TierHp(6) > 1.2f, $"tier hp x{Progression.TierHp(6):0.00} / x{Progression.TierHp(11):0.00}");
+            // loot: deeper floors drop rarer items; disassembly gives scraps; sets give bonuses; the pickup filter
+            int rare0 = 0, rare9 = 0; for (int i = 0; i < 3000; i++) { if (LootTables.RollRarity(0) >= 2) rare0++; if (LootTables.RollRarity(LootTables.DepthBonus(12)) >= 2) rare9++; }
+            Check("deeper floors drop rarer items", rare9 > rare0 * 2, $"rare+ of 3000: floor 1 {rare0}, floor 12 {rare9}");
+            var scr = LootTables.Scraps(Items.Roll(10, 0, "weapon", 3, "fire"));
+            Check("disassembling gives scraps (and a core for elemental items)", scr.Count >= 2 && scr.ContainsKey("embercore") && scr.ContainsKey("runeshard"), string.Join(", ", scr.Select(kv => kv.Key + " " + kv.Value)));
+            var sd = LootTables.Sets.Values.First(); var keep = Game.D; Game.D = new PlayerStats(); Game.RecalcTree(); float hp0 = Game.TS["hpP"] + Game.TS["aspd"] + Game.TS["def"];
+            Game.D.Eq[sd.Pieces[0]] = LootTables.MakeSetPiece(sd, 10, sd.Pieces[0]); Game.D.Eq[sd.Pieces[1]] = LootTables.MakeSetPiece(sd, 10, sd.Pieces[1]); Game.RecalcTree(); float hp1 = Game.TS["hpP"] + Game.TS["aspd"] + Game.TS["def"];
+            Check("two set pieces give the 2-piece bonus", hp1 > hp0 && Game.D.Eq[sd.Pieces[0]]!.Set == sd.Id, $"{sd.Name}: {hp0} -> {hp1}");
+            Game.D.PickRar = 2; bool f1 = !Loot.Wanted(Items.Roll(5, 0, "armor", 1)) && Loot.Wanted(Items.Roll(5, 0, "armor", 3)) && Loot.Wanted(LootTables.MakeSetPiece(sd, 5));
+            Game.D = keep; Game.RecalcTree();
+            Check("pickup filter: rarity floor, set pieces always", f1);
             // party rules: 90% of the experience split between members; parties find a little more
             Check("party experience: 90% split evenly", Progression.PartyShare(100, 1) == 100 && Progression.PartyShare(100, 2) == 45 && Progression.PartyShare(100, 3) == 30, $"solo 100, duo {Progression.PartyShare(100, 2)}, trio {Progression.PartyShare(100, 3)}");
             Check("party dungeon level = average party level + 3", Progression.PartyDungeonLevel(5.5f, 1) == 9 && Progression.PartyDungeonLevel(4, 2) == 8, $"{Progression.PartyDungeonLevel(5.5f, 1)}, {Progression.PartyDungeonLevel(4, 2)}");

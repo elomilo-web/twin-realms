@@ -1,5 +1,5 @@
 {
-  "_help": "Valor (scripts/Valor.cs). Earned only in Wave Survival, when a run first clears a milestone wave; spent with Sera, Valor Quartermaster, in Oakhaven. Wave Survival foes drop no items, gold or materials.",
+  "_help": "Valor (scripts/Valor.cs). Earned in the arena only: in Wave Survival when a run clears a milestone wave, and for won Shadow Duel rounds; spent with Sera, Valor Quartermaster, in Oakhaven. Arena foes give no experience and drop no items, gold or materials.",
   "milestones": [
     { "wave": 3, "valor": 10 },
     { "wave": 5, "valor": 20 },
@@ -8,6 +8,9 @@
     { "wave": 15, "valor": 70 },
     { "wave": 20, "valor": 100 }
   ],
+  "_duelHelp": "Shadow Duel: no experience, gold or items; each won round pays duelPerRound x the streak in valor, at most duelMax",
+  "duelPerRound": 5,
+  "duelMax": 60,
   "_everyHelp": "after the last milestone: every 'every' waves gives 'valor'",
   "every": { "every": 5, "valor": 100 },
   "gold": [

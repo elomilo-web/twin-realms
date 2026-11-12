@@ -15,7 +15,34 @@ public partial class Enemy : CharacterBody3D, IDamageable
     public EnemyDef? DefOverride;
     public bool Arena, Summoned, NoLeash, AnyRealm, FromDungeon;
     public List<MobMod>? Mods;                 // dungeon gear tier and upgrades (data/progression.json); applied to a private copy of Def
+    public float TierHp = 1f, TierDmg = 1f;    // dungeon tier multipliers (every 5 floors)
+    public bool Ambusher;                      // spawned by Threat around our own hero: never networked, hunts only us
+    int _areaLvl = -1;                         // overworld: the level the area gave this monster (it follows the heroes from there)
     float _xpMul = 1f, _lootBonus; OmniLight3D? _aura;
+    bool Overworld => !Arena && !FromDungeon && !Summoned && DefOverride == null;
+
+    /// <summary>
+    /// Health and damage for the current level (data/progression.json "scaling"): the level curve, a floor tied to the hero's own power
+    /// (so gear never makes monsters trivial), then the multiplayer, play-time threat and dungeon tier multipliers.
+    /// Overworld monsters also re-pick their level from the heroes' level. keepRatio keeps a wounded monster's health share.
+    /// </summary>
+    public void Rescale(bool keepRatio)
+    {
+        if (DefOverride != null) return;
+        if (Overworld) { if (_areaLvl < 0) _areaLvl = Level; Level = Progression.OverworldLevel(_areaLvl, Def.Boss); }
+        var D = Game.D; float hp = Scaling.EnemyHp(Def.Hp, Level), dmg = Scaling.EnemyDmg(Def.Dmg, Level);
+        if (Player.Instance != null)
+        {
+            hp = Mathf.Max(hp, Progression.PowerHp(Def.Hp, D.WpnDmg()));
+            dmg = Mathf.Max(dmg, Progression.PowerDmg(Def.Dmg, D.MaxHp(), Progression.ArmorTaken(D.Defense(), Level)));
+        }
+        float party = Progression.PartyMul(), th = Overworld || Ambusher ? Threat.Level : 0;
+        float hpMul = party * TierHp * (1 + th * Threat.HpP / 100f), dmgMul = party * TierDmg * (1 + th * Threat.DmgP / 100f);
+        if (Summoned) { hpMul *= .6f; dmgMul *= .8f; }
+        float ratio = keepRatio && MaxHp > 0 ? Mathf.Clamp(Hp / MaxHp, 0, 1) : 1;
+        MaxHp = Mathf.Max(1, hp * hpMul); Damage = dmg * dmgMul; Hp = MaxHp * ratio;
+        if (_label != null && IsInstanceValid(_label) && !Summoned) _label.Text = UpgradeLine() + Def.N + $"  Lv{Level}";
+    }
     public float Hp, MaxHp, Damage;
     public bool Dead => _state == State.Dead;
     public bool Active { get; private set; } = true;
@@ -62,8 +89,8 @@ public partial class Enemy : CharacterBody3D, IDamageable
     {
         Def = DefOverride ?? EnemyDb.Get(Type);
         if (DefOverride == null && Mods != null && Mods.Count > 0) Def = Progression.Apply(Def, Mods, out _xpMul, out _lootBonus);
-        MaxHp = Hp = DefOverride != null ? Def.Hp : Scaling.EnemyHp(Def.Hp, Level);
-        Damage = DefOverride != null ? Def.Dmg : Scaling.EnemyDmg(Def.Dmg, Level);
+        if (DefOverride != null) { MaxHp = Hp = Def.Hp; Damage = Def.Dmg; }
+        else Rescale(false);
         if (Def.Reach <= 0) Def.Reach = 2.2f;
         _home = GlobalPosition;
         _gravity = (float)ProjectSettings.GetSetting("physics/3d/default_gravity");
@@ -120,6 +147,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         _yaw = (float)GD.RandRange(0, Mathf.Tau);
         if (Def.Kind == "dragon") _state = State.Sleep;
         if (Arena || Summoned || FromDungeon) { _state = State.Chase; AnyRealm = true; }
+        if (Ambusher) _state = State.Chase;
         _summonT = (float)GD.RandRange(5, 9);
     }
 
@@ -306,7 +334,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
     public void Stun(float t) { if (Dead) return; if (Puppet) { if (DuelPeer == 0) Net.I?.SendEnemyStun(this, t); return; } _stun = Mathf.Max(_stun, t); if (_state != State.Sleep) _state = State.Stagger; }
     public void Ignite(float t, float dps) => Status.Add("burn", t / 3f, 1, dps);
     public void Slow(float t) => Status.Add("chill", t / 3f, 0, 0);
-    public void Wake() { if (Def.Flee && !Dead) { _state = State.Flee; return; } if (_state == State.Sleep || _state == State.Idle || _state == State.Return) { _state = State.Chase; if (_state == State.Chase && Def.Kind == "dragon") Sfx.Play("roar"); } }
+    public void Wake() { if (Def.Flee && !Dead) { _state = State.Flee; return; } if (_state == State.Sleep || _state == State.Idle || _state == State.Return) { if (Overworld && !Puppet && Hp >= MaxHp - .5f) Rescale(false); _state = State.Chase; if (_state == State.Chase && Def.Kind == "dragon") Sfx.Play("roar"); } }
 
     // ------------------------------------------------------------------ defenses and statuses
     public readonly StatusSet Status = new();
@@ -378,6 +406,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
     public void TakeHit(HitInfo h)
     {
         if (Dead) return;
+        if (h.IsPlayer && !h.Remote) Targeting.NoteHostile(this);   // auto target "monsters you hit"
         if (Puppet) { PuppetHit(h); return; }
         if (h.Remote) _lastPeer = h.Peer; else if (h.IsPlayer) _lastPeer = Net.MyId;
         float dealt = Incoming(h); int dmg = Mathf.Max(1, Mathf.RoundToInt(dealt));
@@ -413,7 +442,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         long killer = _lastPeer < 0 ? Net.MyId : _lastPeer;
         float lvlF = Level < D.Level - 4 ? 0.5f : 1f;
         int xp = Mathf.RoundToInt(Def.Xp * (1 + 0.12f * (Level - 1)) * (netKill ? 1f : lvlF) * (Summoned ? 0.3f : 1f) * _xpMul);
-        if (DefOverride != null) xp = 0;
+        if (DefOverride != null || Arena) xp = 0;   // no experience from Wave Survival or the Shadow Duel
         Fx.Burst(GlobalPosition + Vector3.Up, Def.Kind == "wraith" ? new Color(0.7f, 0.4f, 1f) : new Color(0.8f, 0.2f, 0.2f), 16, 5f, 0.6f);
         var mats = new System.Text.StringBuilder();
         bool noDrops = Arenas.NoDrops(this);   // Wave Survival pays valor only
@@ -440,19 +469,20 @@ public partial class Enemy : CharacterBody3D, IDamageable
             {
                 Loot.DropFrom(GlobalPosition, Level, chance, bonus, gold, Def.Boss ? .6f : .07f);
                 if (Def.Boss) { Loot.DropFrom(GlobalPosition + new Vector3(1, 0, 1), Level, 1f, 3f, 0, 0f); Loot.DropFrom(GlobalPosition + new Vector3(-1, 0, -1), Level, .6f, 2f, 0, 0f); }
+                if (FromDungeon) LootTables.TrySetDrop(GlobalPosition, Level, UpgradeCount() > 0, Def.Boss);   // set gear: deep floors only
             }
         }
         _lastPeer = -1;
         if (Arena) Arenas.OnEnemyDown(this);
         else if (!netKill) Quests.OnKill(Type, Def.Realm, Def.Boss);
         if (Def.Boss) { Ui.Banner(Def.N, "has fallen"); Sfx.Play("level"); if (FromDungeon) Dungeon.OnBossDown(this); }
-        if (!Arena && !Summoned && !FromDungeon && RespawnTime <= 0) RespawnTime = Def.Boss ? 600f : 260f;
+        if (!Arena && !Summoned && !FromDungeon && !Ambusher && RespawnTime <= 0) RespawnTime = (Def.Boss ? 600f : 260f) * Threat.RespawnMul;   // the land refills faster the longer you play
         Game.Save();
     }
 
     void Respawn()
     {
-        Hp = MaxHp; GlobalPosition = _home; _state = Def.Kind == "dragon" ? State.Sleep : State.Idle; _deadT = 0; _stun = 0; Status.Clear();
+        Hp = MaxHp; Rescale(false); GlobalPosition = _home; _state = Def.Kind == "dragon" ? State.Sleep : State.Idle; _deadT = 0; _stun = 0; Status.Clear();
         CollisionLayer = 2; CollisionMask = 1 | 2; _label.Visible = true; _body.Rotation = Vector3.Zero; Velocity = Vector3.Zero;
         _body.Position = Vector3.Zero; _body.Scale = Vector3.One; for (int i = 0; i < _mats.Count; i++) { _mats[i].Transparency = BaseMaterial3D.TransparencyEnum.Disabled; _mats[i].AlbedoColor = _baseCols[i]; }
     }
@@ -697,23 +727,28 @@ public partial class Enemy : CharacterBody3D, IDamageable
     Node3D? PickHero()
     {
         var me = Player.Instance;
-        if (!Net.Active || Puppet || Arena || (FromDungeon && !Dungeon.Shared)) return me;
+        if (!Net.Active || Puppet || Arena || Ambusher || (FromDungeon && !Dungeon.Shared)) return me;
         Node3D? best = null; float bd = float.MaxValue;
         foreach (var h in FromDungeon ? Net.DungeonHeroes() : Net.WorldHeroes()) { float d = h.GlobalPosition.DistanceSquaredTo(GlobalPosition); if (d < bd) { bd = d; best = h; } }
         return best ?? me;
     }
 
-    public const int NetStride = 8;   // index + x, y, z, yaw, hp, state, wind-up progress
+    public const int NetStride = 10;   // index + x, y, z, yaw, hp, state, wind-up progress, max hp, level
+    /// <summary>Enemies per snapshot packet: keeps each packet under one network frame (~1100 of ~1400 bytes); bigger unreliable packets broke the connection.</summary>
+    public const int NetPerPacket = 1100 / (4 * NetStride);
     /// <summary>Host: this enemy's state for a snapshot.</summary>
     public void NetWrite(List<float> b)
     {
         var p = GlobalPosition; b.Add(p.X); b.Add(p.Y); b.Add(p.Z); b.Add(_yaw); b.Add(Hp); b.Add((float)_state);
         b.Add(_state == State.Wind ? Mathf.Clamp(_timer / Mathf.Max(.01f, Def.Wind), 0, 1) : 1f);
+        b.Add(MaxHp); b.Add(Level);   // scaling depends on the host's hero and the lobby, so friends take the host's numbers
     }
     /// <summary>Client: apply a snapshot from the host.</summary>
     public void NetRead(float[] f, int k)
     {
         _netPos = new Vector3(f[k], f[k + 1], f[k + 2]); _netYaw = f[k + 3]; Hp = f[k + 4]; var st = (State)(int)f[k + 5];
+        MaxHp = Mathf.Max(1, f[k + 7]); int lv = (int)f[k + 8];
+        if (lv != Level && lv > 0) { Level = lv; if (!Summoned && DefOverride == null && _label != null) _label.Text = UpgradeLine() + Def.N + $"  Lv{Level}"; }
         if (!_netHas) { _netHas = true; GlobalPosition = _netPos; _yaw = _netYaw; }
         if (st == State.Dead) { if (!Dead) PuppetDie(); return; }
         if (Dead) { Respawn(); GlobalPosition = _netPos; }

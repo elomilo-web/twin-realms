@@ -132,7 +132,7 @@ public partial class Player
     }
     void FaceAim()
     {
-        if (Targeting.Current is Enemy t && IsInstanceValid(t)) { var d = t.GlobalPosition - GlobalPosition; _modelYaw = Util.YawTo(d.X, d.Z); }
+        if (Targeting.Aim is Enemy t && IsInstanceValid(t)) { var d = t.GlobalPosition - GlobalPosition; _modelYaw = Util.YawTo(d.X, d.Z); }
         else _modelYaw = Rig?.Yaw ?? _modelYaw;
     }
 
@@ -274,13 +274,13 @@ public partial class Player
                 SpellFx.SkillAttach(k.Id, "ground", this, Vector3.Up * .06f, FxFit(k.Id, "ground", c.Radius), _spinLeft); break;
             case "leap":
             {
-                var target = forced ?? Targeting.Current; var to = c.At ?? (target != null && IsInstanceValid(target) ? target.GlobalPosition : Aim(k.Range).pt);
+                var target = forced ?? Targeting.Aim; var to = c.At ?? (target != null && IsInstanceValid(target) ? target.GlobalPosition : Aim(k.Range).pt);
                 var d = to - GlobalPosition; d.Y = 0; if (d.Length() > k.Range) d = d.Normalized() * k.Range; if (d.Length() > 1.4f) d -= d.Normalized() * 1.2f;
                 _moveFrom = GlobalPosition; _moveTo = Ground(GlobalPosition + d) + Vector3.Up * .1f; _moveDur = .45f; _moveT = _moveDur; _moveArc = 2.6f; _moveSkill = c; break;
             }
             case "dash":
             {
-                var target = forced ?? Targeting.Current ?? (k.Behind ? NearestFoe(k.Range) : null);
+                var target = forced ?? Targeting.Aim ?? (k.Behind ? NearestFoe(k.Range) : null);
                 if (k.Behind && target != null && IsInstanceValid(target))
                 {
                     // shadow step: appear behind the target facing it, then strike with a guaranteed crit

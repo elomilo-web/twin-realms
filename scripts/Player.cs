@@ -118,6 +118,8 @@ public partial class Player : CharacterBody3D, IDamageable
     Avatar? _av; int _atkSerial, _avAtk, _castSerial, _avCast; bool _avRolling;
     /// <summary>For test bots: the clip the model is playing and the model's facing (radians).</summary>
     public Avatar? Av => _av; public string AvClip => _av?.Cur ?? ""; public float ModelYaw => _modelYaw; public bool Backpedal => _backpedal;
+    /// <summary>The way the hero faces, flat.</summary>
+    public Vector3 Facing() => new(-Mathf.Sin(_modelYaw), 0, -Mathf.Cos(_modelYaw));
     bool _backpedal;
     /// <summary>Hides the procedural hero meshes when the model is drawn (HeroRig still runs for hand targets).</summary>
     void HideRig() { void H(Node n) { foreach (var c in n.GetChildren()) { if (c == _av) continue; if (c is GeometryInstance3D g) g.Visible = false; H(c); } } H(_rig); }
@@ -150,8 +152,11 @@ public partial class Player : CharacterBody3D, IDamageable
         // evade: a clean dodge (Halfling, Ranger passives)
         if (GD.Randf() < Mathf.Clamp(TS["evade"], 0, 60) / 100f) { FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.2f, 0), "Evade", new Color(.75f, .95f, 1f), .9f); _inv = .15f; return; }
         // physical damage against defense; other types against magic resist (half defense + mr), then the per-type resistance (capped at 75%)
-        float baseDmg = h.Type == "physical" || h.Type == "" ? h.Damage * 100f / (100f + D.Defense() * 5f)
-            : h.Type == "true" ? h.Damage : h.Damage * 100f / (100f + (D.Defense() * .5f + TS["mr"]) * 5f) * (1 - Mathf.Clamp(TS["res_" + h.Type], -100, 75) / 100f);
+        // armor is measured against the attacker's level (data/progression.json scaling.armor), so it keeps its value without stacking to immunity
+        int atkLvl = h.Attacker is Enemy al && IsInstanceValid(al) ? al.Level : Mathf.RoundToInt(Progression.RefLevel());
+        float baseDmg = h.Type == "physical" || h.Type == "" ? h.Damage * Progression.ArmorTaken(D.Defense(), atkLvl)
+            : h.Type == "true" ? h.Damage : h.Damage * Progression.ArmorTaken(D.Defense() * .5f + TS["mr"], atkLvl) * (1 - Mathf.Clamp(TS["res_" + h.Type], -100, 75) / 100f);
+        if (h.Attacker is Enemy ae && IsInstanceValid(ae) && !ae.Dead) Targeting.NoteHostile(ae);   // auto target "monsters that hit you"
         baseDmg *= Statuses.TakenMul;
         if (h.Attacker is Enemy src && IsInstanceValid(src)) baseDmg *= src.Status.DealtMul;
         var toSrc = h.From - GlobalPosition; toSrc.Y = 0;
@@ -245,7 +250,7 @@ public partial class Player : CharacterBody3D, IDamageable
     // ------------------------------------------------------------------ aiming
     public (Vector3 point, Enemy? enemy) AimPoint(float maxDist)
     {
-        if (Targeting.Current is Enemy lt && IsInstanceValid(lt) && !lt.Dead) return (lt.GlobalPosition + new Vector3(0, lt.HeightM() * .55f, 0), lt);
+        if (Targeting.Aim is Enemy lt && IsInstanceValid(lt) && !lt.Dead) return (lt.GlobalPosition + new Vector3(0, lt.HeightM() * .55f, 0), lt);
         if (Rig == null) return (GlobalPosition + new Vector3(0, 1.4f, 0) + new Vector3(-Mathf.Sin(_modelYaw), 0, -Mathf.Cos(_modelYaw)) * maxDist, null);
         // the screen-centre ray (includes the over-the-shoulder offset)
         var cam = Rig.Camera; var mid = cam.GetViewport().GetVisibleRect().Size / 2f; var from = cam.ProjectRayOrigin(mid); var dir = cam.ProjectRayNormal(mid);
@@ -287,7 +292,7 @@ public partial class Player : CharacterBody3D, IDamageable
         UseStamina(cost * (_step?.Stamina ?? 1f));
         _atkPower = power; _atkDur = _atk.Dur / (Game.D.AtkSpeed() * w.Speed * (_step?.Speed ?? 1f)); _atkT = _atkDur; _hitDone = false; _comboT = _atkDur + 0.55f; _atkSerial++;
         float camYaw = Rig?.Yaw ?? _modelYaw; float face = camYaw;
-        var tgt = Targeting.Current; _magnet = null;
+        var tgt = Targeting.Aim; _magnet = null;
         if (tgt != null) { var d = tgt.GlobalPosition - GlobalPosition; face = Util.YawTo(d.X, d.Z); if (!ranged) _magnet = tgt; }
         else if (!ranged)
         {
@@ -497,7 +502,7 @@ public partial class Player : CharacterBody3D, IDamageable
         {
             _atkT -= dt; float prog = 1f - _atkT / _atkDur; var a = _atk ?? W.Combo[0];
             if (!_hitDone && prog >= a.Hit) { _hitDone = true; if (_atkSkill != null) { CastWentOff(); FireWeaponSkill(_atkSkill); } else if (Ranged) FireWeapon(); else ResolveMelee(a); }
-            if (Ranged) _modelYaw = Targeting.Current != null ? Util.YawTo(Targeting.Current.GlobalPosition.X - GlobalPosition.X, Targeting.Current.GlobalPosition.Z - GlobalPosition.Z) : camYaw;
+            if (Ranged) _modelYaw = Targeting.Aim is Enemy at ? Util.YawTo(at.GlobalPosition.X - GlobalPosition.X, at.GlobalPosition.Z - GlobalPosition.Z) : camYaw;
             else
             {
                 // lunge forward between wind-up and impact; spinning attacks turn the whole body

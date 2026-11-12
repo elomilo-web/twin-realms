@@ -23,9 +23,11 @@ public class Item
     public int Up { get; set; }                      // smith upgrades
     public string? Elem { get; set; }                // element (data/gear_fx.json): colours the glow; weapons can inflict its status
     public string? Model { get; set; }               // weapons: a kit model name (data/weapons.json "kitModels"), e.g. "sword_azure"; null = picked from the type's list
+    public string? Set { get; set; }                 // set id (data/loot.json "sets"): pieces worn together give set bonuses
+    public bool Unique { get; set; }                 // a named dungeon unique (data/loot.json dungeons.<key>.uniques)
 
-    [JsonIgnore] public int Value => Math.Max(1, (int)Math.Round((Dmg * 4 + Def * 4 + Hp * 0.6 + Mp * 0.6) * (1 + Rar * 0.8)));
-    [JsonIgnore] public Color Color => Items.RarityColor(Rar);
+    [JsonIgnore] public int Value => Math.Max(1, (int)Math.Round((Dmg * 4 + Def * 4 + Hp * 0.6 + Mp * 0.6) * (1 + Rar * 0.8) * (Set != null ? 1.5 : 1)));
+    [JsonIgnore] public Color Color => Set != null ? LootTables.SetColorOf(Set) : Items.RarityColor(Rar);
     public string Describe()
     {
         var p = new List<string>();
@@ -63,12 +65,13 @@ public static class Items
     }
 
     /// <param name="rarity">-1 = roll it; 0..4 = this rarity (valor vendor, gacha)</param>
-    public static Item Roll(int level, float bonus = 0, string? slot = null, int rarity = -1)
+    /// <param name="elem">null = roll an element by rarity; "" = none; otherwise this element (crafting, uniques)</param>
+    /// <param name="wt">weapons only: this weapon type instead of a random one</param>
+    public static Item Roll(int level, float bonus = 0, string? slot = null, int rarity = -1, string? elem = null, string? wt = null)
     {
         Load();
-        float x = GD.Randf();
-        int idx = x < .55f ? 0 : x < .82f ? 1 : x < .94f ? 2 : x < .985f ? 3 : 4;
-        if (GD.Randf() < bonus * .25f && idx < 4) idx++;
+        // rarity weights from data/loot.json; loot bonus (deeper floors, upgraded monsters, bosses) shifts the weight toward rarer items
+        int idx = LootTables.RollRarity(bonus);
         if (rarity >= 0) idx = Math.Clamp(rarity, 0, 4);
         level = Math.Max(1, level);
         if (slot == null) { float q = GD.Randf(); slot = q < .28f ? "weapon" : q < .44f ? "armor" : q < .55f ? "shield" : q < .67f ? "head" : q < .78f ? "hands" : q < .89f ? "feet" : q < .95f ? "cape" : "trinket"; }
@@ -77,7 +80,7 @@ public static class Items
         if (slot == "weapon")
         {
             // any weapon type from data/weapons.json; damage factors live there, so item damage rolls the same for all
-            var types = new List<string>(Weapons.Types); string wt = types[(int)(GD.Randf() * types.Count) % types.Count];
+            var types = new List<string>(Weapons.Types); if (wt == null || !types.Contains(wt)) wt = types[(int)(GD.Randf() * types.Count) % types.Count];
             it.Wt = wt; var wd = Weapons.Get(wt);
             float dm = wt == "wand" ? .62f : wt == "staff" ? .8f : 1f;
             it.Dmg = (int)Math.Floor((3 + level * 2.2f) * m * dm);
@@ -95,8 +98,22 @@ public static class Items
         string baseName;
         if (slot == "weapon") { var names = _wn.GetValueOrDefault(it.Wt!, new[] { "Weapon" }); baseName = names[Math.Min(names.Length - 1, (int)(GD.Randf() * 5))]; }
         else { var names = _in.GetValueOrDefault(slot, new[] { "Item" }); baseName = names[GD.RandRange(0, names.Length - 1)]; }
-        if (slot != "trinket") it.Elem = GearFx.Roll(idx);
+        if (slot != "trinket") it.Elem = elem == null ? GearFx.Roll(idx) : elem == "" ? null : elem;
         it.Name = _pre[idx] + " " + (GearFx.Get(it.Elem) is { } el ? el.Word + " " : "") + baseName + (idx == 4 ? " of the Rift" : "");
         return it;
+    }
+
+    /// <summary>Multiplies every stat of an item (uniques and set pieces are stronger than rolled gear of their rarity).</summary>
+    public static void Boost(Item it, float k)
+    {
+        it.Dmg = (int)Math.Round(it.Dmg * k); it.Def = (int)Math.Round(it.Def * k); it.Hp = (int)Math.Round(it.Hp * k); it.Mp = (int)Math.Round(it.Mp * k);
+        it.Sp = (float)Math.Round(it.Sp * k, 2);
+    }
+    /// <summary>A base name for an item of this slot or weapon type (keeps weapon models matching, data/weapons.json byName).</summary>
+    public static string BaseName(Item it)
+    {
+        Load();
+        var names = it.Slot == "weapon" ? _wn.GetValueOrDefault(it.Wt ?? "sword", new[] { "Weapon" }) : _in.GetValueOrDefault(it.Slot, new[] { "Item" });
+        return names[GD.RandRange(0, names.Length - 1)];
     }
 }

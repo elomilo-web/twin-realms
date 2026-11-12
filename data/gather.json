@@ -10,7 +10,20 @@
   "crystal":   { "n": "Rift Crystal",     "value": 22, "color": "#5fe1ff" },
   "timber":    { "n": "Timber",           "value": 4,  "color": "#9a6a3c" },
   "hide":      { "n": "Hide",             "value": 8,  "color": "#a07850" },
-  "meat":      { "n": "Raw Meat",         "value": 4,  "color": "#d06a5a" }
+  "meat":      { "n": "Raw Meat",         "value": 4,  "color": "#d06a5a" },
+  "ironscrap":    { "n": "Iron Scrap",     "value": 2,  "color": "#a9b0b8", "scrap": true },
+  "leatherstrip": { "n": "Leather Strips", "value": 2,  "color": "#b08454", "scrap": true },
+  "arcanedust":   { "n": "Arcane Dust",    "value": 3,  "color": "#8fa8ff", "scrap": true },
+  "runeshard":    { "n": "Rune Shard",     "value": 8,  "color": "#5b86ff", "scrap": true },
+  "voidessence":  { "n": "Void Essence",   "value": 20, "color": "#b866f5", "scrap": true },
+  "riftprism":    { "n": "Rift Prism",     "value": 60, "color": "#ff9a1f", "scrap": true },
+  "embercore":    { "n": "Ember Core",     "value": 10, "color": "#ff6a2a", "scrap": true },
+  "frostcore":    { "n": "Frost Core",     "value": 10, "color": "#7fdcff", "scrap": true },
+  "stormcore":    { "n": "Storm Core",     "value": 10, "color": "#c8a8ff", "scrap": true },
+  "venomcore":    { "n": "Venom Core",     "value": 10, "color": "#7ae05a", "scrap": true },
+  "holycore":     { "n": "Holy Core",      "value": 10, "color": "#ffe27a", "scrap": true },
+  "shadowcore":   { "n": "Shadow Core",    "value": 10, "color": "#8a5ad8", "scrap": true },
+  "setfragment":  { "n": "Set Fragment",   "value": 40, "color": "#3fe0c0", "scrap": true }
  },
  "nodes": {
   "sunleaf":   { "shape": "herb",     "verb": "Gather", "mat": "sunleaf",   "amount": [1, 2], "count": 70, "where": "meadow",   "minH": 2,  "maxH": 22, "realm": 0,  "respawn": 150 },
