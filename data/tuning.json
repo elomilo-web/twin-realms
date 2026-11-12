@@ -63,6 +63,15 @@
     "arena": {
       "_help": "Wave Survival: foes per wave = foesBase + wave x foesPerWave (at most maxFoes); foe level = your level + wave x levelsPerWave - 1. healBetweenWaves: share of max health restored after each wave. Valor rewards: files > valor.json.",
       "foesBase": 3, "foesPerWave": 1.5, "maxFoes": 24, "levelsPerWave": 0.5, "healBetweenWaves": 0.35
+    },
+    "duel": {
+      "_help": "Shadow Duel boss (scripts/EnemyDuelist.cs), a mirror of the hero. Health = the larger of hero max health x hpPerHeroHp and hero weapon damage x hpPerWeaponHit, +hpPerRound each round. Its blows are a share of the hero's max health (armour counts half), +damagePerRound each round. speed (m/s, +speedPerRound, at most maxSpeed); wind-ups get quickerPerRound shorter (at least minWindMul). stance = share of its health that breaks its stance (brokenTime seconds kneeling, brokenTaken x damage); parryStance = share of the stance a parry takes; it recovers stanceRegen of it per second after stanceRegenDelay. dodgeChance / dodgeCooldown: how often it sidesteps a swing. Phases at phase2At / phase3At health; each opens with the Eclipse: break a barrier of (hero weapon damage x eclipseHitsPerSecond x seconds x eclipseShare) within eclipseTime2 / eclipseTime3 seconds or take eclipseDamage x max health as true damage (a roll avoids it) while it heals eclipseHeal. Phase 3 hits enrageDamage harder. healBetweenRounds: share of your health restored after a won round.",
+      "hpPerHeroHp": 2.4, "hpPerWeaponHit": 42, "hpPerRound": 0.3, "damagePerRound": 0.1,
+      "speed": 5.6, "speedPerRound": 0.03, "maxSpeed": 7.6, "quickerPerRound": 0.03, "minWindMul": 0.72,
+      "stance": 0.14, "brokenTime": 3, "brokenTaken": 1.35, "parryStance": 0.4, "stanceRegen": 0.1, "stanceRegenDelay": 3,
+      "dodgeChance": 0.28, "dodgeCooldown": 3.2, "dodgeSpeed": 10, "lungeSpeed": 21,
+      "phase2At": 0.6, "phase3At": 0.3, "eclipseTime2": 7, "eclipseTime3": 9, "eclipseHitsPerSecond": 1.5, "eclipseShare": 0.55,
+      "eclipseDamage": 0.6, "eclipseHeal": 0.15, "eclipseBrokenTime": 4.5, "enrageDamage": 1.15, "healBetweenRounds": 1
     }
   },
 

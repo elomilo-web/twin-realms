@@ -61,11 +61,8 @@ public static class Arenas
 
     public static void OnEnemyDown(Enemy e) { Alive = Math.Max(0, Alive - 1); }
 
-    static EnemyDef MakeClone()
-    {
-        var d = Game.D; var w = d.Weapon;
-        return new EnemyDef { N = "Your Shadow", Kind = "hum", Hp = d.MaxHp() * 0.9f, Dmg = Mathf.Max(6, d.WpnDmg() * 0.55f), Spd = 5.4f, Aggro = 60, Reach = w?.Wt == "bow" || w?.Wt == "wand" || w?.Wt == "staff" ? 2.4f : 2.4f, Wind = 0.4f, Cd = 0.85f, Xp = 0, R = 0.45f, Scale = 1f, Color = 0x5a2a8a, Realm = 0 };
-    }
+    /// <summary>The Shadow Duel boss for this round: the hero's mirror, stronger every round (Enemy.DuelDef, EnemyDuelist.cs).</summary>
+    public static Enemy? Shadow;
 
     public static void Tick(float dt)
     {
@@ -82,7 +79,11 @@ public static class Arenas
                 for (int i = 0; i < list.Count; i++) SpawnOne(list[i], lvl, i, list.Count, null);
                 Ui.Banner("Wave " + w, list.Count + " foes"); Sfx.Play("roar");
             }
-            else { var d = MakeClone(); SpawnOne("clone", 1, 0, 1, d); Ui.Banner("Round " + Streak, "your shadow rises"); Sfx.Play("roar"); }
+            else
+            {
+                var d = Enemy.DuelDef(Streak); SpawnOne("clone", Game.D.Level + Streak - 1, 0, 1, d);
+                Ui.Banner("Round " + Streak, Streak == 1 ? "your shadow rises" : $"your shadow returns stronger (+{Mathf.RoundToInt(Tune.F("duel.hpPerRound", .3f) * (Streak - 1) * 100)}% health)"); Sfx.Play("roar");
+            }
             _phase = "fight";
         }
         else if (Alive <= 0)
@@ -102,7 +103,8 @@ public static class Arenas
                 int v = Valor.ForDuel(Streak); Game.D.BestDuel = Math.Max(Game.D.BestDuel, Streak); Quests.OnDuel(Streak);
                 Ui.Banner("Victory!", (v > 0 ? $"+{v} valor. " : "") + "Streak " + Streak); Valor.Give(v); RunValor += v; Streak++;
             }
-            p.Hp = Mathf.Min(Game.D.MaxHp(), p.Hp + Game.D.MaxHp() * Tune.F("arena.healBetweenWaves", .35f)); p.Mp = Game.D.MaxMp(); Sfx.Play("level"); Game.Save();
+            p.Hp = Mathf.Min(Game.D.MaxHp(), p.Hp + Game.D.MaxHp() * (Mode == "waves" ? Tune.F("arena.healBetweenWaves", .35f) : Tune.F("duel.healBetweenRounds", 1f)));
+            if (Mode != "waves") { p.Statuses.Clear(); p.St = Game.D.MaxSt(); }   // each duel round starts fresh p.Mp = Game.D.MaxMp(); Sfx.Play("level"); Game.Save();
         }
     }
 
@@ -112,7 +114,11 @@ public static class Arenas
     static void SpawnOne(string type, int lvl, int i, int n, EnemyDef? over)
     {
         float a = i / (float)n * Mathf.Tau + (float)Rn.NextDouble(), rr = type == "clone" ? 10f : 15f; var c = Center;
-        var e = new Enemy { Type = type == "clone" ? "wolf" : type, DefOverride = over, Level = lvl, Arena = true, NoLeash = true, AnyRealm = true, Position = World.OnGround(c.X + Mathf.Cos(a) * rr, c.Z + Mathf.Sin(a) * rr, 0.4f) };
+        bool duel = type == "clone";
+        // the Shadow stands across the sand from the hero (who enters on the west side)
+        var at = duel ? World.OnGround(c.X + rr, c.Z, 0.4f) : World.OnGround(c.X + Mathf.Cos(a) * rr, c.Z + Mathf.Sin(a) * rr, 0.4f);
+        var e = new Enemy { Type = duel ? "wolf" : type, DefOverride = over, Level = lvl, Arena = true, NoLeash = true, AnyRealm = true, Duelist = duel, DuelRound = Streak, Position = at };
+        if (duel) Shadow = e;
         Game.Root!.AddChild(e); Alive++; Fx.Burst(e.Position + Vector3.Up, new Color(1f, .5f, .3f), 14, 4f, .6f, .1f);
         e.Wake();
     }

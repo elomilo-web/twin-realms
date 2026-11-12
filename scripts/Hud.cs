@@ -108,10 +108,20 @@ public partial class HudCanvas : Control
         Enemy? tgt = Targeting.Aim != null && IsInstanceValid(Targeting.Aim) && !Targeting.Aim.Dead ? Targeting.Aim : Enemy.CurrentBoss != null && GodotObject.IsInstanceValid(Enemy.CurrentBoss) && !Enemy.CurrentBoss.Dead && Enemy.CurrentBoss.Active && Enemy.CurrentBoss.GlobalPosition.DistanceTo(p.GlobalPosition) < 35f ? Enemy.CurrentBoss : p.Dead ? null : p.AimPoint(40f).enemy;
         if (tgt != null && !tgt.Dead)
         {
-            float tw = u * 24, ty = u * 7.6f; Txt(new Vector2(sz.X / 2 - tw / 2, ty), $"{tgt.Def.N}  Lv {tgt.Level}", fs(1.2f), tgt.Def.Boss ? UiTheme.Highlight : Colors.White, HorizontalAlignment.Center, tw);
+            float tw = u * 24, ty = u * 7.6f + (Arenas.Active ? fs(1.4f) : 0); Txt(new Vector2(sz.X / 2 - tw / 2, ty), $"{tgt.Def.N}  Lv {tgt.Level}", fs(1.2f), tgt.Def.Boss ? UiTheme.Highlight : Colors.White, HorizontalAlignment.Center, tw);
             SlantBar(new Rect2(sz.X / 2 - tw / 2, ty + 6, tw, Mathf.Max(7, u * .75f)), tgt.Hp / tgt.MaxHp, tgt.Def.Flee ? new Color("9ad06a") : new Color("ff5a4f"), 6, 10);
+            float extra = 0;
+            if (tgt.Duelist)
+            {
+                // the Shadow Duel boss: stance (breaks when full), the Eclipse barrier while it lasts, and the phase
+                float by = ty + 10 + Mathf.Max(7, u * .75f), bh = Mathf.Max(4, u * .4f);
+                SlantBar(new Rect2(sz.X / 2 - tw / 2, by, tw, bh), tgt.DuelStance, tgt.DuelBroken ? new Color("ffd75a") : new Color("e8b04a"), 4, 6);
+                extra = bh + 6;
+                if (tgt.DuelBarrier >= 0) { SlantBar(new Rect2(sz.X / 2 - tw / 2, by + extra, tw, bh * 1.6f), tgt.DuelBarrier, new Color("a46bff"), 4, 6); Txt(new Vector2(sz.X / 2 - tw / 2, by + extra + bh * 1.6f + fs(1f)), "ECLIPSE: break the barrier!", fs(1f), new Color("cfa8ff"), HorizontalAlignment.Center, tw); extra += bh * 1.6f + fs(1.2f) + 6; }
+                Txt(new Vector2(sz.X / 2 + tw / 2 - 120, ty), $"Phase {tgt.DuelPhase}" + (tgt.DuelBroken ? "  BROKEN" : ""), fs(1f), tgt.DuelBroken ? UiTheme.Highlight : UiTheme.Dim, HorizontalAlignment.Right, 120);
+            }
             float tx = sz.X / 2 - tw / 2, ic = Mathf.Max(18, u * 1.6f);
-            foreach (var s in tgt.Status.List) { StatusChip(new Vector2(tx, ty + 14 + Mathf.Max(7, u * .75f)), ic, s.Def.Col, s.Def.Name[..1], s.T, s.Stacks); tx += ic + 3; }
+            foreach (var s in tgt.Status.List) { StatusChip(new Vector2(tx, ty + 14 + Mathf.Max(7, u * .75f) + extra), ic, s.Def.Col, s.Def.Name[..1], s.T, s.Stacks); tx += ic + 3; }
         }
         if (Net.Active) DrawLobby(sz, u, pad, fs(1f));
         // crosshair

@@ -431,6 +431,54 @@ public partial class Bot : Node
             }
         });
 
+        await Step("shadow duel boss", async () =>
+        {
+            var d = Game.D; Heal();
+            Arenas.Start("duel"); await Wait(4.5f);
+            var s = Arenas.Shadow;
+            Check("the duel spawns the Shadow", s != null && IsInstanceValid(s) && s.Duelist && s.Def.Boss, s == null ? "none" : s.Def.N);
+            if (s == null || !IsInstanceValid(s)) { Arenas.End(false); return; }
+            Check("the Shadow wears the hero's body and weapon", s.DuelMirrorsHero && s.Av != null, $"weapon {d.WType()}");
+            var r1 = Enemy.DuelStats(1); var r3 = Enemy.DuelStats(3);
+            Check("its health comes from the hero", Mathf.Abs(s.MaxHp - r1.hp) < 1f && s.MaxHp >= d.MaxHp() * 2f, $"{s.MaxHp:0} hp (hero {d.MaxHp():0})");
+            Check("later rounds are stronger", r3.hp > r1.hp * 1.4f && r3.dmgK > r1.dmgK && r3.speed > r1.speed && r3.windMul < r1.windMul, $"hp {r1.hp:0} -> {r3.hp:0}, dmg {r1.dmgK:0} -> {r3.dmgK:0}");
+            Targeting.Set(s); await Shot("16b_shadow_duel");
+            // it fights: stand next to it doing nothing and it hurts the hero, using more than one move
+            P.Teleport(s.GlobalPosition + new Vector3(-3.2f, .3f, 0), Mathf.Pi / 2); Heal(); Face(s.GlobalPosition); await Wait(.6f); await Shot("16d_shadow_close");
+            var moves = new HashSet<string>(); float hp0 = P.Hp, low = P.Hp;
+            for (float t = 0; t < 9f; t += .1f) { await Wait(.1f); moves.Add(s.DuelMove); low = Mathf.Min(low, P.Hp); if (P.Hp < d.MaxHp() * .35f) Heal(); }
+            Check("the Shadow attacks the hero", low < hp0 - 1, $"lowest {low:0}/{d.MaxHp():0}");
+            Check("it mixes its moves", moves.Count(m => m is "Combo" or "Heavy" or "Lunge" or "Bolts") >= 1 && moves.Count >= 3, string.Join(",", moves));
+            // stance: enough damage breaks it and it kneels
+            for (int i = 0; i < 40 && !s.DuelBroken; i++) { s.TakeHit(new HitInfo { Damage = s.MaxHp * .025f, From = P.GlobalPosition, IsPlayer = true, Attacker = P, NoText = true }); await Wait(.12f); if (s.Hp < s.MaxHp * .65f) s.Hp = s.MaxHp; Heal(); }
+            Check("damage breaks its stance", s.DuelBroken, $"stance {s.DuelStance:0.00}");
+            await Wait(3.5f); s.Hp = s.MaxHp;
+            // phase 2 at 60%: a roar, then the Eclipse; breaking its barrier in time breaks it
+            s.Hp = s.MaxHp * .55f; s.TakeHit(new HitInfo { Damage = 1, From = P.GlobalPosition, IsPlayer = true, Attacker = P, NoText = true }); await Wait(.3f);
+            Check("phase 2 at 60% health", s.DuelPhase == 2, $"phase {s.DuelPhase}");
+            await Wait(1.8f); Check("the Eclipse damage check starts", s.DuelBarrier >= 0, s.DuelMove); await Shot("16c_shadow_eclipse");
+            float hpE = s.Hp;
+            for (int i = 0; i < 30 && s.DuelBarrier > 0; i++) { s.TakeHit(new HitInfo { Damage = d.WpnDmg() * 3f, From = P.GlobalPosition, IsPlayer = true, Attacker = P, NoText = true }); await Wait(.1f); }
+            Check("the barrier soaks damage and breaking it breaks the Shadow", s.DuelBroken && Mathf.Abs(s.Hp - hpE) < 1f, $"{s.DuelMove}, hp {hpE:0} -> {s.Hp:0}");
+            await Wait(5f);
+            // phase 3 at 30%: failing the Eclipse blasts the hero and heals the Shadow
+            s.Hp = s.MaxHp * .25f; s.TakeHit(new HitInfo { Damage = 1, From = P.GlobalPosition, IsPlayer = true, Attacker = P, NoText = true }); await Wait(.3f);
+            Check("phase 3 at 30% health", s.DuelPhase == 3, $"phase {s.DuelPhase}");
+            float sHp = s.Hp; for (float t = 0; t < 12f && s.DuelMove != "Eclipse"; t += .1f) await Wait(.1f);
+            for (float t = 0; t < 12f && s.DuelMove == "Eclipse"; t += .1f) { if (P.Hp < d.MaxHp()) P.Hp = d.MaxHp(); await Wait(.1f); }   // full health going in; nothing healed after the blast
+            await Wait(.2f);
+            Check("a failed Eclipse blasts the hero and heals the Shadow", P.Hp < d.MaxHp() * .6f && s.Hp > sHp + 1f, $"hero {P.Hp:0}/{d.MaxHp():0}, shadow {sHp:0} -> {s.Hp:0}");
+            Heal();
+            // a win starts the next round with a stronger Shadow
+            float max1 = s.MaxHp; await Wait(1.5f);
+            for (int i = 0; i < 20 && IsInstanceValid(s) && !s.Dead; i++) { s.TakeHit(new HitInfo { Damage = s.MaxHp, From = P.GlobalPosition, IsPlayer = true, Attacker = P, NoText = true }); await Wait(.3f); Heal(); }
+            Check("the Shadow can be beaten", !IsInstanceValid(s) || s.Dead);
+            for (float t = 0; t < 12f && (Arenas.Streak < 2 || Arenas.Shadow == s || Arenas.Shadow == null); t += .25f) { await Wait(.25f); Heal(); }
+            var s2 = Arenas.Shadow;
+            Check("round 2 brings a stronger Shadow", Arenas.Streak == 2 && s2 != null && s2 != s && s2.MaxHp > max1 * 1.2f, $"round {Arenas.Streak}, {max1:0} -> {(s2 != null ? s2.MaxHp : 0):0}");
+            Arenas.End(false); Targeting.Clear(); await Wait(.5f); Heal();
+        });
+
         await Step("hold to aim and hold to charge", async () =>
         {
             var d = Game.D; d.Level = Math.Max(d.Level, 8);

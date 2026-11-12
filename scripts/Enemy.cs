@@ -107,6 +107,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         _body = new Node3D { Name = "Body" }; AddChild(_body);
         var main = Mat(col); var dark = Mat(col.Darkened(0.5f)); var glow = Mat(wraith || Def.Emissive ? new Color(0.7f, 0.4f, 1f) : new Color(1f, 0.3f, 0.2f), 2f);
         if (Proxy) { }   // a duel stand-in has no body of its own: the remote hero is drawn instead
+        else if (Duelist && Avatar.Available) BuildDuelist();   // the Shadow Duel boss wears the hero (EnemyDuelist.cs)
         else if (Def.Model != "" && BuildModel(col)) { }   // an animated monster model (data/enemies.json "model")
         else if (quad) BuildQuad(r, main, dark, glow, col);
         else if (dragon)
@@ -434,7 +435,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
     };
 
     // ------------------------------------------------------------------ public API
-    public void Stun(float t) { if (Dead) return; _hitSerial++; if (Puppet) { if (DuelPeer == 0) Net.I?.SendEnemyStun(this, t); return; } _stun = Mathf.Max(_stun, t); if (_state != State.Sleep) _state = State.Stagger; }
+    public void Stun(float t) { if (Dead) return; if (Duelist) { DuelParried(t); return; } _hitSerial++; if (Puppet) { if (DuelPeer == 0) Net.I?.SendEnemyStun(this, t); return; } _stun = Mathf.Max(_stun, t); if (_state != State.Sleep) _state = State.Stagger; }
     public void Ignite(float t, float dps) => Status.Add("burn", t / 3f, 1, dps);
     public void Slow(float t) => Status.Add("chill", t / 3f, 0, 0);
     public void Wake() { if (Def.Flee && !Dead) { _state = State.Flee; return; } if (_state == State.Sleep || _state == State.Idle || _state == State.Return) { if (Overworld && !Puppet && Hp >= MaxHp - .5f) Rescale(false); _state = State.Chase; if (_state == State.Chase && Def.Kind == "dragon") Sfx.Play("roar"); } }
@@ -513,6 +514,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         if (Puppet) { PuppetHit(h); return; }
         if (h.Remote) _lastPeer = h.Peer; else if (h.IsPlayer) _lastPeer = Net.MyId;
         float dealt = Incoming(h); int dmg = Mathf.Max(1, Mathf.RoundToInt(dealt));
+        if (Duelist && !DuelHit(h, ref dmg)) return;   // dodged, immune, or soaked by the Eclipse barrier
         Hp -= dmg; _flash = 0.12f;
         if (h.IsPlayer && !h.Remote) Flag.Event($"hit {Def.N} Lv{Level} for {dmg}{(h.Crit ? " crit" : "")} {h.Type}, its hp {Mathf.Max(0, Hp):0}/{MaxHp:0}");
         if (h.IsPlayer) { var D = Game.D; var p = Player.Instance; if (p != null) { p.Hp = Mathf.Min(D.MaxHp(), p.Hp + dmg * (Game.TS["leech"] + h.Leech) / 100f); p.Mp = Mathf.Min(D.MaxMp(), p.Mp + dmg * Game.TS["mleech"] / 100f); } }
@@ -661,6 +663,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
             if (Hp <= 0) { died = true; Die(null); }
         });
         if (died) return;
+        if (Duelist) { DuelTick(dt, pl, v); return; }   // the Shadow Duel boss has its own brain (EnemyDuelist.cs)
         if (Status.Stunned && !Def.Boss && _state != State.Sleep) { _stun = Mathf.Max(_stun, .1f); _state = State.Stagger; }
         float spdMul = Def.Boss ? Mathf.Max(.6f, Status.SpeedMul) : Status.SpeedMul;
 

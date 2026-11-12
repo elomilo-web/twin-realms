@@ -43,6 +43,7 @@ public partial class Player : CharacterBody3D, IDamageable
     public int NetAtkAnim; public float NetAtkHit;
     /// <summary>For the test bots: a swing is playing / the pause after one is running.</summary>
     public bool Attacking => _atkT > 0;
+    public bool Blocking => _blocking; public bool Rolling => _rollT > 0;   // read by the Shadow Duel boss
     public FootPlant? Feet => _feet;
     /// <summary>Fighting right now (the guarded stance); otherwise the hero stands relaxed.</summary>
     public bool InCombat => _combatT > 0 || _atkT > 0 || _castT > 0 || _blocking;
