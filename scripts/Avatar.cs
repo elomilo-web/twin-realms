@@ -413,13 +413,17 @@ public partial class Avatar : Node3D
     // ------------------------------------------------------------------ animation
     static readonly Dictionary<string, AnimationLibrary> _libs = new();
     const string Baked = "res://assets/models/anim/clips.res";
+    /// <summary>Tools (--measure-attacks): load every clip of the source libraries instead of the small baked set.</summary>
+    public static bool UseSources;
+    /// <summary>Every clip name this body can play.</summary>
+    public IEnumerable<string> ClipNames => _ap == null ? Array.Empty<string>() : _ap.GetAnimationList().Select(n => n.ToString());
     /// <summary>The clips for one body. Uses the small baked library (only the clips the game plays) and scales the pelvis
     /// height to this body; without it, merges the full source libraries (slow, and they are not exported).</summary>
     static AnimationLibrary Library(string key, Skeleton3D target)
     {
         if (_libs.TryGetValue(key, out var lib)) return lib;
         int tp = target.FindBone("pelvis"); float tgt = tp >= 0 ? target.GetBoneRest(tp).Origin.Z : 1f;
-        if (ResourceLoader.Exists(Baked) && GD.Load<AnimationLibrary>(Baked) is { } baked)
+        if (!UseSources && ResourceLoader.Exists(Baked) && GD.Load<AnimationLibrary>(Baked) is { } baked)
         {
             float k = tgt / JsonUtil.F(Cfg, "animPelvis", .9167f); lib = new AnimationLibrary();
             foreach (var n in baked.GetAnimationList())
@@ -431,6 +435,7 @@ public partial class Avatar : Node3D
             }
         }
         else lib = Merge(tgt, null);
+        AddAttackAnims(lib);
         GD.Print($"[AVATAR] {key}: {lib.GetAnimationList().Count} clips");
         _libs[key] = lib; return lib;
     }
@@ -453,6 +458,7 @@ public partial class Avatar : Node3D
         var used = new HashSet<string>();
         foreach (var p in Cfg.GetProperty("clips").EnumerateObject())
             if (p.Value.ValueKind == JsonValueKind.String) used.Add(p.Value.GetString()!); else if (p.Value.ValueKind == JsonValueKind.Array) foreach (var x in p.Value.EnumerateArray()) used.Add(x.GetString()!);
+        foreach (var (_, d) in AttackDefs()) used.Add(d.Clip);   // the clips attack animations are cut from
         var lib = Merge(JsonUtil.F(Cfg, "animPelvis", .9167f), used);
         var err = ResourceSaver.Save(lib, Baked, ResourceSaver.SaverFlags.Compress);
         GD.Print($"[AVATAR] baked {lib.GetAnimationList().Count} clips to {Baked}: {err}");
@@ -474,7 +480,8 @@ public partial class Avatar : Node3D
             foreach (var name in ap.GetAnimationList())
             {
                 string clean = name.ToString(); int bar = clean.IndexOf('|'); if (bar >= 0) clean = clean[(bar + 1)..];
-                if (clean.EndsWith("_RM") || clean.Contains("TPose") || lib.HasAnimation(clean) || (only != null && !only.Contains(clean))) continue;
+                // root-motion clips only when asked for by name (their travel is dropped with the root track, so they play in place)
+                if ((clean.EndsWith("_RM") && !(UseSources || (only != null && only.Contains(clean)))) || clean.Contains("TPose") || lib.HasAnimation(clean) || (only != null && !only.Contains(clean))) continue;
                 var a = (Animation)ap.GetAnimation(name).Duplicate(true);
                 for (int t = a.GetTrackCount() - 1; t >= 0; t--)
                 {
@@ -492,6 +499,72 @@ public partial class Avatar : Node3D
         return lib;
     }
     static AnimationPlayer? FindAp(Node n) { foreach (var c in n.GetChildren()) { if (c is AnimationPlayer a) return a; if (FindAp(c) is { } x) return x; } return null; }
+
+    // ------------------------------------------------------------------ attack animations (data/avatar.json "attackAnims")
+    /// <summary>A named attack animation: a slice of a library clip (from..to, as fractions), maybe reversed; hit = when the blow lands in it (0..1).</summary>
+    public class AttackAnim { public string Clip = ""; public float From, To = 1, Hit = .5f; public bool Reverse; }
+    static Dictionary<string, AttackAnim>? _atkDefs;
+    public static Dictionary<string, AttackAnim> AttackDefs()
+    {
+        if (_atkDefs != null) return _atkDefs; _atkDefs = new();
+        if (!Cfg.TryGetProperty("attackAnims", out var aa)) return _atkDefs;
+        foreach (var p in aa.EnumerateObject())
+        {
+            if (p.Name.StartsWith("_") || p.Value.ValueKind != JsonValueKind.Object) continue; var e = p.Value;
+            _atkDefs[p.Name] = new AttackAnim { Clip = S(e, "clip"), From = JsonUtil.F(e, "from", 0), To = JsonUtil.F(e, "to", 1), Hit = JsonUtil.F(e, "hit", .5f), Reverse = e.TryGetProperty("reverse", out var r) && r.ValueKind == JsonValueKind.True };
+        }
+        return _atkDefs;
+    }
+    /// <summary>Attack animations by number (1-based, 0 = none) for the network: the same order on every machine (it is the data file's order).</summary>
+    static List<string>? _atkOrder;
+    public static int AttackIndex(string id) { _atkOrder ??= AttackDefs().Keys.ToList(); return _atkOrder.IndexOf(id) + 1; }
+    public static string AttackIdAt(int i) { _atkOrder ??= AttackDefs().Keys.ToList(); return i >= 1 && i <= _atkOrder.Count ? _atkOrder[i - 1] : ""; }
+    /// <summary>Animation name of an attack animation in the library.</summary>
+    public static string AtkName(string id) => "atk_" + id;
+    /// <summary>Cuts every attack animation out of its source clip (sampled at 30 frames a second) and adds it to the library.</summary>
+    static void AddAttackAnims(AnimationLibrary lib)
+    {
+        foreach (var (id, d) in AttackDefs())
+        {
+            if (!lib.HasAnimation(d.Clip) || lib.HasAnimation(AtkName(id))) continue;
+            var src = lib.GetAnimation(d.Clip); float len = (float)src.Length, t0 = Mathf.Clamp(d.From, 0, 1) * len, t1 = Mathf.Clamp(d.To, 0, 1) * len;
+            if (t1 - t0 < .05f) continue;
+            var a = new Animation { Length = t1 - t0, LoopMode = Animation.LoopModeEnum.None };
+            for (int t = 0; t < src.GetTrackCount(); t++)
+            {
+                var type = src.TrackGetType(t); if (type != Animation.TrackType.Rotation3D && type != Animation.TrackType.Position3D) continue;
+                int nt = a.AddTrack(type); a.TrackSetPath(nt, src.TrackGetPath(t)); a.TrackSetInterpolationType(nt, Animation.InterpolationType.Linear);
+                int frames = Mathf.Max(2, Mathf.CeilToInt((t1 - t0) * 30f));
+                for (int f = 0; f <= frames; f++)
+                {
+                    float at = t0 + (t1 - t0) * f / frames, key = d.Reverse ? (t1 - at) : (at - t0);
+                    if (type == Animation.TrackType.Rotation3D) a.RotationTrackInsertKey(nt, key, src.RotationTrackInterpolate(t, at));
+                    else a.PositionTrackInsertKey(nt, key, src.PositionTrackInterpolate(t, at));
+                }
+            }
+            lib.AddAnimation(AtkName(id), a);
+        }
+    }
+    /// <summary>
+    /// Plays an attack animation so its blow lands when the attack deals damage: the clip runs at the speed that brings its own hit moment
+    /// to hitAt seconds (then keeps that pace). Returns false if there is no such animation (the caller falls back to the old clips).
+    /// </summary>
+    public bool PlayAttack(string id, float hitAt, bool restart, float blend = .06f)
+    {
+        if (_ap == null || !AttackDefs().TryGetValue(id, out var d)) return false;
+        string n = AtkName(id); if (!_ap.HasAnimation(n)) return false;
+        if (n == Cur && !restart && _ap.IsPlaying()) return true;
+        float len = (float)_ap.GetAnimation(n).Length, hit = d.Reverse ? 1 - d.Hit : d.Hit;
+        float sp = Mathf.Clamp(hit * len / Mathf.Max(.05f, hitAt), .35f, 3.5f);
+        _ap.SpeedScale = 1f; _ap.Play(n, blend, sp); if (restart) _ap.Seek(0, true); Cur = n; _rev = false;
+        return true;
+    }
+    /// <summary>Plays a recovery (follow-through) animation stretched over this many seconds.</summary>
+    public void PlayRecovery(string id, float secs)
+    {
+        if (_ap == null || !AttackDefs().ContainsKey(id)) return; string n = AtkName(id); if (!_ap.HasAnimation(n) || n == Cur) return;
+        _ap.SpeedScale = 1f; _ap.Play(n, .1f, Mathf.Clamp((float)_ap.GetAnimation(n).Length / Mathf.Max(.1f, secs), .5f, 3f)); Cur = n; _rev = false;
+    }
 
     public string Cur = "";
     /// <summary>Clip name for an action key in data/avatar.json "clips" (a list = combo steps).</summary>

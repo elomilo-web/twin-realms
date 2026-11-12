@@ -13,6 +13,7 @@ public class AttackBuild { public int Rank { get; set; } = 1; public List<string
 public class AttackStep
 {
     public string Id = "", Name = ""; public AttackDef Def = new(); public int AnimStep;
+    public string Anim = "", Rec = ""; public float Recover;   // attack animation, follow-through animation, seconds before the next swing (data/attacks.json)
     public float Speed = 1, Stamina = 1, ElemMul = 1;
     public List<(string id, float chance)> Status = new();
     public int Shots = 1; public float Spread, Aoe; public bool Pierce;
@@ -170,6 +171,15 @@ public static class Attacks
         }
         a.Dmg *= Mathf.Max(.1f, 1 + dmgP / 100f); a.Range *= 1 + rngP / 100f; a.Arc = Mathf.Min(180, a.Arc * (1 + arcP / 100f)); a.Knock *= 1 + kP / 100f;
         r.Speed *= Mathf.Max(.3f, 1 + spdP / 100f); r.Stamina *= Mathf.Max(.2f, 1 + stP / 100f);
+        // look and weight: which animation, and the pause after it (heavier swings and finishers wait longer before the next one)
+        r.Anim = power ? (_styleRaw(w.Id) is { } sr ? JsonUtil.S(sr, "powerAnim") : "") : has ? JsonUtil.S(raw, "anim") : "";
+        var rc = C.TryGetProperty("recovery", out var rv) ? rv : default; float R(string k, float d) => rc.ValueKind == JsonValueKind.Object ? JsonUtil.F(rc, k, d) : d;
+        float rec = power ? R("power", .5f) : a.Finisher ? R("finisher", .32f) : R("light", .05f);
+        if (has && raw.TryGetProperty("recover", out var ov) && ov.ValueKind == JsonValueKind.Number) rec = ov.GetSingle();
+        rec *= w.Ranged ? R("rangedMul", .6f) : w.Hands > 1 ? R("twoHandedMul", 1.6f) : w.Id == "dagger" ? R("daggerMul", .5f) : 1f;
+        r.Recover = rec;
+        r.Rec = has && JsonUtil.S(raw, "rec") != "" ? JsonUtil.S(raw, "rec") : rc.ValueKind == JsonValueKind.Object ? JsonUtil.S(rc, w.Hands > 1 || power ? "recHeavy" : "recLight") : "";
         r.Def = a; return r;
     }
+    static JsonElement? _styleRaw(string wt) => C.GetProperty("styles").TryGetProperty(wt, out var s) ? s : null;
 }

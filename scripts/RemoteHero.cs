@@ -131,7 +131,7 @@ public partial class RemoteHero : Node3D, IDamageable, IInteractable
     }
 
     // the model is animated from what the pose packet says: movement, swing (trail on), roll, mount, death
-    Avatar? _av; string _wt = "sword"; Vector3 _lastPos; bool _swinging; int _swing;
+    Avatar? _av; string _wt = "sword"; Vector3 _lastPos; bool _swinging; int _swing, _atkSerial = -1;
     void AnimateAvatar(float dt, float[] p)
     {
         var a = _av!; float sp = (GlobalPosition - _lastPos).Length() / Mathf.Max(dt, .001f); _lastPos = GlobalPosition;
@@ -140,6 +140,13 @@ public partial class RemoteHero : Node3D, IDamageable, IInteractable
         if (p[31] > .5f) { a.Play("die", .15f); return; }
         if (p[30] > .5f) { a.Play("sit"); return; }
         if (Mathf.Abs(p[3]) > .2f) { a.Play("roll", .06f); return; }
+        // the friend's own attack animation for this swing (each chain step looks different), started when a new swing begins
+        if (p.Length > 38)
+        {
+            int serial = (int)p[38]; bool newSwing = _atkSerial >= 0 && serial != _atkSerial; _atkSerial = serial;
+            if (newSwing && p[36] > 0 && a.PlayAttack(Avatar.AttackIdAt((int)p[36]), Mathf.Max(.05f, p[37]), true)) { _swinging = swing; return; }
+            if (a.Cur.StartsWith("atk_") && a.Busy) { _swinging = swing; return; }
+        }
         if (start) { _swing++; a.Play(Weapons.Get(_wt).Hands > 1 ? "heavy" : "melee", .06f, .45f, true, _swing); return; }
         if (a.Busy) return;
         a.Move(sp, true, true, false);

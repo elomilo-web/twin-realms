@@ -413,6 +413,44 @@ public partial class Bot : Node
             d.Bar = keepBar; Game.Notify(); await Wait(1f);
         });
 
+        await Step("attack animations and weight", async () =>
+        {
+            // every chain step plays its own animation (data/attacks.json "anim"), and heavy swings make the next one wait (recovery)
+            var d = Game.D; var keepW = d.Eq.GetValueOrDefault("weapon"); var keepS = d.Eq.GetValueOrDefault("shield");
+            d.Eq["shield"] = null; d.Eq["weapon"] = new Item { Name = "Fine Sword", Slot = "weapon", Wt = "sword", Dmg = 5 }; Game.Notify(); Heal();
+            var spot = World.OnGround(-40, 40, .6f); P.Teleport(spot, 0f); await Wait(.5f);
+            var b = Attacks.Build("sword"); b.Chain.Clear(); b.Chain.AddRange(new[] { "cut", "backcut", "thrust" });
+            var seen = new List<string>(); var av = P.Av;
+            async Task Free() { float w = 0; while (w < 3f && (P.Attacking || P.Recovering)) { await Wait(.02f); w += .02f; } }
+            for (int i = 0; i < 3; i++)
+            {
+                Heal(); MouseRaw(MouseButton.Left, true); await Wait(.05f); MouseRaw(MouseButton.Left, false);
+                await Wait(.12f); seen.Add(av?.Cur ?? "-"); await Shot($"atk_sword_{i}_{P.CurrentStep?.Id}");
+                await Free();   // the next click as soon as the swing and its recovery are over (inside the chain window)
+            }
+            Check("each sword step plays its own animation", seen.Distinct().Count() == 3 && seen.All(s => s.StartsWith("atk_")), string.Join(", ", seen));
+            foreach (var (wt, steps) in new[] { ("axe", new[] { "hack", "hew", "splitter" }), ("spear", new[] { "prod", "prod2", "sweep" }) })
+            {
+                d.Eq["weapon"] = new Item { Name = "Test " + wt, Slot = "weapon", Wt = wt, Dmg = 5, Two = Weapons.Get(wt).Hands > 1 }; Game.Notify(); await Wait(.3f);
+                var bw = Attacks.Build(wt); bw.Chain.Clear(); bw.Chain.AddRange(steps); var s2 = new List<string>();
+                for (int i = 0; i < 3; i++) { Heal(); MouseRaw(MouseButton.Left, true); await Wait(.05f); MouseRaw(MouseButton.Left, false); await Wait(.15f); s2.Add(av?.Cur ?? "-"); await Shot($"atk_{wt}_{i}_{P.CurrentStep?.Id}"); await Free(); }
+                Check($"each {wt} step plays its own animation", s2.Distinct().Count() == 3 && s2.All(s => s.StartsWith("atk_")), string.Join(", ", s2));
+            }
+            // weight: a power attack with a greatsword, then attack at once: the next swing must wait out the recovery
+            d.Eq["weapon"] = new Item { Name = "Test Greatsword", Slot = "weapon", Wt = "greatsword", Dmg = 5, Two = true }; Game.Notify(); await Wait(.3f); Heal();
+            var heavy = Attacks.Resolve(Weapons.Get("greatsword"), 0, true); var light = Attacks.Resolve(Weapons.Get("sword"), 0, false);
+            Check("heavy swings recover longer than light ones", heavy.Recover > light.Recover * 4 && heavy.Recover >= .5f, $"greatsword power {heavy.Recover:0.00} s, sword cut {light.Recover:0.00} s");
+            MouseRaw(MouseButton.Right, true); await Wait(.05f); MouseRaw(MouseButton.Right, false);
+            float wp = 0; while (wp < 2f && P.CurrentStep?.Id != "power") { await Wait(.02f); wp += .02f; }   // the heavy gathers, then swings
+            ulong t0 = Time.GetTicksMsec(); string first = P.CurrentStep?.Id ?? "";
+            // spam attack until a new (light) swing starts
+            float waited = 0; while (waited < 4f && P.CurrentStep?.Id == "power") { MouseRaw(MouseButton.Left, true); await Wait(.04f); MouseRaw(MouseButton.Left, false); await Wait(.04f); waited += .08f; }
+            float gap = (Time.GetTicksMsec() - t0) / 1000f;
+            var pw = Attacks.Resolve(Weapons.Get("greatsword"), 0, true); float powerDur = pw.Def.Dur / (d.AtkSpeed() * Weapons.Get("greatsword").Speed * pw.Speed);
+            Check("the next swing waits for the heavy attack's recovery", first == "power" && gap >= powerDur + heavy.Recover / d.AtkSpeed() * .8f, $"next swing after {gap:0.00} s (swing {powerDur:0.00} s + recovery {heavy.Recover / d.AtkSpeed():0.00} s)");
+            d.Eq["weapon"] = keepW; d.Eq["shield"] = keepS; Game.Notify();
+        });
+
         await Step("basic attack chains", async () =>
         {
             var d = Game.D; var keepW = d.Eq.GetValueOrDefault("weapon"); var keepS = d.Eq.GetValueOrDefault("shield");

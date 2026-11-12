@@ -38,6 +38,11 @@ public partial class Player : CharacterBody3D, IDamageable
     public static float SprintSpeed { get { Feel.Load(); return Feel.Sprint; } }
     float _heavyT; const float HeavyGather = .25f;   // heavy attack: seconds between pressing and the swing
     AttackStep? _step;   // the basic-attack chain step being swung (data/attacks.json)
+    float _recT, _recDur, _recPending; string _recClip = "";   // weight: the pause after a swing before the next one (attacks.json "recovery")
+    /// <summary>For the pose packet: which attack animation is playing (index in avatar.json attackAnims + 1, 0 = none) and when its blow lands (s).</summary>
+    public int NetAtkAnim; public float NetAtkHit;
+    /// <summary>For the test bots: a swing is playing / the pause after one is running.</summary>
+    public bool Attacking => _atkT > 0; public bool Recovering => _recT > 0 || (_atkT <= 0 && _recPending > 0);
     public AttackStep? CurrentStep => _step; public int ComboIndex => _combo;
     float _undyReady; Item? _shownWeapon; string _shownType = "";
     float _regenAcc;
@@ -277,7 +282,9 @@ public partial class Player : CharacterBody3D, IDamageable
     // ------------------------------------------------------------------ attacks
     bool TryAttack(bool power)
     {
-        if (Dead || _atkT > 0 || _rollT > 0 || _stagger > 0 || _castT > 0) return false;
+        // a swing that just ended starts its recovery first (input is read before the attack timeline each frame)
+        if (_atkT <= 0 && _recPending > 0) { _recT = _recDur = _recPending; _recPending = 0; _recClip = _step?.Rec ?? ""; }
+        if (Dead || _atkT > 0 || _rollT > 0 || _stagger > 0 || _castT > 0 || _recT > 0) return false;   // _recT: still recovering from a heavy swing
         if (Mounted) { Ui.Note("Dismount to fight (T)", new Color(0.7f, 0.8f, 1)); return false; }
         var w = W; bool ranged = w.Ranged;
         float cost = ranged ? (power ? Tune.F("stamina.heavyRanged", 16) : Tune.F("stamina.lightRanged", 7)) : (power ? Tune.F("stamina.heavyMelee", 26) : Tune.F("stamina.lightMelee", 9)) * (w.Hands > 1 ? Tune.F("stamina.twoHandedMul", 1.25f) : w.Id == "dagger" ? Tune.F("stamina.daggerMul", .6f) : 1f);   // data/tuning.json "game.stamina"
@@ -292,7 +299,9 @@ public partial class Player : CharacterBody3D, IDamageable
         if (Attacks.HasStyle(w.Id)) { _step = Attacks.Resolve(w, _combo, power); _atk = _step.Def; }
         else { _step = null; _atk = power ? w.Power : w.Combo[Mathf.Min(_combo, w.Combo.Count - 1)]; }
         UseStamina(cost * (_step?.Stamina ?? 1f));
-        _atkPower = power; _atkDur = _atk.Dur / (Game.D.AtkSpeed() * w.Speed * (_step?.Speed ?? 1f)); _atkT = _atkDur; _hitDone = false; _comboT = _atkDur + 0.55f; _atkSerial++;
+        _atkPower = power; _atkDur = _atk.Dur / (Game.D.AtkSpeed() * w.Speed * (_step?.Speed ?? 1f)); _atkT = _atkDur; _hitDone = false; _atkSerial++;
+        _recPending = (_step?.Recover ?? (power ? .5f : .05f)) / Game.D.AtkSpeed(); _comboT = _atkDur + _recPending + 0.55f;   // recovery counts toward keeping the chain going
+        NetAtkAnim = _step != null && _step.Anim != "" ? Avatar.AttackIndex(_step.Anim) : 0; NetAtkHit = _atk.Hit * _atkDur;
         float camYaw = Rig?.Yaw ?? _modelYaw; float face = camYaw;
         var tgt = Targeting.Aim; _magnet = null;
         if (tgt != null) { var d = tgt.GlobalPosition - GlobalPosition; face = Util.YawTo(d.X, d.Z); if (!ranged) _magnet = tgt; }
@@ -487,10 +496,10 @@ public partial class Player : CharacterBody3D, IDamageable
         // attack (left mouse): tap = next step of the chain, hold = keep swinging the chain.
         // heavy (right mouse): pressing starts a short gather; the heavy attack fires by itself when it ends (not on release)
         bool lmb = captured && Input.IsActionPressed(Inputs.Attack);
-        if (captured && Input.IsActionJustPressed(Inputs.Attack)) { if (!TryAttack(false)) { _hasQueue = true; _queuePower = false; _queueT = 0.3f; } }
+        if (captured && Input.IsActionJustPressed(Inputs.Attack)) { if (!TryAttack(false)) { _hasQueue = true; _queuePower = false; _queueT = Mathf.Max(0.3f, _recT + .15f); } }   // a press during recovery waits for it
         else if (lmb && !_hasQueue && _atkT <= 0 && _heavyT <= 0) TryAttack(false);   // held: the chain on repeat
         if (captured && Input.IsActionJustPressed(Inputs.Heavy) && _heavyT <= 0 && !Dead) { _heavyT = HeavyGather; FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.1f, 0), "Heavy", new Color(1f, .8f, .45f), .35f); }
-        if (_heavyT > 0) { _heavyT -= dt; if (_heavyT <= 0 && !TryAttack(true)) { _hasQueue = true; _queuePower = true; _queueT = 0.3f; } }
+        if (_heavyT > 0) { _heavyT -= dt; if (_heavyT <= 0 && !TryAttack(true)) { _hasQueue = true; _queuePower = true; _queueT = Mathf.Max(0.3f, _recT + .15f); } }
         if (_hasQueue) { _queueT -= dt; if (_queueT <= 0) _hasQueue = false; else if (_atkT <= 0 && TryAttack(_queuePower)) _hasQueue = false; }
 
         // ---- block
@@ -500,6 +509,9 @@ public partial class Player : CharacterBody3D, IDamageable
         if (_blocking) { _blockT += dt; _modelYaw = camYaw; }
 
         // ---- attack + cast timelines
+        // recovery: once a swing ends (or is cut short by moving), the next one waits; heavier swings and finishers wait longer
+        if (_recT > 0) _recT -= dt;
+        if (_atkT <= 0 && _recPending > 0) { _recT = _recDur = _recPending; _recPending = 0; _recClip = _step?.Rec ?? ""; }
         if (_atkT > 0)
         {
             _atkT -= dt; float prog = 1f - _atkT / _atkDur; var a = _atk ?? W.Combo[0];
@@ -529,7 +541,7 @@ public partial class Player : CharacterBody3D, IDamageable
             if (captured && Input.IsActionJustPressed(Inputs.Roll) && IsOnFloor() && _rollCd <= 0 && _atkT <= 0 && _stagger <= 0 && St >= Tune.F("stamina.roll", 14) * .85f && !Mounted)
             {
                 _rollDir = dir.LengthSquared() > 0.01f ? dir.Normalized() : new Vector3(-Mathf.Sin(_modelYaw), 0, -Mathf.Cos(_modelYaw));
-                _rollT = RollTime; _rollCd = 0.6f; UseStamina(Tune.F("stamina.roll", 14)); _modelYaw = Util.YawTo(_rollDir.X, _rollDir.Z);
+                _rollT = RollTime; _rollCd = 0.6f; _recT = 0; _recPending = 0; UseStamina(Tune.F("stamina.roll", 14));   // a roll cancels the recovery _modelYaw = Util.YawTo(_rollDir.X, _rollDir.Z);
             }
             if (captured && Input.IsActionJustPressed(Inputs.Jump) && IsOnFloor() && _atkT <= 0 && _stagger <= 0) v.Y = JumpVelocity;
 
@@ -698,13 +710,17 @@ public partial class Player : CharacterBody3D, IDamageable
                 if (prog < _atk.Hit) a.Play("aim", fresh ? .08f : .12f); else a.Play("shoot", .04f, Mathf.Max(.15f, _atkT), a.Cur != Avatar.Clip("shoot"));
                 return;
             }
+            // the step's own animation (data/attacks.json "anim"), timed so its blow lands when the damage does; else the old clips
+            if (_step != null && _step.Anim != "" && _atk != null && a.PlayAttack(_step.Anim, _atk.Hit * _atkDur, fresh)) return;
             string key = w.Ranged ? (w.LeftHand ? "shoot" : "cast") : _atkPower ? (w.Hands > 1 ? "powerHeavy" : "power") : w.Hands > 1 ? "heavy" : "melee";
             a.Play(key, .06f, _atkDur, fresh, _step != null ? _step.AnimStep : Mathf.Max(0, _combo - 1)); return;
         }
+        // the follow-through of a heavy swing or finisher, while standing (moving hands the legs back at once)
+        if (_recT > 0 && _recDur > .2f && _recClip != "" && hv < .8f && floor) { a.PlayRecovery(_recClip, _recT + .15f); return; }
         if (_castT > 0) { bool fresh = _castSerial != _avCast; _avCast = _castSerial; a.Play("cast", .08f, _castDur, fresh); return; }
         if (_blocking) { a.Play("block", .1f); return; }
         // let a finished swing play out only while standing still; once the hero moves, the legs take over at once (no sliding)
-        if (hv < .8f && a.Busy && floor && (a.Cur.Contains("Sword") || a.Cur.Contains("Spell") || a.Cur.Contains("Punch") || a.Cur.Contains("Melee"))) return;
+        if (hv < .8f && a.Busy && floor && (a.Cur.Contains("Sword") || a.Cur.Contains("Spell") || a.Cur.Contains("Punch") || a.Cur.Contains("Melee") || a.Cur.StartsWith("atk_"))) return;
         a.Move(hv, floor, Game.D.Weapon != null, HasShield, _backpedal);
     }
 }
