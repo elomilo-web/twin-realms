@@ -42,7 +42,12 @@ public partial class Player : CharacterBody3D, IDamageable
     /// <summary>For the pose packet: which attack animation is playing (index in avatar.json attackAnims + 1, 0 = none) and when its blow lands (s).</summary>
     public int NetAtkAnim; public float NetAtkHit;
     /// <summary>For the test bots: a swing is playing / the pause after one is running.</summary>
-    public bool Attacking => _atkT > 0; public bool Recovering => _recT > 0 || (_atkT <= 0 && _recPending > 0);
+    public bool Attacking => _atkT > 0;
+    public FootPlant? Feet => _feet;
+    /// <summary>Fighting right now (the guarded stance); otherwise the hero stands relaxed.</summary>
+    public bool InCombat => _combatT > 0 || _atkT > 0 || _castT > 0 || _blocking;
+    float _combatT, _combatScan;
+    void Fought() => _combatT = Mathf.Max(_combatT, Tune.F("player.combatStanceSeconds", 6)); public bool Recovering => _recT > 0 || (_atkT <= 0 && _recPending > 0);
     public AttackStep? CurrentStep => _step; public int ComboIndex => _combo;
     float _undyReady; Item? _shownWeapon; string _shownType = "";
     float _regenAcc;
@@ -202,7 +207,7 @@ public partial class Player : CharacterBody3D, IDamageable
         if (TS["thorns"] > 0 && h.Attacker is Enemy te && !h.IsProjectile && te.GlobalPosition.DistanceTo(GlobalPosition) < 6f)
             te.TakeHit(new HitInfo { Damage = h.Damage * TS["thorns"] / 100f, From = GlobalPosition, IsPlayer = true, Attacker = this });
         int final = Mathf.Max(1, Mathf.RoundToInt(dmg));
-        Hp -= final; _inv = 0.2f;
+        Hp -= final; _inv = 0.2f; Fought();
         Flag.Event($"took {final} {h.Type} ({h.Damage:0} before armor, {100f * final / Mathf.Max(1, D.MaxHp()):0}% of max hp) from {(h.Attacker is Enemy fe && IsInstanceValid(fe) ? fe.Def.N + " Lv" + fe.Level : "?")}{(_blocking ? ", blocked" : "")}, hp left {Mathf.Max(0, Hp):0}");
         // the attacker's on-hit statuses (tenacity shortens them), then "when hit" triggers
         if (h.Statuses != null) foreach (var (id, chance, durMul, pow) in h.Statuses) if (GD.Randf() < chance) Statuses.Add(id, durMul, pow, h.Damage, TS["tenacity"]);
@@ -299,7 +304,7 @@ public partial class Player : CharacterBody3D, IDamageable
         if (Attacks.HasStyle(w.Id)) { _step = Attacks.Resolve(w, _combo, power); _atk = _step.Def; }
         else { _step = null; _atk = power ? w.Power : w.Combo[Mathf.Min(_combo, w.Combo.Count - 1)]; }
         UseStamina(cost * (_step?.Stamina ?? 1f));
-        _atkPower = power; _atkDur = _atk.Dur / (Game.D.AtkSpeed() * w.Speed * (_step?.Speed ?? 1f)); _atkT = _atkDur; _hitDone = false; _atkSerial++;
+        Fought(); _atkPower = power; _atkDur = _atk.Dur / (Game.D.AtkSpeed() * w.Speed * (_step?.Speed ?? 1f)); _atkT = _atkDur; _hitDone = false; _atkSerial++;
         _recPending = (_step?.Recover ?? (power ? .5f : .05f)) / Game.D.AtkSpeed(); _comboT = _atkDur + _recPending + 0.55f;   // recovery counts toward keeping the chain going
         NetAtkAnim = _step != null && _step.Anim != "" ? Avatar.AttackIndex(_step.Anim) : 0; NetAtkHit = _atk.Hit * _atkDur;
         float camYaw = Rig?.Yaw ?? _modelYaw; float face = camYaw;
@@ -488,6 +493,13 @@ public partial class Player : CharacterBody3D, IDamageable
         if (captured && Input.IsActionJustPressed(Inputs.Lock)) Targeting.Toggle(Targeting.Current != null);
         if (captured && Input.IsActionJustPressed(Inputs.Unlock)) Targeting.Clear();
         Targeting.Tick(this);
+        // in combat: recently fought, locked on, or a monster nearby is hunting us (checked twice a second)
+        _combatT -= dt; _combatScan -= dt; if (Targeting.Current != null) _combatT = Mathf.Max(_combatT, 1f);
+        if (_combatScan <= 0)
+        {
+            _combatScan = .5f;
+            foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Enemy ce && ce.Hunting && !ce.Dead && ce.GlobalPosition.DistanceSquaredTo(GlobalPosition) < 18f * 18f) { _combatT = Mathf.Max(_combatT, 1.5f); break; }
+        }
         // hero light: off in daylight, a warm pool of light at night, in the Shadow realm and underground
         float dark = Dungeon.Active ? 1f : Mathf.Clamp((World.Night - .25f) / .5f, 0, 1);
         _glow.LightEnergy = Mathf.Lerp(_glow.LightEnergy, dark * Feel.GlowEnergy, 1f - Mathf.Exp(-3f * dt)); _glow.OmniRange = Feel.GlowRange; _glow.Visible = _glow.LightEnergy > .02f;
@@ -721,6 +733,7 @@ public partial class Player : CharacterBody3D, IDamageable
         if (_blocking) { a.Play("block", .1f); return; }
         // let a finished swing play out only while standing still; once the hero moves, the legs take over at once (no sliding)
         if (hv < .8f && a.Busy && floor && (a.Cur.Contains("Sword") || a.Cur.Contains("Spell") || a.Cur.Contains("Punch") || a.Cur.Contains("Melee") || a.Cur.StartsWith("atk_"))) return;
-        a.Move(hv, floor, Game.D.Weapon != null, HasShield, _backpedal);
+        // standing still: a relaxed idle out of combat; the guarded weapon / shield stance only while fighting
+        a.Move(hv, floor, Game.D.Weapon != null && InCombat, HasShield && InCombat, _backpedal);
     }
 }

@@ -413,6 +413,74 @@ public partial class Bot : Node
             d.Bar = keepBar; Game.Notify(); await Wait(1f);
         });
 
+        await Step("stance and feet on the ground", async () =>
+        {
+            // relaxed idle out of combat; feet never sink into the ground (heel or toes), on flat ground and on a slope, in both stances
+            var av = P.Av; var sk = av?.Skel; if (av == null || sk == null) { Check("hero model for the feet check", false); return; }
+            int fl = sk.FindBone("foot_l"), fr = sk.FindBone("foot_r"), bl = sk.FindBone("ball_l"), br = sk.FindBone("ball_r");
+            string Detail()
+            {
+                var sg = sk.GlobalTransform; var s = new System.Text.StringBuilder();
+                if (P.Feet is { } fp1) foreach (var (pt, rest, nm) in new[] { (fp1.HeelL, fp1.AnkleRest, "heelL"), (fp1.ToeL, fp1.BallRest, "toeL"), (fp1.HeelR, fp1.AnkleRest, "heelR"), (fp1.ToeR, fp1.BallRest, "toeR") })
+                    s.Append($"{nm} {(pt.Y - Mathf.Max(0, rest) - World.GroundAt(pt.X, pt.Z)) * 100:0.0}cm ");
+
+                return s.ToString();
+            }
+            // the real (post-IK) sole height of each heel and toe above the ground, as the foot code left it
+            float Depth()
+            {
+                if (P.Feet is { } fp0)
+                {
+                    float worst2 = -1;
+                    foreach (var (pt, rest) in new[] { (fp0.HeelL, fp0.AnkleRest), (fp0.HeelR, fp0.AnkleRest), (fp0.ToeL, fp0.BallRest), (fp0.ToeR, fp0.BallRest) })
+                        worst2 = Mathf.Max(worst2, World.GroundAt(pt.X, pt.Z) - (pt.Y - Mathf.Max(0, rest)));
+                    return worst2;
+                }
+                return DepthAnim();
+            }
+            float DepthAnim()
+            {
+                var sg = sk.GlobalTransform; float baseY = P.GlobalPosition.Y, worst = -1;
+                foreach (var b in new[] { fl, fr, bl, br })
+                {
+                    if (b < 0) continue; var pos = (sg * sk.GetBoneGlobalPose(b)).Origin; float rest = (sg * sk.GetBoneGlobalRest(b)).Origin.Y - (sg * sk.GetBoneGlobalRest(sk.FindBone("root") >= 0 ? sk.FindBone("root") : 0)).Origin.Y;
+                    var q = PhysicsRayQueryParameters3D.Create(pos + Vector3.Up * 1.2f, pos + Vector3.Down * 2f, 1); q.Exclude = new Godot.Collections.Array<Rid> { P.GetRid() };
+                    var h = P.GetWorld3D().DirectSpaceState.IntersectRay(q); if (h.Count == 0) continue;
+                    float bottom = pos.Y - Mathf.Clamp(rest, 0, .2f);   // the sole: the bone minus its height above the floor at rest
+                    worst = Mathf.Max(worst, ((Vector3)h["position"]).Y - bottom);
+                }
+                return worst;
+            }
+            // a quiet slope near the village (no monsters within 30 m): the steepest of a ring of points
+            Vector3 slopeAt = World.OnGround(-8, -2, .6f); float best = 0;
+            for (int i = 0; i < 48; i++) for (float rad = 20; rad <= 110; rad += 10)
+            {
+                float a = i / 48f * Mathf.Tau, x = Mathf.Cos(a) * rad, z = Mathf.Sin(a) * rad;
+                float s = Mathf.Abs(World.GroundAt(x + 1, z) - World.GroundAt(x - 1, z)) + Mathf.Abs(World.GroundAt(x, z + 1) - World.GroundAt(x, z - 1));
+                if (s <= best || s > .9f || !World.FreeSpot(x, z, 1.5f) || World.GroundAt(x, z) < 1.8f) continue;
+                bool foe = false; foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Enemy e && !e.Dead && !e.Def.Flee && e.Def.Dmg > 0 && e.GlobalPosition.DistanceTo(new Vector3(x, e.GlobalPosition.Y, z)) < 30f) { foe = true; break; }   // wildlife does not count
+                if (!foe) { best = s; slopeAt = World.OnGround(x, z, .6f); }
+            }
+            Check("found a slope to test on", best > .2f, $"slope {best:0.00} at {slopeAt.X:0}, {slopeAt.Z:0}");
+            var spots = new[] { ("flat", World.OnGround(-8, -2, .6f)), ("slope", slopeAt) };
+            foreach (var (name, at) in spots)
+            {
+                Heal(); P.Teleport(at, 0f); await Wait(1.2f);
+                float slope = Mathf.Abs(World.GroundAt(at.X + 1, at.Z) - World.GroundAt(at.X - 1, at.Z)) + Mathf.Abs(World.GroundAt(at.X, at.Z + 1) - World.GroundAt(at.X, at.Z - 1));
+                // wait out any combat stance from earlier steps, then the relaxed idle
+                float w = 0; while (w < 8f && P.InCombat) { await Wait(.2f); w += .2f; }
+                await Wait(.8f); string idleClip = av.Cur; float dIdle = 0; for (int i = 0; i < 10; i++) { dIdle = Mathf.Max(dIdle, Depth()); await Wait(.1f); }
+                if (P.Rig != null) { P.Rig.Rotation = new Vector3(-.05f, Mathf.Pi * .5f, 0); } await Shot($"stance_{name}_relaxed");
+                Check($"relaxed idle out of combat ({name})", !P.InCombat && idleClip == Avatar.Clip("idle"), idleClip);
+                Check($"feet stay on the ground, relaxed ({name}, slope {slope:0.00})", dIdle < .04f, $"deepest {dIdle * 100:0.0} cm into the ground; {Detail()}");
+                MouseRaw(MouseButton.Left, true); await Wait(.05f); MouseRaw(MouseButton.Left, false); await Wait(1.6f);
+                float dCombat = 0; for (int i = 0; i < 10; i++) { dCombat = Mathf.Max(dCombat, Depth()); await Wait(.1f); }
+                await Shot($"stance_{name}_combat");
+                Check($"combat stance after attacking ({name})", P.InCombat && (av.Cur == Avatar.Clip("idleArmed") || av.Cur == Avatar.Clip("idleShield")), av.Cur);
+                Check($"feet stay on the ground, combat stance ({name})", dCombat < .04f, $"deepest {dCombat * 100:0.0} cm into the ground; {Detail()}");
+            }
+        });
+
         await Step("monsters notice you and new monsters", async () =>
         {
             // dungeon monsters wander until a hero is close and in sight; far ones never come running

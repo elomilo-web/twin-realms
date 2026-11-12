@@ -11,7 +11,7 @@
 
   "game": {
     "player": {
-      "_help": "Hero base stats. Max health = hpBase + level x hpPerLevel + Vitality x hpPerVit (+ gear, tree). Mana, stamina likewise. defensePerVit: armor per Vitality. critBase 0.05 = 5%. critDamage 1.8 = crits deal 180%. weaponBase: flat damage every weapon hit starts from (magicWeaponBase for wands and staves). spellPerMag / spellPerLevel: spell power per Magic / level. Regen per second. Potions heal this share of max health / mana.",
+      "_help": "Hero base stats. Max health = hpBase + level x hpPerLevel + Vitality x hpPerVit (+ gear, tree). Mana, stamina likewise. defensePerVit: armor per Vitality. critBase 0.05 = 5%. critDamage 1.8 = crits deal 180%. weaponBase: flat damage every weapon hit starts from (magicWeaponBase for wands and staves). spellPerMag / spellPerLevel: spell power per Magic / level. Regen per second. Potions heal this share of max health / mana. combatStanceSeconds: how long the hero keeps the guarded weapon stance after fighting (then stands relaxed).",
       "hpBase": 100, "hpPerLevel": 8, "hpPerVit": 7,
       "mpBase": 50, "mpPerMag": 6, "mpPerLevel": 2,
       "staminaBase": 90, "staminaPerDex": 3,
@@ -21,7 +21,8 @@
       "weaponBase": 5, "magicWeaponBase": 4,
       "spellPerMag": 0.08, "spellPerLevel": 0.02,
       "hpRegenBase": 0, "hpRegenPerVit": 0.02, "mpRegenBase": 1.5, "mpRegenPerMag": 0.05,
-      "healthPotion": 0.5, "manaPotion": 0.6
+      "healthPotion": 0.5, "manaPotion": 0.6,
+      "combatStanceSeconds": 6
     },
     "stamina": {
       "_help": "Stamina cost of each action. Sprint drain and refill speed are in files > feel.json > move. twoHandedMul / daggerMul scale melee costs for two-handed weapons and daggers. blockPerDamage: stamina lost per point of damage blocked.",
