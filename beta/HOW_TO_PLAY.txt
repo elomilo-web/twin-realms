@@ -1,4 +1,4 @@
-TWIN REALMS - BETA 1.0  (Windows, 64-bit)
+TWIN REALMS - BETA 1.2  (Windows, 64-bit)
 ==========================================
 
 START
@@ -16,21 +16,30 @@ CONTROLS (change any of them in Settings > Controls)
   Left mouse attack (hold to keep your chain going), Right mouse heavy attack, F guard with a shield, O basic attack chains
   1-6 skills, H health potion, G mana potion, E interact, R shift between Light and Shadow, T horse
   Tab lock on (again: next target), Q release lock-on
-  I pack, J journal, M map, K skill tree, L skills, Esc menu
+  I pack, J journal, M map, K skill tree, L skills, U modifier tree, Esc menu
+  F8 flag a moment for review (screenshot + report in %APPDATA%\Godot\app_userdata\TwinRealms\playtest\)
+
+PACK (I)
+  Click an item to equip it. Right-click to drop it on the ground (you or a friend can pick it up again).
+  Disassemble: break items into scraps.  Crafting: make gear, elemental gear, set pieces and potions from scraps.
+  Pickup filter: choose which items you pick up (the rest stays on the ground, or is scrapped).
 
 PLAY WITH A FRIEND
   Both of you need this same version.
   Host: Multiplayer > Host a game (allow Twin Realms through the Windows firewall when asked).
         Then Esc > Multiplayer and press Copy next to a join code. Send it to your friend.
         "Over the internet" code: friends anywhere.  "Same Wi-Fi / VPN" code: friends in your house.
-  Friend: Multiplayer > Paste > Join.
+  Friend: Multiplayer > Paste > Join. Building the world takes a little while after joining; that is normal.
   If the host's menu says the router did not open the port: forward UDP port 24565 to the host's computer,
   or both install Tailscale or Radmin VPN (free) and use the "Same Wi-Fi / VPN" code.
   Walk up to your friend and press E to invite them to a party: a party shares dungeons, experience and gold.
+  Monsters are 1.5x tougher while two or more heroes share the world.
 
 LEVELLING
-  Each level gives 3 attribute points (Esc > Character), 1 skill point (L) and 2 skill tree points (K).
-  Dungeon monsters are your level + 2 (a party's average level + 3) and get tougher and better equipped on each floor down.
+  Each level gives 2 attribute points (Esc > Character), 1 skill point (L) and 2 skill tree points (K).
+  Monsters keep up with you: overworld monsters rise to your level, and the longer you play in one sitting, the stronger they get.
+  Dungeon monsters are your level + 2 (a party's average level + 3), tougher on every floor and much tougher every 5 floors.
+  Deeper floors drop rarer loot; set gear drops from floor 10 down.
 
 FOUND A BUG?
-  Tell us what you did and what happened. The game's log is in %APPDATA%\Godot\app_userdata\TwinRealms\logs\
+  Press F8 when it happens, then tell us what you did. The game's log is in %APPDATA%\Godot\app_userdata\TwinRealms\logs\
