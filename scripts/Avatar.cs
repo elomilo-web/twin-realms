@@ -291,6 +291,8 @@ public partial class Avatar : Node3D
             w.Rotation = flying ? new Vector3(0, -s * .1f, s * Mathf.Sin(t * 7f) * .55f) : new Vector3(.15f, -s * .9f, -s * .25f + s * Mathf.Sin(t * 1.3f) * .03f);
         }
     }
+    /// <summary>Shows the hair even under gear that would hide it (bosses who wear a helm-less plate but keep their hair).</summary>
+    public void ShowHair() { foreach (var h in _hair) if (h is Node3D h3 && IsInstanceValid(h3)) h3.Visible = true; }
     /// <summary>A holder on a bone for a custom piece (bosses' own weapons and ornaments), placed in model space at rest like "hold".</summary>
     public Node3D Socket(string bone, Vector3 pos, Vector3 rotDeg, string slot = "extra") => Holder(bone, pos, rotDeg, slot);
     /// <summary>The right-hand holder a held weapon of this type would use: +Z runs along the blade from the grip.</summary>

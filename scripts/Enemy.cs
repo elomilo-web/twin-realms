@@ -270,8 +270,9 @@ public partial class Enemy : CharacterBody3D, IDamageable
     /// <summary>This monster noticed a hero (or was struck): the idle pack around it (9 m) joins the fight.</summary>
     void Alert()
     {
+        float r = IsShade ? Tune.F("raid.shadeAlert", 45f) : 9f;   // shades call every shade in the hall
         foreach (var n in GetTree().GetNodesInGroup("enemies"))
-            if (n is Enemy e && e != this && !e.Dead && !e.Puppet && e._state == State.Idle && !e.Def.Flee && e.FromDungeon == FromDungeon && e.GlobalPosition.DistanceSquaredTo(GlobalPosition) < 81f) e.Wake();
+            if (n is Enemy e && e != this && !e.Dead && !e.Puppet && e._state == State.Idle && !e.Def.Flee && e.FromDungeon == FromDungeon && e.GlobalPosition.DistanceSquaredTo(GlobalPosition) < r * r) e.Wake();
     }
 
     // ------------------------------------------------------------------ animated monster models (assets/models/monsters, CC0)
@@ -695,8 +696,9 @@ public partial class Enemy : CharacterBody3D, IDamageable
                 if (dist < 30f) Wake();
                 break;
             case State.Idle:
-                // notice a hero only when close enough and (indoors) in plain sight; then the pack nearby joins in
-                if (plOk && dist < Def.Aggro && Notices(pl!, dist, dt)) { Wake(); Alert(); break; }
+                // notice a hero only when close enough and (indoors) in plain sight; then the pack nearby joins in.
+                // Shades in the lair need no line of sight: they sense the living from far off and come together
+                if (plOk && dist < Def.Aggro && (IsShade || Notices(pl!, dist, dt))) { Wake(); Alert(); break; }
                 {
                     // wander: amble to a spot near home, pause, pick another (wildlife grazes slower and closer)
                     bool wild = Def.Look != "";

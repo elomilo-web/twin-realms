@@ -47,7 +47,7 @@ public partial class Enemy
     {
         Def = Def.Clone();   // her defences are rewritten per fight (Assess)
         var gold = new Color(1f, .78f, .34f);
-        var ap = new Appearance { Female = true, Skin = new Color(.96f, .8f, .45f), Hair = new Color(.9f, .88f, .8f), GlowEyes = true, Eyes = new Color(.6f, 1f, .4f) };
+        var ap = new Appearance { Female = true, Skin = new Color(.96f, .8f, .45f), Hair = new Color(.62f, .05f, .07f), GlowEyes = true, Eyes = new Color(.6f, 1f, .4f) };   // deep red hair
         _av = new Avatar { Name = "Avatar", Scale = Vector3.One * _scale }; _body.AddChild(_av); _av.Build(ap, "scarletta");
         var outfit = new Dictionary<string, Item?> { ["armor"] = new Item { Name = "Plate", Slot = "armor" }, ["hands"] = new Item { Name = "Gauntlets", Slot = "hands" }, ["feet"] = new Item { Name = "Greaves", Slot = "feet" } };
         _av.Dress(s => outfit.GetValueOrDefault(s), "none", gold, gold);
@@ -82,17 +82,21 @@ void fragment() {
         _sTrail = new SwordTrail { Col = new Color(.75f, 1f, .45f), Life = .35f }; AddChild(_sTrail); _sTrail.Base = bb; _sTrail.Tip = bt;
         // a single angel wing on her back
         _av.AddWings(new Color(.97f, .96f, .92f), gold, left: false, right: true, span: 1.45f, glow: .25f);
-        // long flowing hair: three strands from the back of the head down past the waist, swaying as she moves
-        var hairMat = new StandardMaterial3D { AlbedoColor = ap.Hair, Roughness = .7f, CullMode = BaseMaterial3D.CullModeEnum.Disabled };
-        var tipMat = new StandardMaterial3D { AlbedoColor = new Color(.6f, .8f, .45f), Roughness = .7f, CullMode = BaseMaterial3D.CullModeEnum.Disabled };
-        for (int s = -1; s <= 1; s++)
+        // long, flowing red hair: five full strands from the crown and the back of the head down to the backs of her knees.
+        // Each strand is a chain of joints, so it ripples as a wave runs down it and streams back when she moves (HairSway).
+        _av.ShowHair();   // her plate must not hide it
+        var hairMat = new StandardMaterial3D { AlbedoColor = new Color(.66f, .05f, .08f), Roughness = .55f, CullMode = BaseMaterial3D.CullModeEnum.Disabled, EmissionEnabled = true, Emission = new Color(.35f, .02f, .03f), EmissionEnergyMultiplier = .35f, RimEnabled = true, Rim = .6f };
+        var tipMat = new StandardMaterial3D { AlbedoColor = new Color(.86f, .16f, .12f), Roughness = .5f, CullMode = BaseMaterial3D.CullModeEnum.Disabled, EmissionEnabled = true, Emission = new Color(.5f, .06f, .04f), EmissionEnergyMultiplier = .45f };
+        const int Segs = HairSegs; float[] xs = { -.1f, -.05f, 0f, .05f, .1f };
+        for (int s = 0; s < xs.Length; s++)
         {
-            Node3D parent = _av.Socket("Head", new Vector3(s * .06f, .02f, -.09f), new Vector3(15, 0, s * 6), "hair");
-            for (int i = 0; i < 8; i++)
+            float x = xs[s], fan = x * 60f;   // the outer strands fall a little to the sides, over the shoulders
+            Node3D parent = _av.Socket("Head", new Vector3(x, .06f - Mathf.Abs(x) * .3f, -.1f), new Vector3(18, 0, fan), "hair");
+            for (int i = 0; i < Segs; i++)
             {
-                float w = (.16f - i * .01f) * (s == 0 ? 1.2f : .9f), len = .16f;
+                float k = i / (float)(Segs - 1), w = Mathf.Lerp(.15f, .07f, k * k) * (s == 2 ? 1.15f : 1f), thick = Mathf.Lerp(.07f, .025f, k), len = .1f;   // 12 x 0.1 = from the crown to the backs of her knees
                 var seg = new Node3D { Name = "Hair" + i, Position = i == 0 ? Vector3.Zero : new Vector3(0, -len, 0) }; parent.AddChild(seg);
-                seg.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(w, len * 1.05f, .03f) }, MaterialOverride = i >= 6 ? tipMat : hairMat, Position = new Vector3(0, -len / 2, 0) });
+                seg.AddChild(new MeshInstance3D { Mesh = new CapsuleMesh { Radius = thick, Height = len * 1.25f + thick * 2, RadialSegments = 8, Rings = 2 }, MaterialOverride = i >= Segs - 3 ? tipMat : hairMat, Position = new Vector3(0, -len / 2, 0), Scale = new Vector3(w / thick * .5f, 1, 1) });
                 _hair.Add(seg); parent = seg;
             }
         }
@@ -105,13 +109,22 @@ void fragment() {
     void ScarTell(float k) => _goldMat?.SetShaderParameter("glow", Mathf.Clamp(k, 0, 1));
 
     /// <summary>Hair sways with time and leans back when she moves fast.</summary>
+    const int HairSegs = 12;
+    float _hairYawPrev, _hairSpin; Vector3 _hairPosPrev;
+    /// <summary>The hair flows: a slow wave runs down every strand, it streams back as she moves (or rises), and swings out when she turns.</summary>
     void HairSway(float dt)
     {
-        float sp = new Vector2(Velocity.X, Velocity.Z).Length(), t = Game.PlayTime;
+        if (_hair.Count == 0 || dt <= 0) return;
+        var vel = (GlobalPosition - _hairPosPrev) / dt; _hairPosPrev = GlobalPosition;
+        float sp = Mathf.Min(new Vector2(vel.X, vel.Z).Length(), 40f), rise = Mathf.Clamp(vel.Y / 10f, -1, 1), t = Game.PlayTime;
+        float turn = Mathf.Wrap(_yaw - _hairYawPrev, -Mathf.Pi, Mathf.Pi) / dt; _hairYawPrev = _yaw;
+        _hairSpin = Mathf.Lerp(_hairSpin, Mathf.Clamp(turn * .08f, -.6f, .6f), 1f - Mathf.Exp(-4f * dt));
+        float stream = Mathf.Clamp(sp / 14f, 0, 1) * .55f + Mathf.Max(0, -rise) * .3f;   // streaming back (and up, when she drops)
         for (int i = 0; i < _hair.Count; i++)
         {
-            int k = i % 8; float lean = Mathf.Clamp(sp / 12f, 0, 1) * .14f * (k + 1) / 8f;
-            _hair[i].Rotation = new Vector3(lean + Mathf.Sin(t * 1.6f + k * .55f + i) * .06f, 0, Mathf.Sin(t * 1.1f + k * .4f) * .05f);
+            int k = i % HairSegs, s = i / HairSegs; float along = (k + 1) / (float)HairSegs;
+            float wave = Mathf.Sin(t * 1.7f - k * .55f + s * 1.3f) * (.05f + .05f * along) * (1 + stream);
+            _hair[i].Rotation = new Vector3(stream * along * .5f / HairSegs * 4f + wave, 0, -_hairSpin * along * .35f + Mathf.Sin(t * 1.15f - k * .4f + s) * .035f);
         }
     }
 

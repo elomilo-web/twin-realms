@@ -69,7 +69,8 @@ public partial class Enemy
         _stanceMax = MaxHp * T("stance", .14f); _wt = D.WType();
         // the hero's body and gear
         var ap = Races.Look(D);
-        _av = new Avatar { Name = "Avatar", Scale = Vector3.One * _scale }; _body.AddChild(_av);   // twice the hero's size (duel.size) _av.Build(ap, D.Name + "_shadow");
+        // twice the hero's size (duel.size)
+        _av = new Avatar { Name = "Avatar", Scale = Vector3.One * _scale }; _body.AddChild(_av); _av.Build(ap, D.Name + "_shadow");
         _av.Dress(sl => D.Eq.GetValueOrDefault(sl), _wt, Classes.Get(D.Class).Tunic);
         // the hero's own chain of swings and power attack (data/attacks.json)
         var w = Weapons.Get(_wt);

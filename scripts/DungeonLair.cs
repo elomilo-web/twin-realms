@@ -69,8 +69,24 @@ public static partial class Dungeon
         var r = _rooms[bossRoom]; float cx = (r.Cx + .5f) * Tile, cz = (r.Cz + .5f) * Tile;
         LairDecor(r, th);
         // the halls before her: overgrown, and haunted by black shades of the party (EnemyShade.cs)
-        var heroes = Enemy.ShadeModels();
+        var heroes = Enemy.ShadeModels(); _shadeN = 0;
         for (int i = 1; i < _rooms.Count; i++) if (i != bossRoom) { HallDecor(_rooms[i], i); SpawnShades(_rooms[i], i, heroes); }
+        // the passages between the halls: a pair of shades every so often
+        var cr = new Random(Seed + 77); int step = 0;
+        for (int z = 0; z < GH; z++) for (int x = 0; x < GW; x++)
+        {
+            if (!Floor(x, z) || _rooms.Exists(rm => x >= rm.X - 1 && x <= rm.X + rm.W && z >= rm.Z - 1 && z <= rm.Z + rm.H)) continue;
+            if (step++ % 10 != 5) continue;   // a pair about every 80 m of passage
+            for (int k = 0; k < 2; k++) SpawnShade(new Vector3((x + .3f + (float)cr.NextDouble() * .4f) * Tile, .4f, (z + .3f + (float)cr.NextDouble() * .4f) * Tile), heroes);
+        }
+        // and the edges of the great chamber, among the mushrooms (her fighting ground stays clear)
+        var br = new Random(Seed + 91); int made = 0;
+        for (int t = 0; t < 400 && made < 24; t++)
+        {
+            float x = (r.X + 2 + (float)br.NextDouble() * (r.W - 4)) * Tile, z = (r.Z + 2 + (float)br.NextDouble() * (r.H - 4)) * Tile;
+            if (new Vector2(x - cx, z - cz).Length() < 190f) continue;
+            for (int k = 0; k < 2 && made < 24; k++, made++) SpawnShade(new Vector3(x + k * 2.5f, .4f, z + k * 1.5f), heroes);
+        }
         // the boss: no rolled upgrades or gear tier (she reads the challengers instead, EnemyScarletta.cs)
         var e = new Enemy { Type = "scarletta", Level = (int)_baseLvl + Progression.DunBoss, FromDungeon = true, NoLeash = true, AnyRealm = true, Position = new Vector3(cx, 0.4f, cz) };
         LairIntroDone = false;
@@ -163,16 +179,22 @@ void fragment() {
     /// </summary>
     static void SpawnShades(Room h, int hall, List<PlayerStats> heroes)
     {
-        var rnd = new Random(Seed + 101 * hall); int n = hall == 1 ? 8 : 10;
+        var rnd = new Random(Seed + 101 * hall); int n = hall == 1 ? 14 : 16;
         for (int i = 0; i < n; i++)
         {
-            var hero = heroes[i % heroes.Count]; string wt = hero.WType();
-            string type = wt == "bow" ? "shadeArcher" : wt is "wand" or "staff" ? "shadeCaster" : "shade";
             float x = (h.X + 1.5f + (float)rnd.NextDouble() * (h.W - 3)) * Tile, z = (h.Z + 1.5f + (float)rnd.NextDouble() * (h.H - 3)) * Tile;
-            var e = new Enemy { Type = type, Level = (int)_baseLvl, FromDungeon = true, NoLeash = true, AnyRealm = true, ShadeOf = hero, Position = new Vector3(x, .4f, z) };
-            if (Inst != 0) { e.NetIdx = NetList.Count; e.Puppet = Owner != Net.MyId; NetList.Add(e); }
-            Root!.AddChild(e);
+            SpawnShade(new Vector3(x, .4f, z), heroes);
         }
+    }
+    static int _shadeN;
+    /// <summary>One shade at a spot (floor-local), mirroring the next party member in turn, armed like them.</summary>
+    static void SpawnShade(Vector3 at, List<PlayerStats> heroes)
+    {
+        var hero = heroes[_shadeN++ % heroes.Count]; string wt = hero.WType();
+        string type = wt == "bow" ? "shadeArcher" : wt is "wand" or "staff" ? "shadeCaster" : "shade";
+        var e = new Enemy { Type = type, Level = (int)_baseLvl, FromDungeon = true, NoLeash = true, AnyRealm = true, ShadeOf = hero, Position = at };
+        if (Inst != 0) { e.NetIdx = NetList.Count; e.Puppet = Owner != Net.MyId; NetList.Add(e); }
+        Root!.AddChild(e);
     }
     /// <summary>The halls before the chamber: glowing mushrooms along the walls and a slime pool.</summary>
     static void HallDecor(Room h, int hall)
