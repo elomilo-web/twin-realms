@@ -54,6 +54,7 @@ public static class Game
         foreach (var kv in Classes.Get(D.Class).Mods) TS[kv.Key] += kv.Value;
         if (Player.Instance != null) foreach (var b in Player.Instance.Buffs) foreach (var kv in b.mods) TS[kv.Key] += kv.Value;   // timed skill buffs (War Cry, Venom Blade)
         LootTables.Apply(D, TS);   // set bonuses for set pieces worn together (data/loot.json "sets")
+        foreach (var it in D.Eq.Values) if (it?.Mods != null) foreach (var kv in it.Mods) TS[kv.Key] += kv.Value;   // items with their own stats (Golden Wings)
     }
     /// <summary>Saved data changed: refresh the stat table (equipment may have changed, and with it set bonuses), then the UI.</summary>
     public static void Notify() { RecalcTree(); Changed?.Invoke(); }

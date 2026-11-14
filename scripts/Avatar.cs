@@ -250,6 +250,52 @@ public partial class Avatar : Node3D
         Cape.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(.44f, .95f, .02f) }, MaterialOverride = mat, Position = new Vector3(0, -.47f, 0) });
     }
 
+    /// <summary>Feathered wings on the upper back (Golden Wings, Scarletta's single angel wing). Each wing is a pivot that FlapWings moves.</summary>
+    public Node3D? WingL, WingR;
+    public void AddWings(Color feather, Color edge, bool left = true, bool right = true, float span = 1f, float glow = .5f)
+    {
+        var mat = new StandardMaterial3D { AlbedoColor = feather, Metallic = .55f, Roughness = .35f, CullMode = BaseMaterial3D.CullModeEnum.Disabled, EmissionEnabled = glow > 0, Emission = feather, EmissionEnergyMultiplier = glow };
+        var tip = new StandardMaterial3D { AlbedoColor = edge, Metallic = .8f, Roughness = .25f, CullMode = BaseMaterial3D.CullModeEnum.Disabled, EmissionEnabled = true, Emission = edge, EmissionEnergyMultiplier = glow + .3f };
+        foreach (float s in new[] { 1f, -1f })
+        {
+            if (s > 0 && !left || s < 0 && !right) continue;
+            var h = Holder("spine_03", new Vector3(s * .08f, .1f, -.17f), Vector3.Zero, "cape");
+            var pivot = new Node3D { Name = s > 0 ? "WingL" : "WingR" }; h.AddChild(pivot);
+            if (s > 0) WingL = pivot; else WingR = pivot;
+            // the arm of the wing: rises outward, then the feathers fan down from it
+            float arm = .62f * span, rise = Mathf.DegToRad(32);
+            var armDir = new Vector3(s * Mathf.Cos(rise), Mathf.Sin(rise), -.15f).Normalized();
+            pivot.AddChild(new MeshInstance3D { Mesh = new CapsuleMesh { Radius = .035f * span, Height = arm, RadialSegments = 8, Rings = 2 }, MaterialOverride = tip, Position = armDir * arm / 2, Rotation = new Vector3(0, 0, -s * (Mathf.Pi / 2 - rise)) });
+            for (int i = 0; i < 9; i++)
+            {
+                float t = .2f + .8f * i / 8f; var root = armDir * arm * t;
+                float ang = Mathf.DegToRad(Mathf.Lerp(-118, -28, i / 8f)), len = (.38f + .62f * Mathf.Sin(Mathf.Pi * (.15f + .7f * i / 8f))) * span;   // longest near the tip
+                var dir = new Vector3(s * Mathf.Cos(ang) * .35f + s * .2f * t, Mathf.Sin(ang), -.08f).Normalized();
+                // the feather's long side (local Y) runs along dir, its flat face toward the back (Z)
+                var zAx = new Vector3(0, 0, 1); var xAx = dir.Cross(zAx).Normalized(); zAx = xAx.Cross(dir).Normalized();
+                var f = new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(.11f * span, len, .018f) }, MaterialOverride = i >= 7 ? tip : mat, Position = root + dir * len / 2 + new Vector3(0, 0, -.012f * i) };
+                f.Basis = new Basis(xAx, dir, zAx); pivot.AddChild(f);
+                // a shorter covert feather over each primary
+                var c = new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(.1f * span, len * .45f, .02f) }, MaterialOverride = mat, Position = root + dir * len * .22f + new Vector3(0, 0, .015f) };
+                c.Basis = f.Basis; pivot.AddChild(c);
+            }
+        }
+        FlapWings(0, false);
+    }
+    /// <summary>Wings beat while flying and fold back along the body otherwise.</summary>
+    public void FlapWings(float t, bool flying)
+    {
+        foreach (var (w, s) in new[] { (WingL, 1f), (WingR, -1f) })
+        {
+            if (w == null || !IsInstanceValid(w)) continue;
+            w.Rotation = flying ? new Vector3(0, -s * .1f, s * Mathf.Sin(t * 7f) * .55f) : new Vector3(.15f, -s * .9f, -s * .25f + s * Mathf.Sin(t * 1.3f) * .03f);
+        }
+    }
+    /// <summary>A holder on a bone for a custom piece (bosses' own weapons and ornaments), placed in model space at rest like "hold".</summary>
+    public Node3D Socket(string bone, Vector3 pos, Vector3 rotDeg, string slot = "extra") => Holder(bone, pos, rotDeg, slot);
+    /// <summary>The right-hand holder a held weapon of this type would use: +Z runs along the blade from the grip.</summary>
+    public Node3D HandSocket(string wt = "sword") { var (hp, hr) = WeaponHold(wt, ""); return Holder("hand_r", hp, hr, "extra"); }
+
     // ------------------------------------------------------------------ race features (procedural for now)
     void RaceFeatures(Appearance ap)
     {
@@ -287,13 +333,14 @@ public partial class Avatar : Node3D
     public void Dress(Func<string, Item?> eq, string wt, Color classTint, Color? outfitTint = null)
     {
         foreach (var s in new[] { "armor", "head", "hands", "feet", "weapon", "shield", "cape" }) Clear(s);
-        BladeBase = BladeTip = null; Cape = null; bool hideHair = false;
+        BladeBase = BladeTip = null; Cape = null; WingL = WingR = null; bool hideHair = false;
         // cape: an equipment slot (none when nothing is equipped)
         var cp = eq("cape");
         if (cp != null && Rule("cape", cp.Name) is { } cr)
         {
             var kit = KitPieces(cr, "cape");
             if (kit.Count > 0 && kit[0] is Node3D ch && ch.GetChildCount() > 0) Cape = ch.GetChild<Node3D>(0);   // the piece itself swings about its top (Player)
+            else if (S(cr, "proc") == "wings" || cp.Wings) AddWings(new Color(1f, .8f, .32f), new Color(1f, .93f, .6f));   // Golden Wings
             else if (S(cr, "proc") == "cape") AddCape(GearFx.ColorOf(cp));
             foreach (var n in SlotNodes("cape")) if (n is Node3D n3) GearFx.Apply(n3, cp, false);
         }

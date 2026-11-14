@@ -785,6 +785,13 @@ public static class Lands
             Builder.Solid(t, new Vector3(18, 1, 18), new Vector3(0, -.3f, 0), _white);
             for (int i = 0; i < 10; i++) { float a = i / 10f * Mathf.Tau; Pillar(t, .65f, i % 3 == 2 ? 4f : 7.5f, new Vector3(Mathf.Cos(a) * 8, .2f, Mathf.Sin(a) * 8), _white); }
             K(t, "dungeon/portal_ring", new Vector3(0, .2f, 0), 0, 1.5f, false); K(t, "dungeon/altar", new Vector3(0, .2f, -4), 0, 1.3f);
+            if (s.Id == "lumen")
+            {
+                // the way into Scarletta's Rotting Hollow (raid boss, DungeonLair.cs): the ring glows sickly green
+                t.AddChild(new LairGate { Position = new Vector3(0, .2f, 0) });
+                t.AddChild(new OmniLight3D { Position = new Vector3(0, 2.5f, 0), LightColor = new Color(.55f, 1f, .4f), OmniRange = 9f, LightEnergy = 1.6f, ShadowEnabled = false });
+                Label(t, "Scarletta's Rotting Hollow", new Vector3(0, 6.5f, 0), 60f);
+            }
         }
         Label(g, s.Name, new Vector3(s.X, (float.IsNaN(SkyTop(s, s.X, s.Z)) ? s.Y : SkyTop(s, s.X, s.Z)) + 14, s.Z), 200f);
         Updraft(s, g);

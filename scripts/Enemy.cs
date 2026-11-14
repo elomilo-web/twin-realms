@@ -108,6 +108,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         var main = Mat(col); var dark = Mat(col.Darkened(0.5f)); var glow = Mat(wraith || Def.Emissive ? new Color(0.7f, 0.4f, 1f) : new Color(1f, 0.3f, 0.2f), 2f);
         if (Proxy) { }   // a duel stand-in has no body of its own: the remote hero is drawn instead
         else if (Duelist && Avatar.Available) BuildDuelist();   // the Shadow Duel boss wears the hero (EnemyDuelist.cs)
+        else if (Scarletta && Avatar.Available) BuildScarletta();   // the raid boss of the Rotting Hollow (EnemyScarletta.cs)
         else if (Def.Model != "" && BuildModel(col)) { }   // an animated monster model (data/enemies.json "model")
         else if (quad) BuildQuad(r, main, dark, glow, col);
         else if (dragon)
@@ -515,6 +516,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         if (h.Remote) _lastPeer = h.Peer; else if (h.IsPlayer) _lastPeer = Net.MyId;
         float dealt = Incoming(h); int dmg = Mathf.Max(1, Mathf.RoundToInt(dealt));
         if (Duelist && !DuelHit(h, ref dmg)) return;   // dodged, immune, or soaked by the Eclipse barrier
+        if (Scarletta) ScarHitTaken(ref dmg);          // the Bloom counts it; broken, she takes more
         Hp -= dmg; _flash = 0.12f;
         if (h.IsPlayer && !h.Remote) Flag.Event($"hit {Def.N} Lv{Level} for {dmg}{(h.Crit ? " crit" : "")} {h.Type}, its hp {Mathf.Max(0, Hp):0}/{MaxHp:0}");
         if (h.IsPlayer) { var D = Game.D; var p = Player.Instance; if (p != null) { p.Hp = Mathf.Min(D.MaxHp(), p.Hp + dmg * (Game.TS["leech"] + h.Leech) / 100f); p.Mp = Mathf.Min(D.MaxMp(), p.Mp + dmg * Game.TS["mleech"] / 100f); } }
@@ -651,19 +653,22 @@ public partial class Enemy : CharacterBody3D, IDamageable
             Velocity = new Vector3(0, v.Y, 0); MoveAndSlide();
             return;
         }
-        if (Puppet) { PuppetMove(dt); return; }
+        if (Puppet) { PuppetMove(dt); if (Scarletta) ScarPuppetTick(dt); return; }
 
         // damage over time / slow
         // statuses: damage over time (mitigated by resistances only), freeze/stun, slows and roots
         bool died = false;
         Status.Tick(dt, (type, amount, col) =>
         {
-            if (died) return; float d = type == "true" ? amount : amount * (1 - Mathf.Clamp(ResPct(type), -100, 90) / 100f) * Status.TakenMul;
+            if (died) return;
+            if (Scarletta && type == "poison") { int hn = Mathf.Max(1, Mathf.RoundToInt(amount)); Hp = Mathf.Min(MaxHp, Hp + hn); FloatText.Spawn(this, GlobalPosition + new Vector3(GD.Randf() - .5f, HeightM() + 0.1f, 0), "+" + hn, new Color(.5f, 1f, .4f), 0.7f); return; }   // rot feeds her
+            float d = type == "true" ? amount : amount * (1 - Mathf.Clamp(ResPct(type), -100, 90) / 100f) * Status.TakenMul;
             int n = Mathf.Max(1, Mathf.RoundToInt(d)); Hp -= n; FloatText.Spawn(this, GlobalPosition + new Vector3(GD.Randf() - .5f, HeightM() + 0.1f, 0), n.ToString(), col, 0.7f);
             if (Hp <= 0) { died = true; Die(null); }
         });
         if (died) return;
         if (Duelist) { DuelTick(dt, pl, v); return; }   // the Shadow Duel boss has its own brain (EnemyDuelist.cs)
+        if (Scarletta) { ScarTick(dt, v); return; }    // so does Scarletta (EnemyScarletta.cs)
         if (Status.Stunned && !Def.Boss && _state != State.Sleep) { _stun = Mathf.Max(_stun, .1f); _state = State.Stagger; }
         float spdMul = Def.Boss ? Mathf.Max(.6f, Status.SpeedMul) : Status.SpeedMul;
 
@@ -850,6 +855,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
     /// <summary>Host: this enemy's state for a snapshot.</summary>
     public void NetWrite(List<float> b)
     {
+        if (Scarletta && !Dead) { ScarWrite(b); return; }   // her move, health bars and the Bloom ride in the state slots
         var p = GlobalPosition; b.Add(p.X); b.Add(p.Y); b.Add(p.Z); b.Add(_yaw); b.Add(Hp); b.Add((float)_state);
         b.Add(_state == State.Wind ? Mathf.Clamp(_timer / Mathf.Max(.01f, Def.Wind), 0, 1) : 1f);
         b.Add(MaxHp); b.Add(Level);   // scaling depends on the host's hero and the lobby, so friends take the host's numbers
@@ -858,6 +864,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
     /// <summary>Client: apply a snapshot from the host.</summary>
     public void NetRead(float[] f, int k)
     {
+        if (Scarletta) { ScarRead(f, k); return; }
         _netPos = new Vector3(f[k], f[k + 1], f[k + 2]); _netYaw = f[k + 3]; Hp = f[k + 4]; var st = (State)(int)f[k + 5];
         MaxHp = Mathf.Max(1, f[k + 7]); int lv = (int)f[k + 8];
         if (lv != Level && lv > 0) { Level = lv; if (!Summoned && DefOverride == null && _label != null) _label.Text = UpgradeLine() + Def.N + $"  Lv{Level}"; }

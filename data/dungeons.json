@@ -1,5 +1,25 @@
 {
     "themes":  {
+                   "scarletta":  {
+                                  "_help":  "Raid lair (scripts/DungeonLair.cs): Scarletta's Rotting Hollow, entered from the shrine on Lumen Aerie. No monster rooms: one great chamber of giant mushrooms and oozing slime, and the boss.",
+                                  "name":  "The Rotting Hollow",
+                                  "mobs":  [ "myconid" ],
+                                  "boss":  "scarletta",
+                                  "wall":  3816760,
+                                  "floor":  2763306,
+                                  "torch":  7405400,
+                                  "flame":  9496399,
+                                  "moss":  "4a7a3a",
+                                  "arches":  false,
+                                  "ceilTex":  "rock",
+                                  "wallTex":  "rock",
+                                  "floorTile":  4,
+                                  "embers":  false,
+                                  "beams":  false,
+                                  "wallTile":  4,
+                                  "floorTex":  "rock",
+                                  "props":  [ "mushroom", "mushroom", "bones", "rubble" ]
+                              },
                    "barrow":  {
                                   "name":  "Hollow Barrow",
                                   "mobs":  [

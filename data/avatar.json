@@ -41,6 +41,7 @@
   ],
   "cape": [
     { "_help": "Capes are an equipment slot (no cape when nothing is equipped). Kit capes hang down from their origin on the upper back; the piece swings back as the hero moves (Player). proc = the plain cloth cape, used when no kit piece loads." },
+    { "match": ["Golden Wings"], "proc": "wings" },
     { "match": ["Ember", "Umbral", "Shroud"], "proc": "cape", "kit": [{ "model": "armor/cape_red", "bone": "spine_03", "pos": [0, 0.12, -0.17], "rot": [-12, 0, 0], "scale": 0.7 }] },
     { "match": [""], "proc": "cape", "kit": [{ "model": "armor/cape_blue", "bone": "spine_03", "pos": [0, 0.12, -0.17], "rot": [-12, 0, 0], "scale": 0.7 }] }
   ],

@@ -5,14 +5,16 @@ using Godot;
 
 namespace TwinRealms;
 
-/// <summary>Procedural dungeons: three themes, descending depth, boss in the farthest room.</summary>
-public static class Dungeon
+/// <summary>Procedural dungeons: three themes, descending depth, boss in the farthest room. Raid lairs (DungeonLair.cs) reuse the same instances.</summary>
+public static partial class Dungeon
 {
     public static bool Active;
     public static string Key = ""; public static int Depth = 1;
     public static Node3D? Root; static Enemy? _boss; static int _bossRoom; static List<Room> _rooms = new(); static float _baseLvl; static Vector3 _ret;
     static JsonDocument? _doc;
-    public const float Tile = 4f, WallH = 6f; public const int GW = 40, GH = 40;
+    public const float Tile = 4f; public const int GW = 40, GH = 40;
+    /// <summary>Wall height: a raid lair has a high vault so a giant boss and her blade fit.</summary>
+    public static float WallH => IsLair(Key) && Active ? 18f : 6f;
     public static readonly Vector3 Origin = new Vector3(3000, 0, 3000);
     public class Room { public int X, Z, W, H, Cx, Cz; }
 
@@ -95,7 +97,7 @@ public static class Dungeon
     {
         var w = World.I; if (w == null || Player.Instance == null) return;
         var poi = World.GetPoi(key);
-        if (!Active) { if (!Net.Active) World.ForceRealm(0); if (Player.Instance.Mounted) Player.Instance.ToggleMount(true); if (poi != null) { var dir = new Vector2(-poi.Door.X, -poi.Door.Z).Normalized(); _ret = World.OnGround(poi.Door.X + dir.X * 7f, poi.Door.Z + dir.Y * 7f, 0.6f); } else _ret = new Vector3(0, 3, 9); }
+        if (!Active) { if (!Net.Active) World.ForceRealm(0); if (Player.Instance.Mounted) Player.Instance.ToggleMount(true); if (IsLair(key)) _ret = LairReturn(key); else if (poi != null) { var dir = new Vector2(-poi.Door.X, -poi.Door.Z).Normalized(); _ret = World.OnGround(poi.Door.X + dir.X * 7f, poi.Door.Z + dir.Y * 7f, 0.6f); } else _ret = new Vector3(0, 3, 9); }
         else Teardown();
         Key = key; Depth = depth; Active = true;
         Inst = inst; Owner = owner; _forceLvl = lvl; Seed = seed != 0 ? seed : (int)(GD.Randi() & 0x3fffffff) + 1;
@@ -107,6 +109,7 @@ public static class Dungeon
         var start = Origin + new Vector3((_rooms[0].Cx + .5f) * Tile, 1f, (_rooms[0].Cz + .5f) * Tile + 3f);
         Player.Instance.Teleport(start, 0f);
         int tier = Progression.Tier(depth);
+        if (IsLair(key)) { Ui.Banner(th.GetProperty("name").GetString() ?? "Lair", "a raid boss waits within"); Ui.Flash(Colors.Black); Game.Save(); return; }
         Ui.Banner(th.GetProperty("name").GetString() ?? "Dungeon", "depth " + depth + (tier > 0 ? $"  -  tier {tier + 1}" : "")); Ui.Flash(Colors.Black);
         if (tier > 0 && (depth - 1) % 5 == 0) Ui.Note($"Tier {tier + 1}: the monsters here are far stronger, and so is their loot", new Color(1f, .5f, .35f));
         if (LootTables.SetMinDepth(key) is int sd && depth >= sd) Ui.Note($"Set gear of {LootTables.SetName(key)} can drop on this floor", LootTables.SetColor(key));
@@ -139,7 +142,8 @@ public static class Dungeon
         var th = Theme(key); int seed = Seed;   // shared floors use the host's seed so every machine builds the same rooms
         var ri = Rng(seed); var rf = new Random(seed + 1); float rnd() => (float)rf.NextDouble();
         var grid = new bool[GW * GH]; _rooms = new();
-        for (int t = 0; t < 60 && _rooms.Count < 9; t++)
+        if (IsLair(key)) LairRooms();   // a raid lair: an entry hall and one great chamber (DungeonLair.cs)
+        else for (int t = 0; t < 60 && _rooms.Count < 9; t++)
         {
             int w = ri(5, 9), h = ri(5, 9), x = ri(2, GW - w - 3), z = ri(2, GH - h - 3); bool ok = true;
             foreach (var r in _rooms) if (x < r.X + r.W + 2 && x + w + 2 > r.X && z < r.Z + r.H + 2 && z + h + 2 > r.Z) { ok = false; break; }
@@ -155,6 +159,8 @@ public static class Dungeon
             while (z != b.Cz) { Carve(x, z); z += Math.Sign(b.Cz - z); }
             Carve(x, z);
         }
+        // corridors are one tile; a lair's passage is three wide so the party can walk in together
+        if (IsLair(key)) for (int i = 1; i < _rooms.Count; i++) { var a = _rooms[i - 1]; for (int z = Math.Min(a.Cz, _rooms[i].Cz); z <= Math.Max(a.Cz, _rooms[i].Cz); z++) for (int dx = -1; dx <= 1; dx++) Carve(a.Cx + dx, z); }
         int bi = 0; float bd = -1; for (int i = 0; i < _rooms.Count; i++) { float d = new Vector2(_rooms[i].Cx - _rooms[0].Cx, _rooms[i].Cz - _rooms[0].Cz).Length(); if (d > bd) { bd = d; bi = i; } }
         _bossRoom = bi;
         _grid = grid; _seen = new bool[GW * GH]; _pads.Clear();   // a new floor starts unexplored
@@ -232,7 +238,9 @@ public static class Dungeon
         // enemies and chests
         // monsters scale to the hero: your level + 2 on the first floor, +1 per floor below (data/progression.json); poiLvl is kept for older callers
         // party: average party level + 3 (from the host); solo: your level + 2
-        _baseLvl = _forceLvl > 0 ? _forceLvl : Progression.DungeonLevel(Game.D.Level, depth); _depth = depth; _mrng = new Random(seed + 7); var mobs = new List<string>(); foreach (var m in th.GetProperty("mobs").EnumerateArray()) mobs.Add(m.GetString() ?? "skeleton");
+        _baseLvl = _forceLvl > 0 ? _forceLvl : Progression.DungeonLevel(Game.D.Level, depth); _depth = depth; _mrng = new Random(seed + 7);
+        if (IsLair(key)) { LairBuild(th, bi); return; }   // no monster rooms: the lair's decor and its boss
+        var mobs = new List<string>(); foreach (var m in th.GetProperty("mobs").EnumerateArray()) mobs.Add(m.GetString() ?? "skeleton");
         string bossType = th.GetProperty("boss").GetString() ?? "golem";
         for (int i = 1; i < _rooms.Count; i++)
         {
@@ -388,6 +396,7 @@ public static class Dungeon
     public static void OnBossDown(Enemy e)
     {
         if (!Active || e != _boss) return;
+        if (IsLair(Key)) { LairBossDown(e); return; }   // a chest for every challenger, no way down
         Game.D.Deepest = Math.Max(Game.D.Deepest, Depth);
         var b = _rooms[_bossRoom]; float bx = (b.Cx + .5f) * Tile, bz = (b.Cz + .5f) * Tile;
         MakePad(new Vector3(bx, 0, bz + 4f), true, new Color(1f, .75f, .38f));

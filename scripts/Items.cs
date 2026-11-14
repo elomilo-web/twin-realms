@@ -25,6 +25,8 @@ public class Item
     public string? Model { get; set; }               // weapons: a kit model name (data/weapons.json "kitModels"), e.g. "sword_azure"; null = picked from the type's list
     public string? Set { get; set; }                 // set id (data/loot.json "sets"): pieces worn together give set bonuses
     public bool Unique { get; set; }                 // a named dungeon unique (data/loot.json dungeons.<key>.uniques)
+    public bool Wings { get; set; }                  // Golden Wings (cape slot): the hero can fly (Wings.cs)
+    public Dictionary<string, float>? Mods { get; set; }   // extra stats in tree stat keys (TreeDb.Known), added to the stat table while worn
 
     [JsonIgnore] public int Value => Math.Max(1, (int)Math.Round((Dmg * 4 + Def * 4 + Hp * 0.6 + Mp * 0.6) * (1 + Rar * 0.8) * (Set != null ? 1.5 : 1)));
     [JsonIgnore] public Color Color => Set != null ? LootTables.SetColorOf(Set) : Items.RarityColor(Rar);

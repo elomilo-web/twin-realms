@@ -37,7 +37,11 @@ public partial class Net
         p.DunLvl = Progression.PartyDungeonLevel(sum / p.Members.Count, depth); _dunOpened[p.Id] = World.Clock;
         SendGo(who, p.DunKey, p.DunDepth, p.DunSeed, p.DunLvl, p.DunOwner, p.Id);
         foreach (var m in follow) SendGo(m, p.DunKey, p.DunDepth, p.DunSeed, p.DunLvl, p.DunOwner, p.Id);
-        if (!descend) { string place = World.GetPoi(p.DunKey)?.Name ?? "a dungeon"; foreach (var m in p.Members) if (m != who) Tell(m, $"{NameOf(who)} entered {place}. Use any dungeon door to join them."); }
+        if (!descend)
+        {
+            bool lair = Dungeon.IsLair(p.DunKey); string place = lair ? "Scarletta's Rotting Hollow" : World.GetPoi(p.DunKey)?.Name ?? "a dungeon";
+            foreach (var m in p.Members) if (m != who) Tell(m, $"{NameOf(who)} entered {place}. " + (lair ? "Use the shrine on Lumen Aerie to join the raid." : "Use any dungeon door to join them."));
+        }
         Count("dunOpened"); SendRoster();
     }
     void SendGo(long peer, string key, int depth, int seed, int lvl, long owner, int inst)

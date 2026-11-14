@@ -445,6 +445,22 @@ public partial class Player : CharacterBody3D, IDamageable
         Sfx.Play("heal"); Game.Notify();
     }
 
+    // ------------------------------------------------------------------ flight (Golden Wings, Wings.cs)
+    public bool Flying;
+    /// <summary>Flying: three times running speed where you steer, hold Jump to climb and Roll to dive; drains stamina like sprinting.</summary>
+    void FlyMove(Vector3 dir, float moveMul, bool captured, float dt, ref Vector3 v)
+    {
+        float speed = RunSpeed * Tune.F("wings.speedMul", 3f) * moveMul * Statuses.SpeedMul;
+        var target = dir * speed; float a = Accel * 1.4f * dt;
+        v.X = Mathf.MoveToward(v.X, target.X, a); v.Z = Mathf.MoveToward(v.Z, target.Z, a);
+        v.Y += _gravity * dt;   // the wings hold us up: undo this frame's gravity
+        float vy = captured && Input.IsActionPressed(Inputs.Jump) ? Tune.F("wings.climb", 9f) : captured && Input.IsActionPressed(Inputs.Roll) ? -Tune.F("wings.dive", 14f) : 0f;
+        v.Y = Mathf.MoveToward(v.Y, vy, 30f * dt);
+        St = Mathf.Max(0, St - Feel.SprintDrain * Tune.F("wings.drainMul", 1f) * dt); _stLockT = Mathf.Max(_stLockT, Feel.SprintRegenDelay);
+        if (dir.LengthSquared() > .01f) _modelYaw = Mathf.LerpAngle(_modelYaw, Util.YawTo(dir.X, dir.Z), 1f - Mathf.Exp(-8f * dt));
+        if (St <= 0) { Flying = false; Ui.Note("Too tired to keep flying", new Color(1f, .7f, .5f)); }
+    }
+
     // ------------------------------------------------------------------ main loop
     public override void _PhysicsProcess(double delta)
     {
@@ -554,6 +570,11 @@ public partial class Player : CharacterBody3D, IDamageable
         }
         else
         {
+            // Golden Wings: Jump in the air takes off; landing, tiring out or taking the wings off ends the flight
+            if (Flying && ((IsOnFloor() && !(captured && Input.IsActionPressed(Inputs.Jump))) || !Wings.Worn || Mounted || _stagger > 0)) Flying = false;
+            else if (!Flying && captured && Input.IsActionJustPressed(Inputs.Jump) && !IsOnFloor() && _airT > .12f && Wings.Worn && !Mounted && St > 5f) { Flying = true; Sfx.Play("swing", .6f); }
+            if (Flying) FlyMove(dir, moveMul, captured, dt, ref v);
+            else {
             if (captured && Input.IsActionJustPressed(Inputs.Roll) && IsOnFloor() && _rollCd <= 0 && _atkT <= 0 && _stagger <= 0 && St >= Tune.F("stamina.roll", 14) * .85f && !Mounted)
             {
                 _rollDir = dir.LengthSquared() > 0.01f ? dir.Normalized() : new Vector3(-Mathf.Sin(_modelYaw), 0, -Mathf.Cos(_modelYaw));
@@ -582,6 +603,7 @@ public partial class Player : CharacterBody3D, IDamageable
             var target = dir * speed; float a = (IsOnFloor() ? Accel : AirAccel) * dt;
             v.X = Mathf.MoveToward(v.X, target.X, a); v.Z = Mathf.MoveToward(v.Z, target.Z, a);
             if (_atkT > 0 && !Ranged && _atk != null) Magnet(1f - _atkT / _atkDur, dt, ref v);   // melee step-in overrides the planted feet
+            }
         }
         // pushes (lunges, blows) ride on top of the walking velocity; take last frame's push off first, or it piles up every frame
         _kb = _kb.MoveToward(Vector3.Zero, 25f * dt);
@@ -712,6 +734,7 @@ public partial class Player : CharacterBody3D, IDamageable
     void AnimateAvatar(float hv, bool floor, bool atk)
     {
         var a = _av; if (a == null) return; var w = W;
+        a.FlapWings(Game.PlayTime, Flying);   // Golden Wings beat in flight, fold at rest
         bool rolling = _rollT > 0; bool rollStart = rolling && !_avRolling; _avRolling = rolling;
         if (Mounted) { a.Play("sit"); return; }
         if (rolling) { a.Play("roll", .06f, RollTime, rollStart); return; }

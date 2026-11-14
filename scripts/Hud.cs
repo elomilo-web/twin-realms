@@ -106,12 +106,31 @@ public partial class HudCanvas : Control
         }
         DrawColoredPolygon(new[] { new Vector2(cx - 5, cr.End.Y + 6), new Vector2(cx + 5, cr.End.Y + 6), new Vector2(cx, cr.End.Y) }, UiTheme.Accent);
         // target bar
-        Enemy? tgt = Targeting.Aim != null && IsInstanceValid(Targeting.Aim) && !Targeting.Aim.Dead ? Targeting.Aim : Enemy.CurrentBoss != null && GodotObject.IsInstanceValid(Enemy.CurrentBoss) && !Enemy.CurrentBoss.Dead && Enemy.CurrentBoss.Active && Enemy.CurrentBoss.GlobalPosition.DistanceTo(p.GlobalPosition) < 35f ? Enemy.CurrentBoss : p.Dead ? null : p.AimPoint(40f).enemy;
+        Enemy? tgt = Targeting.Aim != null && IsInstanceValid(Targeting.Aim) && !Targeting.Aim.Dead ? Targeting.Aim : Enemy.CurrentBoss != null && GodotObject.IsInstanceValid(Enemy.CurrentBoss) && !Enemy.CurrentBoss.Dead && Enemy.CurrentBoss.Active && Enemy.CurrentBoss.GlobalPosition.DistanceTo(p.GlobalPosition) < (Enemy.CurrentBoss.HpBars > 1 ? 120f : 35f) ? Enemy.CurrentBoss : p.Dead ? null : p.AimPoint(40f).enemy;
         if (tgt != null && !tgt.Dead)
         {
             float tw = u * 24, ty = u * 7.6f + (Arenas.Active ? fs(1.4f) : 0); Txt(new Vector2(sz.X / 2 - tw / 2, ty), $"{tgt.Def.N}  Lv {tgt.Level}", fs(1.2f), tgt.Def.Boss ? UiTheme.Highlight : Colors.White, HorizontalAlignment.Center, tw);
-            SlantBar(new Rect2(sz.X / 2 - tw / 2, ty + 6, tw, Mathf.Max(7, u * .75f)), tgt.Hp / tgt.MaxHp, tgt.Def.Flee ? new Color("9ad06a") : new Color("ff5a4f"), 6, 10);
             float extra = 0;
+            if (tgt.HpBars > 1)
+            {
+                // a raid boss: her health split into bars; the current one drains over the colour of the next, "x N" bars left
+                Color[] bc = { new("ff5a4f"), new("ff9a3a"), new("f2d14b"), new("8fe04f"), new("4fd0c0"), new("5b86ff"), new("b866f5"), new("ff6ad0"), new("ffffff") };
+                float seg = tgt.MaxHp / tgt.HpBars; int left = Mathf.Clamp(Mathf.CeilToInt(tgt.Hp / seg - .0001f), 0, tgt.HpBars); float fr = left <= 0 ? 0 : (tgt.Hp - (left - 1) * seg) / seg;
+                var br = new Rect2(sz.X / 2 - tw / 2, ty + 6, tw, Mathf.Max(9, u * .95f));
+                if (left > 1) SlantBar(br, 1f, bc[(left - 2) % bc.Length].Darkened(.25f), 6, 0);
+                SlantBar(br, fr, bc[(left - 1 + bc.Length) % bc.Length], 6, left > 1 ? 0 : 10);
+                Txt(new Vector2(br.End.X + 8, br.Position.Y + br.Size.Y), "x" + left, fs(1.2f), UiTheme.Highlight);
+                extra += br.Size.Y - Mathf.Max(7, u * .75f);
+                if (tgt.BloomFrac >= 0)
+                {
+                    float by = br.End.Y + 6, bh = Mathf.Max(6, u * .6f);
+                    SlantBar(new Rect2(sz.X / 2 - tw / 2, by, tw, bh), tgt.BloomFrac, new Color("8fe04f"), 4, 6);
+                    Txt(new Vector2(sz.X / 2 - tw / 2, by + bh + fs(1f)), $"THE BLOOM: break it in {Mathf.CeilToInt(tgt.BloomLeft)} s or the rot spreads!", fs(1f), new Color("b8ff8a"), HorizontalAlignment.Center, tw);
+                    extra += bh + fs(1.2f) + 8;
+                }
+                if (tgt.ScarBroken) Txt(new Vector2(sz.X / 2 + tw / 2 - 120, ty), "FALTERING", fs(1f), UiTheme.Highlight, HorizontalAlignment.Right, 120);
+            }
+            else SlantBar(new Rect2(sz.X / 2 - tw / 2, ty + 6, tw, Mathf.Max(7, u * .75f)), tgt.Hp / tgt.MaxHp, tgt.Def.Flee ? new Color("9ad06a") : new Color("ff5a4f"), 6, 10);
             if (tgt.Duelist)
             {
                 // the Shadow Duel boss: stance (breaks when full), the Eclipse barrier while it lasts, and the phase

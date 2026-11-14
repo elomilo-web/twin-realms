@@ -108,6 +108,8 @@ public partial class ItemTip : PanelContainer
                 dl.AddThemeFontSizeOverride("font_size", 13); dl.AddThemeColorOverride("font_color", up ? new Color("5be37d") : new Color("ff6a5f")); h.AddChild(dl);
             }
         }
+        if (it.Mods != null) foreach (var kv in it.Mods) L(TreeDb.StatText(kv.Key, kv.Value), 13, new Color(.75f, .92f, 1f));
+        if (it.Wings) L($"Flight: press {Inputs.KeyOf(Inputs.Jump)} in the air to fly. Hold it to climb, {Inputs.KeyOf(Inputs.Roll)} to dive. Drains stamina; 3x running speed.", 12, new Color("ffd27a"));
         if (it.Unique) L("Unique", 13, new Color("ffd27a"));
         if (LootTables.SetOf(it.Set) is { } set)
         {
