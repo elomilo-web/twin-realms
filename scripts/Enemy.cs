@@ -65,6 +65,12 @@ public partial class Enemy : CharacterBody3D, IDamageable
     bool _meleeSwing; int _summoned;
 
     public float ScaleF() => _scale;
+    /// <summary>Where it was placed (and respawns): the same on every machine, so friends' copies can be matched to the host's (World.Reconcile).</summary>
+    public Vector3 Home => _home == Vector3.Zero && !IsInsideTree() ? Position : _home;
+    /// <summary>Seconds since the host last told us about this puppet.</summary>
+    float _netAge = 99f;
+    /// <summary>An overworld copy of a host monster that the host has not updated lately: it may have died, moved or respawned out of our sight, so it is not drawn.</summary>
+    bool StalePuppet => Puppet && DuelPeer == 0 && !FromDungeon && NetIdx >= 0 && _netAge > 1.5f;
     /// <summary>Upgrades rolled in a dungeon (gear tiers have depth > 0 and are not counted).</summary>
     public int UpgradeCount() { int n = 0; if (Mods != null) foreach (var m in Mods) if (m.Id != "") n++; return n; }
     /// <summary>"Frenzied, Venomous" plus the gear tier, shown above the name.</summary>
@@ -653,7 +659,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
             Velocity = new Vector3(0, v.Y, 0); MoveAndSlide();
             return;
         }
-        if (Puppet) { PuppetMove(dt); if (Scarletta) ScarPuppetTick(dt); return; }
+        if (Puppet) { PuppetMove(dt); if (Scarletta) ScarPuppetTick(dt); _netAge += dt; if (StalePuppet) { Visible = false; CollisionLayer = 0; } else if (!Dead) CollisionLayer = 2; return; }
         AggroTick(dt);   // damage and taunt locks (EnemyAggro.cs)
 
         // damage over time / slow
@@ -866,6 +872,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
     /// <summary>Client: apply a snapshot from the host.</summary>
     public void NetRead(float[] f, int k)
     {
+        _netAge = 0;   // the host still knows it: draw it
         if (Scarletta) { ScarRead(f, k); return; }
         _netPos = new Vector3(f[k], f[k + 1], f[k + 2]); _netYaw = f[k + 3]; Hp = f[k + 4]; var st = (State)(int)f[k + 5];
         MaxHp = Mathf.Max(1, f[k + 7]); int lv = (int)f[k + 8];

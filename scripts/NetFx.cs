@@ -28,6 +28,24 @@ public partial class Net
         if (!_server) return; long to = Sender;
         foreach (var (i, e) in World.NetExtra) if (IsInstanceValid(e) && !e.Dead) RpcId(to, MethodName.R_Ambush, i, e.Type, e.Level, e.GlobalPosition);
     }
+    /// <summary>Client, once our world exists: ask the host for its list of overworld enemies, so ours line up with its (World.Reconcile).</summary>
+    bool _askedList;
+    void AskEnemyList() { if (_askedList || _server || World.I == null) return; _askedList = true; RpcId(1, MethodName.R_WantEnemyList, World.Fingerprint()); }
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer)]
+    void R_WantEnemyList(int theirPrint)
+    {
+        if (!_server) return; var (t, d) = World.NetManifest();
+        GD.Print($"[NET] enemy list to {Sender}: {t.Length} enemies, fingerprints {(theirPrint == World.Fingerprint() ? "match" : "DIFFER (their world was built differently; lining it up)")}");
+        RpcId(Sender, MethodName.R_EnemyList, t, d);
+    }
+    [Rpc(MultiplayerApi.RpcMode.Authority)]
+    void R_EnemyList(string[] types, float[] data)
+    {
+        if (World.I == null) return;
+        var (m, made, removed) = World.Reconcile(types, data);
+        GD.Print($"[NET] overworld enemies lined up with the host: {m} matched, {made} added, {removed} removed"); Count("enemyListSyncs");
+    }
+
     /// <summary>Host: tell one player something (their game shows it as a note).</summary>
     public void NoteTo(long peer, string text) { if (peer == MyId) Ui.Note(text, new Color(1f, .5f, .35f)); else RpcId(peer, MethodName.R_Note, text); }
 

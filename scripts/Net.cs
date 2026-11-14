@@ -29,7 +29,7 @@ public class PartyInfo
 public partial class Net : Node
 {
     public static Net? I;
-    public const int DefaultPort = 24565, Protocol = 7, MaxPlayers = 8;   // Protocol 7: taunts and revives (NetAggro.cs), raid lairs; 6: attack animations in poses; 5: shared ambushes, friends' effects, numbers and statuses; older builds are told to update
+    public const int DefaultPort = 24565, Protocol = 8, MaxPlayers = 8;   // Protocol 8: host's enemy list lines friends' monsters up (World.Reconcile); 7: taunts and revives (NetAggro.cs), raid lairs; 6: attack animations in poses; 5: shared ambushes, friends' effects, numbers and statuses; older builds are told to update
     const int Channels = 8;   // 0 reliable events, 1 poses, 2 enemy snapshots, 3 clock, 4 shots (both sides must open the same number)
     public static bool Active => I != null && I._live;
     public static bool IsHost => Active && I!._server;
@@ -112,7 +112,7 @@ public partial class Net : Node
         _peer = null; _live = false; _server = false; _myId = 1; Players.Clear(); Parties.Clear(); Duel = null;
         foreach (var h in Heroes.Values) if (IsInstanceValid(h)) h.QueueFree(); Heroes.Clear();
         foreach (var l in LootNodes.Values) if (IsInstanceValid(l)) l.QueueFree(); LootNodes.Clear(); _lootRecs.Clear();
-        ClearProxies(); Dungeon.Detach(); _askedAmbush = false;
+        ClearProxies(); Dungeon.Detach(); _askedAmbush = false; _askedList = false;
         foreach (var e in World.NetExtra.Values) if (IsInstanceValid(e) && e.Puppet) e.Puppet = false;   // left the lobby: their ambushers fight on locally
         if (World.I != null) foreach (var e in World.NetEnemies) if (IsInstanceValid(e)) e.Puppet = false;
     }
@@ -228,6 +228,7 @@ public partial class Net : Node
         if (me == null) return;
         if (Heroes.Count != Math.Max(0, Players.Count - 1)) SyncHeroes();
         if (!_askedAmbush) AskAmbushes();   // once our world exists: the ambushers already roaming
+        if (!_askedList) AskEnemyList();    // and the host's list of overworld enemies, so ours line up with it
         // our pose 20 times a second to everyone
         _poseT -= dt; if (_poseT <= 0) { _poseT = .05f; Rpc(MethodName.R_Pose, me.NetPacket()); if (Players.TryGetValue(MyId, out var mi)) { mi.Hp = me.Hp; mi.MaxHp = Game.D.MaxHp(); mi.Zone = MyZone; } }
         // level, gear or zone changed: tell the host (it re-sends the roster)
@@ -276,6 +277,8 @@ public partial class Net : Node
     void R_Realm(int realm) { Realm = realm; if (!Dungeon.Active && !Arenas.Active) World.ApplyShift(realm); }
 
     // ================================================================== enemies
+    /// <summary>How far from a friend the host sends enemy updates: past the 150 m a friend draws monsters, so nothing they see goes stale.</summary>
+    public const float SnapRange = 165f;
     /// <summary>Host: positions, health and state of the overworld enemies near each client, 10 times a second.</summary>
     void SendEnemySnapshots()
     {
@@ -287,7 +290,7 @@ public partial class Net : Node
             var buf = new List<float>(300); var at = h.GlobalPosition;
             void Put(int i, Enemy e)
             {
-                if (!IsInstanceValid(e) || e.GlobalPosition.DistanceSquaredTo(at) > 120f * 120f) return;
+                if (!IsInstanceValid(e) || e.GlobalPosition.DistanceSquaredTo(at) > SnapRange * SnapRange) return;
                 buf.Add(i); e.NetWrite(buf);
                 if (buf.Count >= Enemy.NetPerPacket * Enemy.NetStride) { RpcId(kv.Key, MethodName.R_Enemies, buf.ToArray()); buf.Clear(); }
             }

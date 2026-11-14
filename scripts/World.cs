@@ -804,6 +804,45 @@ void fragment(){
         foreach (var n in Over.FindChildren("*", "", true, false)) if (n is Enemy e && !e.Ambusher) { e.NetIdx = NetEnemies.Count; e.Puppet = Net.IsClient; NetEnemies.Add(e); }
         GD.Print($"[WORLD] {NetEnemies.Count} overworld enemies, fingerprint {Fingerprint()}");
     }
+    /// <summary>Host: every overworld enemy as the friends must have it (type; home x, y, z; level; flags 1 = any realm, 2 = no leash), in network order.</summary>
+    public static (string[] types, float[] data) NetManifest()
+    {
+        var t = new string[NetEnemies.Count]; var d = new float[NetEnemies.Count * 5];
+        for (int i = 0; i < NetEnemies.Count; i++)
+        {
+            var e = NetEnemies[i]; bool ok = GodotObject.IsInstanceValid(e); var h = ok ? e.Home : Vector3.Zero;
+            t[i] = ok ? e.Type : ""; d[i * 5] = h.X; d[i * 5 + 1] = h.Y; d[i * 5 + 2] = h.Z; d[i * 5 + 3] = ok ? e.Level : 1; d[i * 5 + 4] = ok ? (e.AnyRealm ? 1 : 0) + (e.NoLeash ? 2 : 0) : 0;
+        }
+        return (t, d);
+    }
+    /// <summary>
+    /// Friend: line our overworld enemies up with the host's list. Each host entry takes our enemy of the same type whose home is
+    /// closest (within a few metres); entries we lack are created, and enemies the host does not have are removed. Without this, a world
+    /// built even slightly differently on one machine shifted every later index, and friends saw monsters the others could not.
+    /// </summary>
+    public static (int matched, int made, int removed) Reconcile(string[] types, float[] d)
+    {
+        var byType = new Dictionary<string, List<Enemy>>();
+        foreach (var e in NetEnemies) if (GodotObject.IsInstanceValid(e)) { if (!byType.TryGetValue(e.Type, out var l)) byType[e.Type] = l = new(); l.Add(e); }
+        var list = new List<Enemy>(types.Length); int matched = 0, made = 0, removed = 0;
+        for (int i = 0; i < types.Length && i * 5 + 4 < d.Length; i++)
+        {
+            var home = new Vector3(d[i * 5], d[i * 5 + 1], d[i * 5 + 2]); Enemy? pick = null; float best = 4f * 4f;
+            if (byType.TryGetValue(types[i], out var cands))
+                foreach (var c in cands) { float dd = new Vector2(c.Home.X - home.X, c.Home.Z - home.Z).LengthSquared(); if (dd < best) { best = dd; pick = c; } }
+            if (pick != null) { cands!.Remove(pick); matched++; }
+            else
+            {
+                int fl = (int)d[i * 5 + 4];
+                pick = new Enemy { Type = types[i] == "" ? "wolf" : types[i], Level = Mathf.Max(1, (int)d[i * 5 + 3]), AnyRealm = (fl & 1) != 0, NoLeash = (fl & 2) != 0, Position = home };
+                I?.Over.AddChild(pick); made++;
+            }
+            pick.NetIdx = i; pick.Puppet = Net.IsClient; list.Add(pick);
+        }
+        foreach (var l in byType.Values) foreach (var e in l) { e.QueueFree(); removed++; }
+        NetEnemies = list;
+        return (matched, made, removed);
+    }
     /// <summary>Type and rounded position of every overworld enemy, hashed: host and friends must match or their enemies would not line up.</summary>
     public static int Fingerprint()
     {
