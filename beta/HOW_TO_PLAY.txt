@@ -1,4 +1,4 @@
-TWIN REALMS - BETA 1.2  (Windows, 64-bit)
+TWIN REALMS - BETA 1.3  (Windows, 64-bit)
 ==========================================
 
 START
@@ -23,6 +23,11 @@ PACK (I)
   Click an item to equip it. Right-click to drop it on the ground (you or a friend can pick it up again).
   Disassemble: break items into scraps.  Crafting: make gear, elemental gear, set pieces and potions from scraps.
   Pickup filter: choose which items you pick up (the rest stays on the ground, or is scrapped).
+  Blacksmith: hone gear up to +10, reroll its bonus stats, rename it or pick its glow colour.
+
+SKILLS AND ATTRIBUTES
+  Right-click a learned skill (in the skill list or on the hotbar) to take back a rank and get the point back.
+  Esc > Character > Reset attributes returns every spent attribute point.
 
 PLAY WITH A FRIEND
   Both of you need this same version.
