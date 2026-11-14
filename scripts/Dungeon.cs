@@ -12,9 +12,33 @@ public static class Dungeon
     public static string Key = ""; public static int Depth = 1;
     public static Node3D? Root; static Enemy? _boss; static int _bossRoom; static List<Room> _rooms = new(); static float _baseLvl; static Vector3 _ret;
     static JsonDocument? _doc;
-    const float Tile = 4f, WallH = 6f; const int GW = 40, GH = 40;
-    static readonly Vector3 Origin = new Vector3(3000, 0, 3000);
+    public const float Tile = 4f, WallH = 6f; public const int GW = 40, GH = 40;
+    public static readonly Vector3 Origin = new Vector3(3000, 0, 3000);
     public class Room { public int X, Z, W, H, Cx, Cz; }
+
+    // ---- the floor map: uncovered as you explore (the minimap and the map screen draw it)
+    static bool[] _grid = new bool[0], _seen = new bool[0];
+    static readonly List<(Vector3 pos, bool down)> _pads = new();
+    static bool In(int x, int z) => x >= 0 && z >= 0 && x < GW && z < GH && _grid.Length == GW * GH;
+    public static bool Floor(int x, int z) => In(x, z) && _grid[z * GW + x];
+    public static bool Seen(int x, int z) => In(x, z) && _seen[z * GW + x];
+    /// <summary>A wall cell worth drawing: solid rock next to floor.</summary>
+    public static bool Wall(int x, int z) { if (!In(x, z) || _grid[z * GW + x]) return false; for (int dz = -1; dz <= 1; dz++) for (int dx = -1; dx <= 1; dx++) if (Floor(x + dx, z + dz)) return true; return false; }
+    /// <summary>World X/Z of a cell's centre.</summary>
+    public static Vector2 CellCentre(int x, int z) => new(Origin.X + (x + .5f) * Tile, Origin.Z + (z + .5f) * Tile);
+    /// <summary>The exit and (after the boss) descend pads, in world space.</summary>
+    public static IReadOnlyList<(Vector3 pos, bool down)> Pads => _pads;
+    /// <summary>Uncovers the cells around a position: the whole room you stand in (with its walls), or a short reach down a corridor.</summary>
+    public static void Reveal(Vector3 pos)
+    {
+        if (!Active || _seen.Length != GW * GH) return;
+        int cx = Mathf.FloorToInt((pos.X - Origin.X) / Tile), cz = Mathf.FloorToInt((pos.Z - Origin.Z) / Tile);
+        void See(int x, int z) { if (In(x, z)) _seen[z * GW + x] = true; }
+        foreach (var r in _rooms)
+            if (cx >= r.X - 1 && cx <= r.X + r.W && cz >= r.Z - 1 && cz <= r.Z + r.H)
+                for (int z = r.Z - 1; z <= r.Z + r.H; z++) for (int x = r.X - 1; x <= r.X + r.W; x++) See(x, z);
+        for (int dz = -2; dz <= 2; dz++) for (int dx = -2; dx <= 2; dx++) if (dx * dx + dz * dz <= 5) See(cx + dx, cz + dz);
+    }
 
     static JsonElement Theme(string key)
     {
@@ -133,6 +157,7 @@ public static class Dungeon
         }
         int bi = 0; float bd = -1; for (int i = 0; i < _rooms.Count; i++) { float d = new Vector2(_rooms[i].Cx - _rooms[0].Cx, _rooms[i].Cz - _rooms[0].Cz).Length(); if (d > bd) { bd = d; bi = i; } }
         _bossRoom = bi;
+        _grid = grid; _seen = new bool[GW * GH]; _pads.Clear();   // a new floor starts unexplored
 
         Root = new Node3D { Name = "Dungeon", Position = Origin }; Game.Root!.AddChild(Root);
         var cF = JsonUtil.Hex(th.GetProperty("floor").GetInt32()); var cW = JsonUtil.Hex(th.GetProperty("wall").GetInt32());
@@ -354,7 +379,7 @@ public static class Dungeon
 
     static Pad MakePad(Vector3 pos, bool down, Color col)
     {
-        var p = new Pad { Down = down, Position = pos }; Root!.AddChild(p);
+        var p = new Pad { Down = down, Position = pos }; Root!.AddChild(p); _pads.Add((Origin + pos, down));
         p.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 1.4f, BottomRadius = 1.4f, Height = .12f }, MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(col, .6f), Transparency = BaseMaterial3D.TransparencyEnum.Alpha, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded }, Position = new Vector3(0, .06f, 0) });
         p.AddChild(new OmniLight3D { LightColor = col, OmniRange = 10, LightEnergy = 1.3f, Position = new Vector3(0, 1.2f, 0) });
         return p;

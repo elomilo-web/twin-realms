@@ -496,7 +496,7 @@ public partial class Ui : CanvasLayer
         // the map is square; size it to the window height left after the title and hint rows
         var vp = GetViewport().GetVisibleRect().Size; float side = Mathf.Clamp(vp.Y - 150, 240, 680);
         var v = Frame("map", "Map", new Vector2(side + 40, side + 110), OpenMap); var d = Game.D;
-        Row(v, "Click a discovered place to fast travel (not inside dungeons or the arena).", Dim, 15);
+        Row(v, Dungeon.Active ? "This floor as far as you have explored it. Scroll to zoom, drag to pan." : "Click a discovered place to fast travel. Scroll to zoom, drag to pan.", Dim, 15);
         var mv = new MapView { CustomMinimumSize = new Vector2(side, side), SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter }; v.AddChild(mv);
         mv.Travel = poi => { if (Dungeon.Active || Arenas.Active) { Note("You cannot travel from here", new Color(1, .6f, .5f)); return; } Close(); World.ForceRealm(0); Player.Instance?.Teleport(World.TravelPoint(poi), 0f); Ui.Flash(Colors.White); Ui.Note("Travelled to " + poi.Name, Gold); };
     }
@@ -729,22 +729,73 @@ public partial class TreeView : Control
 public partial class MapView : Control
 {
     public Action<Poi>? Travel;
-    Vector2 W2S(float x, float z) => World.MapUV(x, z) * Size;
-    public override void _Ready() { MouseFilter = MouseFilterEnum.Stop; }
+    // zoom and pan: the world map keeps them while the game runs; a dungeon floor opens centred on you
+    static float _zoomW = 1f; static Vector2 _panW;
+    float _zoomD = 1.6f; Vector2 _panD; bool _dInit, _drag; float _moved;
+    bool Dun => Dungeon.Active;
+    float Zoom { get => Dun ? _zoomD : _zoomW; set { if (Dun) _zoomD = value; else _zoomW = value; } }
+    Vector2 Pan { get => Dun ? _panD : _panW; set { if (Dun) _panD = value; else _panW = value; } }
+    static Vector2 UV(float x, float z) => Dungeon.Active ? new Vector2((x - Dungeon.Origin.X) / (Dungeon.GW * Dungeon.Tile), (z - Dungeon.Origin.Z) / (Dungeon.GH * Dungeon.Tile)) : World.MapUV(x, z);
+    Vector2 FromUV(Vector2 uv) => Size / 2 + Pan + (uv - new Vector2(.5f, .5f)) * Size * Zoom;
+    Vector2 W2S(float x, float z) => FromUV(UV(x, z));
+    Font F => ThemeDB.FallbackFont;
+    public override void _Ready() { MouseFilter = MouseFilterEnum.Stop; ClipContents = true; }
+    void Label(Vector2 at, string s, int size, Color col) { DrawStringOutline(F, at, s, HorizontalAlignment.Left, -1, size, 4, new Color(0, 0, 0, .85f)); DrawString(F, at, s, HorizontalAlignment.Left, -1, size, col); }
     public override void _Draw()
     {
-        if (World.MapTex != null) DrawTextureRect(World.MapTex, new Rect2(Vector2.Zero, Size), false); else DrawRect(new Rect2(Vector2.Zero, Size), new Color(.2f, .3f, .2f));
-        foreach (var p in World.Pois)
+        var me = Player.Instance;
+        if (Dun && !_dInit && Size.X > 0 && me != null) { _dInit = true; _panD = -(UV(me.GlobalPosition.X, me.GlobalPosition.Z) - new Vector2(.5f, .5f)) * Size * _zoomD; ClampPan(); }
+        DrawRect(new Rect2(Vector2.Zero, Size), Dun ? new Color(.03f, .035f, .05f) : new Color(.2f, .3f, .2f));
+        if (Dun)
         {
-            bool known = Game.D.Disc.Contains(p.Id); var s = W2S(p.X, p.Z);
-            DrawCircle(s, known ? 7 : 4, known ? new Color(1f, .82f, .29f) : new Color(.3f, .3f, .3f));
-            if (known) DrawString(ThemeDB.FallbackFont, s + new Vector2(10, 5), p.Name, HorizontalAlignment.Left, -1, 15, Colors.White);
+            // the floor as far as you have explored it
+            float cell = Size.X * Zoom / Dungeon.GW;
+            for (int z = 0; z < Dungeon.GH; z++) for (int x = 0; x < Dungeon.GW; x++)
+            {
+                if (!Dungeon.Seen(x, z)) continue; bool fl = Dungeon.Floor(x, z); if (!fl && !Dungeon.Wall(x, z)) continue;
+                var c = Dungeon.CellCentre(x, z); var s = W2S(c.X, c.Y);
+                DrawRect(new Rect2(s - new Vector2(cell, cell) / 2, new Vector2(cell + .5f, cell + .5f)), fl ? new Color(.42f, .45f, .5f) : new Color(.16f, .17f, .22f));
+            }
+            foreach (var (pos, down) in Dungeon.Pads)
+            {
+                int px = Mathf.FloorToInt((pos.X - Dungeon.Origin.X) / Dungeon.Tile), pz = Mathf.FloorToInt((pos.Z - Dungeon.Origin.Z) / Dungeon.Tile); if (!Dungeon.Seen(px, pz)) continue;
+                var s = W2S(pos.X, pos.Z); DrawCircle(s, 7, down ? new Color(1f, .75f, .38f) : new Color(.5f, .88f, 1f)); Label(s + new Vector2(10, 5), down ? "Way down" : "Exit", 14, Colors.White);
+            }
         }
-        if (Player.Instance != null) { var pp = Player.Instance.GlobalPosition; if (!Dungeon.Active) DrawCircle(W2S(pp.X, pp.Z), 6, new Color(1f, .2f, .2f)); }
+        else
+        {
+            if (World.MapTex != null) DrawTextureRect(World.MapTex, new Rect2(FromUV(Vector2.Zero), Size * Zoom), false);
+            foreach (var p in World.Pois)
+            {
+                bool known = Game.D.Disc.Contains(p.Id); var s = W2S(p.X, p.Z);
+                DrawCircle(s, known ? 7 : 4, known ? new Color(1f, .82f, .29f) : new Color(.3f, .3f, .3f));
+                if (known) Label(s + new Vector2(10, 5), p.Name, 15, Colors.White);
+            }
+        }
+        // party members, then you on top
+        foreach (var fr in MapMarks.Friends()) { var s = W2S(fr.Pos.X, fr.Pos.Z); MapMarks.Dot(this, s, 6, fr.Party ? MapMarks.PartyCol : MapMarks.OtherCol); Label(s + new Vector2(9, -6), fr.Name, 14, fr.Party ? MapMarks.PartyCol : MapMarks.OtherCol); }
+        if (me != null && !Arenas.Active) { var pp = me.GlobalPosition; MapMarks.Dot(this, W2S(pp.X, pp.Z), 6, new Color(1f, .2f, .2f)); }
+    }
+    void ClampPan() { var lim = Size * Zoom / 2; Pan = new Vector2(Mathf.Clamp(Pan.X, -lim.X, lim.X), Mathf.Clamp(Pan.Y, -lim.Y, lim.Y)); }
+    void ZoomAt(Vector2 m, float k)
+    {
+        float z2 = Mathf.Clamp(Zoom * k, 1f, 8f); var c = Size / 2; Pan = m - c - (m - c - Pan) * (z2 / Zoom); Zoom = z2; ClampPan(); QueueRedraw();
     }
     public override void _GuiInput(InputEvent e)
     {
-        if (e is InputEventMouseButton mb && mb.Pressed && mb.ButtonIndex == MouseButton.Left)
-            foreach (var p in World.Pois) if (Game.D.Disc.Contains(p.Id) && W2S(p.X, p.Z).DistanceTo(mb.Position) < 14) { Travel?.Invoke(p); return; }
+        if (e is InputEventMouseMotion mm && _drag) { Pan += mm.Relative; _moved += mm.Relative.Length(); ClampPan(); QueueRedraw(); AcceptEvent(); return; }
+        if (e is not InputEventMouseButton mb) return;
+        AcceptEvent();   // the wheel zooms the map, not the window around it
+        if (mb.ButtonIndex == MouseButton.WheelUp && mb.Pressed) ZoomAt(mb.Position, 1.2f);
+        else if (mb.ButtonIndex == MouseButton.WheelDown && mb.Pressed) ZoomAt(mb.Position, 1 / 1.2f);
+        else if (mb.ButtonIndex is MouseButton.Left or MouseButton.Right or MouseButton.Middle)
+        {
+            if (mb.Pressed) { _drag = true; _moved = 0; return; }
+            _drag = false;
+            // a click that did not drag: fast travel to a discovered place
+            if (mb.ButtonIndex == MouseButton.Left && _moved < 5 && !Dun)
+                foreach (var p in World.Pois) if (Game.D.Disc.Contains(p.Id) && W2S(p.X, p.Z).DistanceTo(mb.Position) < 14) { Travel?.Invoke(p); return; }
+        }
     }
+    public override void _Process(double delta) { QueueRedraw(); }   // friends move
 }

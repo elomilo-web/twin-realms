@@ -10,7 +10,8 @@ public partial class Hud : CanvasLayer
     public override void _Ready() { Layer = 5; _c = new HudCanvas { MouseFilter = Control.MouseFilterEnum.Ignore }; _c.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); AddChild(_c); }
     public override void _Process(double delta)
     {
-        var p = Player.Instance; if (p == null || Dungeon.Active) { if (p == null) return; }
+        var p = Player.Instance; if (p == null) return;
+        if (Dungeon.Active) Dungeon.Reveal(p.GlobalPosition);   // the dungeon map fills in as you explore
         if (!Dungeon.Active) foreach (var poi in World.Pois)
             if (!Game.D.Disc.Contains(poi.Id) && new Vector2(poi.X - p.GlobalPosition.X, poi.Z - p.GlobalPosition.Z).Length() < poi.R && (!poi.Sky || p.GlobalPosition.Y > poi.Y - 25f)) { Game.D.Disc.Add(poi.Id); Ui.Banner(poi.Name, "discovered"); Sfx.Play("level"); }
         // region banner when crossing into another land, the sky islands or the open sea
@@ -184,7 +185,7 @@ public partial class HudCanvas : Control
         foreach (var b in p.Buffs) { StatusChip(new Vector2(sx0, hy - isz - 8), isz, new Color(1f, .82f, .4f), Skills.Get(b.id)?.Name[..1] ?? "+", b.t, 0); sx0 += isz + 4; }
         foreach (var s in p.Statuses.List) { StatusChip(new Vector2(sx0, hy - isz - 8), isz, s.Def.Col, s.Def.Name[..1], s.T, s.Stacks); sx0 += isz + 4; }
         // minimap bottom-right
-        if (!Dungeon.Active) DrawMini(p, new Vector2(sz.X - pad - u * 7, sz.Y - pad - u * 7), u * 7);
+        DrawMini(p, new Vector2(sz.X - pad - u * 7, sz.Y - pad - u * 7), u * 7);
         if (p.Dead) Txt(new Vector2(sz.X / 2, sz.Y / 2), "YOU DIED", fs(5f), new Color("ff7b6f"), HorizontalAlignment.Center, sz.X);
     }
 
@@ -259,11 +260,29 @@ public partial class HudCanvas : Control
     void DrawMini(Player p, Vector2 c, float rad)
     {
         DrawCircle(c, rad + 4, UiTheme.Glow); DrawCircle(c, rad, new Color("040b16"));
-        const float span = 150f; int n = 28; float step = rad * 2 / n;
-        if (World.MapTex != null)
+        // a rotated frame (camera-up) shared by the land, the dungeon and the markers
+        float yaw = p.Rig?.Yaw ?? 0f; var f = new Vector2(-Mathf.Sin(yaw), -Mathf.Cos(yaw)); var r = new Vector2(-f.Y, f.X);
+        var me = new Vector2(p.GlobalPosition.X, p.GlobalPosition.Z);
+        float span = Dungeon.Active ? 72f : 150f; int n = 28; float step = rad * 2 / n;
+        Vector2 To(float x, float z) { var dv = new Vector2(x, z) - me; return c + new Vector2(dv.Dot(r), -dv.Dot(f)) / (span / 2) * rad; }
+        if (Dungeon.Active)
         {
-            // sample the map image in a rotated frame (camera-up)
-            float yaw = p.Rig?.Yaw ?? 0f; var f = new Vector2(-Mathf.Sin(yaw), -Mathf.Cos(yaw)); var r = new Vector2(-f.Y, f.X);
+            // only what you have explored (Hud._Process uncovers it): floor in stone grey, walls darker, the exit and the way down marked
+            float half = Dungeon.Tile * .5f, cellPx = Dungeon.Tile / (span / 2) * rad;
+            for (int z = 0; z < Dungeon.GH; z++) for (int x = 0; x < Dungeon.GW; x++)
+            {
+                if (!Dungeon.Seen(x, z)) continue; bool fl = Dungeon.Floor(x, z); if (!fl && !Dungeon.Wall(x, z)) continue;
+                var wc = Dungeon.CellCentre(x, z); if ((To(wc.X, wc.Y) - c).Length() > rad - cellPx * .75f) continue;
+                DrawColoredPolygon(new[] { To(wc.X - half, wc.Y - half), To(wc.X + half, wc.Y - half), To(wc.X + half, wc.Y + half), To(wc.X - half, wc.Y + half) }, fl ? new Color(.42f, .45f, .5f) : new Color(.16f, .17f, .22f));
+            }
+            foreach (var (pos, down) in Dungeon.Pads)
+            {
+                int px = Mathf.FloorToInt((pos.X - Dungeon.Origin.X) / Dungeon.Tile), pz = Mathf.FloorToInt((pos.Z - Dungeon.Origin.Z) / Dungeon.Tile);
+                var o = To(pos.X, pos.Z); if (Dungeon.Seen(px, pz) && (o - c).Length() < rad - 4) DrawCircle(o, 4f, down ? new Color(1f, .75f, .38f) : new Color(.5f, .88f, 1f));
+            }
+        }
+        else if (World.MapTex != null)
+        {
             _img ??= World.MapTex.GetImage(); var img = _img;
             for (int iy = 0; iy < n; iy++) for (int ix = 0; ix < n; ix++)
             {
@@ -274,9 +293,16 @@ public partial class HudCanvas : Control
             }
             foreach (var poi in World.Pois)
             {
-                var dv = new Vector2(poi.X - p.GlobalPosition.X, poi.Z - p.GlobalPosition.Z); var o = new Vector2(dv.Dot(r), -dv.Dot(f)) / (span / 2) * rad;
-                if (o.Length() < rad - 4) DrawCircle(c + o, 3.5f, Gold);
+                var o = To(poi.X, poi.Z);
+                if ((o - c).Length() < rad - 4) DrawCircle(o, 3.5f, Gold);
             }
+        }
+        // party members: on the map when close, pinned to the rim (pointing their way) when farther
+        foreach (var fr in MapMarks.Friends())
+        {
+            var o = To(fr.Pos.X, fr.Pos.Z) - c; float l = o.Length(); var col = fr.Party ? MapMarks.PartyCol : MapMarks.OtherCol;
+            if (l < rad - 6) MapMarks.Dot(this, c + o, 4.5f, col);
+            else MapMarks.Dot(this, c + o / Mathf.Max(.01f, l) * (rad - 6), 3.2f, col with { A = .85f });
         }
         DrawColoredPolygon(new[] { c + new Vector2(0, -8), c + new Vector2(-5, 5), c + new Vector2(5, 5) }, new Color("ff4a3a"));
         DrawArc(c, rad, 0, Mathf.Tau, 48, UiTheme.Accent, 2f); DrawArc(c, rad + 5, -0.5f, 0.5f, 12, UiTheme.Accent, 2f); DrawArc(c, rad + 5, Mathf.Pi - 0.5f, Mathf.Pi + 0.5f, 12, UiTheme.Accent, 2f);
