@@ -10,6 +10,7 @@ public class PeerInfo
 {
     public long Id; public string Name = "Hero", Race = "human", Class = "warrior", Body = "male"; public int Level = 1;
     public Dictionary<string, Item?> Eq = new(); public int Party; public int Zone; public float Hp = 1, MaxHp = 1;
+    public string Title = "";   // the worn title (Titles.cs): shown on their name tag; Felled Angel leaves feathers
 }
 /// <summary>A party: members share kills, experience and gold; the leader picks how item drops are shared.</summary>
 public class PartyInfo
@@ -29,7 +30,7 @@ public class PartyInfo
 public partial class Net : Node
 {
     public static Net? I;
-    public const int DefaultPort = 24565, Protocol = 9, MaxPlayers = 8;   // Protocol 9: lair intro and Scarletta's grab; 8: host's enemy list lines friends' monsters up (World.Reconcile); 7: taunts and revives (NetAggro.cs), raid lairs; 6: attack animations in poses; 5: shared ambushes, friends' effects, numbers and statuses; older builds are told to update
+    public const int DefaultPort = 24565, Protocol = 10, MaxPlayers = 8;   // Protocol 10: titles on heroes, lair shades; 9: lair intro and Scarletta's grab; 8: host's enemy list lines friends' monsters up (World.Reconcile); 7: taunts and revives (NetAggro.cs), raid lairs; 6: attack animations in poses; 5: shared ambushes, friends' effects, numbers and statuses; older builds are told to update
     const int Channels = 8;   // 0 reliable events, 1 poses, 2 enemy snapshots, 3 clock, 4 shots (both sides must open the same number)
     public static bool Active => I != null && I._live;
     public static bool IsHost => Active && I!._server;
@@ -75,7 +76,7 @@ public partial class Net : Node
     public PeerInfo MeInfo()
     {
         var d = Game.D; var p = Player.Instance;
-        return new PeerInfo { Id = MyId, Name = d.Name, Race = d.Race, Class = d.Class, Body = d.Body, Level = d.Level, Eq = new Dictionary<string, Item?>(d.Eq), Zone = MyZone, Hp = p?.Hp ?? d.MaxHp(), MaxHp = d.MaxHp(), Party = Players.GetValueOrDefault(MyId)?.Party ?? 0 };
+        return new PeerInfo { Id = MyId, Name = d.Name, Race = d.Race, Class = d.Class, Body = d.Body, Level = d.Level, Eq = new Dictionary<string, Item?>(d.Eq), Zone = MyZone, Hp = p?.Hp ?? d.MaxHp(), MaxHp = d.MaxHp(), Party = Players.GetValueOrDefault(MyId)?.Party ?? 0, Title = d.Title };
     }
 
     /// <summary>Starts hosting this world. Friends join with your address and the port.</summary>
@@ -234,7 +235,7 @@ public partial class Net : Node
         // level, gear or zone changed: tell the host (it re-sends the roster)
         _meT -= dt; if (_meT <= 0)
         {
-            _meT = .5f; var d = Game.D; string sig = d.Level + "|" + MyZone + "|" + d.Name; foreach (var s in PlayerStats.Slots) { var it = d.Eq.GetValueOrDefault(s); sig += "|" + (it == null ? "-" : it.Name + it.Rar + it.Up); }
+            _meT = .5f; var d = Game.D; string sig = d.Level + "|" + MyZone + "|" + d.Name + "|" + d.Title; foreach (var s in PlayerStats.Slots) { var it = d.Eq.GetValueOrDefault(s); sig += "|" + (it == null ? "-" : it.Name + it.Rar + it.Up); }
             if (sig != _meSig) { _meSig = sig; if (_server) SendRoster(); else RpcId(1, MethodName.R_Me, ToJson(MeInfo())); }
         }
         if (_server)

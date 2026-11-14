@@ -49,6 +49,7 @@
   "weapons": {
     "_help": "proc = built by Weapons.Build (the Twin Realms kit models from data/weapons.json kitModels, or the built-in meshes). Remove proc from a type to go back to its Quaternius model below.",
     "sword": { "proc": true, "rot": [14, -8, 34], "model": "Sword", "len": 0.95 },
+    "katana": { "proc": true, "rot": [14, -8, 34], "model": "Sword", "len": 1.1 },
     "greatsword": { "proc": true, "rot": [8, -12, 90], "model": "Claymore", "len": 1.4 },
     "axe": { "proc": true, "rot": [4, -8, 90], "model": "Axe", "len": 0.75 },
     "mace": { "proc": true, "rot": [6, -16, 90], "model": "Hammer_Small", "len": 0.72 },

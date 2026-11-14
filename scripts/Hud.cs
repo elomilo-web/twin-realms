@@ -67,6 +67,8 @@ public partial class HudCanvas : Control
         float pw = Mathf.Max(300, u * 28), ph = fs(1.2f) + 76, px = pad, py = pad;
         Glass(new Rect2(px, py, pw, ph));
         Txt(new Vector2(px + 12, py + fs(1.2f) + 6), d.Name.ToUpper(), fs(1.2f), UiTheme.Title);
+        if (Titles.Get(d.Title) is { } title)   // the worn title, in pale gold after the name
+            Txt(new Vector2(px + 20 + F.GetStringSize(d.Name.ToUpper(), HorizontalAlignment.Left, -1, fs(1.2f)).X, py + fs(1.2f) + 6), title.Name, fs(.95f), new Color(1f, .93f, .72f));
         Txt(new Vector2(px + 12, py + fs(1.2f) + 6), $"Lv {d.Level}", fs(1.1f), UiTheme.Accent, HorizontalAlignment.Right, pw - 24);
         float hpF = Mathf.Clamp(p.Hp / d.MaxHp(), 0, 1); var hpCol = hpF > .5f ? new Color("5be37d") : hpF > .25f ? new Color("f2d14b") : new Color("ff5a4f");
         float bx0 = px + 12, bw0 = pw - 24, by0 = py + fs(1.2f) + 14;

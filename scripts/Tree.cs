@@ -45,7 +45,7 @@ public static class TreeDb
             "finisherP", "finisherStun", "finisherUp", "powerP", "knockP", "reach", "healIn", "statusImmune", "ccImmune" };
         foreach (var t in new[] { "physical", "fire", "frost", "lightning", "poison", "shadow", "holy" }) { k.Add(t + "P"); k.Add("res_" + t); }
         foreach (var s in new[] { "burn", "poison", "bleed", "chill", "freeze", "root", "shock", "judged", "weaken", "shred", "stun" }) { k.Add(s + "Chance"); k.Add(s + "P"); }
-        foreach (var w in new[] { "sword", "greatsword", "axe", "mace", "dagger", "spear", "bow", "wand", "staff" }) k.Add(w + "P");
+        foreach (var w in new[] { "sword", "katana", "greatsword", "axe", "mace", "dagger", "spear", "bow", "wand", "staff" }) k.Add(w + "P");
         return k;
     }
 

@@ -72,7 +72,7 @@ public static class Weapons
     static readonly Dictionary<string, string[]> _hint = new();
     static bool _useKit; static float _jitter = .06f, _elemTint = .3f;
     static readonly Dictionary<string, PackedScene?> _kitScenes = new();
-    static readonly HashSet<string> Melee = new() { "sword", "greatsword", "axe", "mace", "dagger", "spear" };
+    static readonly HashSet<string> Melee = new() { "sword", "katana", "greatsword", "axe", "mace", "dagger", "spear" };
 
     /// <summary>Every kit model a weapon type can show (for tests and previews).</summary>
     public static IReadOnlyList<string> KitModels(string type)

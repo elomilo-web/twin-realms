@@ -21,6 +21,7 @@
                        3.2
                    ],
     "weaponNames":  {
+                        "katana":  [ "Uchigatana", "Katana", "Tachi", "Nodachi", "Odachi" ],
                         "sword":  [
                                       "Sword",
                                       "Blade",

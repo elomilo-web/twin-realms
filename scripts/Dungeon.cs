@@ -12,9 +12,11 @@ public static partial class Dungeon
     public static string Key = ""; public static int Depth = 1;
     public static Node3D? Root; static Enemy? _boss; static int _bossRoom; static List<Room> _rooms = new(); static float _baseLvl; static Vector3 _ret;
     static JsonDocument? _doc;
-    public const int GW = 40, GH = 40;
-    /// <summary>Metres per grid cell. A raid lair is built on the same grid at ten times the scale (100 times the floor area).</summary>
-    public static float Tile => InLair ? 40f : 4f;
+    /// <summary>Grid size in cells. A raid lair has a finer, larger grid: a kilometre-wide boss room behind modest halls.</summary>
+    public static int GW => InLair ? 150 : 40;
+    public static int GH => InLair ? 190 : 40;
+    /// <summary>Metres per grid cell (4 in dungeons, 8 in a raid lair).</summary>
+    public static float Tile => InLair ? 8f : 4f;
     /// <summary>Wall height: a raid lair has a vault high enough for a giant boss who flies.</summary>
     public static float WallH => InLair ? 44f : 6f;
     static bool InLair => Active && IsLair(Key);
@@ -23,7 +25,7 @@ public static partial class Dungeon
 
     // ---- the floor map: uncovered as you explore (the minimap and the map screen draw it)
     static bool[] _grid = new bool[0], _seen = new bool[0];
-    static readonly List<(Vector3 pos, bool down)> _pads = new();
+    static readonly List<(Vector3 pos, bool down)> _pads = new(); static readonly HashSet<Room> _roomsSeen = new();
     static bool In(int x, int z) => x >= 0 && z >= 0 && x < GW && z < GH && _grid.Length == GW * GH;
     public static bool Floor(int x, int z) => In(x, z) && _grid[z * GW + x];
     public static bool Seen(int x, int z) => In(x, z) && _seen[z * GW + x];
@@ -40,8 +42,11 @@ public static partial class Dungeon
         int cx = Mathf.FloorToInt((pos.X - Origin.X) / Tile), cz = Mathf.FloorToInt((pos.Z - Origin.Z) / Tile);
         void See(int x, int z) { if (In(x, z)) _seen[z * GW + x] = true; }
         foreach (var r in _rooms)
-            if (cx >= r.X - 1 && cx <= r.X + r.W && cz >= r.Z - 1 && cz <= r.Z + r.H)
+            if (!_roomsSeen.Contains(r) && cx >= r.X - 1 && cx <= r.X + r.W && cz >= r.Z - 1 && cz <= r.Z + r.H)
+            {
+                _roomsSeen.Add(r);   // once per room (the lair's boss room is 17,000 cells)
                 for (int z = r.Z - 1; z <= r.Z + r.H; z++) for (int x = r.X - 1; x <= r.X + r.W; x++) See(x, z);
+            }
         for (int dz = -2; dz <= 2; dz++) for (int dx = -2; dx <= 2; dx++) if (dx * dx + dz * dz <= 5) See(cx + dx, cz + dz);
     }
 
@@ -164,7 +169,7 @@ public static partial class Dungeon
         }
         int bi = 0; float bd = -1; for (int i = 0; i < _rooms.Count; i++) { float d = new Vector2(_rooms[i].Cx - _rooms[0].Cx, _rooms[i].Cz - _rooms[0].Cz).Length(); if (d > bd) { bd = d; bi = i; } }
         _bossRoom = bi;
-        _grid = grid; _seen = new bool[GW * GH]; _pads.Clear();   // a new floor starts unexplored
+        _grid = grid; _seen = new bool[GW * GH]; _pads.Clear(); _roomsSeen.Clear();   // a new floor starts unexplored
 
         Root = new Node3D { Name = "Dungeon", Position = Origin }; Game.Root!.AddChild(Root);
         var cF = JsonUtil.Hex(th.GetProperty("floor").GetInt32()); var cW = JsonUtil.Hex(th.GetProperty("wall").GetInt32());

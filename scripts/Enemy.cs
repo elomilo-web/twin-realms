@@ -115,6 +115,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         if (Proxy) { }   // a duel stand-in has no body of its own: the remote hero is drawn instead
         else if (Duelist && Avatar.Available) BuildDuelist();   // the Shadow Duel boss wears the hero (EnemyDuelist.cs)
         else if (Scarletta && Avatar.Available) BuildScarletta();   // the raid boss of the Rotting Hollow (EnemyScarletta.cs)
+        else if (IsShade && Avatar.Available) BuildShade();          // a black mirror of a party member (EnemyShade.cs)
         else if (Def.Model != "" && BuildModel(col)) { }   // an animated monster model (data/enemies.json "model")
         else if (quad) BuildQuad(r, main, dark, glow, col);
         else if (dragon)
@@ -587,6 +588,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
             }
         }
         _lastPeer = -1;
+        if (IsShade) ShadeDrops();   // our own drops (friends roll theirs when their copy falls)
         if (Arena) Arenas.OnEnemyDown(this);
         else if (!netKill) Quests.OnKill(Type, Def.Realm, Def.Boss);
         if (Def.Boss) { Ui.Banner(Def.N, "has fallen"); Sfx.Play("level"); if (FromDungeon) Dungeon.OnBossDown(this); }
@@ -662,6 +664,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         }
         if (Puppet) { PuppetMove(dt); if (Scarletta) ScarPuppetTick(dt); _netAge += dt; if (StalePuppet) { Visible = false; CollisionLayer = 0; } else if (!Dead) CollisionLayer = 2; return; }
         AggroTick(dt);   // damage and taunt locks (EnemyAggro.cs)
+        if (IsShade) ShadeTick(dt);
 
         // damage over time / slow
         // statuses: damage over time (mitigated by resistances only), freeze/stun, slows and roots
@@ -893,6 +896,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         Status.Clear();
         Fx.Burst(GlobalPosition + Vector3.Up, Def.Kind == "wraith" ? new Color(0.7f, 0.4f, 1f) : new Color(0.8f, 0.2f, 0.2f), 16, 5f, 0.6f, 0.12f, -6f, "magic");
         if (FromDungeon && Def.Boss) { Ui.Banner(Def.N, "has fallen"); Sfx.Play("level"); Dungeon.OnBossDown(this); }   // party dungeon: the way down opens for everyone
+        if (IsShade) ShadeDrops();   // each hero rolls their own drops
     }
     /// <summary>Client puppet: glide toward the host's position and heading; legs follow the actual speed.</summary>
     void PuppetMove(float dt)

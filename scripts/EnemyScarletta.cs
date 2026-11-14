@@ -285,11 +285,11 @@ void fragment() {
             }
             case SM.Lunge:
             {
-                // she closes the gap in a blink and thrusts
-                if (_smT < _smWind) { Face(yawTo, 14f, dt); ScarTell(.5f); if (tgt != null) _smTo = tgt.GlobalPosition + Flat(tgt is CharacterBody3D cb ? cb.Velocity : Vector3.Zero) * .2f; break; }
-                var d = Flat(_smTo - GlobalPosition); if (_sTrail != null) _sTrail.Emit = true;
-                if (d.Length() > 3f && _smT - _smWind < .55f) { move = d.Normalized() * RT("lungeSpeed", 42f); Face(Util.YawTo(d.X, d.Z), 20f, dt); }
-                else if (!_smDone)
+                // she closes the gap in a blink and thrusts: from any distance, she reaches you or carries on past you
+                if (_smT < _smWind) { Face(yawTo, 14f, dt); ScarTell(.5f); if (tgt != null) AimDash(tgt, RT("lungeSpeed", 42f), .2f); break; }
+                if (_sTrail != null) _sTrail.Emit = true;
+                if (!Closing(tgt, RT("lungeSpeed", 42f), _smT - _smWind, dt, ref move)) break;
+                if (!_smDone)
                 {
                     _smDone = true; Sfx.Play("swing", .8f); SwingArc(6.5f, 100f);
                     foreach (var h in all) if (InArcOf(h, 6.5f, 100f)) ScarHit(h, .26f, 8f);
@@ -365,12 +365,11 @@ void fragment() {
             case SM.Poise:
             {
                 // she holds a thrust, turning with you... then lunges at where you are now, still homing for its first moment
-                if (_smT < _smWind) { Face(yawTo, 6f, dt); ScarTell(_smT / _smWind * .8f); if (tgt != null) _smTo = tgt.GlobalPosition; break; }
+                if (_smT < _smWind) { Face(yawTo, 6f, dt); ScarTell(_smT / _smWind * .8f); if (tgt != null) AimDash(tgt, RT("poiseSpeed", 55f), 0f); break; }
                 float dashT = _smT - _smWind; if (_sTrail != null) _sTrail.Emit = true;
-                if (tgt != null && dashT < .2f) _smTo = tgt.GlobalPosition;
-                var d = Flat(_smTo - GlobalPosition);
-                if (d.Length() > 3f && dashT < .6f) { move = d.Normalized() * RT("poiseSpeed", 55f); Face(Util.YawTo(d.X, d.Z), 25f, dt); }
-                else if (!_smDone) { _smDone = true; Sfx.Play("swing", .8f); SwingArc(7f, 90f); foreach (var h in all) if (InArcOf(h, 7f, 90f)) ScarHit(h, .34f, 10f); ScarBegin(SM.Recover, .7f * SQ); }
+                if (tgt != null && dashT < .2f) AimDash(tgt, RT("poiseSpeed", 55f), 0f);   // still homing for its first moment
+                if (!Closing(tgt, RT("poiseSpeed", 55f), dashT, dt, ref move)) break;
+                if (!_smDone) { _smDone = true; Sfx.Play("swing", .8f); SwingArc(7f, 90f); foreach (var h in all) if (InArcOf(h, 7f, 90f)) ScarHit(h, .34f, 10f); ScarBegin(SM.Recover, .7f * SQ); }
                 break;
             }
             case SM.Grab:
@@ -512,6 +511,34 @@ void fragment() {
         if (_av == null) return;
         if (_sm is SM.Judge or SM.Recover && !_av.Busy) _av.Move(new Vector2(Velocity.X, Velocity.Z).Length() / Mathf.Max(.5f, _scale * .6f), true, true, false);
         _av.FlapWings(Game.PlayTime * .25f, false);
+    }
+
+    // ------------------------------------------------------------------ gap closers: she never falls short
+    Vector3 _dashDir = Vector3.Forward; float _dashMax = 1f;
+    /// <summary>Aims a dash at a point a few metres past the target (leading a moving target), with time enough for any distance.</summary>
+    void AimDash(Node3D tgt, float speed, float lead)
+    {
+        var to = tgt.GlobalPosition + Flat(tgt is CharacterBody3D cb ? cb.Velocity : Vector3.Zero) * lead; var dir = Flat(to - GlobalPosition);
+        _dashDir = dir.LengthSquared() > .01f ? dir.Normalized() : Fwd2; _smTo = to + _dashDir * RT("dashPast", 4f);
+        _dashMax = dir.Length() / Mathf.Max(1f, speed) + .8f;
+    }
+    /// <summary>One frame of a dash. True once she is beside the target or has gone past the aim point. If something blocks her for too
+    /// long she blinks the rest of the way, so a gap closer always arrives.</summary>
+    bool Closing(Node3D? tgt, float speed, float dashT, float dt, ref Vector3 move)
+    {
+        var d = Flat(_smTo - GlobalPosition);
+        bool beside = tgt != null && IsInstanceValid(tgt) && Flat(tgt.GlobalPosition - GlobalPosition).Length() < 3.5f;
+        bool past = d.Dot(_dashDir) <= 0 || d.Length() < 1.2f;
+        if (beside || past) return true;
+        if (dashT > _dashMax)
+        {
+            // held up (a pillar, a wall): blink the rest of the way to just in front of them
+            var at = tgt != null && IsInstanceValid(tgt) ? tgt.GlobalPosition - _dashDir * 2.5f : _smTo;
+            Vfx.Flash(GlobalPosition + Vector3.Up * 3, new Color(1f, .85f, .45f), 5f, 12f, .25f); GlobalPosition = new Vector3(at.X, GlobalPosition.Y, at.Z);
+            Vfx.Flash(GlobalPosition + Vector3.Up * 3, new Color(1f, .85f, .45f), 5f, 12f, .25f); return true;
+        }
+        move = d.Normalized() * speed; Face(Util.YawTo(d.X, d.Z), 22f, dt);
+        return false;
     }
 
     // ------------------------------------------------------------------ helpers

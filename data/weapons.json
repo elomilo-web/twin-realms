@@ -14,6 +14,7 @@
                                             "shadow":  ["shadow", "void", "moon"]
                                         },
                       "byName":  {
+                                     "katana":  { "Katana": ["katana"], "Tachi": [["katana", 1.08]], "Uchigatana": ["katana"], "Odachi": [["katana", 1.2]], "Nodachi": [["katana", 1.15]] },
                                      "sword":  { "Sword": ["sword_knight", "sword_azure", "sword_ember", "sword_verdant", "sword_shadow", "sword_frost"], "Blade": ["shortsword", "katana", "rapier"], "Saber": ["saber", "saber_moon"], "Longsword": ["sword_royal", "sword_knight", "sword_frost", "sword_shadow", "sword_ember"], "Falchion": ["cutlass"] },
                                      "greatsword":  { "Greatsword": ["greatsword_sun", "claymore_storm"], "Claymore": ["claymore_storm", "greatsword_sun"], "Zweihander": [["greatsword_sun", 1.08], ["claymore_storm", 1.08]], "Flamberge": ["greatsword_sun", "claymore_storm"], "Executioner": [["claymore_storm", 1.1]] },
                                      "axe":  { "Hatchet": [["axe", 0.82]], "Axe": ["axe"], "Bearded Axe": ["axe_double"], "War Axe": ["axe_double", ["greataxe_void", 0.82]], "Cleaver": [["axe", 0.9]] },
@@ -189,6 +190,209 @@
                                               "dmg":  2.2,
                                               "arc":  30,
                                               "range":  3.8,
+                                              "knock":  9,
+                                              "stun":  0.6,
+                                              "lunge":  2.2,
+                                              "keys":  [
+                                                           {
+                                                               "h":  [
+                                                                         0.45,
+                                                                         1.3,
+                                                                         0.3
+                                                                     ],
+                                                               "d":  [
+                                                                         -15,
+                                                                         5
+                                                                     ]
+                                                           },
+                                                           {
+                                                               "h":  [
+                                                                         0.15,
+                                                                         1.3,
+                                                                         -0.75
+                                                                     ],
+                                                               "d":  [
+                                                                         0,
+                                                                         0
+                                                                     ]
+                                                           },
+                                                           {
+                                                               "h":  [
+                                                                         0.12,
+                                                                         1.28,
+                                                                         -0.78
+                                                                     ],
+                                                               "d":  [
+                                                                         0,
+                                                                         -3
+                                                                     ]
+                                                           }
+                                                       ]
+                                          }
+                            },
+                  "katana":  {
+                                "name":  "Katana", "speed":  1.12, "crit":  8,
+                                "hands":  1,
+                                "dmg":  1.0,
+                                "str":  1.8,
+                                "dex":  0.3,
+                                "mag":  0,
+                                "grip":  0.1,
+                                "trail":  "f0f0ff",
+                                "rest":  {
+                                             "h":  [
+                                                       0.42,
+                                                       0.95,
+                                                       -0.14
+                                                   ],
+                                             "d":  [
+                                                       -6,
+                                                       -50
+                                                   ]
+                                         },
+                                "combo":  [
+                                              {
+                                                  "dur":  0.48,
+                                                  "wind":  0.32,
+                                                  "hit":  0.5,
+                                                  "dmg":  1.0,
+                                                  "arc":  60,
+                                                  "range":  3.4,
+                                                  "knock":  2.5,
+                                                  "keys":  [
+                                                               {
+                                                                   "h":  [
+                                                                             0.6,
+                                                                             1.4,
+                                                                             0.05
+                                                                         ],
+                                                                   "d":  [
+                                                                             -115,
+                                                                             12
+                                                                         ]
+                                                               },
+                                                               {
+                                                                   "h":  [
+                                                                             0.1,
+                                                                             1.25,
+                                                                             -0.6
+                                                                         ],
+                                                                   "d":  [
+                                                                             0,
+                                                                             5
+                                                                         ]
+                                                               },
+                                                               {
+                                                                   "h":  [
+                                                                             -0.45,
+                                                                             1.1,
+                                                                             -0.3
+                                                                         ],
+                                                                   "d":  [
+                                                                             115,
+                                                                             -12
+                                                                         ]
+                                                               }
+                                                           ]
+                                              },
+                                              {
+                                                  "dur":  0.46,
+                                                  "wind":  0.3,
+                                                  "hit":  0.5,
+                                                  "dmg":  1.05,
+                                                  "arc":  60,
+                                                  "range":  3.4,
+                                                  "knock":  2.5,
+                                                  "keys":  [
+                                                               {
+                                                                   "h":  [
+                                                                             -0.35,
+                                                                             1.0,
+                                                                             -0.25
+                                                                         ],
+                                                                   "d":  [
+                                                                             105,
+                                                                             -25
+                                                                         ]
+                                                               },
+                                                               {
+                                                                   "h":  [
+                                                                             0.12,
+                                                                             1.3,
+                                                                             -0.62
+                                                                         ],
+                                                                   "d":  [
+                                                                             0,
+                                                                             12
+                                                                         ]
+                                                               },
+                                                               {
+                                                                   "h":  [
+                                                                             0.55,
+                                                                             1.6,
+                                                                             -0.1
+                                                                         ],
+                                                                   "d":  [
+                                                                             -105,
+                                                                             40
+                                                                         ]
+                                                               }
+                                                           ]
+                                              },
+                                              {
+                                                  "dur":  0.62,
+                                                  "wind":  0.38,
+                                                  "hit":  0.55,
+                                                  "dmg":  1.45,
+                                                  "arc":  45,
+                                                  "range":  3.6,
+                                                  "knock":  5,
+                                                  "stun":  0.25,
+                                                  "finisher":  true,
+                                                  "keys":  [
+                                                               {
+                                                                   "h":  [
+                                                                             0.25,
+                                                                             1.9,
+                                                                             0.08
+                                                                         ],
+                                                                   "d":  [
+                                                                             0,
+                                                                             110
+                                                                         ]
+                                                               },
+                                                               {
+                                                                   "h":  [
+                                                                             0.12,
+                                                                             1.45,
+                                                                             -0.55
+                                                                         ],
+                                                                   "d":  [
+                                                                             0,
+                                                                             25
+                                                                         ]
+                                                               },
+                                                               {
+                                                                   "h":  [
+                                                                             0.05,
+                                                                             0.75,
+                                                                             -0.6
+                                                                         ],
+                                                                   "d":  [
+                                                                             0,
+                                                                             -55
+                                                                         ]
+                                                               }
+                                                           ]
+                                              }
+                                          ],
+                                "power":  {
+                                              "dur":  0.8,
+                                              "wind":  0.45,
+                                              "hit":  0.62,
+                                              "dmg":  2.2,
+                                              "arc":  30,
+                                              "range":  4.2,
                                               "knock":  9,
                                               "stun":  0.6,
                                               "lunge":  2.2,

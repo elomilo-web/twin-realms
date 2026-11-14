@@ -26,6 +26,20 @@
         "whirl": { "anim": "bigSwing", "n": "Whirling Edge", "d": "A full turn that hits all around.", "base": 2, "dmg": 1.2, "arc": 180, "spin": 360, "finisher": true, "speed": 0.85, "cost": 2, "req": 8 }
       }
     },
+    "katana": {
+      "name": "Iaido Forms",
+      "start": ["cut", "backcut", "thrust"],
+      "powerAnim": "combo3",
+      "steps": {
+        "cut": { "anim": "slashA", "n": "Draw Cut", "d": "A quick diagonal cut.", "base": 0 },
+        "backcut": { "anim": "slashB", "n": "Backcut", "d": "The return stroke.", "base": 1, "dmg": 1.05 },
+        "thrust": { "anim": "thrust", "n": "Piercing Thrust", "d": "A stabbing finisher that staggers.", "base": 2, "finisher": true },
+        "flurry": { "anim": "combo1", "n": "Flurry", "d": "A fast light cut: weaker, but much quicker.", "base": 0, "dmg": 0.75, "speed": 1.45, "stamina": 0.7, "cost": 1, "req": 2 },
+        "rend": { "anim": "combo3", "n": "Rending Cut", "d": "Opens a wound: may cause bleeding.", "base": 1, "dmg": 0.95, "status": { "bleed": 0.35 }, "cost": 1, "req": 4 },
+        "riposte": { "anim": "dashSlash", "n": "Riposte", "d": "A lunging stab with a high crit chance.", "base": 2, "dmg": 1.3, "lunge": 1.2, "critBonus": 20, "cost": 2, "req": 6 },
+        "whirl": { "anim": "bigSwing", "n": "Whirling Edge", "d": "A full turn that hits all around.", "base": 2, "dmg": 1.2, "arc": 180, "spin": 360, "finisher": true, "speed": 0.85, "cost": 2, "req": 8 }
+      }
+    },
     "greatsword": {
       "name": "Greatsword Forms",
       "start": ["sweep", "return", "cleaver"],

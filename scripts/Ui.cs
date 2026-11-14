@@ -363,6 +363,14 @@ public partial class Ui : CanvasLayer
         // header: who, level, XP bar, wealth
         var head = new HBoxContainer(); head.AddThemeConstantOverride("separation", 14); v.AddChild(head);
         Lbl($"{d.Name}", 22, UiTheme.Title, head); Lbl($"Level {d.Level} {Races.Get(d.Race).Name} {Classes.Get(d.Class).Name}", 16, Colors.White, head);
+        if (d.Titles.Count > 0)
+        {
+            // earned titles: wear one (it shows by your name and gives its bonus)
+            var tb = new OptionButton { TooltipText = "Your title shows beside your name and gives its bonus" }; tb.AddItem("No title"); int sel = 0, idx = 1;
+            foreach (var t in Titles.All) if (d.Titles.Contains(t.Id)) { tb.AddItem(t.Name + (t.Mods.Count > 0 ? "  (" + string.Join(", ", System.Linq.Enumerable.Select(t.Mods, kv => TreeDb.StatText(kv.Key, kv.Value))) + (t.Feathers ? ", feather trail" : "") + ")" : "")); tb.SetItemMetadata(idx, t.Id); if (d.Title == t.Id) sel = idx; idx++; }
+            tb.Select(sel); tb.ItemSelected += i => { Titles.Wear(i == 0 ? "" : tb.GetItemMetadata((int)i).AsString()); Sfx.Play("click"); };
+            head.AddChild(tb);
+        }
         var xb = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; xb.AddThemeConstantOverride("separation", 0); head.AddChild(xb);
         xb.AddChild(new ProgressBar { MinValue = 0, MaxValue = Math.Max(1, d.XpNeed()), Value = Math.Min(d.Xp, d.XpNeed()), ShowPercentage = false, CustomMinimumSize = new Vector2(160, 8), MouseFilter = Control.MouseFilterEnum.Ignore });
         Lbl($"XP {d.Xp} / {d.XpNeed()}", 12, Dim, xb);

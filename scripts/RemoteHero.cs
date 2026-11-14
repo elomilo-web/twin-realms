@@ -11,6 +11,7 @@ namespace TwinRealms;
 public partial class RemoteHero : Node3D, IDamageable, IInteractable
 {
     public long Peer;
+    string _title = ""; float _featherT;   // their worn title (Titles.cs) and the feather trail timer
     HeroRig _rig = null!; SwordTrail _trail = null!; Label3D _tag = null!; Node3D _horse = null!;
     float[]? _p; Vector3 _to; string _lookSig = "", _gearSig = "";
     HandPose _r, _l; float _yaw;
@@ -74,7 +75,7 @@ public partial class RemoteHero : Node3D, IDamageable, IInteractable
             }
         }
         bool party = Net.I != null && Net.I.SameParty(Net.MyId, Peer), duel = Net.I?.Duel is { } d && (d.A == Peer || d.B == Peer);
-        _tag.Text = $"{p.Name}  Lv {p.Level}" + (party ? "  [party]" : "");
+        _tag.Text = $"{Titles.WithTitle(p.Name, p.Title)}  Lv {p.Level}" + (party ? "  [party]" : ""); _title = p.Title;
         _tag.Modulate = duel ? new Color(1f, .55f, .4f) : party ? new Color(.55f, 1f, .6f) : new Color(.75f, .9f, 1f);
     }
 
@@ -92,7 +93,8 @@ public partial class RemoteHero : Node3D, IDamageable, IInteractable
         if (Visible != show) Visible = show;
         if (!show || _p == null) return;
         var p = _p; float k = 1f - Mathf.Exp(-14f * dt);
-        GlobalPosition = GlobalPosition.Lerp(_to, k);
+        var before = GlobalPosition; GlobalPosition = GlobalPosition.Lerp(_to, k);
+        if (Titles.Get(_title)?.Feathers == true && !Dead) FeatherTrail.Tick(ref _featherT, GlobalPosition, new Vector2(GlobalPosition.X - before.X, GlobalPosition.Z - before.Z).Length() / Mathf.Max(dt, .001f), dt);   // Felled Angel
         _yaw = Mathf.LerpAngle(_yaw, p[4], k);
         _rig.Rotation = new Vector3(Mathf.Lerp(_rig.Rotation.X, p[3], k), _yaw, 0);
         _rig.Position = new Vector3(0, p[5], 0);

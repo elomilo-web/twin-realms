@@ -36,6 +36,7 @@ public class PlayerStats
     public Dictionary<string, int> Mats = new();   // gathered materials and disassembly scraps by id (data/gather.json); older saves load with an empty bag
     // pickup filter (Pack > Pickup filter): items below PickRar or of a slot in PickSkip are left on the ground (PickScrap: disassembled instead). Set pieces are always picked up.
     public int PickRar = 0; public List<string> PickSkip = new(); public bool PickScrap = false;
+    public List<string> Titles = new(); public string Title = "";   // earned titles and the one worn (scripts/Titles.cs); older saves load with none
 
     // ---- derived stats (methods so they are not serialised)
     static TreeStats TS => Game.TS;

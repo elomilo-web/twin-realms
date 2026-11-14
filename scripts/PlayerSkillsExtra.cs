@@ -29,8 +29,10 @@ public partial class Player
     /// <summary>Statuses the hero ignores: everything under Purifying Light, stuns, roots, freezes and chills under Unbreakable Will.</summary>
     bool ImmuneTo(string id) => Game.TS["statusImmune"] > 0 || (Game.TS["ccImmune"] > 0 && id is "stun" or "root" or "freeze" or "chill");
 
+    float _featherT;
     void ExtraTick(float dt)
     {
+        if (Titles.Get(Game.D.Title)?.Feathers == true && !Dead) FeatherTrail.Tick(ref _featherT, GlobalPosition, new Vector2(Velocity.X, Velocity.Z).Length(), dt);   // Felled Angel: a trail of fading feathers
         if (WardT > 0) { WardT -= dt; if (WardT <= 0) Ward = 0; }
         if (_wardFx != null) { _wardFx.Visible = Ward > 0; if (Ward > 0) _wardFx.Scale = Vector3.One * (1 + Mathf.Sin(Game.PlayTime * 4f) * .03f); }
         for (int i = _hots.Count - 1; i >= 0; i--)

@@ -82,7 +82,8 @@ public static class Items
         if (slot == "weapon")
         {
             // any weapon type from data/weapons.json; damage factors live there, so item damage rolls the same for all
-            var types = new List<string>(Weapons.Types); if (wt == null || !types.Contains(wt)) wt = types[(int)(GD.Randf() * types.Count) % types.Count];
+            // katanas drop only where asked for (Scarletta's Hollow): ordinary loot never picks them
+            var types = new List<string>(Weapons.Types); if (wt == null || !types.Contains(wt)) { types.Remove("katana"); wt = types[(int)(GD.Randf() * types.Count) % types.Count]; }
             it.Wt = wt; var wd = Weapons.Get(wt);
             float dm = wt == "wand" ? Tune.F("items.weapon.wandDamageMul", .62f) : wt == "staff" ? Tune.F("items.weapon.staffDamageMul", .8f) : 1f;
             it.Dmg = (int)Math.Floor(St("weapon", "dmg", 3, 2.2f) * m * dm);

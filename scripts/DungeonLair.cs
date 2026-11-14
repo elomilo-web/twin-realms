@@ -23,11 +23,16 @@ public static partial class Dungeon
         return new Vector3(s.X, y + 1f, s.Z + 7);
     }
 
-    /// <summary>The lair grid is 40 m a cell (Dungeon.Tile): an 80 m entry hall, a 40 m wide passage, and the great chamber, 1080 x 1000 m.</summary>
+    /// <summary>
+    /// The lair grid is 8 m a cell (Dungeon.Tile): an entry hall, two halls haunted by shades of the party, 8 m passages between them,
+    /// and the great chamber, 1080 x 1000 m. Rooms are joined in this order; the chamber is the farthest, so it is the boss room.
+    /// </summary>
     static void LairRooms()
     {
-        _rooms.Add(new Room { X = 19, Z = 34, W = 2, H = 2, Cx = 20, Cz = 35 });   // entry hall (the exit pad)
-        _rooms.Add(new Room { X = 7, Z = 4, W = 27, H = 25, Cx = 20, Cz = 16 });   // the great chamber
+        _rooms.Add(new Room { X = 68, Z = 176, W = 10, H = 8, Cx = 73, Cz = 180 });    // entry hall (the exit pad)
+        _rooms.Add(new Room { X = 30, Z = 156, W = 16, H = 12, Cx = 38, Cz = 162 });   // the first hall of shades
+        _rooms.Add(new Room { X = 100, Z = 136, W = 18, H = 12, Cx = 109, Cz = 142 }); // the second hall of shades
+        _rooms.Add(new Room { X = 8, Z = 4, W = 135, H = 125, Cx = 75, Cz = 66 });     // the great chamber
     }
     /// <summary>The lair's boss on this machine (the owner's real one, or a friend's mirrored copy).</summary>
     public static Enemy? Boss => _boss != null && GodotObject.IsInstanceValid(_boss) ? _boss : null;
@@ -63,6 +68,9 @@ public static partial class Dungeon
     {
         var r = _rooms[bossRoom]; float cx = (r.Cx + .5f) * Tile, cz = (r.Cz + .5f) * Tile;
         LairDecor(r, th);
+        // the halls before her: overgrown, and haunted by black shades of the party (EnemyShade.cs)
+        var heroes = Enemy.ShadeModels();
+        for (int i = 1; i < _rooms.Count; i++) if (i != bossRoom) { HallDecor(_rooms[i], i); SpawnShades(_rooms[i], i, heroes); }
         // the boss: no rolled upgrades or gear tier (she reads the challengers instead, EnemyScarletta.cs)
         var e = new Enemy { Type = "scarletta", Level = (int)_baseLvl + Progression.DunBoss, FromDungeon = true, NoLeash = true, AnyRealm = true, Position = new Vector3(cx, 0.4f, cz) };
         LairIntroDone = false;
@@ -149,6 +157,46 @@ void fragment() {
             Root.AddChild(new OmniLight3D { Position = new Vector3(cx + dx, WallH - 8, cz + dz), LightColor = new Color(.5f, .8f, .5f), OmniRange = 300f, LightEnergy = .6f, ShadowEnabled = false });
     }
 
+    /// <summary>
+    /// Shades in a hall: a fixed number per hall (so every machine numbers the same monsters, whoever is in the party), each the
+    /// mirror of one party member in turn, fighting with that hero's kind of weapon.
+    /// </summary>
+    static void SpawnShades(Room h, int hall, List<PlayerStats> heroes)
+    {
+        var rnd = new Random(Seed + 101 * hall); int n = hall == 1 ? 8 : 10;
+        for (int i = 0; i < n; i++)
+        {
+            var hero = heroes[i % heroes.Count]; string wt = hero.WType();
+            string type = wt == "bow" ? "shadeArcher" : wt is "wand" or "staff" ? "shadeCaster" : "shade";
+            float x = (h.X + 1.5f + (float)rnd.NextDouble() * (h.W - 3)) * Tile, z = (h.Z + 1.5f + (float)rnd.NextDouble() * (h.H - 3)) * Tile;
+            var e = new Enemy { Type = type, Level = (int)_baseLvl, FromDungeon = true, NoLeash = true, AnyRealm = true, ShadeOf = hero, Position = new Vector3(x, .4f, z) };
+            if (Inst != 0) { e.NetIdx = NetList.Count; e.Puppet = Owner != Net.MyId; NetList.Add(e); }
+            Root!.AddChild(e);
+        }
+    }
+    /// <summary>The halls before the chamber: glowing mushrooms along the walls and a slime pool.</summary>
+    static void HallDecor(Room h, int hall)
+    {
+        var rnd = new Random(Seed + 57 * hall); float R() => (float)rnd.NextDouble();
+        var deco = new Node3D { Name = "HallDecor" + hall }; Root!.AddChild(deco);
+        StandardMaterial3D Glow(Color c, float e) => new() { AlbedoColor = c, EmissionEnabled = true, Emission = c, EmissionEnergyMultiplier = e, Roughness = .6f };
+        var stem = Gfx.Tex(DMat(new Color(.82f, .78f, .66f)), "noise", .6f); Color[] cols = { new(.55f, .22f, .5f), new(.25f, .5f, .45f), new(.62f, .3f, .2f) };
+        float x0 = h.X * Tile, z0 = h.Z * Tile, x1 = (h.X + h.W) * Tile, z1 = (h.Z + h.H) * Tile;
+        for (int i = 0; i < 14; i++)
+        {
+            bool alongX = R() < .5f; float u = R(), side = R() < .5f ? 3f : -3f;
+            var p = alongX ? new Vector3(x0 + 4 + u * (x1 - x0 - 8), 0, side > 0 ? z0 + 3 + R() * 4 : z1 - 3 - R() * 4) : new Vector3(side > 0 ? x0 + 3 + R() * 4 : x1 - 3 - R() * 4, 0, z0 + 4 + u * (z1 - z0 - 8));
+            float ht = 3f + R() * 7f, cr = 1.2f + R() * 2.4f; var cap = Glow(cols[i % cols.Length], .5f);
+            deco.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = .25f + cr * .12f, BottomRadius = .4f + cr * .18f, Height = ht, RadialSegments = 10 }, MaterialOverride = stem, Position = p + Vector3.Up * ht / 2 });
+            deco.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = cr, Height = cr * .9f, RadialSegments = 16, Rings = 5, IsHemisphere = true }, MaterialOverride = cap, Position = p + Vector3.Up * ht });
+            if (i % 5 == 0) Root.AddChild(new OmniLight3D { Position = p + Vector3.Up * (ht - .8f), LightColor = cols[i % cols.Length].Lightened(.3f), OmniRange = cr * 6f, LightEnergy = 1.3f, ShadowEnabled = false });
+        }
+        var pool = new Vector3((x0 + x1) / 2 + (R() - .5f) * 20f, .04f, (z0 + z1) / 2 + (R() - .5f) * 14f);
+        deco.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 5f, BottomRadius = 5f, Height = .06f, RadialSegments = 24 }, MaterialOverride = Glow(new Color(.35f, .9f, .25f), 1.2f), Position = pool, Scale = new Vector3(1, 1, .7f) });
+        Root.AddChild(new OmniLight3D { Position = pool + Vector3.Up * 2f, LightColor = new Color(.45f, 1f, .3f), OmniRange = 18f, LightEnergy = 1f, ShadowEnabled = false });
+        Gfx.MergeChildren(deco);
+    }
+
     /// <summary>Scarletta fell: a chest rises for every challenger on the floor. Each machine makes its own hero's chest openable; the others only show whose they are.</summary>
     static void LairBossDown(Enemy e)
     {
@@ -162,6 +210,14 @@ void fragment() {
             Root!.AddChild(new RaidChest { Mine = names[i].mine, OwnerName = names[i].name, Level = e.Level, Position = at, Rotation = new Vector3(0, -a + Mathf.Pi / 2, 0) });
         }
         Ui.Banner("Scarletta has fallen", names.Count > 1 ? "a chest for every challenger" : "her hoard is yours"); Sfx.Play("level");
+        // every challenger (each on their own game): a great deal of experience, and the title Felled Angel
+        var p = Player.Instance;
+        if (p != null)
+        {
+            int xp = Mathf.RoundToInt(Game.D.XpNeed() * Tune.F("raid.bossXpLevels", 3f));   // about three levels' worth at your level
+            p.AddXp(xp, p.GlobalPosition);
+            if (Titles.Grant(Titles.FelledAngel)) Ui.Note($"Title earned: {Titles.Get(Titles.FelledAngel)!.Name}. Wear it from the Character menu.", new Color(1f, .95f, .75f));
+        }
         Game.Save();
     }
 }
