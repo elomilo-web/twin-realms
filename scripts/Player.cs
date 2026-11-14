@@ -108,7 +108,7 @@ public partial class Player : CharacterBody3D, IDamageable
     void RefreshWeapon()
     {
         var d = Game.D; var sig = d.WType();
-        foreach (var s in PlayerStats.Slots) { var it = d.Eq.GetValueOrDefault(s); sig += "|" + (it == null ? "-" : it.Name + it.Rar + it.Up); }
+        foreach (var s in PlayerStats.Slots) { var it = d.Eq.GetValueOrDefault(s); sig += "|" + (it == null ? "-" : it.Name + it.Rar + it.Up + it.Glow); }
         if (sig == _gearSig) return; _gearSig = sig;
         // the weapon class's basic attack goes on the attack button automatically (data/attacks.json)
         string wt = d.WType();

@@ -14,6 +14,7 @@ public class SetDef
     public string Id = "", Name = "", Prefix = "", Elem = ""; public Color Col = Colors.Aquamarine; public List<string> Pieces = new();
     public int MinDepth = 10; public float Chance, Elite, Boss, PerDepth, StatMul = 1.25f;
     public SortedDictionary<int, Dictionary<string, float>> Bonuses = new();
+    public bool Craft; public Dictionary<string, int> CraftCost = new();   // craft-only sets: never drop; forged piece by piece
 }
 
 /// <summary>
@@ -52,6 +53,7 @@ public static class LootTables
         if (r.TryGetProperty("sets", out var ss))
             foreach (var p in ss.EnumerateObject())
             {
+                if (p.Name.StartsWith("_")) continue;   // notes
                 var e = p.Value; var s = new SetDef
                 {
                     Id = p.Name, Name = JsonUtil.S(e, "name", p.Name), Prefix = JsonUtil.S(e, "prefix", p.Name), Elem = JsonUtil.S(e, "elem"), Col = Color.FromHtml(JsonUtil.S(e, "color", "#3fe0c0")),
@@ -59,6 +61,8 @@ public static class LootTables
                 };
                 if (e.TryGetProperty("pieces", out var pc)) foreach (var x in pc.EnumerateArray()) s.Pieces.Add(x.GetString() ?? "armor");
                 if (e.TryGetProperty("bonuses", out var b)) foreach (var o in b.EnumerateObject()) { var m = new Dictionary<string, float>(); foreach (var k in o.Value.EnumerateObject()) m[k.Name] = k.Value.GetSingle(); s.Bonuses[int.Parse(o.Name)] = m; }
+                s.Craft = e.TryGetProperty("craft", out var cf) && cf.ValueKind == JsonValueKind.True;
+                if (e.TryGetProperty("craftCost", out var cc)) foreach (var o in cc.EnumerateObject()) s.CraftCost[o.Name] = o.Value.GetInt32();
                 Sets[p.Name] = s;
             }
     }

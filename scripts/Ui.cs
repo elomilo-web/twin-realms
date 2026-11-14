@@ -97,6 +97,7 @@ public partial class Ui : CanvasLayer
     // ---------------------------------------------------------------- panel frame
     VBoxContainer Frame(string name, string title, Vector2 size, Action rebuild)
     {
+        if (name != "pack") _scrapMode = false;   // Disassemble stays on only while you stay in the pack
         CloseNoUnpause(); _panelName = name; _rebuild = rebuild;
         var root = new Control { MouseFilter = Control.MouseFilterEnum.Stop, Theme = MakeTheme() }; root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         if (name == "title") root.AddChild(new ColorRect { Color = new Color(.005f, .02f, .05f, 0.85f), MouseFilter = Control.MouseFilterEnum.Ignore, AnchorRight = 1, AnchorBottom = 1 });
@@ -116,7 +117,8 @@ public partial class Ui : CanvasLayer
         var tw = root.CreateTween().SetParallel(); tw.TweenProperty(root, "modulate:a", 1f, UiTheme.OpenTime); tw.TweenProperty(pc, "scale", Vector2.One, UiTheme.OpenTime).SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);        if (name != "title") { GetTree().Paused = !Net.Active; /* a shared world never pauses */ Input.MouseMode = Input.MouseModeEnum.Visible; }
         return v;
     }
-    public void Close() { _confirmQuit = false; CloseNoUnpause(); if (InGame) { GetTree().Paused = false; Input.MouseMode = Input.MouseModeEnum.Captured; } }
+    // leaving the menus turns Disassemble back off
+    public void Close() { _confirmQuit = false; _scrapMode = false; CloseNoUnpause(); if (InGame) { GetTree().Paused = false; Input.MouseMode = Input.MouseModeEnum.Captured; } }
     void CloseNoUnpause() { HideTip(); if (_panel != null) { _panel.QueueFree(); _panel = null; _panelName = ""; _rebuild = null; } }
 
     static Button Btn(string t, Action a, bool small = false)
@@ -244,23 +246,6 @@ public partial class Ui : CanvasLayer
         v.AddChild(Btn("Leave", Close));
     }
 
-    void OpenSmith()
-    {
-        var d = Game.D; var w = d.Weapon; int up = w?.Up ?? 0; int cost = 60 * (up + 1) + (w != null ? w.Lvl * 10 : 0);
-        var v = Frame("smith", "Dorrin the Smith", new Vector2(560, 260), OpenSmith); Row(v, $"{d.Gold} gold", Gold, 20);
-        if (w == null) Row(v, "You have no weapon to sharpen.", Colors.White, 18);
-        else if (up >= 5) Row(v, $"That {w.Name} cannot be honed any further.", Colors.White, 18);
-        else
-        {
-            int add = Mathf.CeilToInt(2 + w.Lvl * .6f); Row(v, $"I can hone your {w.Name} (+{up}/5) for {cost}g. It will bite harder.", w.Color, 18);
-            v.AddChild(Btn($"Hone (+{add} dmg) for {cost}g", () =>
-            {
-                if (d.Gold < cost) { Note("Not enough gold", new Color(1, .5f, .5f)); return; }
-                d.Gold -= cost; w.Dmg += add; w.Up = up + 1; w.Name = System.Text.RegularExpressions.Regex.Replace(w.Name, @" \+\d$", "") + " +" + w.Up; Sfx.Play("hit"); Sfx.Play("coin"); Game.Notify(); OpenSmith();
-            }));
-        }
-        v.AddChild(Btn("Leave", Close));
-    }
 
     // ---------------------------------------------------------------- pack
     // grid pack: paper-doll slots on the left, a 7x4 icon grid on the right, a hover tooltip with comparison arrows.
@@ -357,6 +342,14 @@ public partial class Ui : CanvasLayer
         var parts = new List<string>(); for (int i = 0; i < a.Length; i++) { float dv = (b[i] - a[i]) / 10f; if (Mathf.Abs(dv) > .005f) parts.Add($"+{dv:0.##} {names[i]}".Replace(" %", "% ").Replace("%  ", "% ")); }
         return parts.Count > 0 ? "Each point: " + string.Join(", ", parts) : "";
     }
+    /// <summary>Attributes a new hero of this race and class starts with (Game.NewGame): 5 each plus the class's and race's bonuses.</summary>
+    static (int str, int dex, int vit, int mag) BaseAttributes(PlayerStats d)
+    {
+        int s = 5, x = 5, v = 5, m = 5;
+        void Add(Dictionary<string, int> a) { foreach (var kv in a) switch (kv.Key) { case "str": s += kv.Value; break; case "dex": x += kv.Value; break; case "vit": v += kv.Value; break; case "mag": m += kv.Value; break; } }
+        Add(Classes.Get(d.Class).Attr); Add(Races.Get(d.Race).Attr);
+        return (s, x, v, m);
+    }
     void OpenCharacterPanel()
     {
         var d = Game.D; var TS = Game.TS; var v = Frame("char", "Character", new Vector2(1000, 620), OpenCharacterPanel); HideInfo();
@@ -377,6 +370,14 @@ public partial class Ui : CanvasLayer
         Lbl($"Gold {d.Gold}   Valor {d.Valor}   Kills {d.Kills}", 14, Dim, head);
         var pts = new HBoxContainer(); pts.AddThemeConstantOverride("separation", 8); v.AddChild(pts);
         Chip(pts, $"Attribute points  {d.AttrPts}", d.AttrPts > 0); Chip(pts, $"Skill points  {d.RankPts}", d.RankPts > 0); Chip(pts, $"Tree points  {d.SkillPts}", d.SkillPts > 0);
+        pts.AddChild(Btn("Reset attributes", () =>
+        {
+            // every spent attribute point comes back: Strength, Dexterity, Vitality and Magic return to what the race and class start with
+            var (s0, d0, v0, m0) = BaseAttributes(d); int back = Math.Max(0, d.Str - s0) + Math.Max(0, d.Dex - d0) + Math.Max(0, d.Vit - v0) + Math.Max(0, d.Mag - m0);
+            if (back == 0) { Note("No attribute points spent yet", Dim); return; }
+            d.Str = Math.Min(d.Str, s0); d.Dex = Math.Min(d.Dex, d0); d.Vit = Math.Min(d.Vit, v0); d.Mag = Math.Min(d.Mag, m0); d.AttrPts += back;
+            Note($"Attributes reset: {back} points to spend again", UiTheme.Highlight); Game.Notify(); Game.Save(); OpenCharacterPanel();
+        }, true));
         pts.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
         pts.AddChild(Btn($"Skills ({Inputs.KeyOf(Inputs.SkillsUi)})", OpenSkills, true)); pts.AddChild(Btn($"Skill tree ({Inputs.KeyOf(Inputs.Tree)})", OpenTree, true)); pts.AddChild(Btn($"Modifiers ({Inputs.KeyOf(Inputs.ModsUi)})", OpenMods, true)); pts.AddChild(Btn("All bonuses", OpenTotals, true));
 

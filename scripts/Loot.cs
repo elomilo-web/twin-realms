@@ -38,6 +38,9 @@ public partial class Loot : Node3D
 
     public static void DropFrom(Vector3 pos, int level, float itemChance, float bonus, int gold, float potChance)
     {
+        // luck (pooled across the party) finds more and rarer items; gold find is our own
+        float luck = Luck.Party(); itemChance = Luck.Chance(itemChance, luck); bonus = Luck.Bonus(bonus, luck);
+        gold = Mathf.RoundToInt(gold * (1 + Mathf.Max(0, Game.TS["goldP"]) / 100f));
         if (gold > 0) Drop(pos, gold: gold);
         if (GD.Randf() < itemChance) Drop(pos, item: LootTables.Roll(level, bonus));   // in a dungeon: that dungeon's own drop table
         if (GD.Randf() < potChance) Drop(pos, pot: GD.Randf() < .6f ? "hp" : "mp");

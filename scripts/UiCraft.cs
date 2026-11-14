@@ -94,8 +94,26 @@ public partial class Ui
             case "sets":
             {
                 var e = c.GetProperty("sets"); var cost = Cost(e); int lb = (int)JsonUtil.F(e, "levelBonus", 0);
+                // the five forged sets: they never drop; choose the piece you want
+                Lbl("FORGED SETS   only made here, never found", 15, UiTheme.Accent, list);
+                foreach (var s in LootTables.Sets.Values.Where(x => x.Craft))
+                {
+                    var sd = s; Row(list, $"{s.Name}   ({Cap(s.Elem)})   {CostText(s.CraftCost)}", s.Col, 15);
+                    var pr = new HBoxContainer(); pr.AddThemeConstantOverride("separation", 4); list.AddChild(pr);
+                    foreach (var piece in s.Pieces)
+                    {
+                        string pc = piece; var b = Btn("Forge " + Cap(piece), () =>
+                        {
+                            if (!Room()) return; if (!CanPay(sd.CraftCost)) { Note("Not enough materials", new Color(1, .5f, .5f)); return; }
+                            Pay(sd.CraftCost); Give(LootTables.MakeSetPiece(sd, d.Level + lb, pc)); OpenCraft(tab);
+                        }, true);
+                        b.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; b.AddThemeColorOverride("font_color", s.Col); pr.AddChild(b);
+                    }
+                    foreach (var (n, mods) in s.Bonuses) Row(list, $"      {n} pieces: " + string.Join(", ", mods.Select(kv => TreeDb.StatText(kv.Key, kv.Value))), Dim, 13);
+                }
+                Lbl("DUNGEON SETS", 15, UiTheme.Accent, list);
                 Row(list, "Forge a random piece of a set. You need to own at least one piece of that set already (worn, in your pack or in storage). Set pieces drop from floor 10 and deeper of their dungeon.", Colors.White, 15);
-                foreach (var s in LootTables.Sets.Values)
+                foreach (var s in LootTables.Sets.Values.Where(x => !x.Craft))
                 {
                     bool owns = d.Eq.Values.Any(i => i?.Set == s.Id) || d.Inv.Any(i => i.Set == s.Id) || d.Stash.Any(i => i.Set == s.Id);
                     var sd = s;

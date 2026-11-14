@@ -31,7 +31,7 @@ public partial class InfoTip : PanelContainer
 public partial class SkillTile : Control
 {
     public string Icon = "", Corner = ""; public int Rank, MaxRank = 5, Key = -1; public bool Known, Locked, CanLearn, Selected; public Color Tint = UiTheme.Accent;
-    public Action? Click; public Action<bool, Vector2>? Hover;
+    public Action? Click, RightClick; public Action<bool, Vector2>? Hover;
     bool _over;
     static Font F => ThemeDB.FallbackFont;
     public override void _Ready()
@@ -43,6 +43,7 @@ public partial class SkillTile : Control
     public override void _GuiInput(InputEvent e)
     {
         if (e is InputEventMouseButton mb && mb.Pressed && mb.ButtonIndex == MouseButton.Left) { Sfx.Play("click"); Click?.Invoke(); AcceptEvent(); }
+        else if (e is InputEventMouseButton rb && rb.Pressed && rb.ButtonIndex == MouseButton.Right && RightClick != null) { Sfx.Play("click"); RightClick(); AcceptEvent(); }
     }
     public override void _Draw()
     {

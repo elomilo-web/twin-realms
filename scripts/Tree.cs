@@ -42,7 +42,7 @@ public static class TreeDb
         var k = new HashSet<string> { "meleeP", "rangedP", "spellP", "allP", "hp", "hpP", "mp", "mpP", "st", "def", "crit", "critD", "aspd", "move", "cdr", "leech", "mleech", "regenHp", "regenMp",
             "block", "thorns", "chain", "burn", "magToDmg", "magToBow", "strToBow", "mcost", "cleave", "multi", "pierce", "manaShield", "undying", "rage",
             "armorPen", "armorPenP", "magicPen", "magicPenP", "mr", "tenacity", "evade", "statusP", "healP", "xpP", "skillP", "aoeP", "castSpd",
-            "finisherP", "finisherStun", "finisherUp", "powerP", "knockP", "reach", "healIn", "statusImmune", "ccImmune" };
+            "finisherP", "finisherStun", "finisherUp", "powerP", "knockP", "reach", "healIn", "statusImmune", "ccImmune", "luck", "goldP" };
         foreach (var t in new[] { "physical", "fire", "frost", "lightning", "poison", "shadow", "holy" }) { k.Add(t + "P"); k.Add("res_" + t); }
         foreach (var s in new[] { "burn", "poison", "bleed", "chill", "freeze", "root", "shock", "judged", "weaken", "shred", "stun" }) { k.Add(s + "Chance"); k.Add(s + "P"); }
         foreach (var w in new[] { "sword", "katana", "greatsword", "axe", "mace", "dagger", "spear", "bow", "wand", "staff" }) k.Add(w + "P");
@@ -121,7 +121,7 @@ public static class TreeDb
             "mr" => $"+{s(v)} magic resist", "tenacity" => $"+{s(v)}% tenacity (shorter stuns, slows and damage over time)", "evade" => $"+{s(v)}% chance to evade hits", "statusP" => $"+{s(v)}% status effect duration",
             "healP" => $"+{s(v)}% healing", "xpP" => $"+{s(v)}% experience", "skillP" => $"+{s(v)}% skill damage", "aoeP" => $"+{s(v)}% skill area", "castSpd" => $"+{s(v)}% cast speed",
             "finisherP" => $"+{s(v)}% combo finisher damage", "finisherStun" => $"Combo finishers stun for +{s(v)} s", "finisherUp" => $"Combo finishers knock foes up ({s(v)})", "powerP" => $"+{s(v)}% power attack damage",
-            "knockP" => $"+{s(v)}% knockback", "reach" => $"+{s(v)}% melee reach", "healIn" => $"{(v > 0 ? "+" : "")}{s(v)}% healing received", "statusImmune" => "Immune to all statuses", "ccImmune" => "Immune to stuns, roots, freezes, chills and flinching",
+            "knockP" => $"+{s(v)}% knockback", "reach" => $"+{s(v)}% melee reach", "healIn" => $"{(v > 0 ? "+" : "")}{s(v)}% healing received", "statusImmune" => "Immune to all statuses", "luck" => $"+{s(v)} luck (more and rarer drops for your whole party)", "goldP" => $"+{s(v)}% gold found", "ccImmune" => "Immune to stuns, roots, freezes, chills and flinching",
             _ when k.StartsWith("res_") => $"{(v > 0 ? "+" : "")}{s(v)}% {k[4..]} resistance",
             _ when k.EndsWith("Chance") => $"{s(v)}% chance on hit to inflict {Dmg.Status(k[..^6])?.Name.ToLower() ?? k[..^6]}",
             _ when k.EndsWith("P") && Dmg.Status(k[..^1]) != null && !System.Array.Exists(Dmg.Types, t => t + "P" == k) => $"+{s(v)}% {Dmg.Status(k[..^1])!.Name.ToLower()} strength",

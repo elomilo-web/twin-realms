@@ -38,7 +38,8 @@ public static class GearFx
     public static Elem? Get(string? id) { Load(); return id != null && _el.TryGetValue(id, out var e) ? e : null; }
     /// <summary>Rolls an element for a new item of this rarity (or none).</summary>
     public static string? Roll(int rar) { Load(); return GD.Randf() < _chance[Mathf.Clamp(rar, 0, 4)] ? _order[(int)(GD.Randi() % (uint)_order.Count)] : null; }
-    public static Color ColorOf(Item it) => Get(it.Elem)?.Col ?? Items.RarityColor(it.Rar);
+    /// <summary>The glow colour: the smith's choice, else the element's, else the rarity's.</summary>
+    public static Color ColorOf(Item it) => !string.IsNullOrEmpty(it.Glow) && Color.HtmlIsValid(it.Glow) ? Color.FromHtml(it.Glow) : Get(it.Elem)?.Col ?? Items.RarityColor(it.Rar);
 
     /// <summary>Applies the glow to every mesh under root. weapon = full strength plus light and sparks (length = blade length along +Z, from 'from').</summary>
     public static void Apply(Node3D root, Item? it, bool weapon, float from = 0f, float length = 0f)
@@ -51,6 +52,16 @@ public static class GearFx
             if (it.Up >= _upPulseAt) t.Pulse = Mathf.Max(t.Pulse, .25f);
             if (weapon && it.Up >= _upSparksAt) t.Sparks = Mathf.Max(t.Sparks, 3 + it.Up);
         }
+        // every bonus stat slot (Affixes) adds to the effect: brighter, breathing from 3, sparks from 2 (on armour too, from 4)
+        int slots = it.Mods?.Count ?? 0;
+        if (slots > 0)
+        {
+            t.Edge += .07f * slots; if (weapon) t.Emit += .05f * slots;
+            if (slots >= 3) t.Pulse = Mathf.Max(t.Pulse, .2f + .05f * slots);
+            if (weapon && slots >= 2) t.Sparks = Mathf.Max(t.Sparks, 2 * slots);
+            if (weapon && it.Rar >= 4) t.Light = Mathf.Max(t.Light, .35f + .1f * slots);
+        }
+        bool custom = !string.IsNullOrEmpty(it.Glow); if (custom) t.Edge = Mathf.Max(t.Edge, .3f);   // a chosen colour always shows a little
         float edge = t.Edge * (weapon ? 1f : _armorScale); if (elem) edge = Mathf.Max(edge, weapon ? .5f : .25f);
         if (edge <= 0.001f && t.Emit <= 0) return;
         var edgeMat = EdgeMat(col, edge, t.Pulse);
@@ -71,6 +82,8 @@ public static class GearFx
                 if (mi.MaterialOverride != null) { mi.MaterialOverride = d; break; } else mi.SetSurfaceOverrideMaterial(s, d);
             }
         }
+        // high-tier armour with many bonus stats sheds a few motes of its colour
+        if (!weapon && it.Rar >= 3 && slots >= 4) root.AddChild(Sparks(col, slots + (it.Rar >= 4 ? 3 : 0) + it.Up / 2, -.15f, .3f));
         if (!weapon || length <= 0) return;
         var mid = new Vector3(0, 0, from + length * .6f);
         if (t.Light > 0) root.AddChild(new OmniLight3D { LightColor = col, LightEnergy = t.Light, OmniRange = 1.8f, ShadowEnabled = false, Position = mid, LightSpecular = 0 });

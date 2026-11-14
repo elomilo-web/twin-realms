@@ -81,13 +81,14 @@ public partial class Ui
                 CustomMinimumSize = new Vector2(60, 60), Visible = SkillShown(k, _skillFilter, _skillSearch),
             };
             t.Click = () => { _selSkill = id; _openSocket = -1; OpenSkills(); };
+            if (known) t.RightClick = () => UnRank(id);   // right-click: take a rank off (at rank 1: unlearn it)
             t.Hover = (on, at) => { if (on) Info(at, k.Name, Dmg.TypeColor(k.Type).Lerp(Colors.White, .4f), SkillTipLines(k)); else HideInfo(); };
             grid.AddChild(t); tiles.Add((t, k));
         }
         // the search filters live (rebuilding the menu would take the focus off the search box)
         search.TextChanged += s => { _skillSearch = s; foreach (var (t, k) in tiles) t.Visible = SkillShown(k, _skillFilter, s); };
 
-        Lbl("HOTBAR   click a key to put the selected skill on it", 13, UiTheme.Accent, left);
+        Lbl("HOTBAR   click a key to put the selected skill on it   ·   right-click a learned skill to remove a rank", 13, UiTheme.Accent, left);
         var bar = new HBoxContainer(); bar.AddThemeConstantOverride("separation", 6); left.AddChild(bar);
         bool selKnown = d.Skills.ContainsKey(_selSkill);
         for (int i = 0; i < 6; i++)
@@ -99,13 +100,22 @@ public partial class Ui
                 if (!d.Skills.ContainsKey(_selSkill)) { Note("Learn the skill first", new Color(1, .6f, .5f)); return; }
                 int was = Array.IndexOf(d.Bar, _selSkill); if (was >= 0) d.Bar[was] = d.Bar[slot]; d.Bar[slot] = _selSkill; Game.Notify(); OpenSkills();
             };
-            t.Hover = (on, at) => { if (on && bk != null) Info(at, $"Key {slot + 1}: {bk.Name}", Colors.White, new[] { ("Click to put " + (Skills.Get(_selSkill)?.Name ?? "the selected skill") + " here instead.", UiTheme.Dim, 13) }); else HideInfo(); };
+            if (bk != null) { string bid = bk.Id; t.RightClick = () => UnRank(bid); }
+            t.Hover = (on, at) => { if (on && bk != null) Info(at, $"Key {slot + 1}: {bk.Name}", Colors.White, new[] { ("Click to put " + (Skills.Get(_selSkill)?.Name ?? "the selected skill") + " here instead.", UiTheme.Dim, 13), ("Right-click: remove a rank (at rank 1, unlearn it).", UiTheme.Dim, 12) }); else HideInfo(); };
             bar.AddChild(t);
         }
 
         // ---- right: the selected skill
         var right = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; right.AddThemeConstantOverride("separation", 6); cols.AddChild(right);
         SkillCard(right);
+    }
+
+    /// <summary>Right-click a learned skill: one rank off, or unlearn it at rank 1 (Skills.RankDown).</summary>
+    void UnRank(string id)
+    {
+        var err = Skills.RankDown(id, out var done);
+        if (err != null) { Note(err, new Color(1, .6f, .5f)); return; }
+        Note(done, UiTheme.Highlight); Game.Notify(); Game.Save(); OpenSkills();
     }
 
     static List<(string, Color, int)> SkillTipLines(SkillDef k)

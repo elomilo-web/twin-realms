@@ -33,6 +33,7 @@ public partial class Net
     {
         var rec = Recipients(killer, pos); var party = PartyOf(killer); string mode = party?.Loot ?? "solo";
         if (rec.Count > 1) chance = Mathf.Min(1f, chance * Progression.PartyDropMul);   // parties find a little more
+        float luck = Luck.ForPeer(killer); chance = Luck.Chance(chance, luck); bonus = Luck.Bonus(bonus, luck);   // the killer's party's pooled luck (Affixes.cs)
         if (gold > 0)
         {
             if (rec.Count > 1) { int each = Mathf.CeilToInt(gold / (float)rec.Count); foreach (var r in rec) Give(r, new LootData { Gold = each }, "shared gold"); }

@@ -26,9 +26,10 @@ public class Item
     public string? Set { get; set; }                 // set id (data/loot.json "sets"): pieces worn together give set bonuses
     public bool Unique { get; set; }                 // a named dungeon unique (data/loot.json dungeons.<key>.uniques)
     public bool Wings { get; set; }                  // Golden Wings (cape slot): the hero can fly (Wings.cs)
-    public Dictionary<string, float>? Mods { get; set; }   // extra stats in tree stat keys (TreeDb.Known), added to the stat table while worn
+    public Dictionary<string, float>? Mods { get; set; }   // bonus stats in tree stat keys (TreeDb.Known), added to the stat table while worn (Affixes.cs)
+    public string? Glow { get; set; }                // the smith's glow colour (hex); null = the element's or rarity's own
 
-    [JsonIgnore] public int Value => Math.Max(1, (int)Math.Round((Dmg * 4 + Def * 4 + Hp * 0.6 + Mp * 0.6) * (1 + Rar * 0.8) * (Set != null ? 1.5 : 1)));
+    [JsonIgnore] public int Value => Math.Max(1, (int)Math.Round((Dmg * 4 + Def * 4 + Hp * 0.6 + Mp * 0.6) * (1 + Rar * 0.8) * (Set != null ? 1.5 : 1) * (1 + .15 * (Mods?.Count ?? 0)) * (1 + .1 * Up)));
     [JsonIgnore] public Color Color => Set != null ? LootTables.SetColorOf(Set) : Items.RarityColor(Rar);
     public string Describe()
     {
@@ -104,6 +105,7 @@ public static class Items
         else { var names = _in.GetValueOrDefault(slot, new[] { "Item" }); baseName = names[GD.RandRange(0, names.Length - 1)]; }
         if (slot != "trinket") it.Elem = elem == null ? GearFx.Roll(idx) : elem == "" ? null : elem;
         it.Name = _pre[idx] + " " + (GearFx.Get(it.Elem) is { } el ? el.Word + " " : "") + baseName + (idx == 4 ? " of the Rift" : "");
+        Affixes.Roll(it);   // epic: 2-4 bonus stats, legendary: 3-5 (Affixes.cs)
         return it;
     }
 

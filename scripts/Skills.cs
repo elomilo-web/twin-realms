@@ -107,8 +107,8 @@ public static class Skills
     public static void GrantStarting(PlayerStats d)
     {
         Load();
-        foreach (var id in Classes.Get(d.Class).Skills) if (_s.ContainsKey(id) && !d.Skills.ContainsKey(id)) d.Skills[id] = new SkillState();
-        if (d.Skills.Count == 0) foreach (var id in new[] { "fire", "nova", "heal", "zap" }) d.Skills[id] = new SkillState();
+        foreach (var id in Classes.Get(d.Class).Skills) if (_s.ContainsKey(id) && !d.Skills.ContainsKey(id) && !d.Forgot.Contains(id)) d.Skills[id] = new SkillState();   // (not the ones you chose to unlearn)
+        if (d.Skills.Count == 0 && d.Forgot.Count == 0) foreach (var id in new[] { "fire", "nova", "heal", "zap" }) d.Skills[id] = new SkillState();
         if (d.Bar == null || d.Bar.Length < 6) { var nb = new string[6]; if (d.Bar != null) Array.Copy(d.Bar, nb, d.Bar.Length); d.Bar = nb; }
         bool empty = Array.TrueForAll(d.Bar, b => string.IsNullOrEmpty(b));
         if (empty) { int i = 0; foreach (var id in Classes.Get(d.Class).Skills) if (d.Skills.ContainsKey(id) && i < 6) d.Bar[i++] = id; if (i == 0) foreach (var id in d.Skills.Keys) if (i < 6) d.Bar[i++] = id; }
@@ -118,7 +118,27 @@ public static class Skills
     {
         var d = Game.D; var s = Get(id); if (s == null) return "Unknown skill";
         if (Known(id)) return "Already learned"; if (d.Level < s.Req) return $"Requires level {s.Req}"; if (d.RankPts < s.Cost) return "Not enough skill ranks";
-        d.RankPts -= s.Cost; d.Skills[id] = new SkillState(); for (int i = 0; i < d.Bar.Length; i++) if (string.IsNullOrEmpty(d.Bar[i])) { d.Bar[i] = id; break; }
+        d.RankPts -= s.Cost; d.Skills[id] = new SkillState(); d.Forgot.Remove(id); for (int i = 0; i < d.Bar.Length; i++) if (string.IsNullOrEmpty(d.Bar[i])) { d.Bar[i] = id; break; }
+        return null;
+    }
+    /// <summary>
+    /// Right-click in the skills menu: one rank comes off (its point back). At rank 1 the skill is unlearned: off the hotbar, its learn
+    /// cost back (class skills were free, so nothing for those), and it stays unlearned. Sockets beyond the new rank's count empty.
+    /// </summary>
+    public static string? RankDown(string id, out string done)
+    {
+        var d = Game.D; var s = Get(id); done = "";
+        if (s == null || !d.Skills.TryGetValue(id, out var st)) return "Not learned";
+        if (st.Rank > 1)
+        {
+            st.Rank--; d.RankPts++; while (st.Sup.Count > Sockets(st.Rank)) st.Sup.RemoveAt(st.Sup.Count - 1);
+            done = $"{s.Name} is now rank {st.Rank} (+1 skill point)"; return null;
+        }
+        bool free = Classes.Get(d.Class).Skills.Contains(id);
+        d.Skills.Remove(id); if (!d.Forgot.Contains(id)) d.Forgot.Add(id);
+        for (int i = 0; i < d.Bar.Length; i++) if (d.Bar[i] == id) d.Bar[i] = "";
+        if (!free) d.RankPts += s.Cost;
+        done = $"Unlearned {s.Name}" + (free ? " (a class skill: it cost nothing to learn)" : $" (+{s.Cost} skill point{(s.Cost > 1 ? "s" : "")})");
         return null;
     }
     public static string? RankUp(string id)

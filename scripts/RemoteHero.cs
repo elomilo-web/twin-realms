@@ -63,7 +63,7 @@ public partial class RemoteHero : Node3D, IDamageable, IInteractable
             if (Avatar.Available) { _av = new Avatar { Name = "Avatar", Scale = new Vector3(1 / ap.Bulk, 1 / ap.Height, 1 / ap.Bulk) }; _rig.AddChild(_av); _av.Build(ap, p.Name); }
             _tag.Position = new Vector3(0, 2.05f * ap.Height + .1f, 0);   // just above the head, for a tall elf or a short dwarf
         }
-        string gear = ps.WType(); foreach (var s in PlayerStats.Slots) { var it = ps.Eq.GetValueOrDefault(s); gear += "|" + (it == null ? "-" : it.Name + it.Rar + it.Up); }
+        string gear = ps.WType(); foreach (var s in PlayerStats.Slots) { var it = ps.Eq.GetValueOrDefault(s); gear += "|" + (it == null ? "-" : it.Name + it.Rar + it.Up + it.Glow); }
         if (gear != _gearSig)
         {
             _gearSig = gear; _rig.ApplyGear(ps); _trail.Base = _rig.BladeBase; _trail.Tip = _rig.BladeTip;

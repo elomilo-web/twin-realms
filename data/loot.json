@@ -44,6 +44,37 @@
     }
   },
   "sets": {
+    "_craftHelp": "craft: true = never drops; forged at the pack's Crafting > Set pieces tab, any piece you choose, for craftCost. The other sets drop deep in their dungeon (and can be forged once you own a piece).",
+    "seraph": {
+      "name": "Seraph's Reverie", "prefix": "Seraphic", "color": "#fff1c2", "elem": "holy", "craft": true,
+      "pieces": ["weapon", "head", "armor", "hands", "feet"], "statMul": 1.3,
+      "craftCost": { "angelFeather": 8, "holycore": 4, "runeshard": 6, "riftprism": 2 },
+      "bonuses": { "2": { "healP": 15, "res_holy": 20 }, "3": { "move": 10, "regenHp": 8 }, "4": { "cdr": 15, "healIn": 20 }, "5": { "allP": 20, "undying": 1 } }
+    },
+    "stormcaller": {
+      "name": "Stormcaller's Mantle", "prefix": "Stormcaller's", "color": "#9fb8ff", "elem": "storm", "craft": true,
+      "pieces": ["weapon", "head", "armor", "hands", "feet"], "statMul": 1.3,
+      "craftCost": { "stormcore": 5, "arcanedust": 10, "runeshard": 6, "voidessence": 3 },
+      "bonuses": { "2": { "lightningP": 20, "castSpd": 10 }, "3": { "chain": 1, "crit": 6 }, "4": { "aspd": 12, "shockChance": 15 }, "5": { "spellP": 30, "cdr": 10 } }
+    },
+    "deepwarden": {
+      "name": "Bulwark of the Deep", "prefix": "Deepwarden's", "color": "#5fd4ff", "elem": "frost", "craft": true,
+      "pieces": ["weapon", "head", "armor", "hands", "feet"], "statMul": 1.3,
+      "craftCost": { "frostcore": 5, "ironscrap": 16, "leatherstrip": 8, "voidessence": 3 },
+      "bonuses": { "2": { "def": 30, "block": 10 }, "3": { "hpP": 15, "tenacity": 25 }, "4": { "thorns": 20, "res_frost": 25, "mr": 20 }, "5": { "hpP": 20, "manaShield": 1 } }
+    },
+    "emberrevenant": {
+      "name": "Ember Revenant", "prefix": "Revenant's", "color": "#ff7a3a", "elem": "fire", "craft": true,
+      "pieces": ["weapon", "head", "armor", "hands", "feet"], "statMul": 1.3,
+      "craftCost": { "embercore": 5, "ironscrap": 12, "runeshard": 6, "riftprism": 2 },
+      "bonuses": { "2": { "fireP": 20, "burnChance": 10 }, "3": { "meleeP": 15, "critD": 20 }, "4": { "leech": 3, "burnP": 30 }, "5": { "allP": 25, "rage": 1 } }
+    },
+    "nightglass": {
+      "name": "Nightglass Raiment", "prefix": "Nightglass", "color": "#a66bff", "elem": "shadow", "craft": true,
+      "pieces": ["weapon", "head", "armor", "hands", "feet"], "statMul": 1.3,
+      "craftCost": { "shadowcore": 5, "leatherstrip": 10, "voidessence": 4, "riftprism": 2 },
+      "bonuses": { "2": { "evade": 6, "crit": 5 }, "3": { "shadowP": 20, "armorPenP": 12 }, "4": { "move": 12, "critD": 30 }, "5": { "skillP": 25, "aspd": 15 } }
+    },
     "barrowlord": {
       "name": "Regalia of the Barrow Lord", "prefix": "Barrowlord's", "color": "#3fe0c0", "elem": "shadow",
       "pieces": ["weapon", "head", "armor", "cape", "trinket"],
