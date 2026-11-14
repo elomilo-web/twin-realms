@@ -43,6 +43,7 @@ public partial class Main : Node3D
         if (Shots.Wanted()) { Game.NewGame("warrior", "Shots"); Begin(); AddChild(new Shots { Name = "Shots" }); return; }
         if (MpBot.Wanted() is string m) { Game.SavePath = $"user://mp_{m}_save.json"; Net.ChestPath = "user://mp_test_party_chest.json"; }
         if (Observer.Wanted()) { Game.NewGame("warrior", "Observer"); Begin(); AddChild(new Observer { Name = "Observer" }); return; }
+        if (Perf.Wanted()) { Game.SavePath = "user://test_save.json"; Game.SetPath = "user://perf_settings.json"; Game.Set = new Settings(); Game.ApplyDisplay(); Game.NewGame("warrior", "Perf"); Begin(); AddChild(new Perf { Name = "Perf" }); return; }   // performance probe, fresh default settings
         if (Bot.Wanted()) { Game.NewGame("warrior", "Bot"); Begin(); AddChild(new Bot { Name = "Bot" }); return; }
         if (MpBot.Wanted() is string mode) { AddChild(new MpBot { Name = "MpBot", Mode = mode }); if (mode == "host") { Game.NewGame("paladin", "HostBot", "dwarf"); Begin(); } return; }
         if (System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--quit-test") >= 0)
@@ -90,6 +91,13 @@ public partial class Main : Node3D
         Game.Save();
     }
 
+    /// <summary>Out of focus or minimised: drop to a few frames a second so the game does not keep the CPU and graphics card busy in the background (test bots excepted).</summary>
+    public override void _Notification(int what)
+    {
+        if (Bot.Wanted() || MpBot.Wanted() != null || Perf.Wanted()) return;
+        if (what == NotificationApplicationFocusOut) Game.SetBackground(true);
+        else if (what == NotificationApplicationFocusIn) Game.SetBackground(false);
+    }
     public override void _Process(double delta)
     {
         if (!_started) return;

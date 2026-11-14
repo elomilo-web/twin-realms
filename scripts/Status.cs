@@ -64,9 +64,11 @@ public class StatusSet
     float _tick;
 
     /// <summary>Adds or refreshes a status. pow overrides the default strength (for dots: fraction of baseDmg per second per stack).</summary>
+    /// <summary>Statuses this creature ignores right now (the hero's immunity enchantments).</summary>
+    public Func<string, bool>? Block;
     public void Add(string id, float durMul, float pow, float baseDmg, float tenacity = 0)
     {
-        var d = Dmg.Status(id); if (d == null) return;
+        var d = Dmg.Status(id); if (d == null || Block?.Invoke(id) == true) return;
         float dur = d.Dur * durMul * (1 - Mathf.Clamp(tenacity, 0, 80) / 100f);
         var cur = List.Find(s => s.Def.Id == id);
         if (cur == null) { List.Add(new StatusInst { Def = d, T = dur, Pow = pow > 0 ? pow : d.Pow, Base = baseDmg }); }

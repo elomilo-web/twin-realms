@@ -26,7 +26,7 @@ public partial class Player
 
     // ---------------------------------------------------------------- hold to aim / hold to charge
     /// <summary>Ground zones, strikes and leaps: hold the key to place them, release to cast.</summary>
-    static bool Aimed(SkillDef k) => (k.Kind == "zone" && !k.Self) || k.Kind == "strike" || k.Kind == "leap";
+    static bool Aimed(SkillDef k) => (k.Kind == "zone" && !k.Self) || k.Kind is "strike" or "leap" or "wall" or "trap" or "turret" or "vortex" or "blinkto";
     /// <summary>Projectiles and chain spells: hold the key to charge, release to fire (stronger the longer, up to ChargeTime).</summary>
     static bool Charged(SkillDef k) => k.Kind is "projectile" or "chain";
     const float ChargeTime = 1f, TapTime = .15f;
@@ -74,7 +74,7 @@ public partial class Player
     /// <summary>The ground point under the crosshair, pulled in to the skill's range.</summary>
     Vector3 AimGround(SkillDef k)
     {
-        float range = k.Kind == "leap" ? k.Range : k.Kind == "strike" ? 45f : 40f;
+        float range = k.Kind is "leap" or "blinkto" or "trap" or "turret" ? k.Range : k.Kind == "strike" ? 45f : 40f;
         var p = AimPoint(range + 10f).point; var d = p - GlobalPosition; d.Y = 0;
         if (d.Length() > range) d = d.Normalized() * range;
         return Ground(GlobalPosition + d);
@@ -141,6 +141,7 @@ public partial class Player
     /// <summary>Per-frame skill upkeep: cooldowns, buffs, auto-cast timers, leap/dash movement and whirlwind spins. Returns true when movement is scripted this frame.</summary>
     bool SkillTick(float dt)
     {
+        Statuses.Block ??= ImmuneTo; ExtraTick(dt);   // immunities, shields and heals over time (PlayerSkillsExtra.cs)
         foreach (var k in new List<string>(_skillCd.Keys)) _skillCd[k] = Mathf.Max(0, _skillCd[k] - dt);
         foreach (var k in new List<string>(_autoCd.Keys)) _autoCd[k] = Mathf.Max(0, _autoCd[k] - dt);
         bool changed = false;
@@ -165,6 +166,7 @@ public partial class Player
             _moveT -= dt; float t = 1 - Mathf.Max(0, _moveT) / _moveDur;
             var p = _moveFrom.Lerp(_moveTo, t) + Vector3.Up * Mathf.Sin(t * Mathf.Pi) * _moveArc;
             GlobalPosition = p; Velocity = Vector3.Zero; _inv = Mathf.Max(_inv, .05f);
+            if (_moveSkill.Def.Kind == "rush") AfterimageTick(dt);   // a trail of fading copies of the hero
             if (_moveT <= 0) { var c = _moveSkill; _moveSkill = null; Land(c); }
             return true;
         }
@@ -360,7 +362,9 @@ public partial class Player
                 if (c.Chain > 0) ChainFrom(c, GlobalPosition, c.Chain);
                 break;
             }
+            default: ExecuteExtra(c, forced, echo); break;   // the newer kinds (PlayerSkillsExtra.cs)
         }
+        if (!echo && k.X.TryGetValue("hpCost", out var hpCost)) { float lose = Game.D.MaxHp() * hpCost; Hp = Mathf.Max(1, Hp - lose); FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.1f, 0), "-" + Mathf.RoundToInt(lose), new Color(.9f, .2f, .25f), .8f); }   // blood magic
         if (!echo)
         {
             // modifiers that pay back on use: health and a share of the cost
@@ -432,6 +436,7 @@ public partial class Player
     void Land(SkillCalc c)
     {
         var at = GlobalPosition;
+        if (c.Def.Kind == "rush") { RushLand(c); return; }   // the gap closer strikes its target (PlayerSkillsExtra.cs)
         if (c.Def.Kind == "leap")
         {
             Slam(c, at, 1f); _landT = .22f;

@@ -72,7 +72,9 @@ if ($mode -eq "bot") {
   # builds the Windows game into build/ and zips it as TwinRealms-playtest.zip (send the zip to a friend; they unzip and run TwinRealms.exe)
   if (Test-Path build) { Remove-Item -Recurse -Force build }
   New-Item -ItemType Directory -Force build | Out-Null
-  & $godot --headless --path . --export-release "Windows Desktop" build/TwinRealms.exe 2>&1 | ForEach-Object { "$_" } | Out-File -Encoding utf8 export_log.txt
+  # not --headless: the shader baker needs the graphics card to pre-compile shaders into the build (without it every player's
+  # first launch compiles them all and pins their CPU); a window opens briefly while it exports
+  & $godot --path . --export-release "Windows Desktop" build/TwinRealms.exe 2>&1 | ForEach-Object { "$_" } | Out-File -Encoding utf8 export_log.txt
   if (-not (Test-Path build/TwinRealms.exe)) { "EXPORT_FAIL: see export_log.txt (are the export templates installed? Godot > Editor > Manage Export Templates)"; exit 1 }
   if (Test-Path TwinRealms-playtest.zip) { Remove-Item TwinRealms-playtest.zip }
   Compress-Archive -Path build/* -DestinationPath TwinRealms-playtest.zip
@@ -84,7 +86,7 @@ if ($mode -eq "bot") {
   if ($mode -eq "upload") { if (-not (Test-Path $zip)) { "UPLOAD_FAIL: $zip missing, run publish"; exit 1 } } else {
   if (Test-Path build) { Remove-Item -Recurse -Force build }
   New-Item -ItemType Directory -Force build, beta | Out-Null
-  & $godot --headless --path . --export-release "Windows Desktop" build/TwinRealms.exe 2>&1 | ForEach-Object { "$_" } | Out-File -Encoding utf8 export_log.txt
+  & $godot --path . --export-release "Windows Desktop" build/TwinRealms.exe 2>&1 | ForEach-Object { "$_" } | Out-File -Encoding utf8 export_log.txt   # not --headless: shader baking needs the GPU (see export)
   if (-not (Test-Path build/TwinRealms.exe)) { "EXPORT_FAIL: see export_log.txt"; exit 1 }
   $stage = "build_stage/TwinRealms"; if (Test-Path build_stage) { Remove-Item -Recurse -Force build_stage }
   New-Item -ItemType Directory -Force $stage | Out-Null; Copy-Item -Recurse build/* $stage

@@ -14,6 +14,8 @@ public class SkillDef
     public List<string> Tags = new();
     public float Mp, St, Cd = 1, Cast = .3f, Dmg, Lvl, Mult = 1, Radius, Speed = 30, Spread, Dur, Tick = .5f, Heal, Knock, Stun, Up, Arc = 60, Range = 3, Delay, Leech;
     public float Taunt;   // taunt strength factor (x the skill's resolved power): foes in the radius turn on the caster for its duration
+    public Dictionary<string, float> X = new();   // extra numbers for the newer kinds ("x" in skills.json): ward, hot, cleanse, store, pull, hpCost, execute...
+    public float XOr(string k, float d) => X.TryGetValue(k, out var v) ? v : d;
     public int Count = 1, Pierce, Chain, Req = 1, Cost = 1; public bool Homing, Self, Behind, Crit, Arrow;
     public Dictionary<string, float[]> Status = new(); public Dictionary<string, float> Buff = new();
 }
@@ -76,6 +78,7 @@ public static class Skills
             };
             if (e.TryGetProperty("tags", out var t)) foreach (var x in t.EnumerateArray()) s.Tags.Add(x.GetString() ?? "");
             if (e.TryGetProperty("buff", out var bf)) foreach (var x in bf.EnumerateObject()) s.Buff[x.Name] = x.Value.GetSingle();
+            if (e.TryGetProperty("x", out var xs)) foreach (var x in xs.EnumerateObject()) s.X[x.Name] = x.Value.GetSingle();
             _s[p.Name] = s; SkillOrder.Add(p.Name);
         }
         foreach (var p in r.GetProperty("supports").EnumerateObject())
@@ -164,7 +167,8 @@ public static class Skills
             if (s.Convert != "") c.Type = s.Convert;
             foreach (var kv in s.Status) c.Status.Add((kv.Key, kv.Value[0], kv.Value.Length > 1 ? kv.Value[1] : 1, kv.Value.Length > 2 ? kv.Value[2] : 0));
         }
-        string kind = k.Kind; bool support = kind is "heal" or "buff";
+        c.Execute += k.XOr("execute", 0);
+        string kind = k.Kind; bool support = kind is "heal" or "buff" or "enchant" or "ward";
         float baseDmg = k.Scale == "weapon" ? d.WpnDmg() * k.Mult : (k.Dmg + k.Lvl * d.Level) * d.SpellPow();
         if (support && baseDmg <= 0) baseDmg = (8 + 1.6f * d.Level) * d.SpellPow();   // heals and buffs: what their burst hits for
         c.Dmg = baseDmg * more * (1 + TS["skillP"] / 100f);

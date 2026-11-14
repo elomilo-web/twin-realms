@@ -20,6 +20,11 @@ public partial class Net
         var e = Dungeon.NetList[idx]; if (e != null && IsInstanceValid(e)) e.Taunt(Sender, strength, Mathf.Min(dur, 30f));
     }
 
+    /// <summary>An enchantment (party aura skill) reaches a friend: their game applies it to their hero.</summary>
+    public void SendEnchant(long peer, string id, float pot, float dur) { if (peer != MyId) RpcId(peer, MethodName.R_Enchant, id, pot, dur); }
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer)]
+    void R_Enchant(string id, float pot, float dur) { Player.Instance?.ApplyEnchant(id, Mathf.Clamp(pot, 0, 3), Mathf.Clamp(dur, 0, 60), NameOf(Sender)); Count("enchants"); }
+
     /// <summary>Raises a downed friend: hp &lt;= 0 = full health (the Resurrection spell), otherwise that much health (given from our own).</summary>
     public void ReviveRemote(long peer, float hp) { if (peer == MyId) return; RpcId(peer, MethodName.R_Revive, hp); }
     [Rpc(MultiplayerApi.RpcMode.AnyPeer)]

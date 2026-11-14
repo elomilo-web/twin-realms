@@ -151,7 +151,7 @@ public partial class Ui
         var c = Skills.Compute(sk.Id);
         var grid = new GridContainer { Columns = 6 }; grid.AddThemeConstantOverride("h_separation", 12); grid.AddThemeConstantOverride("v_separation", 2); v.AddChild(grid);
         void Stat(string n, string val) { Lbl(n, 12, Dim, grid); Lbl(val, 14, Colors.White, grid).CustomMinimumSize = new Vector2(78, 0); }
-        if (sk.Kind != "heal" && sk.Kind != "buff") Stat("Damage", $"{c.Dmg:0}" + (sk.Kind == "zone" ? "/tick" : c.Count > 1 ? $" x{c.Count}" : ""));
+        if (sk.Kind is not ("heal" or "buff" or "enchant" or "ward" or "resurrect")) Stat("Damage", $"{c.Dmg:0}" + (sk.Kind == "zone" ? "/tick" : c.Count > 1 ? $" x{c.Count}" : ""));
         if (sk.Kind == "heal") Stat("Heals", $"{c.Heal * 100:0}% hp");
         if (c.Mp > 0) Stat("Mana", $"{c.Mp:0}"); if (c.St > 0) Stat("Stamina", $"{c.St:0}");
         Stat("Cooldown", $"{c.Cd:0.0} s"); Stat("Use time", $"{c.Cast:0.00} s");
@@ -162,7 +162,9 @@ public partial class Ui
         if (c.Echo > 0) Stat("Echo", c.Echo > 1 ? $"repeats x{Mathf.Min(c.Echo, 3)}" : "repeats"); if (c.Leech > 0) Stat("Leech", $"{c.Leech:0}%");
         if (c.CritC > 0) Stat("Crit chance", $"+{c.CritC:0}%"); if (c.Execute > 0) Stat("Execute", $"+{c.Execute:0}%");
         if (c.SelfHeal > 0) Stat("Heals on use", $"{c.SelfHeal:0.#}% hp"); if (c.ManaBack > 0) Stat("Cost refund", $"{c.ManaBack:0}%");
-        if (c.Dur > 0 && sk.Kind is "zone" or "buff") Stat("Duration", $"{c.Dur:0.#} s");
+        if (c.Dur > 0 && sk.Kind is not ("projectile" or "chain" or "nova" or "strike" or "melee" or "spin" or "leap" or "dash" or "rush" or "hook" or "blinkto" or "resurrect")) Stat("Duration", $"{c.Dur:0.#} s");
+        if (sk.Kind == "enchant") Row(v, "Party aura: every ally in the area gets it" + (sk.X.ContainsKey("ward") ? $"; shield {sk.X["ward"] * 100:0}% hp" : "") + (sk.X.ContainsKey("hot") ? $"; heals {sk.X["hot"]:0.#}% hp/s" : "") + (sk.X.ContainsKey("cleanse") ? "; cleanses" : ""), new Color(1f, .9f, .6f), 13);
+        if (sk.Buff.Count > 0) Row(v, string.Join(", ", sk.Buff.Select(kv => TreeDb.StatText(kv.Key, kv.Value))), new Color(.75f, .92f, 1f), 13);
         if (c.Auto != "") Stat("Auto-cast", c.Auto == "timer" ? $"every {c.AutoCd:0} s" : c.Auto == "hit" ? "when hit" : "on crit");
         if (c.Status.Count > 0) Row(v, "Effects: " + string.Join(", ", c.Status.Select(s => $"{Dmg.Status(s.id)?.Name ?? s.id} {s.chance * 100:0}%")), new Color(.8f, .9f, 1f), 13);
 

@@ -196,8 +196,11 @@ public partial class Bot : Node
                 var e = Dummy(-3.2f); await Wait(0.25f); e.Stun(30f); Targeting.Set(e); Face(e.GlobalPosition); await Wait(0.1f);
                 float hp0 = e.Hp; if (k.Kind == "heal") P.Hp = Game.D.MaxHp() * .3f; float php = P.Hp;
                 Press("spell1", true); await Wait(0.05f); Press("spell1", false);
-                await Wait(Skills.Compute(k.Id).Cast + k.Delay + Mathf.Max(.6f, k.Kind == "zone" ? 1.2f : 0) + (k.Kind == "spin" ? 1.3f : 0));
-                bool good = k.Kind switch { "heal" => P.Hp > php + 1, "buff" => P.Buffs.Exists(b => b.id == k.Id) || (GodotObject.IsInstanceValid(e) && e.Status.List.Count > 0), _ => !GodotObject.IsInstanceValid(e) || e.Hp < hp0 };
+                // delayed kinds need longer: marks and vortexes go off when they end, traps need a foe to step in (the dummy stands on the aim point)
+                float extraWait = k.Kind switch { "zone" or "wall" => 1.2f, "spin" => 1.3f, "mark" or "vortex" => k.Dur + .3f, "turret" => 1.5f, "boomerang" or "beam" => 1f, "trap" => 1.2f, _ => 0f };
+                await Wait(Skills.Compute(k.Id).Cast + k.Delay + Mathf.Max(.6f, extraWait));
+                bool good = k.Kind switch { "heal" => P.Hp > php + 1, "buff" => P.Buffs.Exists(b => b.id == k.Id) || (GodotObject.IsInstanceValid(e) && e.Status.List.Count > 0),
+                    "enchant" => P.Buffs.Exists(b => b.id == k.Id) || P.Ward > 0 || P.Hp > php + 1 || k.X.ContainsKey("cleanse"), "ward" => P.Ward > 0, _ => !GodotObject.IsInstanceValid(e) || e.Hp < hp0 };
                 if (good) ok++; else bad.Add(k.Id);
                 Targeting.Clear(); if (GodotObject.IsInstanceValid(e)) e.QueueFree();
                 foreach (var z in GetTree().GetNodesInGroup("projectiles")) z.QueueFree();

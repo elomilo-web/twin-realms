@@ -195,7 +195,7 @@ public partial class Player : CharacterBody3D, IDamageable
             var hitDir = toSrc.LengthSquared() > .001f ? toSrc.Normalized() : Vector3.Forward;
             // only abilities (slams, blasts, skills that stun or knock back) stagger: a shove, the flinch clip, and whatever the hero was doing is interrupted.
             // Ordinary blows just hurt: the spark shows where they struck, attacks and casts carry on.
-            bool stagger = h.Stagger || h.Stun > 0;
+            bool stagger = (h.Stagger || h.Stun > 0) && Game.TS["ccImmune"] <= 0;   // Unbreakable Will: no flinch
             if (stagger)
             {
                 if (away.LengthSquared() > 0.001f) _hitKb += away.Normalized() * h.Knock * .9f;
@@ -207,6 +207,12 @@ public partial class Player : CharacterBody3D, IDamageable
         if (TS.Has("manaShield") && Mp > 0) { float m = Mathf.Min(Mp, dmg * 0.35f); Mp -= m; dmg -= m; }
         if (TS["thorns"] > 0 && h.Attacker is Enemy te && !h.IsProjectile && te.GlobalPosition.DistanceTo(GlobalPosition) < 6f)
             te.TakeHit(new HitInfo { Damage = h.Damage * TS["thorns"] / 100f, From = GlobalPosition, IsPlayer = true, Attacker = this });
+        if (Ward > 0 && dmg > 0)
+        {
+            // a shield (Stoneskin, Aegis Chorus) soaks the blow first
+            float soak = Mathf.Min(Ward, dmg); Ward -= soak; dmg -= soak;
+            if (dmg <= .5f) { FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.1f, 0), "Absorbed " + Mathf.RoundToInt(soak), new Color(.7f, .9f, 1f), .7f); _inv = .2f; Fought(); return; }
+        }
         int final = Mathf.Max(1, Mathf.RoundToInt(dmg));
         Hp -= final; _inv = 0.2f; Fought();
         Flag.Event($"took {final} {h.Type} ({h.Damage:0} before armor, {100f * final / Mathf.Max(1, D.MaxHp()):0}% of max hp) from {(h.Attacker is Enemy fe && IsInstanceValid(fe) ? fe.Def.N + " Lv" + fe.Level : "?")}{(_blocking ? ", blocked" : "")}, hp left {Mathf.Max(0, Hp):0}");

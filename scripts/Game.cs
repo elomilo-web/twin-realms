@@ -13,7 +13,7 @@ public class Settings
     // display and game options (Settings > Display / Game); older settings files get these defaults
     public int WindowMode = 0;            // 0 windowed, 1 fullscreen (borderless), 2 exclusive fullscreen
     public bool VSync = true;
-    public int MaxFps = 0;                // 0 = no limit
+    public int MaxFps = 144;              // 0 = no limit; a cap by default, in case a graphics driver overrides VSync (an uncapped game pins the CPU)
     public float RenderScale = 1f;        // 3D resolution; the menus and HUD stay sharp
     public float Fov = 70f;
     public bool Outlines = false;          // the ink lines around shapes (off: too cartoony; settings files from before version 1 are switched off once)
@@ -150,14 +150,19 @@ public static class Game
         catch { Set = new Settings(); }
         Set.Binds ??= new();
         if (Set.SetVer < 1) { Set.Outlines = false; Set.SetVer = 1; }   // the outline look was retired (too cartoony)
+        if (Set.SetVer < 2) { if (Set.MaxFps == 0) Set.MaxFps = 144; Set.SetVer = 2; }   // older files: the old "no limit" default becomes a cap once
         Sfx.ApplyVolumes(); Inputs.ApplyBinds(); ApplyDisplay();
     }
 
+    /// <summary>The window is out of focus or minimised: the game keeps running (multiplayer, timers) but draws only a few frames a second.</summary>
+    public static bool Background;
+    public const int BackgroundFps = 15;
+    public static void SetBackground(bool bg) { if (bg == Background) return; Background = bg; Engine.MaxFps = bg ? BackgroundFps : Math.Max(0, Set.MaxFps); }
     /// <summary>Window mode, vsync, frame cap, 3D resolution and outlines from the settings (field of view and shake are read live by CameraRig).</summary>
     public static void ApplyDisplay()
     {
         Set.RenderScale = Mathf.Clamp(Set.RenderScale, .5f, 1f); Set.Fov = Mathf.Clamp(Set.Fov, 55f, 100f);
-        Engine.MaxFps = Math.Max(0, Set.MaxFps);
+        Engine.MaxFps = Background ? BackgroundFps : Math.Max(0, Set.MaxFps);
         if (Engine.GetMainLoop() is SceneTree tree) tree.Root.Scaling3DScale = Set.RenderScale;
         Toon.SetOutlines(Set.Outlines);
         Set.Quality = Math.Clamp(Set.Quality, 0, 3); Set.ViewDist = Mathf.Clamp(Set.ViewDist, 300f, 3000f); Set.Grass = Mathf.Clamp(Set.Grass, 0f, 1f);
