@@ -246,6 +246,7 @@ public partial class Player : CharacterBody3D, IDamageable
     {
         Dead = false; Statuses.Clear(); _stagger = 0; Hp = Game.D.MaxHp(); Mp = Game.D.MaxMp(); St = Game.D.MaxSt(); _model.Rotation = new Vector3(0, _modelYaw, 0);
         GlobalPosition = pos; Velocity = Vector3.Zero; _inv = 2f;
+        ResetActions(); _grabBy = null; Flying = false;   // nothing from before the death carries over (a stuck action locked the skills)
     }
 
     float _liftT, _liftTop;
@@ -254,7 +255,7 @@ public partial class Player : CharacterBody3D, IDamageable
 
     public void Teleport(Vector3 pos, float yaw = 0f)
     {
-        GlobalPosition = pos; Velocity = Vector3.Zero; _kb = Vector3.Zero; _hitKb = Vector3.Zero; _walkV = Vector3.Zero; _hasQueue = false; if (_castT > 0 || _atkSkill != null) CancelCast();
+        GlobalPosition = pos; Velocity = Vector3.Zero; _kb = Vector3.Zero; _hitKb = Vector3.Zero; _walkV = Vector3.Zero; _hasQueue = false; if (_castT > 0 || _atkSkill != null || _moveT > 0 || _spinLeft > 0) { CancelCast(); _moveT = 0; _moveSkill = null; }   // a leap in flight would drag us back
         if (Rig != null) { Rig.GlobalPosition = pos + new Vector3(0, 1.6f, 0); Rig.Rotation = new Vector3(0, yaw, 0); }
         _modelYaw = yaw;
     }

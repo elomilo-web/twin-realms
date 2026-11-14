@@ -131,6 +131,26 @@ public partial class Player
             _skillCd[_pendId] = 0; _skillCdMax[_pendId] = 0; _pendId = null; Game.Notify();
         }
         _castT = 0; _castSkill = null; _atkSkill = null; _fired = true;
+        // a whirlwind cut short ends with it: its timer only ran while _atkSkill was set, so a stagger mid-spin used to leave it
+        // stuck above zero, the hero "busy" for good, and every skill locked until the game was restarted
+        _spinLeft = 0; _spinHits = 0;
+    }
+    /// <summary>Clears every action in progress (respawn, revive, teleport): nothing carries over to lock the skills afterwards.</summary>
+    public void ResetActions()
+    {
+        CancelCast(); CancelChannel(); _atkT = 0; _recT = 0; _recPending = 0; _hasQueue = false; _heavyT = 0;
+        _moveT = 0; _moveSkill = null; _rushTgt = null; _busyT = 0; EndHold();
+    }
+    float _busyT;
+    /// <summary>A last safety net: the hero has been "busy" far longer than any skill lasts (and is not channelling), so something
+    /// got stuck. Clear it rather than leave the skills locked.</summary>
+    void BusyWatchdog(float dt)
+    {
+        _busyT = Busy && ChannelT <= 0 ? _busyT + dt : 0;
+        if (_busyT < 6f) return;
+        Flag.Event($"stuck busy cleared: castT {_castT:0.0} atkT {_atkT:0.0} moveT {_moveT:0.0} spin {_spinLeft:0.0}");
+        GD.PrintErr($"[PLAYER] stuck busy cleared (castT {_castT:0.0} atkT {_atkT:0.0} moveT {_moveT:0.0} spin {_spinLeft:0.0})");
+        ResetActions();
     }
     void FaceAim()
     {
@@ -142,6 +162,9 @@ public partial class Player
     bool SkillTick(float dt)
     {
         Statuses.Block ??= ImmuneTo; ExtraTick(dt);   // immunities, shields and heals over time (PlayerSkillsExtra.cs)
+        BusyWatchdog(dt);
+        if (_spinLeft > 0 && _atkSkill == null) _spinLeft = 0;            // a spin with no skill behind it is over
+        if (_moveT > 0 && _moveSkill == null) _moveT = 0;                 // so is a leap or dash with none
         foreach (var k in new List<string>(_skillCd.Keys)) _skillCd[k] = Mathf.Max(0, _skillCd[k] - dt);
         foreach (var k in new List<string>(_autoCd.Keys)) _autoCd[k] = Mathf.Max(0, _autoCd[k] - dt);
         bool changed = false;

@@ -126,7 +126,7 @@ public partial class Player
     /// <summary>Raised by a friend where we lie, with this much health.</summary>
     public void ReviveHere(float hp)
     {
-        Dead = false; Statuses.Clear(); _stagger = 0; _deadT = 0; _wipeT = 0; Hp = Mathf.Clamp(hp, 1, Game.D.MaxHp()); _inv = 2f;
+        Dead = false; Statuses.Clear(); _stagger = 0; _deadT = 0; _wipeT = 0; Hp = Mathf.Clamp(hp, 1, Game.D.MaxHp()); _inv = 2f; ResetActions();
         _model.Rotation = new Vector3(0, _modelYaw, 0); _av?.Play("idle", .3f);
         Vfx.Flash(GlobalPosition + Vector3.Up, new Color(1f, .95f, .7f), 4f, 8f, .5f); Fx.Burst(GlobalPosition + Vector3.Up, new Color(1f, .95f, .6f), 24, 4f, .7f, .1f);
     }
