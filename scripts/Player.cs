@@ -229,7 +229,9 @@ public partial class Player : CharacterBody3D, IDamageable
 
     void Die()
     {
-        Flag.Event("DIED"); CancelCast(); Dead = true; Statuses.Clear();   // death cleanses: nothing burns or slows the hero after respawning Hp = 0; _deadT = 0; _atkT = 0; _blocking = false; if (Mounted) ToggleMount(true);
+        Flag.Event("DIED"); CancelChannel(); CancelCast(); Dead = true; Statuses.Clear(); Flying = false;   // death cleanses: nothing burns or slows the hero after respawning
+        Hp = 0; _deadT = 0; _atkT = 0; _blocking = false; if (Mounted) ToggleMount(true);
+        if (LairRules) Ui.Note($"You are down. A party member can revive you; press {Inputs.KeyOf(Inputs.Use)} to give up.", new Color(1f, .7f, .5f));
         Sfx.Play("die");
         if (Arenas.Active) Arenas.OnPlayerDeath();
     }
@@ -440,7 +442,7 @@ public partial class Player : CharacterBody3D, IDamageable
     void UsePotion(bool hp)
     {
         var D = Game.D;
-        if (hp) { if (D.HpPot <= 0) { Ui.Note("No health potions", new Color(1, .5f, .5f)); return; } if (Hp >= D.MaxHp()) return; D.HpPot--; float a = D.MaxHp() * Tune.F("player.healthPotion", .5f); Hp = Mathf.Min(D.MaxHp(), Hp + a); FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.2f, 0), "+" + Mathf.RoundToInt(a), new Color(0.5f, 1f, 0.6f)); }
+        if (hp) { if (D.HpPot <= 0) { Ui.Note("No health potions", new Color(1, .5f, .5f)); return; } if (Hp >= D.MaxHp()) return; D.HpPot--; float a = D.MaxHp() * Tune.F("player.healthPotion", .5f) * HealIn; Hp = Mathf.Min(D.MaxHp(), Hp + a); FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.2f, 0), "+" + Mathf.RoundToInt(a), new Color(0.5f, 1f, 0.6f)); }
         else { if (D.MpPot <= 0) { Ui.Note("No mana potions", new Color(.5f, .6f, 1f)); return; } if (Mp >= D.MaxMp()) return; D.MpPot--; Mp = Mathf.Min(D.MaxMp(), Mp + D.MaxMp() * Tune.F("player.manaPotion", .6f)); }
         Sfx.Play("heal"); Game.Notify();
     }
@@ -481,7 +483,8 @@ public partial class Player : CharacterBody3D, IDamageable
             _deadT += dt; v.X = v.Z = 0; Velocity = v; MoveAndSlide();
             if (_av != null) _av.Play("die", .15f);   // the model has a death clip; the procedural hero tips over
             else _model.Rotation = new Vector3(Mathf.Lerp(0, -Mathf.Pi / 2, Mathf.Clamp(_deadT / 0.5f, 0, 1)), _modelYaw, 0);
-            if (_deadT > 3f && !Arenas.Active) Respawner.PlayerDied();
+            if (Downed) DownedTick(dt);   // a party lair: lie here until raised (PlayerDowned.cs)
+            else if (_deadT > 3f && !Arenas.Active) Respawner.PlayerDied();
             return;
         }
         // statuses on the hero: damage over time (resisted by type), stuns stagger, slows apply below
@@ -573,7 +576,8 @@ public partial class Player : CharacterBody3D, IDamageable
             // Golden Wings: Jump in the air takes off; landing, tiring out or taking the wings off ends the flight
             if (Flying && ((IsOnFloor() && !(captured && Input.IsActionPressed(Inputs.Jump))) || !Wings.Worn || Mounted || _stagger > 0)) Flying = false;
             else if (!Flying && captured && Input.IsActionJustPressed(Inputs.Jump) && !IsOnFloor() && _airT > .12f && Wings.Worn && !Mounted && St > 5f) { Flying = true; Sfx.Play("swing", .6f); }
-            if (Flying) FlyMove(dir, moveMul, captured, dt, ref v);
+            if (ChannelTick(dt, dir, captured)) { v.X = Mathf.MoveToward(v.X, 0, Accel * dt); v.Z = Mathf.MoveToward(v.Z, 0, Accel * dt); }   // channelling: feet planted
+            else if (Flying) FlyMove(dir, moveMul, captured, dt, ref v);
             else {
             if (captured && Input.IsActionJustPressed(Inputs.Roll) && IsOnFloor() && _rollCd <= 0 && _atkT <= 0 && _stagger <= 0 && St >= Tune.F("stamina.roll", 14) * .85f && !Mounted)
             {
@@ -613,7 +617,7 @@ public partial class Player : CharacterBody3D, IDamageable
 
         // ---- regeneration
         if (_stLockT <= 0 && !_blocking && _atkT <= 0) St = Mathf.Min(D.MaxSt(), St + Feel.StRegen * dt);
-        Hp = Mathf.Min(D.MaxHp(), Hp + (TS["regenHp"] + Tune.F("player.hpRegenBase", 0) + D.Vit * Tune.F("player.hpRegenPerVit", .02f)) * dt);
+        Hp = Mathf.Min(D.MaxHp(), Hp + (TS["regenHp"] + Tune.F("player.hpRegenBase", 0) + D.Vit * Tune.F("player.hpRegenPerVit", .02f)) * HealIn * dt);
         Mp = Mathf.Min(D.MaxMp(), Mp + (Tune.F("player.mpRegenBase", 1.5f) + TS["regenMp"] + D.Mag * Tune.F("player.mpRegenPerMag", .05f)) * dt);
 
         // ---- facing
@@ -735,6 +739,7 @@ public partial class Player : CharacterBody3D, IDamageable
     {
         var a = _av; if (a == null) return; var w = W;
         a.FlapWings(Game.PlayTime, Flying);   // Golden Wings beat in flight, fold at rest
+        if (Channeling) { a.Play("channel", .2f); return; }
         bool rolling = _rollT > 0; bool rollStart = rolling && !_avRolling; _avRolling = rolling;
         if (Mounted) { a.Play("sit"); return; }
         if (rolling) { a.Play("roll", .06f, RollTime, rollStart); return; }

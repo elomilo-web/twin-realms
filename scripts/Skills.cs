@@ -13,6 +13,7 @@ public class SkillDef
     public string Id = "", Name = "", Kind = "projectile", Type = "physical", Scale = "spell", Desc = "";
     public List<string> Tags = new();
     public float Mp, St, Cd = 1, Cast = .3f, Dmg, Lvl, Mult = 1, Radius, Speed = 30, Spread, Dur, Tick = .5f, Heal, Knock, Stun, Up, Arc = 60, Range = 3, Delay, Leech;
+    public float Taunt;   // taunt strength factor (x the skill's resolved power): foes in the radius turn on the caster for its duration
     public int Count = 1, Pierce, Chain, Req = 1, Cost = 1; public bool Homing, Self, Behind, Crit, Arrow;
     public Dictionary<string, float[]> Status = new(); public Dictionary<string, float> Buff = new();
 }
@@ -70,7 +71,7 @@ public static class Skills
             {
                 Id = p.Name, Name = JsonUtil.S(e, "n", p.Name), Kind = JsonUtil.S(e, "kind", "projectile"), Type = JsonUtil.S(e, "type", "physical"), Scale = JsonUtil.S(e, "scale", "spell"), Desc = JsonUtil.S(e, "d"),
                 Mp = F("mp"), St = F("st"), Cd = F("cd", 1), Cast = F("cast", .3f), Dmg = F("dmg"), Lvl = F("lvl"), Mult = F("mult", 1), Radius = F("radius"), Speed = F("speed", 30), Spread = F("spread"), Dur = F("dur"), Tick = F("tick", .5f),
-                Heal = F("heal"), Knock = F("knock"), Stun = F("stun"), Up = F("up"), Arc = F("arc", 60), Range = F("range", 3), Delay = F("delay"), Leech = F("leech"),
+                Heal = F("heal"), Knock = F("knock"), Stun = F("stun"), Up = F("up"), Arc = F("arc", 60), Range = F("range", 3), Delay = F("delay"), Leech = F("leech"), Taunt = F("taunt"),
                 Count = (int)F("count", 1), Pierce = (int)F("pierce"), Chain = (int)F("chain"), Req = (int)F("req", 1), Cost = (int)F("cost", 1), Homing = B("homing"), Self = B("self"), Behind = B("behind"), Crit = B("crit"), Arrow = B("arrow"), Status = St(e),
             };
             if (e.TryGetProperty("tags", out var t)) foreach (var x in t.EnumerateArray()) s.Tags.Add(x.GetString() ?? "");

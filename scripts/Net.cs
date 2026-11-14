@@ -29,7 +29,7 @@ public class PartyInfo
 public partial class Net : Node
 {
     public static Net? I;
-    public const int DefaultPort = 24565, Protocol = 6, MaxPlayers = 8;   // Protocol 6: attack animations in poses; 5: shared ambushes, friends' effects, numbers and statuses; older builds are told to update
+    public const int DefaultPort = 24565, Protocol = 7, MaxPlayers = 8;   // Protocol 7: taunts and revives (NetAggro.cs), raid lairs; 6: attack animations in poses; 5: shared ambushes, friends' effects, numbers and statuses; older builds are told to update
     const int Channels = 8;   // 0 reliable events, 1 poses, 2 enemy snapshots, 3 clock, 4 shots (both sides must open the same number)
     public static bool Active => I != null && I._live;
     public static bool IsHost => Active && I!._server;

@@ -495,7 +495,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
     {
         if (DuelPeer != 0 && !Net.InLiveDuel) return;
         float est = Incoming(h); int dmg = Mathf.Max(1, Mathf.RoundToInt(est * (DuelPeer != 0 ? Net.PvpScale : 1f)));
-        if (h.IsPlayer) { var D = Game.D; var p = Player.Instance; if (p != null) { p.Hp = Mathf.Min(D.MaxHp(), p.Hp + dmg * (Game.TS["leech"] + h.Leech) / 100f); p.Mp = Mathf.Min(D.MaxMp(), p.Mp + dmg * Game.TS["mleech"] / 100f); } }
+        if (h.IsPlayer) { var D = Game.D; var p = Player.Instance; if (p != null) { p.Hp = Mathf.Min(D.MaxHp(), p.Hp + dmg * (Game.TS["leech"] + h.Leech) / 100f * Player.HealIn); p.Mp = Mathf.Min(D.MaxMp(), p.Mp + dmg * Game.TS["mleech"] / 100f); } }
         _flash = .12f;
         if (!h.NoText) FloatText.Spawn(this, GlobalPosition + new Vector3(0, HeightM() + 0.3f, 0), h.Crit ? dmg + "!" : dmg.ToString(), h.Crit ? new Color(1, 0.82f, 0.3f) : h.Type != "physical" ? Dmg.TypeColor(h.Type) : Colors.White, h.Crit ? 1.25f : 1f);
         Fx.Burst(GlobalPosition + new Vector3(0, HeightM() * 0.6f, 0), h.Crit ? new Color(1, 0.8f, 0.2f) : new Color(1, 0.3f, 0.2f), h.Crit ? 12 : 6, 4f, 0.35f, 0.08f);
@@ -517,9 +517,9 @@ public partial class Enemy : CharacterBody3D, IDamageable
         float dealt = Incoming(h); int dmg = Mathf.Max(1, Mathf.RoundToInt(dealt));
         if (Duelist && !DuelHit(h, ref dmg)) return;   // dodged, immune, or soaked by the Eclipse barrier
         if (Scarletta) ScarHitTaken(ref dmg);          // the Bloom counts it; broken, she takes more
-        Hp -= dmg; _flash = 0.12f;
+        Hp -= dmg; _flash = 0.12f; NoteDamage(h, dmg);
         if (h.IsPlayer && !h.Remote) Flag.Event($"hit {Def.N} Lv{Level} for {dmg}{(h.Crit ? " crit" : "")} {h.Type}, its hp {Mathf.Max(0, Hp):0}/{MaxHp:0}");
-        if (h.IsPlayer) { var D = Game.D; var p = Player.Instance; if (p != null) { p.Hp = Mathf.Min(D.MaxHp(), p.Hp + dmg * (Game.TS["leech"] + h.Leech) / 100f); p.Mp = Mathf.Min(D.MaxMp(), p.Mp + dmg * Game.TS["mleech"] / 100f); } }
+        if (h.IsPlayer) { var D = Game.D; var p = Player.Instance; if (p != null) { p.Hp = Mathf.Min(D.MaxHp(), p.Hp + dmg * (Game.TS["leech"] + h.Leech) / 100f * Player.HealIn); p.Mp = Mathf.Min(D.MaxMp(), p.Mp + dmg * Game.TS["mleech"] / 100f); } }
         ApplyStatuses(h, dealt);
         var tc = Dmg.TypeColor(h.Type);
         if (!h.NoText) FloatText.Spawn(this, GlobalPosition + new Vector3(0, HeightM() + 0.3f, 0), h.Crit ? dmg + "!" : dmg.ToString(), h.Crit ? new Color(1, 0.82f, 0.3f) : h.Type != "physical" ? tc : h.Fire ? new Color(1, 0.7f, 0.4f) : Colors.White, h.Crit ? 1.25f : 1f);
@@ -654,6 +654,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
             return;
         }
         if (Puppet) { PuppetMove(dt); if (Scarletta) ScarPuppetTick(dt); return; }
+        AggroTick(dt);   // damage and taunt locks (EnemyAggro.cs)
 
         // damage over time / slow
         // statuses: damage over time (mitigated by resistances only), freeze/stun, slows and roots
@@ -844,6 +845,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
     {
         var me = Player.Instance;
         if (!Net.Active || Puppet || Arena || (Ambusher && NetIdx < 0) || (FromDungeon && !Dungeon.Shared)) return me;   // shared ambushers hunt any hero
+        if (AggroHero is { } locked) return locked;   // drawn by damage or a taunt (EnemyAggro.cs)
         Node3D? best = null; float bd = float.MaxValue;
         foreach (var h in FromDungeon ? Net.DungeonHeroes() : Net.WorldHeroes()) { float d = h.GlobalPosition.DistanceSquaredTo(GlobalPosition); if (d < bd) { bd = d; best = h; } }
         return best ?? me;

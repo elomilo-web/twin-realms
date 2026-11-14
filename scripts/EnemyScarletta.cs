@@ -154,7 +154,6 @@ void fragment() {
         var tells = new List<string> { physK > .6f ? "her gold hardens against blades" : physK < .4f ? "her gold drinks in magic" : "her guard is even" };
         if (_wMelee >= n * .5f) tells.Add("she will sweep those who crowd her");
         if (_wRanged + _wMagic >= n * .5f) tells.Add("no distance will save you");
-        if (_healers) tells.Add("she has marked your healer");
         Ui.Banner(Def.N, n > 1 ? $"she judges {n} challengers" : "she judges you"); Ui.Note("Scarletta studies you: " + string.Join(", ", tells) + ".", new Color(.8f, 1f, .6f));
         Sfx.Play("roar");
     }
@@ -200,7 +199,7 @@ void fragment() {
         // the nearest challenger, or the one she has marked
         float best = float.MaxValue; Node3D? near = null; var all = new List<Node3D>();
         foreach (var h in Challengers()) { all.Add(h); float d = h.GlobalPosition.DistanceSquaredTo(GlobalPosition); if (d < best) { best = d; near = h; } }
-        if (_smTgt == null || !IsInstanceValid(_smTgt) || _smTgt is IDamageable { Dead: true } || !all.Contains(_smTgt)) _smTgt = near;
+        _smTgt = AggroHero ?? near;   // the closest, unless damage, a taunt or her own whim has locked her on someone (EnemyAggro.cs)
         var tgt = _smTgt; float dist = tgt == null ? 999 : Flat(tgt.GlobalPosition - GlobalPosition).Length();
         var toT = tgt == null ? Vector3.Zero : Flat(tgt.GlobalPosition - GlobalPosition); float yawTo = tgt == null ? _yaw : Util.YawTo(toT.X, toT.Z);
         Vector3 move = Vector3.Zero;
@@ -333,8 +332,6 @@ void fragment() {
     {
         if (all.Count == 0) { ScarBegin(SM.Judge, 1f); return; }   // nobody left standing: she waits
         // the healer is marked: she turns to them now and then
-        static bool Healer(string? c) => c is "cleric" or "druid";
-        if (_healers && GD.Randf() < .35f) foreach (var h in all) if ((h is Player && Healer(Game.D.Class)) || (h is RemoteHero rh && Healer(Net.I?.Players.GetValueOrDefault(rh.Peer)?.Class))) { _smTgt = h; dist = Flat(h.GlobalPosition - GlobalPosition).Length(); break; }
         int crowd = 0; foreach (var h in all) if (Flat(h.GlobalPosition - GlobalPosition).Length() < 8f) crowd++;
         float n = Mathf.Max(1, _heroes), meleeK = _wMelee / n, farK = (_wRanged + _wMagic) / n;
         var w = new List<(SM m, float wt)>

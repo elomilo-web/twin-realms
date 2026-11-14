@@ -205,7 +205,19 @@ public partial class HudCanvas : Control
         foreach (var s in p.Statuses.List) { StatusChip(new Vector2(sx0, hy - isz - 8), isz, s.Def.Col, s.Def.Name[..1], s.T, s.Stacks); sx0 += isz + 4; }
         // minimap bottom-right
         DrawMini(p, new Vector2(sz.X - pad - u * 7, sz.Y - pad - u * 7), u * 7);
-        if (p.Dead) Txt(new Vector2(sz.X / 2, sz.Y / 2), "YOU DIED", fs(5f), new Color("ff7b6f"), HorizontalAlignment.Center, sz.X);
+        if (p.Downed)
+        {
+            Txt(new Vector2(0, sz.Y / 2), "DOWNED", fs(5f), new Color("ff9a6f"), HorizontalAlignment.Center, sz.X);
+            Txt(new Vector2(0, sz.Y / 2 + fs(2.4f)), $"A party member can revive you.  [{Inputs.KeyOf(Inputs.Use)}] give up and wake outside", fs(1.3f), Colors.White, HorizontalAlignment.Center, sz.X);
+        }
+        else if (p.Dead) Txt(new Vector2(sz.X / 2, sz.Y / 2), "YOU DIED", fs(5f), new Color("ff7b6f"), HorizontalAlignment.Center, sz.X);
+        // channelling (Resurrection, reviving a friend): a bar under the crosshair
+        if (p.ChannelFrac >= 0)
+        {
+            float bw = u * 16, bh = Mathf.Max(7, u * .7f); var br = new Rect2(sz.X / 2 - bw / 2, sz.Y / 2 + u * 5f, bw, bh);
+            SlantBar(br, p.ChannelFrac, new Color("9fffb0"), 4, 15);
+            Txt(new Vector2(br.Position.X, br.Position.Y - 4), $"{p.ChannelName}  {p.ChannelT:0.0} s  (moving breaks it)", fs(1f), Colors.White, HorizontalAlignment.Center, bw);
+        }
     }
 
     /// <summary>Status chip: tinted square, the status initial, stacks in the corner and a draining bar for time left.</summary>

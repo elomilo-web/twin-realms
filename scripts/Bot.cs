@@ -189,6 +189,7 @@ public partial class Bot : Node
             var keepBar = (string[])Game.D.Bar.Clone(); var keepW = Game.D.Eq["weapon"]; var bad = new List<string>(); int ok = 0;
             foreach (var k in Skills.All)
             {
+                if (k.Kind == "resurrect") continue;   // needs a downed party member (multiplayer only)
                 Game.D.Skills[k.Id] = Game.D.Skills.GetValueOrDefault(k.Id) ?? new SkillState(); Game.D.Bar[0] = k.Id;
                 Game.D.Eq["weapon"] = k.Tags.Contains("bow") ? new Item { Name = "Bot bow", Slot = "weapon", Wt = "bow", Dmg = 10, Two = true } : new Item { Name = "Bot sword", Slot = "weapon", Wt = "sword", Dmg = 10 };
                 Game.Notify(); P.Teleport(spot, 0f); Heal(); await Wait(0.15f);

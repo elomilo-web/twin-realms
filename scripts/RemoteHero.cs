@@ -21,9 +21,11 @@ public partial class RemoteHero : Node3D, IDamageable, IInteractable
     public float Hp => _p?[6] ?? 1; public float MaxHp => _p?[7] ?? 1;
     public string PlayerName => Net.I?.Players.GetValueOrDefault(Peer)?.Name ?? "Friend";
 
-    public string Prompt => "Meet " + PlayerName + " (party, duel)";
-    public bool CanInteract => Net.Active && !Dead && Visible;
-    public void Interact() => Ui.I?.OpenPlayerMenu(Peer);
+    public string Prompt => Revivable ? $"Revive {PlayerName} (hold still 15 s; gives them half your health)" : "Meet " + PlayerName + " (party, duel)";
+    public bool CanInteract => Net.Active && Visible && (!Dead || Revivable);
+    /// <summary>Downed in a party lair, in our party, on our floor: we can kneel and share our life (PlayerDowned.cs).</summary>
+    bool Revivable => Dead && Player.LairRules && Zone == Net.MyZone && Net.I!.SameParty(Net.MyId, Peer) && Player.Instance is { Dead: false, Channeling: false };
+    public void Interact() { if (Revivable) Player.Instance!.BeginRevive(Peer, PlayerName); else Ui.I?.OpenPlayerMenu(Peer); }
     /// <summary>Only the host's enemies call this; the friend's own game applies the hit to their hero.</summary>
     public void TakeHit(HitInfo h)
     {

@@ -20,7 +20,7 @@ public partial class Player
     public void ResetCooldowns() { _skillCd.Clear(); _skillCdMax.Clear(); _autoCd.Clear(); }
     public bool Staggered => _stagger > 0; public bool Casting => _castT > 0;
     public float CdMaxOf(string? id) => id != null && _skillCdMax.TryGetValue(id, out var v) ? Mathf.Max(.01f, v) : 1;
-    public bool Busy => _castT > 0 || _atkT > 0 || _moveT > 0 || _spinLeft > 0;
+    public bool Busy => _castT > 0 || _atkT > 0 || _moveT > 0 || _spinLeft > 0 || ChannelT > 0;
 
     static readonly HashSet<string> WeaponKinds = new() { "melee", "spin", "leap", "dash" };
 
@@ -101,6 +101,7 @@ public partial class Player
             if (charge >= .999f) FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.3f, 0), "Empowered", new Color(1f, .82f, .4f), .6f);
         }
         if (k.Tags.Contains("bow") && D.WType() != "bow") { Ui.Note(k.Name + " needs a bow", new Color(1, .6f, .5f)); return; }
+        if (k.Kind == "resurrect") { TryResurrect(id, c); return; }   // a channel, not a cast (PlayerDowned.cs)
         if (Mp < c.Mp) { Ui.Note("Not enough mana", new Color(0.4f, 0.65f, 1f)); return; }
         if (St < c.St) { Ui.Note("Not enough stamina", new Color(0.6f, 0.9f, .7f)); return; }
         Mp -= c.Mp; if (c.St > 0) UseStamina(c.St); StartCd(id, c.Cd); PendCast(id, c.Mp, c.St);
@@ -257,13 +258,13 @@ public partial class Player
             case "heal":
             {
                 bool cr = Crit(c);   // critical heals restore half again as much
-                float amt = Game.D.MaxHp() * c.Heal * (1 + Game.TS["healP"] / 100f) * (cr ? 1.5f : 1f); Hp = Mathf.Min(Game.D.MaxHp(), Hp + amt); Statuses.List.RemoveAll(s => s.Def.Kind is "dot" or "slow" or "weaken");
+                float amt = Game.D.MaxHp() * c.Heal * (1 + Game.TS["healP"] / 100f) * HealIn * (cr ? 1.5f : 1f); Hp = Mathf.Min(Game.D.MaxHp(), Hp + amt); Statuses.List.RemoveAll(s => s.Def.Kind is "dot" or "slow" or "weaken");
                 Vfx.HealPillar(this); FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.2f, 0), "+" + Mathf.RoundToInt(amt) + (cr ? "!" : ""), new Color(0.5f, 1f, 0.6f));
                 // more "projectiles": follow-up pulses, each a third of the heal
                 for (int i = 1; i < c.Count; i++)
                     GetTree().CreateTimer(.5f * i).Timeout += () =>
                     {
-                        if (Dead) return; float a2 = Game.D.MaxHp() * c.Heal * (1 + Game.TS["healP"] / 100f) / 3f; Hp = Mathf.Min(Game.D.MaxHp(), Hp + a2);
+                        if (Dead) return; float a2 = Game.D.MaxHp() * c.Heal * (1 + Game.TS["healP"] / 100f) * HealIn / 3f; Hp = Mathf.Min(Game.D.MaxHp(), Hp + a2);
                         Vfx.Ring(GlobalPosition + Vector3.Up * .1f, 1.6f, new Color(.5f, 1f, .6f), .35f); FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.2f, 0), "+" + Mathf.RoundToInt(a2), new Color(0.5f, 1f, 0.6f), .8f);
                     };
                 if (c.Burst) Burst(c, GlobalPosition);
@@ -353,6 +354,7 @@ public partial class Player
                 SpellFx.Skill(k.Id, "ground", GlobalPosition, FxFit(k.Id, "ground", Mathf.Max(3, c.Radius)));
                 FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.4f, 0), k.Name, new Color(1, .85f, .45f));
                 // a war cry's ring carries only its statuses, unless on-hit modifiers make it a real burst; buffs without a ring get one then
+                if (k.Taunt > 0) TauntAround(c);   // before the ring: a taunted foe turns on us before it is struck
                 if (c.Radius > 0) AreaHit(c, GlobalPosition, c.Radius, c.Burst ? 1f : 0f);
                 else if (c.Burst) Burst(c, GlobalPosition);
                 if (c.Chain > 0) ChainFrom(c, GlobalPosition, c.Chain);
@@ -392,6 +394,15 @@ public partial class Player
     }
 
     /// <summary>Damage everything within r of a point (mul 0 = statuses only, as for war cries). fx: play the skill's "hit" animation on each foe struck.</summary>
+    /// <summary>Taunt: every foe in the skill's radius turns on us for its duration; strength = the skill's resolved power (rank, modifiers, level).</summary>
+    void TauntAround(SkillCalc c)
+    {
+        float str = c.Dmg * c.Def.Taunt, dur = Mathf.Max(1f, c.Dur); int n = 0;
+        foreach (var node in GetTree().GetNodesInGroup("enemies"))
+            if (node is Enemy e && !e.Dead && e.Active && !e.Def.Flee && new Vector2(e.GlobalPosition.X - GlobalPosition.X, e.GlobalPosition.Z - GlobalPosition.Z).Length() < c.Radius && e.Taunt(Net.MyId, str, dur)) n++;
+        Vfx.Ring(GlobalPosition + Vector3.Up * .2f, c.Radius, new Color(1f, .6f, .3f), .6f);
+        if (n > 0) FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.6f, 0), $"Taunted {n}", new Color(1f, .75f, .35f), .6f);
+    }
     void AreaHit(SkillCalc c, Vector3 at, float r, float mul, bool fx = false)
     {
         foreach (var n in GetTree().GetNodesInGroup("enemies"))
@@ -535,7 +546,7 @@ public partial class SkillZone : Node3D
             Hit(1f); p?.Rig?.Shake(.2f); QueueFree(); return;
         }
         _tick -= dt;
-        if (_tick <= 0) { _tick = Calc.Tick; Hit(1f); if (Calc.Heal > 0 && p != null && (p.GlobalPosition - GlobalPosition).Length() < Calc.Radius) p.Hp = Mathf.Min(Game.D.MaxHp(), p.Hp + Game.D.MaxHp() * Calc.Heal * (1 + Game.TS["healP"] / 100f)); }
+        if (_tick <= 0) { _tick = Calc.Tick; Hit(1f); if (Calc.Heal > 0 && p != null && (p.GlobalPosition - GlobalPosition).Length() < Calc.Radius) p.Hp = Mathf.Min(Game.D.MaxHp(), p.Hp + Game.D.MaxHp() * Calc.Heal * (1 + Game.TS["healP"] / 100f) * Player.HealIn); }
         if (Follow && p != null) GlobalPosition = p.GlobalPosition;
         else if (Calc.Homing && _t < Calc.Dur)
         {
