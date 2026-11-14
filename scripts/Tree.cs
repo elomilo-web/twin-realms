@@ -80,10 +80,13 @@ public static class TreeDb
         foreach (var id in tree) { var n = Get(id); if (n == null) continue; foreach (var kv in n.Mods) ts[kv.Key] += kv.Value; }
     }
 
-    /// <summary>A node can be taken when it touches a taken node or your class start. Start nodes themselves are never taken.</summary>
+    /// <summary>
+    /// A node can be taken when it touches a taken node or your class start. Your own start is free and never taken; another class's
+    /// start costs a point and gives nothing (no stats, no effects): it is the toll a hybrid pays to build on across the centre.
+    /// </summary>
     public static bool CanAlloc(TreeNode n, HashSet<int> tree, int pts, int start)
     {
-        if (n.Type == "start" || tree.Contains(n.Id) || pts <= 0) return false;
+        if (n.Id == start || tree.Contains(n.Id) || pts <= 0) return false;
         foreach (var a in n.Adj) if (a == start || tree.Contains(a)) return true;
         return false;
     }

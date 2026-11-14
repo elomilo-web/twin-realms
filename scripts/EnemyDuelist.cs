@@ -59,7 +59,7 @@ public partial class Enemy
     {
         var D = Game.D; var s = DuelStats(round); string wt = D.WType(); var w = Weapons.Get(wt);
         float reach = w.Ranged ? 2.6f : Mathf.Clamp((w.Combo.Count > 0 ? w.Combo[0].Range : 2.4f) + .3f, 2.3f, 3.6f);
-        return new EnemyDef { N = $"Shadow of {D.Name}", Kind = "hum", Boss = true, NoLoot = true, Hp = s.hp, Dmg = s.dmgK * .1f, Spd = s.speed, Aggro = 99, Reach = reach, Wind = .5f, Cd = 1f, Xp = 0, R = .45f, Scale = 1f, Color = 0x3a1a5a, Realm = 0 };
+        return new EnemyDef { N = $"Shadow of {D.Name}", Kind = "hum", Boss = true, NoLoot = true, Hp = s.hp, Dmg = s.dmgK * .1f, Spd = s.speed, Aggro = 99, Reach = reach + T("sizeReach", .6f), Wind = .5f, Cd = 1f, Xp = 0, R = .9f, Scale = T("size", 2f), Color = 0x3a1a5a, Realm = 0 };
     }
 
     // ------------------------------------------------------------------ build
@@ -69,7 +69,7 @@ public partial class Enemy
         _stanceMax = MaxHp * T("stance", .14f); _wt = D.WType();
         // the hero's body and gear
         var ap = Races.Look(D);
-        _av = new Avatar { Name = "Avatar" }; _body.AddChild(_av); _av.Build(ap, D.Name + "_shadow");
+        _av = new Avatar { Name = "Avatar", Scale = Vector3.One * _scale }; _body.AddChild(_av);   // twice the hero's size (duel.size) _av.Build(ap, D.Name + "_shadow");
         _av.Dress(sl => D.Eq.GetValueOrDefault(sl), _wt, Classes.Get(D.Class).Tunic);
         // the hero's own chain of swings and power attack (data/attacks.json)
         var w = Weapons.Get(_wt);
@@ -91,7 +91,7 @@ void fragment() {
         ShadowOver(_av);
         _dTrail = new SwordTrail { Col = new Color(.65f, .35f, 1f) }; AddChild(_dTrail);
         if (_av.BladeTip != null) { _dTrail.Base = _av.BladeBase; _dTrail.Tip = _av.BladeTip; }
-        AddChild(new OmniLight3D { LightColor = new Color(.6f, .3f, 1f), OmniRange = 5f, LightEnergy = 1.2f, Position = new Vector3(0, 1.4f, 0), ShadowEnabled = false });
+        AddChild(new OmniLight3D { LightColor = new Color(.6f, .3f, 1f), OmniRange = 5f * _scale, LightEnergy = 1.2f, Position = new Vector3(0, 1.4f * _scale, 0), ShadowEnabled = false });
     }
     void ShadowOver(Node n) { foreach (var c in n.GetChildren()) { if (c is GeometryInstance3D g && g.MaterialOverlay == null) g.MaterialOverlay = _shadowMat; ShadowOver(c); } }
     void Tell(float k) => _shadowMat?.SetShaderParameter("glow", Mathf.Clamp(k, 0, 1));
@@ -101,8 +101,8 @@ void fragment() {
     bool DuelHit(HitInfo h, ref int dmg)
     {
         var top = GlobalPosition + new Vector3(0, HeightM() + .5f, 0);
-        if (_iframes > 0) { FloatText.Spawn(this, top, "Evaded", new Color(.75f, .6f, 1f), .9f); return false; }
-        if (_dm == DM.Roar) { FloatText.Spawn(this, top, "Immune", new Color(.75f, .6f, 1f), .9f); return false; }
+        if (_iframes > 0) { FloatText.Spawn(this, top, "Evaded", new Color(.75f, .6f, 1f), .5f); return false; }
+        if (_dm == DM.Roar) { FloatText.Spawn(this, top, "Immune", new Color(.75f, .6f, 1f), .5f); return false; }
         if (_dm == DM.Eclipse)
         {
             _barrier -= dmg; _flash = .08f; FloatText.Spawn(this, top, dmg.ToString(), new Color(.8f, .55f, 1f), 1f);
@@ -119,13 +119,13 @@ void fragment() {
     {
         if (_dm is DM.Eclipse or DM.Roar or DM.Leap or DM.Broken) return;
         _stance += _stanceMax * T("parryStance", .4f); _stanceIdle = 0;
-        FloatText.Spawn(this, GlobalPosition + new Vector3(0, HeightM() + .5f, 0), "Parried", new Color(1f, .88f, .5f), 1.1f);
+        FloatText.Spawn(this, GlobalPosition + new Vector3(0, HeightM() + .5f, 0), "Parried", new Color(1f, .88f, .5f), .6f);
         if (_stance >= _stanceMax) StanceBreak(T("brokenTime", 3f)); else Begin(DM.Staggered, Mathf.Max(.6f, t));
     }
     void StanceBreak(float t)
     {
         _stance = 0; Ui.Note("Its stance breaks: strike now!", new Color(1f, .85f, .4f)); Sfx.Play("block");
-        FloatText.Spawn(this, GlobalPosition + new Vector3(0, HeightM() + .6f, 0), "STANCE BROKEN", new Color(1f, .8f, .3f), 1.4f);
+        FloatText.Spawn(this, GlobalPosition + new Vector3(0, HeightM() + .6f, 0), "STANCE BROKEN", new Color(1f, .8f, .3f), .75f);
         Begin(DM.Broken, t);
     }
 
@@ -276,7 +276,7 @@ void fragment() {
                 if (_mt >= _wind && ok)
                 {
                     int n = _phase >= 2 ? 3 : 1; float spread = .26f;
-                    var from = GlobalPosition + new Vector3(0, 1.4f, 0) + Fwd * .6f;
+                    var from = GlobalPosition + new Vector3(0, 1.4f * _scale, 0) + Fwd * (.6f * _scale);
                     for (int i = 0; i < n; i++)
                     {
                         float a = (i - (n - 1) / 2f) * spread; var to = p!.GlobalPosition + new Vector3(0, 1f, 0) + new Vector3(p.Velocity.X, 0, p.Velocity.Z) * (dist / 18f) * .6f;
@@ -402,12 +402,12 @@ void fragment() {
         Ui.Banner("Eclipse", "break its barrier before it falls!"); Sfx.Play("roar");
         _eclipseOrb = new MeshInstance3D { Mesh = new SphereMesh { Radius = 1.6f, Height = 3.2f, RadialSegments = 24, Rings = 12 }, Position = new Vector3(0, 1.1f, 0), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
             MaterialOverride = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, BlendMode = BaseMaterial3D.BlendModeEnum.Add, AlbedoColor = new Color(.5f, .25f, 1f, .35f), CullMode = BaseMaterial3D.CullModeEnum.Disabled } };
-        AddChild(_eclipseOrb);
+        _eclipseOrb.Position *= _scale; AddChild(_eclipseOrb);
     }
     void TickEclipse(float dt, Player? p, float dist)
     {
         float k = _mt / _eclipseDur;
-        if (_eclipseOrb != null) { _eclipseOrb.Scale = Vector3.One * (1 + k * .5f + Mathf.Sin(_mt * 9f) * .03f); if (_eclipseOrb.MaterialOverride is StandardMaterial3D m) m.AlbedoColor = new Color(.5f + k * .5f, .25f, 1f - k * .4f, .3f + k * .3f); }
+        if (_eclipseOrb != null) { _eclipseOrb.Scale = Vector3.One * _scale * (1 + k * .5f + Mathf.Sin(_mt * 9f) * .03f); if (_eclipseOrb.MaterialOverride is StandardMaterial3D m) m.AlbedoColor = new Color(.5f + k * .5f, .25f, 1f - k * .4f, .3f + k * .3f); }
         Tell(k > .75f ? (k - .75f) * 4f : 0);
         if ((int)(_mt * 3) != (int)((_mt - dt) * 3)) Vfx.Ring(GlobalPosition + Vector3.Up * .1f, 3f + k * 20f, new Color(.6f, .3f, 1f, .6f), .3f);   // the gathering dark
         if (k > .85f && (k - dt / _eclipseDur) <= .85f) { Ui.Note("The Eclipse falls!", new Color(1f, .5f, .4f)); Vfx.Flash(GlobalPosition + Vector3.Up * 3, new Color(1f, .3f, .3f), 5f, 30f, .4f); }   // last call: roll now

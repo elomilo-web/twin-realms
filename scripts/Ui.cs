@@ -455,7 +455,9 @@ public partial class Ui : CanvasLayer
             if (kind != "" || n.Arm == "hybrid") lines.Add((kind + (n.Arm == "hybrid" ? "   hybrid path" : ""), n.Col.Lightened(.3f), 12));
             if (n.Desc != "") lines.Add((n.Desc, Colors.White, 13));
             foreach (var kv in n.Mods) lines.Add((TreeDb.StatText(kv.Key, kv.Value), new Color(.75f, .92f, 1f), 14));
-            if (n.Type == "start") lines.Add((n.Id == TreeDb.StartFor(d.Class) ? "You start here" : $"{Classes.Get(n.Arm).Name} start", UiTheme.Dim, 12));
+            bool myStart = n.Id == TreeDb.StartFor(d.Class);
+            if (n.Type == "start") lines.Add((myStart ? "You start here" : $"{Classes.Get(n.Arm).Name} start. Costs a point and gives no bonus: it lets a hybrid build on through it.", UiTheme.Dim, 12));
+            if (myStart) { }
             else if (d.Tree.Contains(id)) lines.Add(("Taken. Right click to refund.", UiTheme.Accent, 12));
             else { var path = tv.PathTo(id); if (path == null) lines.Add(("Cannot be reached", new Color(1f, .6f, .5f), 12)); else lines.Add((path.Count == 1 ? "Click to take (1 point)" : $"Click to take the path: {path.Count} points" + (path.Count > d.SkillPts ? $" (you have {d.SkillPts})" : ""), path.Count <= d.SkillPts ? new Color(.45f, 1f, .6f) : new Color(1f, .6f, .5f), 12)); }
             Info(at, n.Name == "" ? "Passive" : n.Name, n.Type == "key" ? new Color(1f, .85f, .5f) : Colors.White, lines, 270);
@@ -640,7 +642,7 @@ public partial class TreeView : Control
         while (q.Count > 0)
         {
             int c = q.Dequeue(); if (c == target) break;
-            foreach (var a in TreeDb.Nodes[c].Adj) { if (prev.ContainsKey(a)) continue; if (TreeDb.Nodes[a].Type == "start") continue; prev[a] = c; q.Enqueue(a); }
+            foreach (var a in TreeDb.Nodes[c].Adj) { if (prev.ContainsKey(a)) continue; prev[a] = c; q.Enqueue(a); }   // other class starts cost a point like any node
         }
         if (!prev.ContainsKey(target)) return null;
         var path = new List<int>(); for (int c = target; c != -1 && !have.Contains(c); c = prev[c]) path.Add(c); path.Reverse(); return path;

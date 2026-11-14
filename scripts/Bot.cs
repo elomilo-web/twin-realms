@@ -289,6 +289,10 @@ public partial class Bot : Node
             md.Tree.Add(first.Id); var second = TreeDb.Get(first.Adj.Find(a => a != st && !md.Tree.Contains(a) && TreeDb.Nodes[a].Type != "start"))!; md.Tree.Add(second.Id);
             bool refundFirst = TreeDb.CanDealloc(first, new HashSet<int>(md.Tree), st), refundSecond = TreeDb.CanDealloc(second, new HashSet<int>(md.Tree), st);
             Check("tree grows from the class start and refunds keep it connected", canFirst && !canFar && !refundFirst && refundSecond, $"first {canFirst}, far {canFar}, refund first {refundFirst}, refund leaf {refundSecond}");
+            // hybrids: another class's start can be taken (1 point, no stats) once next to your path; your own start never
+            var ws = TreeDb.Nodes[TreeDb.StartFor("warrior")]; var wsNext = new HashSet<int> { ws.Adj[0] };
+            bool bridge = TreeDb.CanAlloc(ws, wsNext, 1, st) && ws.Mods.Count == 0 && !TreeDb.CanAlloc(TreeDb.Nodes[st], new HashSet<int> { TreeDb.Nodes[st].Adj[0] }, 1, st);
+            Check("other class starts are a statless bridge for hybrids", bridge, $"warrior start mods {ws.Mods.Count}");
             // passives change the numbers they claim to (each key is pushed and the derived stat compared)
             Game.RecalcTree(); var bad = new List<string>();
             void Expect(string key, float add, Func<float> stat) { float b = stat(); Game.TS[key] += add; float a = stat(); Game.TS[key] -= add; if (Mathf.Abs(a - b) < 1e-4f) bad.Add(key); }
