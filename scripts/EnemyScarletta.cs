@@ -20,7 +20,10 @@ namespace TwinRealms;
 public partial class Enemy
 {
     public bool Scarletta => Type == "scarletta";
-    enum SM { Sleep, Judge, Sweep, Flurry, Whirl, Lunge, Ascend, Bloom, Wave, Broken, Recover }
+    enum SM { Sleep, Judge, Sweep, Flurry, Whirl, Lunge, Ascend, Bloom, Wave, Broken, Recover, Feint, Verdict, Poise, Grab }
+    // Feint: a sweep that stops short, then a sudden real cut. Verdict: a very long overhead wind-up that keeps turning to you, then a
+    // crushing line. Poise: she holds a thrust, tracking, then lunges at where you are. Grab: a blink behind you and her grip.
+    float _grabCd = 12f; Node3D? _grabVictim; float _grabBaseY;
     SM _sm = SM.Sleep, _smLast = SM.Sleep; float _smT, _smWind, _smDur, _smThink; int _smHit, _smHitN; bool _smDone, _assessed;
     Node3D? _smTgt; Vector3 _smTo, _smFrom; float _smYaw0;
     int _bloomIdx; float _bloomNeed = 1, _bloomDone, _bloomLeft; MeshInstance3D? _bloomMesh; float _waveR; readonly HashSet<Node3D> _waveHit = new();
@@ -161,11 +164,15 @@ void fragment() {
     // ------------------------------------------------------------------ the brain (owner)
     void ScarBegin(SM m, float dur = 0)
     {
-        if (m is SM.Sweep or SM.Flurry or SM.Whirl or SM.Lunge or SM.Ascend) _smLast = m;
+        if (m is SM.Sweep or SM.Flurry or SM.Whirl or SM.Lunge or SM.Ascend or SM.Feint or SM.Verdict or SM.Poise or SM.Grab) _smLast = m;
         _sm = m; _smT = 0; _smDur = dur; _smDone = false; _smHit = 0; ScarTell(0); if (_sTrail != null) _sTrail.Emit = false;
         float q = SQ;
         switch (m)
         {
+            case SM.Feint: _smWind = .95f * q; break;     // looks exactly like the sweep
+            case SM.Verdict: _smWind = 2.4f * q; break;   // a very long wind-up
+            case SM.Poise: _smWind = 1.8f * q; break;
+            case SM.Grab: _smWind = .5f; _grabCd = RT("grabCooldown", 16f); break;
             case SM.Sweep: _smWind = .95f * q; break;
             case SM.Flurry: _smHitN = 2 + ScarPhase; _smWind = .55f * q; break;
             case SM.Whirl: _smWind = .75f * q; break;
@@ -180,13 +187,18 @@ void fragment() {
         if (_av == null) return; float q = SQ;
         switch (m)
         {
-            case SM.Sweep: _av.PlayAttack("bigSwing", .95f * q, true); break;
+            case SM.Sweep: case SM.Feint: _av.PlayAttack("bigSwing", .95f * q, true); break;   // a feint starts exactly like a sweep
+            case SM.Verdict: _av.PlayAttack("castSlam", 2.4f * q, true); Vfx.Flash(GlobalPosition + Vector3.Up * 8, new Color(.6f, 1f, .4f), 4f, 14f, 2.2f * q); break;
+            case SM.Poise: _av.PlayAttack("dashSlash", 1.8f * q + .3f, true); break;
+            case SM.Grab:
+                Vfx.Sparks(GlobalPosition + Vector3.Up * 3, Vfx.Ramp((0, new Color(1f, .9f, .6f)), (1, new Color(.6f, 1f, .4f, 0))), 40, 6f, .6f, .8f, 0f, true, 180f, null, 2f);
+                _av.Play("cast", .05f, .5f, true); break;
             case SM.Flurry: _av.PlayAttack("slashA", .55f * q, true); break;
             case SM.Whirl: _av.PlayAttack("hook", .75f * q + .3f, true); break;
             case SM.Lunge: _av.PlayAttack("dashSlash", .32f * q + .3f, true); Vfx.Flash(GlobalPosition + Vector3.Up * 3, new Color(1f, .85f, .4f), 5f, 10f, .2f); break;
             case SM.Ascend: _av.PlayAttack("castSlam", .5f * q + .8f, true); break;
             case SM.Bloom: _av.Play("channel", .3f); BloomFlower(true); Ui.Banner("The Bloom", "strike her before it opens!"); Sfx.Play("roar"); break;
-            case SM.Wave: _av.Play("cast", .1f, 1.2f, true); BloomFlower(false); Vfx.Ring(GlobalPosition + Vector3.Up * .2f, 46f, new Color(.5f, 1f, .3f), 46f / RT("waveSpeed", 16f)); Vfx.Flash(GlobalPosition + Vector3.Up * 3, new Color(.5f, 1f, .3f), 8f, 40f, .6f); Ui.Note("The Bloom bursts: rot washes over everyone!", new Color(.6f, 1f, .4f)); break;
+            case SM.Wave: _av.Play("cast", .1f, 1.2f, true); BloomFlower(false); Vfx.Ring(GlobalPosition + Vector3.Up * .2f, RT("waveReach", 760f), new Color(.5f, 1f, .3f), RT("waveReach", 760f) / RT("waveSpeed", 48f)); Vfx.Flash(GlobalPosition + Vector3.Up * 3, new Color(.5f, 1f, .3f), 8f, 40f, .6f); Ui.Note("The Bloom bursts: rot washes over everyone!", new Color(.6f, 1f, .4f)); break;
             case SM.Broken: _av.Play("sit", .3f); BloomFlower(false); Ui.Banner("The Bloom withers", "she falters: strike now!"); Sfx.Play("block"); break;
             case SM.Sleep: _av.Play("idleArmed"); break;
         }
@@ -206,12 +218,15 @@ void fragment() {
 
         if (_sm == SM.Sleep)
         {
-            if (near != null && Mathf.Sqrt(best) < RT("wakeRange", 26f)) { if (!_assessed) Assess(); CurrentBoss = this; ScarBegin(SM.Judge, 1.2f); }
+            // she rises when the boss room intro ends (or if someone walks right up to her)
+            bool introOver = Dungeon.LairIntroDone && !LairIntro.Active;
+            if (near != null && (introOver || Mathf.Sqrt(best) < RT("wakeRange", 26f))) { if (!_assessed) Assess(); CurrentBoss = this; ScarBegin(SM.Judge, 1.5f); }
             Velocity = new Vector3(0, v.Y, 0); MoveAndSlide(); return;
         }
         if (CurrentBoss != this) CurrentBoss = this;
         // the Bloom at 75%, 50% and 25% health (not in the air)
-        if (_bloomIdx < BloomAt.Length && Hp <= MaxHp * BloomAt[_bloomIdx] && _sm is not (SM.Ascend or SM.Bloom or SM.Wave or SM.Lunge))
+        _grabCd -= dt;
+        if (_bloomIdx < BloomAt.Length && Hp <= MaxHp * BloomAt[_bloomIdx] && _sm is not (SM.Ascend or SM.Bloom or SM.Wave or SM.Lunge or SM.Grab or SM.Poise))
         {
             _bloomIdx++; _smFrom = GlobalPosition; _smTo = ArenaCentre();
             _bloomNeed = MaxHp * RT("bloomShare", .09f) * (1 + .1f * (_bloomIdx - 1)); _bloomDone = 0; _bloomLeft = RT("bloomTime", 10f);
@@ -309,10 +324,95 @@ void fragment() {
             case SM.Wave:
             {
                 // the rot wave rolls out across the chamber: everyone it passes is poisoned (and so is she, which heals her)
-                _waveR += RT("waveSpeed", 16f) * dt;
+                _waveR += RT("waveSpeed", 48f) * dt;   // it crosses the whole chamber: nowhere is out of its reach
                 foreach (var h in all) if (!_waveHit.Contains(h) && Flat(h.GlobalPosition - GlobalPosition).Length() <= _waveR) { _waveHit.Add(h); ScarHit(h, .08f, 6f, noBlock: true, poison: RT("wavePoison", 5)); }
-                if (_waveR > 46f) ScarBegin(SM.Recover, .8f);
+                if (_waveR > RT("waveReach", 760f) || _waveHit.Count >= all.Count) ScarBegin(SM.Recover, .8f);
                 break;
+            }
+            case SM.Feint:
+            {
+                // it looks exactly like her sweep... she stops short, holds a heartbeat, then cuts for real (punishing the early roll)
+                if (!_smDone)
+                {
+                    Face(yawTo, 5f, dt); ScarTell(_smT / _smWind > .4f ? (_smT / _smWind - .4f) : 0);
+                    if (_smT >= _smWind * .62f) { _smDone = true; _smT = 0; _av?.Play("idleArmed", .08f); }
+                    break;
+                }
+                if (_smHit == 0 && _smT >= RT("feintPause", .32f)) { _smHit = 1; _smT = 0; _av?.PlayAttack("backhand", .22f, true); NetFlourish++; }
+                if (_smHit == 1)
+                {
+                    Face(yawTo, 12f, dt); if (_sTrail != null) _sTrail.Emit = true;
+                    if (_smT >= .22f) { Sfx.Play("swing", .6f); SwingArc(10f, 170f); foreach (var h in all) if (InArcOf(h, 10f, 170f)) ScarHit(h, .3f, 9f); ScarBegin(SM.Recover, .8f * SQ); }
+                }
+                break;
+            }
+            case SM.Verdict:
+            {
+                // a very long overhead wind-up that keeps turning to follow you until the last moment, then a crushing line
+                float k = _smT / _smWind; Face(yawTo, k < .93f ? 4.5f : .2f, dt); ScarTell(k);
+                if (k > .4f && (int)(_smT * 5) != (int)((_smT - dt) * 5)) Fx.Burst(GlobalPosition + Vector3.Up * 11f + Fwd2 * 2f, new Color(.6f, 1f, .4f), 6, 2f, .5f, .12f);
+                if (!_smDone && _smT >= _smWind)
+                {
+                    _smDone = true; Player.Instance?.Rig?.Shake(.5f); Sfx.Play("roar", .6f);
+                    float len = RT("verdictLength", 28f), wid = RT("verdictWidth", 5f); var fw = Fwd2;
+                    for (int i = 0; i <= 7; i++) Vfx.Ring(GlobalPosition + fw * (i * len / 7f) + Vector3.Up * .1f, wid, new Color(.6f, 1f, .4f), .35f + i * .04f);
+                    Vfx.GroundMark(GlobalPosition + fw * len * .5f, "scorch", len, new Color(.15f, .2f, .1f, .8f), 3f, 2f);
+                    foreach (var h in all) { var rel = Flat(h.GlobalPosition - GlobalPosition); float along = rel.Dot(fw); if (along > -2f && along < len && (rel - fw * along).Length() < wid) ScarHit(h, .48f, 14f); }
+                }
+                if (_smT >= _smWind + .5f) ScarBegin(SM.Recover, 1.3f * SQ);
+                break;
+            }
+            case SM.Poise:
+            {
+                // she holds a thrust, turning with you... then lunges at where you are now, still homing for its first moment
+                if (_smT < _smWind) { Face(yawTo, 6f, dt); ScarTell(_smT / _smWind * .8f); if (tgt != null) _smTo = tgt.GlobalPosition; break; }
+                float dashT = _smT - _smWind; if (_sTrail != null) _sTrail.Emit = true;
+                if (tgt != null && dashT < .2f) _smTo = tgt.GlobalPosition;
+                var d = Flat(_smTo - GlobalPosition);
+                if (d.Length() > 3f && dashT < .6f) { move = d.Normalized() * RT("poiseSpeed", 55f); Face(Util.YawTo(d.X, d.Z), 25f, dt); }
+                else if (!_smDone) { _smDone = true; Sfx.Play("swing", .8f); SwingArc(7f, 90f); foreach (var h in all) if (InArcOf(h, 7f, 90f)) ScarHit(h, .34f, 10f); ScarBegin(SM.Recover, .7f * SQ); }
+                break;
+            }
+            case SM.Grab:
+            {
+                if (_smHit == 0)
+                {
+                    // the blink: gone in a flash of gold, and standing right behind her target
+                    if (tgt == null) { ScarBegin(SM.Recover, .5f); break; }
+                    _grabVictim = tgt; var away = Flat(tgt.GlobalPosition - GlobalPosition); away = away.LengthSquared() > .01f ? away.Normalized() : Fwd2;
+                    Vfx.Flash(GlobalPosition + Vector3.Up * 3, new Color(1f, .85f, .45f), 6f, 14f, .3f);
+                    GlobalPosition = new Vector3(tgt.GlobalPosition.X + away.X * 3.2f, GlobalPosition.Y, tgt.GlobalPosition.Z + away.Z * 3.2f);
+                    var back = Flat(tgt.GlobalPosition - GlobalPosition); _yaw = Util.YawTo(back.X, back.Z); Rotation = new Vector3(0, _yaw, 0);
+                    Vfx.Flash(GlobalPosition + Vector3.Up * 3, new Color(1f, .85f, .45f), 6f, 14f, .3f); Sfx.Play("zap", .6f);
+                    _smHit = 1; _smT = 0; break;
+                }
+                if (_smHit == 1)
+                {
+                    // her reach: a heartbeat to get away from her hand
+                    var gv = _grabVictim; if (gv != null && IsInstanceValid(gv)) { var d2 = Flat(gv.GlobalPosition - GlobalPosition); Face(Util.YawTo(d2.X, d2.Z), 10f, dt); }
+                    ScarTell(_smT / .45f);
+                    if (_smT < RT("grabReachTime", .45f)) break;
+                    bool got = gv != null && IsInstanceValid(gv) && gv is IDamageable { Dead: false } && Flat(gv.GlobalPosition - GlobalPosition).Length() < RT("grabReach", 5f) && !(gv is Player { Rolling: true });
+                    if (!got) { _av?.PlayAttack("hook", .2f, true); _grabVictim = null; ScarBegin(SM.Recover, .9f); break; }   // she grasps at air
+                    _smHit = 2; _smT = 0; _grabBaseY = GlobalPosition.Y;
+                    if (gv is Player lp) lp.StartGrab(this); else if (gv is RemoteHero rh) Net.I?.SendScarGrab(rh.Peer, NetIdx);
+                    _av?.Play("cast", .1f, 1f, true);
+                    break;
+                }
+                // in her grip: she rises, tosses them up, raises her blade to catch them, then comes back down
+                float g = _smT, top = RT("grabHeight", 12f);
+                float y = g < 1f ? Mathf.SmoothStep(0, 1, g) * top : g < 2.6f ? top : Mathf.Lerp(top, 0, Mathf.Clamp((g - 2.6f) / .6f, 0, 1));
+                GlobalPosition = new Vector3(GlobalPosition.X, _grabBaseY + y, GlobalPosition.Z); Velocity = Vector3.Zero;
+                if (g >= 1f && g - dt < 1f) _av?.PlayAttack("castSlam", .4f, true);      // the toss
+                if (g >= 1.45f && g - dt < 1.45f) _av?.PlayAttack("rising", .4f, true);  // the blade raised to catch them
+                if (!_smDone && g >= 1.9f)
+                {
+                    _smDone = true; var v3 = _grabVictim;
+                    if (v3 != null && IsInstanceValid(v3)) ScarHit(v3, RT("impale", .9f), 0f, noBlock: true);   // impaled: extreme damage
+                    Sfx.Play("hit"); Player.Instance?.Rig?.Shake(.4f);
+                }
+                if (g >= 3.2f) { GlobalPosition = new Vector3(GlobalPosition.X, _grabBaseY, GlobalPosition.Z); _grabVictim = null; ScarBegin(SM.Recover, 1.2f); }
+                Rotation = new Vector3(0, _yaw, 0); ScarAnimate(); return;   // no physics while airborne
             }
             case SM.Broken:
                 if (_smT >= _smDur) { ScarBegin(SM.Judge, .6f); }
@@ -331,7 +431,6 @@ void fragment() {
     void ScarDecide(List<Node3D> all, float dist)
     {
         if (all.Count == 0) { ScarBegin(SM.Judge, 1f); return; }   // nobody left standing: she waits
-        // the healer is marked: she turns to them now and then
         int crowd = 0; foreach (var h in all) if (Flat(h.GlobalPosition - GlobalPosition).Length() < 8f) crowd++;
         float n = Mathf.Max(1, _heroes), meleeK = _wMelee / n, farK = (_wRanged + _wMagic) / n;
         var w = new List<(SM m, float wt)>
@@ -341,6 +440,10 @@ void fragment() {
             (SM.Whirl, crowd >= 1 ? 1f + crowd * 1.5f * (1 + meleeK) : 0f),
             (SM.Lunge, dist > 9f ? 4f + 3f * farK : dist > 5f ? 1f : 0f),
             (SM.Ascend, ScarPhase >= 2 && dist > 6f ? 2.5f : 0f),
+            (SM.Feint, dist < 11f ? 2f : 0f),
+            (SM.Verdict, dist < 24f ? 1.4f : 0f),
+            (SM.Poise, dist > 6f && dist < 32f ? 1.8f : 0f),
+            (SM.Grab, _grabCd <= 0 && dist < 40f ? RT("grabWeight", 1.6f) : 0f),   // the blink and grab: now and then, never twice in a row
         };
         for (int i = 0; i < w.Count; i++) if (w[i].m == _smLast) w[i] = (w[i].m, w[i].wt * .25f);
         float sum = 0; foreach (var e in w) sum += e.wt;
@@ -363,6 +466,7 @@ void fragment() {
     {
         if (h is not IDamageable dmg || dmg.Dead) return;
         var hi = OnHit(new HitInfo { Damage = _sDk * pct * (ScarPhase == 3 ? RT("enrage", 1.12f) : 1f), From = GlobalPosition, Knock = knock, Stagger = true, Stun = pct >= .25f ? .45f : 0, NoBlock = noBlock, Attacker = this });
+        hi.With("rot", 1);   // every blow leaves Scarlet Rot: 15 s, one stack, renewed by each hit (data/status.json)
         // poison: our own hero gets it directly (the rot reaches you even through a roll); a friend's game applies it from the hit
         if (h is Player p) for (int i = 0; i < (int)poison; i++) p.Statuses.Add("poison", 2f, 0, hi.Damage);
         else for (int i = 0; i < (int)poison; i++) hi.With("poison", 1, 2f, 0);
@@ -390,7 +494,12 @@ void fragment() {
         if (m != SM.Sleep) CurrentBoss = this;
         if (m != _sm) { _sm = m; _smT = 0; ScarVisualStart(m); }
         if (m == SM.Bloom) { float w = f[k + 6]; _bloomLeft = Mathf.Floor(w / 2); float frac = w - 2 * _bloomLeft; _bloomDone = (1 - frac); _bloomNeed = 1; BloomGrow(1 - _bloomLeft / RT("bloomTime", 10f)); }
-        else if (m == SM.Flurry && (int)f[k + 6] != NetFlourish) { NetFlourish = (int)f[k + 6]; string[] anims = { "backhand", "rising", "slashB", "slashA" }; _av?.PlayAttack(anims[NetFlourish % anims.Length], .34f, true); }
+        else if (m is SM.Flurry or SM.Feint && (int)f[k + 6] != NetFlourish)
+        {
+            // a flurry's next cut, or the feint's real strike after it stopped short
+            NetFlourish = (int)f[k + 6]; string[] anims = { "backhand", "rising", "slashB", "slashA" };
+            _av?.PlayAttack(m == SM.Feint ? "backhand" : anims[NetFlourish % anims.Length], m == SM.Feint ? .22f : .34f, true);
+        }
     }
     void ScarPuppetTick(float dt)
     {
@@ -423,8 +532,15 @@ void fragment() {
         }
     }
     /// <summary>The middle of the great chamber (DungeonLair.LairRooms: centre cell 20, 16).</summary>
-    Vector3 ArenaCentre() => new(Dungeon.Origin.X + 20.5f * Dungeon.Tile, GlobalPosition.Y, Dungeon.Origin.Z + 16.5f * Dungeon.Tile);
-    Vector3 ClampLair(Vector3 at) { var c = ArenaCentre(); var off = Flat(at - c); if (off.Length() > 40f) off = off.Normalized() * 40f; return new Vector3(c.X + off.X, GlobalPosition.Y, c.Z + off.Z); }
+    Vector3 ArenaCentre() { var c = Dungeon.BossRoomCentre; return new Vector3(c.X, GlobalPosition.Y, c.Z); }
+    Vector3 ClampLair(Vector3 at) { var c = ArenaCentre(); var off = Flat(at - c); if (off.Length() > 480f) off = off.Normalized() * 480f; return new Vector3(c.X + off.X, GlobalPosition.Y, c.Z + off.Z); }
+    /// <summary>The boss room intro: she straightens, her wing opens and the blade comes up (every machine plays it on its own copy).</summary>
+    public void ScarIntroPose()
+    {
+        if (!Scarletta || _av == null) return;
+        _av.PlayAttack("castSlam", 1.4f, true); ScarTell(.7f); Sfx.Play("roar", .7f);
+        Vfx.Flash(GlobalPosition + Vector3.Up * 5, new Color(1f, .85f, .5f), 6f, 30f, .8f); Fx.Burst(GlobalPosition + Vector3.Up * 4, new Color(.6f, 1f, .4f), 40, 6f, 1f, .15f);
+    }
 
     /// <summary>The rot flower around her feet: petals that unfold as the Bloom runs.</summary>
     void BloomFlower(bool on)

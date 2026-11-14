@@ -216,9 +216,19 @@ public partial class Sfx : Node
         _gap = (float)GD.RandRange(6.0, 14.0);
     }
     static void Unloop(AudioStream s) { if (s is AudioStreamMP3 m) m.Loop = false; else if (s is AudioStreamOggVorbis o) o.Loop = false; }
+    // the raid lair's own song (assets/audio/music/lair): plays, looping, only while we are inside that instance
+    AudioStream? _lairSong; bool _inLair;
     void TickMusic(float dt)
     {
         _music.VolumeDb = Mathf.LinearToDb(Mathf.Max(Game.Set.Music * .55f, 0.0001f));
+        bool lair = Dungeon.Active && Dungeon.IsLair(Dungeon.Key);
+        if (lair != _inLair)
+        {
+            _inLair = lair; _music.Stop();
+            if (lair) { _lairSong ??= Load(MusicDir + "lair/scarletta_sadness.ogg") as AudioStream; if (_lairSong is AudioStreamOggVorbis o) o.Loop = true; if (_lairSong != null) { _music.Stream = _lairSong; _music.Play(); } }
+            else _gap = (float)GD.RandRange(8.0, 20.0);   // back to the world's own music after a while
+        }
+        if (_inLair) { if (!_music.Playing && _lairSong != null) _music.Play(); return; }
         if (_music.Playing) return;
         _gap -= dt; if (_gap > 0) return;
         bool dark = Dungeon.Active || World.RealmT > .5f || World.Night > .55f;

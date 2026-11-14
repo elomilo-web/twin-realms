@@ -3,6 +3,7 @@
  "statuses": {
   "burn":   { "n": "Burning",    "kind": "dot",    "type": "fire",     "dur": 3,   "pow": 0.25, "stacks": 1,  "col": "ff8a2a", "d": "Takes fire damage every second." },
   "poison": { "n": "Poisoned",   "kind": "dot",    "type": "poison",   "dur": 4,   "pow": 0.10, "stacks": 10, "col": "7ad84a", "d": "Takes poison damage every second; stacks up to 10 times." },
+  "rot":    { "n": "Scarlet Rot", "kind": "dot",   "type": "poison",   "dur": 15,  "pow": 0.025, "stacks": 1, "col": "c8486a", "d": "Scarletta's poison: damage every second for 15 s. Does not stack (a new blow only renews it); cleansing removes it, immunity keeps it off." },
   "bleed":  { "n": "Bleeding",   "kind": "dot",    "type": "true",     "dur": 4,   "pow": 0.15, "stacks": 5,  "col": "d0283a", "d": "Takes damage that ignores armor; stacks up to 5 times." },
   "chill":  { "n": "Chilled",    "kind": "slow",   "dur": 3,   "pow": 0.3, "stacks": 3, "freezeAt": 3, "col": "8ad8ff", "d": "Moves 30% slower. Three chills freeze." },
   "freeze": { "n": "Frozen",     "kind": "stun",   "dur": 1.4, "pow": 1,   "stacks": 1,  "col": "c8f0ff", "d": "Cannot move or act." },

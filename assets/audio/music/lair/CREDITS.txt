@@ -1,0 +1,2 @@
+scarletta_sadness.ogg - "Sadness" by Kistol, CC0 (public domain). https://opengameart.org/content/sadness
+Plays only inside Scarletta's Rotting Hollow (scripts/Sfx.cs, Lair music).

@@ -20,6 +20,18 @@ public partial class Net
         var e = Dungeon.NetList[idx]; if (e != null && IsInstanceValid(e)) e.Taunt(Sender, strength, Mathf.Min(dur, 30f));
     }
 
+    /// <summary>Raid lair: someone stepped into the boss room; everyone on the floor gets the intro and is brought in.</summary>
+    public void SendLairIntro(int seed) { foreach (var p in DunPeers()) RpcId(p, MethodName.R_LairIntro, seed); }
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer)] void R_LairIntro(int seed) => Dungeon.LairIntroFromFriend(seed);
+    /// <summary>Raid lair: the boss (run by us) grabbed a friend's hero; their game plays the grab on their hero.</summary>
+    public void SendScarGrab(long peer, int bossIdx) { RpcId(peer, MethodName.R_ScarGrab, Dungeon.Seed, bossIdx); }
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer)]
+    void R_ScarGrab(int seed, int idx)
+    {
+        if (!Dungeon.Shared || seed != Dungeon.Seed || idx < 0 || idx >= Dungeon.NetList.Count) return;
+        if (Dungeon.NetList[idx] is Enemy e && IsInstanceValid(e)) Player.Instance?.StartGrab(e);
+    }
+
     /// <summary>An enchantment (party aura skill) reaches a friend: their game applies it to their hero.</summary>
     public void SendEnchant(long peer, string id, float pot, float dur) { if (peer != MyId) RpcId(peer, MethodName.R_Enchant, id, pot, dur); }
     [Rpc(MultiplayerApi.RpcMode.AnyPeer)]

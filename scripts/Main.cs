@@ -102,6 +102,7 @@ public partial class Main : Node3D
     {
         if (!_started) return;
         float dt = (float)delta; Game.PlayTime += dt; Game.D.Played += dt; Arenas.Tick(dt); Threat.Tick(dt);
+        if (Dungeon.Active) Dungeon.LairTick();   // raid lair: the boss room intro (DungeonLair.cs)
         _autosave += dt; if (_autosave > 60f && !Arenas.Active) { _autosave = 0; Game.Save(); }
     }
 }

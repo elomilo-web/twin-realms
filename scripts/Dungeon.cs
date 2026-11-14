@@ -12,9 +12,12 @@ public static partial class Dungeon
     public static string Key = ""; public static int Depth = 1;
     public static Node3D? Root; static Enemy? _boss; static int _bossRoom; static List<Room> _rooms = new(); static float _baseLvl; static Vector3 _ret;
     static JsonDocument? _doc;
-    public const float Tile = 4f; public const int GW = 40, GH = 40;
-    /// <summary>Wall height: a raid lair has a high vault so a giant boss and her blade fit.</summary>
-    public static float WallH => IsLair(Key) && Active ? 18f : 6f;
+    public const int GW = 40, GH = 40;
+    /// <summary>Metres per grid cell. A raid lair is built on the same grid at ten times the scale (100 times the floor area).</summary>
+    public static float Tile => InLair ? 40f : 4f;
+    /// <summary>Wall height: a raid lair has a vault high enough for a giant boss who flies.</summary>
+    public static float WallH => InLair ? 44f : 6f;
+    static bool InLair => Active && IsLair(Key);
     public static readonly Vector3 Origin = new Vector3(3000, 0, 3000);
     public class Room { public int X, Z, W, H, Cx, Cz; }
 
@@ -159,8 +162,6 @@ public static partial class Dungeon
             while (z != b.Cz) { Carve(x, z); z += Math.Sign(b.Cz - z); }
             Carve(x, z);
         }
-        // corridors are one tile; a lair's passage is three wide so the party can walk in together
-        if (IsLair(key)) for (int i = 1; i < _rooms.Count; i++) { var a = _rooms[i - 1]; for (int z = Math.Min(a.Cz, _rooms[i].Cz); z <= Math.Max(a.Cz, _rooms[i].Cz); z++) for (int dx = -1; dx <= 1; dx++) Carve(a.Cx + dx, z); }
         int bi = 0; float bd = -1; for (int i = 0; i < _rooms.Count; i++) { float d = new Vector2(_rooms[i].Cx - _rooms[0].Cx, _rooms[i].Cz - _rooms[0].Cz).Length(); if (d > bd) { bd = d; bi = i; } }
         _bossRoom = bi;
         _grid = grid; _seen = new bool[GW * GH]; _pads.Clear();   // a new floor starts unexplored

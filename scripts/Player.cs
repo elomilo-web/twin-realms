@@ -501,6 +501,8 @@ public partial class Player : CharacterBody3D, IDamageable
             if (Hp <= 0 && !Dead && !DuelSave()) Die();
         });
         if (Dead) return;
+        if (GrabTick(dt)) return;   // in Scarletta's grip: carried, thrown and impaled (PlayerDowned.cs)
+        if (LairIntro.Active) { v.X = v.Z = 0; Velocity = v; MoveAndSlide(); Animate(dt); return; }   // the boss intro: stand and watch
         if (Statuses.Stunned) _stagger = Mathf.Max(_stagger, .1f);
         if (SkillTick(dt)) { Animate(dt); return; }   // leap or dash in progress
 

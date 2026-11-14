@@ -55,7 +55,8 @@ public partial class HudCanvas : Control
 
     public override void _Draw()
     {
-        var p = Player.Instance; if (p == null) return; var d = Game.D; var sz = Size; float u = sz.X / 100f; int fs(float k) => Mathf.Max(11, (int)(u * k));
+        var p = Player.Instance; if (p == null || LairIntro.Active) return;   // the HUD steps aside during the boss intro
+        var d = Game.D; var sz = Size; float u = sz.X / 100f; int fs(float k) => Mathf.Max(11, (int)(u * k));
         var pad = u * 1.4f;
         // hurt vignette: red edges flash when hit and pulse slowly below 35% health
         float dtv = (float)GetProcessDeltaTime(); if (p.Hp < _lastHp - .5f) _hurt = Mathf.Min(1f, _hurt + .35f + (_lastHp - p.Hp) / d.MaxHp() * 3f); _lastHp = p.Hp; _hurt = Mathf.Max(0, _hurt - dtv * 1.6f);
@@ -294,7 +295,8 @@ public partial class HudCanvas : Control
         // a rotated frame (camera-up) shared by the land, the dungeon and the markers
         float yaw = p.Rig?.Yaw ?? 0f; var f = new Vector2(-Mathf.Sin(yaw), -Mathf.Cos(yaw)); var r = new Vector2(-f.Y, f.X);
         var me = new Vector2(p.GlobalPosition.X, p.GlobalPosition.Z);
-        float span = Dungeon.Active ? 72f : 150f; int n = 28; float step = rad * 2 / n;
+        // a raid lair's cells are 40 m: the minimap pulls back to show it
+        float span = Dungeon.Active ? Mathf.Min(Dungeon.Tile * 18f, 420f) : 150f; int n = 28; float step = rad * 2 / n;
         Vector2 To(float x, float z) { var dv = new Vector2(x, z) - me; return c + new Vector2(dv.Dot(r), -dv.Dot(f)) / (span / 2) * rad; }
         if (Dungeon.Active)
         {

@@ -89,6 +89,40 @@ public partial class Player
         return true;
     }
 
+    // ---------------------------------------------------------------- Scarletta's grab: no control while she carries, throws and impales us
+    Enemy? _grabBy; float _grabT, _grabY;
+    public bool Grabbed => _grabBy != null;
+    /// <summary>She has us: the sequence plays on our own hero, timed from now and placed from her body (on a friend's game, from their copy of her).</summary>
+    public void StartGrab(Enemy boss)
+    {
+        if (Dead || _grabBy != null) return;
+        CancelChannel(); CancelCast(); Flying = false; _rollT = 0; _atkT = 0; _blocking = false;
+        _grabBy = boss; _grabT = 0; _grabY = GlobalPosition.Y;
+        Ui.Note("Scarletta has you in her grip!", new Color(1f, .45f, .4f)); Rig?.Shake(.3f);
+    }
+    /// <summary>One frame in her grip. Held at her hand while she rises, tossed up, falls onto her raised blade, then flung down and released.</summary>
+    bool GrabTick(float dt)
+    {
+        if (_grabBy == null) return false;
+        if (!IsInstanceValid(_grabBy) || _grabBy.Dead) { EndGrab(); return false; }
+        _grabT += dt; float g = _grabT;
+        var b = _grabBy.GlobalPosition; float yaw = _grabBy.Rotation.Y; var fw = new Vector3(-Mathf.Sin(yaw), 0, -Mathf.Cos(yaw));
+        var hand = b + fw * 2.6f + Vector3.Up * 4.2f; var tip = b + fw * 1.2f + Vector3.Up * 13f; var ground = new Vector3(b.X, _grabY, b.Z) + fw * 9f;
+        Vector3 pos;
+        if (g < 1f) pos = hand;
+        else if (g < 1.5f) pos = hand + Vector3.Up * 14f * Mathf.Sin((g - 1f) / .5f * Mathf.Pi / 2);
+        else if (g < 1.9f) { float t = (g - 1.5f) / .4f; pos = (hand + Vector3.Up * 14f).Lerp(tip, t * t); }
+        else if (g < 2.6f) { pos = tip + new Vector3(Mathf.Sin(g * 60f), 0, Mathf.Cos(g * 53f)) * .06f; if (g - dt < 1.9f) { Rig?.Shake(.6f); Fx.Burst(tip, new Color(.7f, .05f, .1f), 30, 6f, .6f, .12f); } }
+        else if (g < 3.1f) { float t = (g - 2.6f) / .5f; pos = tip.Lerp(ground, t) + Vector3.Up * Mathf.Sin(t * Mathf.Pi) * 3f; }
+        else { GlobalPosition = Dungeon.Active ? new Vector3(ground.X, _grabY + .2f, ground.Z) : World.OnGround(ground.X, ground.Z, .3f); EndGrab(); return false; }
+        GlobalPosition = pos; Velocity = Vector3.Zero;
+        var toB = b - pos; _modelYaw = Util.YawTo(toB.X, toB.Z);
+        _av?.Play(g < 1.9f ? "hit" : "fall", .1f);
+        Animate(dt);
+        return true;
+    }
+    void EndGrab() { _grabBy = null; _stagger = Mathf.Max(_stagger, 1f); _inv = Mathf.Max(_inv, .6f); Velocity = Vector3.Zero; }
+
     /// <summary>Raised by a friend where we lie, with this much health.</summary>
     public void ReviveHere(float hp)
     {

@@ -612,7 +612,8 @@ public partial class Enemy : CharacterBody3D, IDamageable
         _heroT -= dt; if (_heroT <= 0 || _hero == null || !IsInstanceValid(_hero)) { _heroT = .3f; _hero = PickHero(); }
         var pl = _hero;
         float distP = pl == null ? 999f : (pl.GlobalPosition - GlobalPosition).Length();
-        if (distP > (Def.Look != "" ? 100f : 150f) && !Arena && !Dead) { Visible = false; if (_mdlAp != null) _mdlAp.Active = false; return; } // small wildlife is not worth drawing far away
+        // far monsters are not drawn or run (small wildlife even sooner); Scarletta's chamber is a kilometre wide, so she never sleeps for distance
+        if (distP > (Def.Look != "" ? 100f : 150f) && !Arena && !Dead && !Scarletta) { Visible = false; if (_mdlAp != null) _mdlAp.Active = false; return; }
         if (!Visible && Active) { Visible = true; if (_mdlAp != null) _mdlAp.Active = true; }
 
         var v = Velocity;
