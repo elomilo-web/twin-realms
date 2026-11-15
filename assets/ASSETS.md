@@ -78,6 +78,8 @@ Kenney "Particle Pack" 1.1 by Kenney Vleugels (www.kenney.nl), CC0 (license in `
 ## Twin Realms kit (`models/kit/`, `textures/kit/`, `shaders/`)
 Original work made for this game by `tools/kit_gen/` (code-generated, CC0). 164 models, 36 spell animation sheets (`vfx/flipbooks/`), 8 eye textures (painted over Quaternius `T_Eye_Brown.png`, CC0), water and character shaders. See `docs/kit/README.md`.
 
+`models/kit/weapons/katana_long.glb` (added 2026-11-15): original long nodachi modelled in Blender for this game (not from `kit_gen`). 2.87 m (2.3 m blade), grip centre at the origin, blade up +Y, 7 materials (`TR_Metal_*` take the element tint). Shown for "Odachi" and "Nodachi" (scale 0.85) via `data/weapons.json` kitModels.
+
 ## Monsters (assets/models/monsters/, added 2026-11-11)
 
 Animated low-poly monsters by **Quaternius** (Ultimate Monsters, Animated Enemies, Animated Animal packs), **CC0 / Public Domain**, downloaded from poly.pizza. Used as data/enemies.json "model". Sources (ssets/models/monsters/_sources.tsv):

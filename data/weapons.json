@@ -14,7 +14,7 @@
                                             "shadow":  ["shadow", "void", "moon"]
                                         },
                       "byName":  {
-                                     "katana":  { "Katana": ["katana"], "Tachi": [["katana", 1.08]], "Uchigatana": ["katana"], "Odachi": [["katana", 1.2]], "Nodachi": [["katana", 1.15]] },
+                                     "katana":  { "Katana": ["katana"], "Tachi": [["katana", 1.08]], "Uchigatana": ["katana"], "Odachi": ["katana_long"], "Nodachi": [["katana_long", 0.85]] },
                                      "sword":  { "Sword": ["sword_knight", "sword_azure", "sword_ember", "sword_verdant", "sword_shadow", "sword_frost"], "Blade": ["shortsword", "katana", "rapier"], "Saber": ["saber", "saber_moon"], "Longsword": ["sword_royal", "sword_knight", "sword_frost", "sword_shadow", "sword_ember"], "Falchion": ["cutlass"] },
                                      "greatsword":  { "Greatsword": ["greatsword_sun", "claymore_storm"], "Claymore": ["claymore_storm", "greatsword_sun"], "Zweihander": [["greatsword_sun", 1.08], ["claymore_storm", 1.08]], "Flamberge": ["greatsword_sun", "claymore_storm"], "Executioner": [["claymore_storm", 1.1]] },
                                      "axe":  { "Hatchet": [["axe", 0.82]], "Axe": ["axe"], "Bearded Axe": ["axe_double"], "War Axe": ["axe_double", ["greataxe_void", 0.82]], "Cleaver": [["axe", 0.9]] },
