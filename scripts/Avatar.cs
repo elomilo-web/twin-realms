@@ -97,7 +97,7 @@ public partial class Avatar : Node3D
             if (tint != null) d.AlbedoColor = tint.Value.Lightened(.1f);
             d.Transparency = BaseMaterial3D.TransparencyEnum.AlphaScissor; d.AlphaScissorThreshold = .42f;
             d.AlphaAntialiasingMode = BaseMaterial3D.AlphaAntiAliasing.AlphaToCoverage;
-            d.CullMode = BaseMaterial3D.CullModeEnum.Disabled; d.Roughness = .45f;
+            d.CullMode = BaseMaterial3D.CullModeEnum.Disabled; d.Roughness = JsonUtil.F(Cfg, "hairRoughness", .7f);
             d.SpecularMode = BaseMaterial3D.SpecularModeEnum.SchlickGgx;
             mi.SetSurfaceOverrideMaterial(s, d); mi.CastShadow = GeometryInstance3D.ShadowCastingSetting.On; any = true;
         }
@@ -112,6 +112,10 @@ public partial class Avatar : Node3D
             if (mi.GetActiveMaterial(s) is not BaseMaterial3D b) continue;
             var src = GothicMats.For(b.ResourceName);   // realistic shared material for G_* names (tools/blender_gothic)
             var d = (BaseMaterial3D)(src ?? b).Duplicate();
+            if (src != null && mi.Skin != null)
+            {   // worn (skinned) gear: triplanar would slide over animated cloth, so use the body UVs (garments are lifted off the body)
+                d.Uv1Triplanar = false; float k = JsonUtil.F(Cfg, "clothUvScale", 6f); d.Uv1Scale = new Vector3(k, k, 1);
+            }
             if (vertexColor) d.VertexColorUseAsAlbedo = true;   // kit pieces are coloured per vertex only
             if (flat && set != null) { d.AlbedoTexture = null; d.AlbedoColor = set.Value; }
             else if (set != null) d.AlbedoColor = set.Value;
@@ -368,7 +372,7 @@ public partial class Avatar : Node3D
     {
         var name = p.Replace("{s}", Female ? "Female" : "Male");
         if (Cfg.TryGetProperty("partAlias", out var al) && al.TryGetProperty(name, out var a)) name = a.GetString() ?? name;
-        return OutfitDir + name + ".gltf";
+        return OutfitDir + name + (name.EndsWith(".glb") ? "" : ".gltf");   // TR_* gothic garments are .glb
     }
     Color? TintOf(JsonElement r, Color classTint)
     {

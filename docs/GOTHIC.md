@@ -22,7 +22,7 @@ Rules: CC0 only (record in `assets/ASSETS.md`); one shared material library; bui
 | Oakhaven houses, props, rocks, tree bark | done via material swap (env.json) |
 | Procedural buildings, dungeons, lands, plaza | done via scanned textures (Gfx.cs) |
 | Trees / leaves / bushes / flowers | done: tools/blender_gothic/nature.py (oaks, firs, dead tree, bushes, shrubs; CC0 ambientCG leaf atlases via foliage_tex.ps1) |
-| Hero bodies | male done: TR_Male_Body.glb from tools/blender_gothic/humans.py (MPFB, CC0 base mesh, on the game skeleton; baked skin x race colour, SSS). female done (TR_Female_Body.glb); hair done: 7 strand-card styles (assets/models/hair/TR_Hair_*.glb, build_hair); outfits: todo |
+| Hero bodies | male done: TR_Male_Body.glb from tools/blender_gothic/humans.py (MPFB, CC0 base mesh, on the game skeleton; baked skin x race colour, SSS). female done (TR_Female_Body.glb); hair done: 7 strand-card styles (assets/models/hair/TR_Hair_*.glb, build_hair); outfits done: 9 garments per body lifted off the skin (tunic, robe, gambeson, cuirass+belt, pauldrons, trousers, boots, gloves, hood), skinned like the body, body-UV mapped |
 | Scarletta (golden armour, deep red hair, one angel wing, giant katana) | todo |
 | Monsters (25 Quaternius) | todo |
 | Kit castle / dungeon / spell models | todo (castle/dungeon kit not placed in game yet) |

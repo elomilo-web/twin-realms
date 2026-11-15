@@ -421,8 +421,8 @@ def _eyes(eyes_o, sex, size=512, iris=(0.33, 0.27, 0.2)):
 # ------------------------------------------------------------------ hair
 HAIR_STYLES = {
     # length (m) at the crown and at the hairline, cards, card width, gravity, comb back, how long it hugs the head
-    "short": dict(L=0.07, Lfront=0.05, n=520, w=0.022, grav=0.25, back=0.55, hug=1.0),
-    "buzzed": dict(L=0.016, Lfront=0.012, n=700, w=0.014, grav=0.05, back=0.4, hug=1.0),
+    "short": dict(L=0.07, Lfront=0.05, n=900, w=0.016, grav=0.25, back=0.55, hug=1.0),
+    "buzzed": dict(L=0.016, Lfront=0.012, n=900, w=0.012, grav=0.05, back=0.4, hug=1.0),
     "swept": dict(L=0.13, Lfront=0.11, n=520, w=0.026, grav=0.35, back=0.75, hug=0.75),
     "long": dict(L=0.42, Lfront=0.24, n=460, w=0.03, grav=1.0, back=0.55, hug=0.4),
     "flowing": dict(L=0.72, Lfront=0.36, n=560, w=0.034, grav=1.0, back=0.6, hug=0.35),   # Scarletta
@@ -436,8 +436,8 @@ def _hair_texture(size=512):
     rnd = np.random.default_rng(11)
     col = np.zeros((H, W), np.float32); alpha = np.zeros((H, W), np.float32)
     v = np.linspace(0, 1, H)[:, None]
-    for _ in range(900):
-        x = rnd.uniform(0, W); end = rnd.uniform(0.55, 1.0); wv = rnd.uniform(0.6, 1.6); bright = rnd.uniform(0.55, 1.0)
+    for _ in range(1400):
+        x = rnd.uniform(0, W); end = rnd.uniform(0.5, 1.0); wv = rnd.uniform(0.5, 1.1); bright = rnd.uniform(0.55, 1.0)
         wave = np.sin(v[:, 0] * rnd.uniform(4, 9) + rnd.uniform(0, 6.3)) * rnd.uniform(0.5, 3.0)
         xs = x + wave
         cols = np.arange(W)[None, :]
@@ -445,8 +445,13 @@ def _hair_texture(size=512):
         a = np.clip(1 - d / wv, 0, 1) * (v < end) * np.clip((end - v) / 0.08, 0, 1)
         alpha = np.maximum(alpha, a * 0.95)
         col = np.where(a > 0.3, bright, col)
-    root = np.clip(1 - v / 0.12, 0, 1) * 0.35
+    root = np.clip(1 - v / 0.1, 0, 1) * 0.15
     alpha = np.clip(alpha + root, 0, 1)
+    # each quarter of the atlas is one card: feather its sides so card edges dissolve into loose strands
+    u = (np.arange(W) % (W // 4)) / (W // 4)
+    side = np.clip(np.sin(np.pi * u), 0, 1) ** 0.7
+    gaps = (rnd.uniform(0, 1, W) > 0.25).astype(np.float32) * 0.35 + 0.65
+    alpha = alpha * (side * gaps)[None, :]
     shade = (0.55 + 0.45 * col) * (0.8 + 0.2 * v)                     # a little darker at the root
     rgba = np.stack([shade * 0.92, shade * 0.88, shade * 0.84, alpha], axis=2)
     im = _image("TR_hair_strands", 4)
@@ -472,6 +477,9 @@ def build_hair(sex, style, seed=5):
     centre = Vector((pts - nrm * 0.09).mean(axis=0))
     R = float(np.mean(np.linalg.norm(pts - np.array(centre), axis=1)))
     fwd = Vector((0, -1, 0)); up = Vector((0, 0, 1))
+    from mathutils.bvhtree import BVHTree
+    bmt = bmesh.new(); bmt.from_mesh(me); bmt.transform(mw)
+    tree = BVHTree.FromBMesh(bmt); bmt.free()
     rnd = random.Random(seed)
     P = bmesh.new(); uvl = P.loops.layers.uv.verify()
     cards = []
@@ -490,11 +498,13 @@ def build_hair(sex, style, seed=5):
             grav = S["grav"] * min(1.0, t / max(0.05, S["hug"]))
             d = (d + (-up) * grav * 0.6 + (-fwd) * S["back"] * 0.15).normalized()
             q = guide[-1] + d * (L / segs)
-            # stay outside the head, a little further out for the outer layers
-            rr = R + 0.004 + 0.008 * layer
-            off = q - centre
-            if off.length < rr and t <= S["hug"] + 0.3:
-                q = centre + off.normalized() * rr
+            # stay on / outside the real head surface, a little further out for the outer layers
+            loc, nn, _, dist = tree.find_nearest(q)
+            if loc is not None:
+                lift = 0.003 + 0.007 * layer
+                above = (q - loc).dot(nn)
+                if t <= S["hug"] or above < lift:
+                    q = loc + nn * lift if t <= S["hug"] else q + nn * (lift - above)
             # long hair falls behind the shoulders, not through the neck
             if q.z < centre.z - 0.08 and q.y < centre.y + 0.05:
                 q.y = centre.y + 0.05 + (centre.z - 0.08 - q.z) * 0.15
@@ -556,6 +566,185 @@ def build_hair(sex, style, seed=5):
     print("[humans] hair", sex, style, len(hair.data.polygons), "faces ->", path)
     bpy.data.objects.remove(hair)
     return path
+
+
+# ------------------------------------------------------------------ outfits (shells lifted off the body)
+REG = {
+    "torso": {"spine_01", "spine_02", "spine_03", "clavicle_l", "clavicle_r", "pelvis"},
+    "neck": {"neck_01"}, "head": {"Head"},
+    "uarm": {"upperarm_l", "upperarm_r"}, "farm": {"lowerarm_l", "lowerarm_r"},
+    "hand": {"hand_l", "hand_r"} | {f"{f}_0{i}_{s}" for f in ("index", "middle", "ring", "pinky", "thumb") for i in (1, 2, 3) for s in "lr"},
+    "thigh": {"thigh_l", "thigh_r"}, "calf": {"calf_l", "calf_r"}, "foot": {"foot_l", "foot_r", "ball_l", "ball_r"},
+}
+G_LINEN, G_WOOL = "G_Cloth_Linen", "G_Cloth_Wool"
+
+
+def _regions(body):
+    """Per vertex: dominant region name, world position and normal."""
+    me = body.data; mw = body.matrix_world; nmw = mw.to_3x3().inverted().transposed()
+    gname = {vg.index: vg.name for vg in body.vertex_groups}
+    out = []
+    for v in me.vertices:
+        acc = {}
+        for x in v.groups:
+            for r, bones in REG.items():
+                if gname.get(x.group) in bones:
+                    acc[r] = acc.get(r, 0.0) + x.weight
+        dom = max(acc, key=acc.get) if acc else ""
+        out.append((dom, mw @ v.co, (nmw @ v.normal).normalized()))
+    return out
+
+
+def _landmarks(arm):
+    b = arm.data.bones; mw = arm.matrix_world
+    z = lambda n: (mw @ b[n].head_local).z
+    return dict(pelvis=z("pelvis"), neck=z("neck_01"), head=z("Head"), knee=z("calf_l"), ankle=z("foot_l"),
+                shoulder=z("upperarm_l"), elbow=z("lowerarm_l"), wrist=z("hand_l"), chest=z("spine_03"))
+
+
+def _shell(body, keep, offset, thick, mat, name, extra=None, smooth=None):
+    """Copy of the body's faces whose vertices all pass keep(i), pushed out along the normals, made solid.
+    The copy keeps the body's skin weights and UVs, so it deforms and maps exactly like the skin under it.
+    smooth = (predicate on world position, iterations): rounds that part off first (boots lose the toes).
+    The cut edges are relaxed so hems and collars do not zig-zag along the body's triangles."""
+    o = body.copy(); o.data = body.data.copy(); o.name = name; o.data.name = name
+    bpy.context.scene.collection.objects.link(o)
+    for m in list(o.modifiers):
+        if m.type != "ARMATURE":
+            o.modifiers.remove(m)
+    bm = bmesh.new(); bm.from_mesh(o.data)
+    bm.verts.ensure_lookup_table()
+    dead = [f for f in bm.faces if not all(keep(v.index) for v in f.verts)]
+    bmesh.ops.delete(bm, geom=dead, context="FACES")
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+    mw = body.matrix_world
+    if smooth:
+        pred, its = smooth
+        sv = [v for v in bm.verts if pred(mw @ v.co)]
+        for _ in range(its):
+            bmesh.ops.smooth_vert(bm, verts=sv, factor=0.6, use_axis_x=True, use_axis_y=True, use_axis_z=True)
+        bm.normal_update()
+    edge = [v for v in bm.verts if v.is_boundary]
+    for _ in range(4):
+        bmesh.ops.smooth_vert(bm, verts=edge, factor=0.5, use_axis_x=True, use_axis_y=True, use_axis_z=True)
+    bm.normal_update()
+    for v in bm.verts:
+        v.co = v.co + v.normal * (offset + (extra(v) if extra else 0.0))
+    bm.to_mesh(o.data); bm.free()
+    for c in [c for c in o.data.color_attributes]:
+        o.data.color_attributes.remove(c)
+    sol = o.modifiers.new("Solid", "SOLIDIFY"); sol.thickness = thick; sol.offset = 1.0; sol.use_rim = True
+    o.modifiers.move(len(o.modifiers) - 1, 0)
+    bpy.ops.object.select_all(action="DESELECT"); o.select_set(True); bpy.context.view_layer.objects.active = o
+    bpy.ops.object.modifier_apply(modifier="Solid")
+    o.data.materials.clear()
+    for mname in (mat if isinstance(mat, (list, tuple)) else [mat]):
+        m = bpy.data.materials.get(mname) or bpy.data.materials.new(mname)
+        o.data.materials.append(m)
+    for p in o.data.polygons:
+        p.use_smooth = True
+    return o
+
+
+GARMENTS = {}
+
+
+def garment(fn):
+    GARMENTS[fn.__name__] = fn
+    return fn
+
+
+@garment
+def Tunic(body, R, lm, sex):
+    return _shell(body, lambda i: R[i][0] in ("torso", "uarm") and R[i][1].z < lm["neck"] + 0.01
+                  or (R[i][0] == "thigh" and R[i][1].z > lm["pelvis"] - 0.2), 0.008, 0.004, G_LINEN, "Tunic")
+
+
+@garment
+def Robe(body, R, lm, sex):
+    return _shell(body, lambda i: R[i][0] in ("torso", "uarm", "farm", "thigh") and R[i][1].z < lm["neck"] + 0.01
+                  or (R[i][0] == "calf" and R[i][1].z > lm["ankle"] + 0.12), 0.012, 0.004, G_WOOL, "Robe")
+
+
+@garment
+def Gambeson(body, R, lm, sex):
+    return _shell(body, lambda i: R[i][0] in ("torso", "uarm", "farm") and R[i][1].z < lm["neck"] + 0.015
+                  or (R[i][0] == "thigh" and R[i][1].z > lm["pelvis"] - 0.24), 0.014, 0.006, G_WOOL, "Gambeson")
+
+
+@garment
+def Cuirass(body, R, lm, sex):
+    plate = _shell(body, lambda i: R[i][0] == "torso" and lm["pelvis"] + 0.06 < R[i][1].z < lm["shoulder"] - 0.01,
+                   0.032, 0.006, "G_Metal_Iron", "Cuirass")
+    belt = _shell(body, lambda i: R[i][0] in ("torso", "thigh") and lm["pelvis"] - 0.01 < R[i][1].z < lm["pelvis"] + 0.07,
+                  0.036, 0.008, "G_Leather", "Belt")
+    return _join([plate, belt], "Cuirass")
+
+
+@garment
+def Pauldrons(body, R, lm, sex):
+    return _shell(body, lambda i: R[i][0] in ("uarm", "torso") and R[i][1].z > lm["shoulder"] - 0.07 and abs(R[i][1].x) > 0.13,
+                  0.04, 0.006, "G_Metal_Iron", "Pauldrons")
+
+
+@garment
+def Trousers(body, R, lm, sex):
+    return _shell(body, lambda i: R[i][0] in ("thigh", "calf") and R[i][1].z > lm["ankle"] + 0.05
+                  or (R[i][0] == "torso" and R[i][1].z < lm["pelvis"] + 0.05), 0.006, 0.004, G_WOOL, "Trousers")
+
+
+@garment
+def Boots(body, R, lm, sex):
+    sole = lambda v: 0.012 if v.normal.z < -0.6 else 0.0
+    return _shell(body, lambda i: R[i][0] == "foot" or (R[i][0] == "calf" and R[i][1].z < lm["knee"] - 0.1),
+                  0.016, 0.005, "G_Leather", "Boots", extra=sole, smooth=(lambda p: p.z < lm["ankle"] + 0.02, 40))
+
+
+@garment
+def Gloves(body, R, lm, sex):
+    return _shell(body, lambda i: R[i][0] == "hand" or (R[i][0] == "farm" and _near_wrist(R[i][1], lm)),
+                  0.004, 0.003, "G_Leather", "Gloves")
+
+
+def _near_wrist(p, lm):
+    return abs(abs(p.x) - lm.get("wrist_x", 0.0)) < 0.09
+
+
+@garment
+def Hood(body, R, lm, sex):
+    c = Vector(FACE["centre"])
+    face = lambda p: p.y < c.y + 0.03 and lm["head"] - 0.06 < p.z < c.z + 0.05 and abs(p.x) < 0.075
+    return _shell(body, lambda i: (R[i][0] in ("head", "neck") and not face(R[i][1]))
+                  or (R[i][0] in ("torso", "uarm") and R[i][1].z > lm["shoulder"] - 0.05), 0.022, 0.004, G_WOOL, "Hood")
+
+
+def _join(objs, name):
+    bpy.ops.object.select_all(action="DESELECT")
+    for o in objs:
+        o.select_set(True)
+    bpy.context.view_layer.objects.active = objs[0]
+    bpy.ops.object.join(); o = bpy.context.active_object; o.name = name; o.data.name = name
+    return o
+
+
+def build_outfits(sex, names=None):
+    """Writes assets/models/outfit/TR_<Sex>_<Garment>.glb for the body in scene Humans_<sex>."""
+    sc = bpy.data.scenes["Humans_" + sex]; bpy.context.window.scene = sc
+    body = next(o for o in sc.objects if o.type == "MESH" and "scalp" in o.vertex_groups and o.parent and o.parent.name.startswith("Armature"))
+    arm = body.parent
+    eyes = next(o for o in sc.objects if o.parent == arm and o.type == "MESH" and o.name.startswith("Eyes"))
+    _brow_attr(body, eyes, sex)
+    R = _regions(body); lm = _landmarks(arm)
+    lm["wrist_x"] = abs((arm.matrix_world @ arm.data.bones["hand_l"].head_local).x)
+    out = []
+    for n in names or list(GARMENTS):
+        o = GARMENTS[n](body, R, lm, sex)
+        path = os.path.join(ROOT, "assets", "models", "outfit", "TR_%s_%s.glb" % (sex.capitalize(), n))
+        _export_objs(path, [arm, o])
+        out.append("%s %d faces" % (n, len(o.data.polygons)))
+        bpy.data.objects.remove(o)
+    print("[humans] outfits", sex, out)
+    return out
 
 
 def _claim_armature_name(objs):
