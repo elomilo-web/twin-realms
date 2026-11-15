@@ -67,6 +67,7 @@
   },
   "weaponNames": { "Longsword": "Sword_2", "Falchion": "Sword_Golden", "Zweihander": "Sword_Big", "Executioner": "Sword_Big", "War Axe": "Axe_Double", "Bearded Axe": "Axe_Double", "Warhammer": "Hammer_Double", "Dirk": "Dagger_2", "Kris": "Dagger_2", "Warbow": "Bow_Evil", "Longbow": "Bow_Wooden2", "Recurve Bow": "Bow_Golden", "Glaive": "Scythe" },
   "shields": { "Kite": "Shield_Heater", "Heater": "Shield_Heater_2", "Tower": "Shield_Heater", "Aegis": "Shield_Celtic_Golden", "Buckler": "Shield_Round_2", "": "Shield_Round" },
+  "kitShields": { "Kite": "shield_kite", "Heater": "shield_kite", "Tower": "shield_tower", "Aegis": "shield_tower", "Buckler": "buckler", "": "shield_round" },
   "shieldSize": 0.62,
   "hold": {
     "_help": "Where a held item sits relative to its bone, in model space at rest (T-pose: Y up, +Z forward, the right hand points to -X): position in metres, rotation in degrees. Weapons point their blade along +Z. Tuned by eye.",

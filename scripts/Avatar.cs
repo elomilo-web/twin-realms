@@ -68,13 +68,14 @@ public partial class Avatar : Node3D
         for (int s = 0; s < (mi.Mesh?.GetSurfaceCount() ?? 0); s++)
         {
             if (mi.GetActiveMaterial(s) is not BaseMaterial3D b) continue;
-            var d = (BaseMaterial3D)b.Duplicate();
+            var src = GothicMats.For(b.ResourceName);   // realistic shared material for G_* names (tools/blender_gothic)
+            var d = (BaseMaterial3D)(src ?? b).Duplicate();
             if (vertexColor) d.VertexColorUseAsAlbedo = true;   // kit pieces are coloured per vertex only
             if (flat && set != null) { d.AlbedoTexture = null; d.AlbedoColor = set.Value; }
             else if (set != null) d.AlbedoColor = set.Value;
             if (mul != null) d.AlbedoColor = d.AlbedoColor * mul.Value;
             if (glow > 0) { d.EmissionEnabled = true; d.Emission = set ?? d.AlbedoColor; d.EmissionEnergyMultiplier = glow; }
-            d.NormalEnabled = false;   // the toon look does not use normal maps
+            if (src == null) d.NormalEnabled = false;   // the toon look does not use normal maps (the gothic materials keep theirs)
             if (grow > 0) { d.Grow = true; d.GrowAmount = grow; }
             Toon.Apply(d); mi.SetSurfaceOverrideMaterial(s, Genshin.From(d, kind));   // characters get the Genshin-style shader (Genshin.cs)
         }
@@ -412,7 +413,11 @@ public partial class Avatar : Node3D
         string model = "Shield_Round"; if (Cfg.TryGetProperty("shields", out var sm)) foreach (var p in sm.EnumerateObject()) if (p.Name == "" || it.Name.Contains(p.Name)) { model = p.Value.GetString() ?? model; if (p.Name != "") break; }
         var hold = Cfg.GetProperty("hold").GetProperty("shield");
         var h = Holder("lowerarm_l", V(hold, "pos", Vector3.Zero), V(hold, "rot", Vector3.Zero), "shield");
-        var inst = LoadModel(WeaponDir + model + ".fbx", JsonUtil.F(Cfg, "shieldSize", .62f), true); if (inst == null) return;
+        // gothic kit shields (assets/models/kit/weapons, avatar.json "kitShields") win over the Quaternius ones; same facing (+Z, upright)
+        string kit = ""; if (Cfg.TryGetProperty("kitShields", out var km)) foreach (var p in km.EnumerateObject()) if (p.Name == "" || it.Name.Contains(p.Name)) { kit = p.Value.GetString() ?? kit; if (p.Name != "") break; }
+        string kitPath = "res://assets/models/kit/weapons/" + kit + ".glb"; bool useKit = kit != "" && ResourceLoader.Exists(kitPath);
+        var inst = LoadModel(useKit ? kitPath : WeaponDir + model + ".fbx", JsonUtil.F(Cfg, "shieldSize", .62f), true); if (inst == null) return;
+        if (useKit) foreach (var n in inst.FindChildren("*", "MeshInstance3D", true, false)) if (n is MeshInstance3D mi) Tint(mi, null, null, vertexColor: true);
         h.AddChild(inst); GearFx.Apply(h, it, false);
     }
 

@@ -279,9 +279,10 @@ public static class Weapons
                 for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
                     if (mi.GetActiveMaterial(s) is BaseMaterial3D bm)
                     {
-                        var d = (BaseMaterial3D)bm.Duplicate(); d.VertexColorUseAsAlbedo = true;
+                        var src = GothicMats.For(bm.ResourceName) ?? bm;   // realistic shared material for G_* names
+                        var d = (BaseMaterial3D)src.Duplicate(); d.VertexColorUseAsAlbedo = true;
                         string mn = bm.ResourceName ?? "";
-                        if (ec != null && (mn.Contains("Metal") || mn.Contains("Glow"))) d.AlbedoColor = Colors.White.Lerp(ec.Value.Lightened(.2f), _elemTint);
+                        if (ec != null && (mn.Contains("Metal") || mn.Contains("Glow"))) d.AlbedoColor = src.AlbedoColor * Colors.White.Lerp(ec.Value.Lightened(.2f), _elemTint);
                         mi.SetSurfaceOverrideMaterial(s, d);
                     }
         float len = 0;
