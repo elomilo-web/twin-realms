@@ -21,8 +21,8 @@ Rules: CC0 only (record in `assets/ASSETS.md`); one shared material library; bui
 | Hero shields | done (kit shields, avatar.json kitShields) |
 | Oakhaven houses, props, rocks, tree bark | done via material swap (env.json) |
 | Procedural buildings, dungeons, lands, plaza | done via scanned textures (Gfx.cs) |
-| Trees / leaves / bushes / flowers | todo: still stylized |
-| Hero bodies, outfits, hair, NPCs | todo |
+| Trees / leaves / bushes / flowers | done: tools/blender_gothic/nature.py (oaks, firs, dead tree, bushes, shrubs; CC0 ambientCG leaf atlases via foliage_tex.ps1) |
+| Hero bodies | male done: TR_Male_Body.glb from tools/blender_gothic/humans.py (MPFB, CC0 base mesh, on the game skeleton; baked skin x race colour, SSS). female, hair, outfits: in progress |
 | Scarletta (golden armour, deep red hair, one angel wing, giant katana) | todo |
 | Monsters (25 Quaternius) | todo |
 | Kit castle / dungeon / spell models | todo (castle/dungeon kit not placed in game yet) |

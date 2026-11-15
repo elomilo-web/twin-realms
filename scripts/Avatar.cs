@@ -47,6 +47,7 @@ public partial class Avatar : Node3D
             {
                 if (mi.Name.ToString().Contains("Eye") && !mi.Name.ToString().Contains("brow")) { if (ap.GlowEyes) Tint(mi, null, ap.Eyes, 2.5f); continue; }
                 if (mi.Name.ToString().Contains("brow")) { Tint(mi, null, ap.Hair.Darkened(.2f), 0, true, 0, Genshin.Kind.Hair); continue; }
+                if (RealSkin(mi, ap.Skin)) continue;   // gothic realism body (tools/blender_gothic/humans.py): textured skin
                 Tint(mi, null, ap.Skin, 0, true, 0, Genshin.Kind.Skin);   // flat skin colour reads best under the toon shader and follows the race
             }
         // hair, picked from the list by the seed so a hero always keeps the same style
@@ -60,6 +61,26 @@ public partial class Avatar : Node3D
         _ap = new AnimationPlayer { Name = "Anim" }; Body.AddChild(_ap); _ap.RootNode = new NodePath("..");
         _ap.AddAnimationLibrary("", Library(_sex, _sk));
         HasModel = true; Play("idle");
+    }
+
+    /// <summary>
+    /// Realistic body skin (material TR_Skin with a baked detail texture): the race colour multiplies the texture, and the
+    /// skin gets subsurface scattering. False when the mesh is not such a body (the toon path then paints it flat).
+    /// </summary>
+    static bool RealSkin(MeshInstance3D mi, Color skin)
+    {
+        if (mi.Mesh == null) return false;
+        bool any = false;
+        for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
+        {
+            if (mi.Mesh.SurfaceGetMaterial(s) is not StandardMaterial3D b || b.AlbedoTexture == null || !(b.ResourceName ?? "").StartsWith("TR_Skin")) continue;
+            var d = (StandardMaterial3D)b.Duplicate();
+            d.AlbedoColor = skin.Lightened(.08f);
+            d.SubsurfScatterEnabled = true; d.SubsurfScatterStrength = JsonUtil.F(Cfg, "skinScatter", .35f); d.SubsurfScatterSkinMode = true;
+            d.Roughness = JsonUtil.F(Cfg, "skinRoughness", .55f);
+            mi.SetSurfaceOverrideMaterial(s, d); any = true;
+        }
+        return any;
     }
 
     /// <summary>Copies a material and recolours it. flat = drop the texture and use the colour as is. grow pushes clothing out along its normals so the body never shows through.</summary>
