@@ -70,6 +70,11 @@ def banner(name, colour='4a78c8'):
     m.add(extrude([(0, 0), (.85, 0), (.85, -1.5), (.425, -1.85), (0, -1.5)][::-1], .03).grad(mixc(colour, '000000', .25), mixc(colour, 'ffffff', .2)).move(.08, 3.17, 0))
     m.add(lathe([(0, 0), (.14, .14), (0, .28)], 4, 'ffd25a', 'metal', smooth=False).move(.5, 2.35, .03).scale(1, 1, .3)); return m
 
+RULES = {STONE: ('stone_bricks', 2.5), (DARK, STONE[0]): ('stone_bricks', 2.5), (DARK, DARK): ('stone_bricks', 2.5), ROOF: ('roof_blue', 1.8), WOOD: ('planks_dark', 1.5), (WOOD[0], WOOD[0]): ('planks_dark', 1.5)}
+
 def all_models():
+    return [m.autotex(RULES) for m in _models()]
+
+def _models():
     return [wall('castle_wall'), wall('castle_wall_low', 4.0, 3.0, .9), tower('castle_tower'), tower('castle_tower_tall', 2.0, 12.0, flagc='4a78c8'), tower('castle_tower_open', 2.4, 6.0, False),
             gatehouse('castle_gatehouse'), keep('castle_keep'), stairs('castle_stairs'), banner('banner_blue'), banner('banner_red', 'c8423c')]

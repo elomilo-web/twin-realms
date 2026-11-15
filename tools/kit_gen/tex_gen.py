@@ -101,15 +101,15 @@ def gravel(seed=21):
     base = ramp(poster(fnoise(seed, 2.2), 4), ('86755a', '9c8a6c', 'b3a182', 'c6b596')); d1, d2, ident = cells(15, seed + 1)
     r = np.random.RandomState(seed + 2); tone = r.rand(15 * 15)[ident]; size = .34 + .2 * r.rand(15 * 15)[ident]; keep = r.rand(15 * 15)[ident] > .22
     stone = sm(0, .07, size - d1) * keep; yy, xx = np.mgrid[0:S, 0:S]
-    lit = np.clip(.5 + (size - d1) * 1.6, 0, 1.2) * (.86 + .28 * sm(-.3, .3, fnoise(seed + 3, 1.2) - .5))
-    pal = ramp(tone, ('7f8190', 'a3a2a6', 'c8c4ba', 'a8998a', 'dbd6ca')); rgb = base * (1 - stone[..., None]) + pal * lit[..., None] * stone[..., None]
+    lit = (.82 + .3 * sm(0, .5, size - d1)) * (.9 + .2 * fnoise(seed + 3, 1.2))
+    pal = ramp(tone, ('8d8a88', 'a8a49c', 'c8c2b4', 'ad9f8c', 'd8d0c0')); rgb = base * (1 - stone[..., None]) + pal * lit[..., None] * stone[..., None]
     rgb = rgb * (1 - .28 * sm(.0, .1, size + .08 - d1)[..., None] * (1 - stone[..., None]))                                         # contact shadow round each stone
     return rgb, base.mean(2) * .25 + stone * (.45 + .4 * np.clip(size - d1, 0, 1) * 2)
 
 def rock(seed=31):
-    strata = fnoise(seed, 2.4, (1, 3.2)) * .6 + fnoise(seed + 1, 1.8) * .4; v = poster(strata, 5, .08); rgb = ramp(v, ('66647a', '807e8c', '9d9a9e', 'bab5ae', 'd8d2c4'))
+    strata = fnoise(seed, 2.4, (3.2, 1)) * .6 + fnoise(seed + 1, 1.8) * .4; v = poster(strata, 5, .08); rgb = ramp(v, ('6e6a70', '8a8582', 'a8a298', 'c4bcae', 'ddd5c2'))
     d1, d2, _ = cells(7, seed + 2, 1.0); crack = 1 - sm(.0, .045, d2 - d1); crack2 = 1 - sm(0, .03, cells(15, seed + 3, 1.0)[1] - cells(15, seed + 3, 1.0)[0])
-    c = np.clip(crack + crack2 * .45, 0, 1)[..., None]; rgb = rgb * (1 - .5 * c) + hexc('3f3d52') * .5 * c
+    c = np.clip(crack + crack2 * .45, 0, 1)[..., None]; rgb = rgb * (1 - .5 * c) + hexc('4a4448') * .5 * c
     moss = sm(.68, .8, fnoise(seed + 4, 2.6))[..., None] * (v[..., None] > .5) * .4; rgb = rgb * (1 - moss) + ramp(fnoise(seed + 5, 1.5), ('6f9a58', '94b86a')) * moss
     return rgb, v * .7 + .3 - c[..., 0] * .5
 
@@ -164,7 +164,7 @@ def plaster(seed=101):
 
 def planks(seed=111, pw=128, pal=('6e4a30', '86603a', '9f7648', 'b58c5a')):
     yy, xx = np.mgrid[0:S, 0:S]; col = xx // pw; n = S // pw; r = np.random.RandomState(seed); tone = r.rand(n)[col]; off = r.randint(0, S, n)[col]
-    grain = fnoise(seed + 1, 1.7, (9, 1)); g = grain[(yy + off) % S, xx]; knots = cells(5, seed + 2)[0]; g = np.clip(g + .35 * np.sin(knots * 40) * sm(.28, .0, knots), 0, 1)
+    grain = fnoise(seed + 1, 1.7, (1, 9)); g = grain[(yy + off) % S, xx]; knots = cells(5, seed + 2)[0]; g = np.clip(g + .35 * np.sin(knots * 40) * sm(.28, .0, knots), 0, 1)
     v = poster(np.clip(g * .7 + tone * .3, 0, 1), 5, .2); lx = xx % pw; edge = sm(0, 5, np.minimum(lx, pw - 1 - lx))
     jl = r.randint(0, S, n)[col]; joint = sm(0, 4, np.abs(((yy - jl) % S) - 2)); e = (edge * joint)[..., None]
     rgb = ramp(v, pal) * (.55 + .45 * e) * (.93 + .1 * sm(0, 26, np.minimum(lx, pw - 1 - lx))[..., None])
@@ -200,7 +200,8 @@ BUILD = {'plaster': (plaster, {}), 'planks': (planks, {}), 'planks_dark': (plank
          'stone_bricks': (bricks, dict(seed=151, bw=256, bh=128, pal=('9a9eac', 'b4b7c2', 'cbcdd6', 'dedfe4', 'c9c2b6'), mortar='7d8090')),
          'dungeon_bricks': (bricks, dict(seed=161, bw=256, bh=128, pal=('383450', '4a4566', '5f5a7c', '747092'), mortar='24212f', chip=.9)),
          'roof_red': (roof, dict(seed=171, pal=('8f3a2a', 'b04e34', 'cc6642', 'e0845a'))), 'roof_blue': (roof, dict(seed=172, pal=('2e4680', '40609f', '587fc0', '7a9edb'))),
-         'roof_teal': (roof, dict(seed=173, pal=('2a6a62', '3a8a7c', '55a896', '7cc4ae'))), 'thatch': (thatch, {}), 'floor_slabs': (slabs, {}),
+         'roof_teal': (roof, dict(seed=173, pal=('2a6a62', '3a8a7c', '55a896', '7cc4ae'))), 'roof_violet': (roof, dict(seed=174, pal=('4a3a80', '63509f', '806cc0', 'a28fdb'))),
+         'roof_gold': (roof, dict(seed=175, pal=('8f6a26', 'b08634', 'cca24a', 'e0bd6a'))), 'thatch': (thatch, {}), 'floor_slabs': (slabs, {}),
          'cobble_dark': (cobble, dict(seed=181, g=7, pal=('3c3852', '4e4a66', '625e7c', '555070'), mortar='22202c', moss=False))}
 STRENGTH = {'grass': 2.2, 'meadow': 2.4, 'sand': 1.6, 'snow': 1.2, 'plaster': 1.4, 'thatch': 3.0}
 

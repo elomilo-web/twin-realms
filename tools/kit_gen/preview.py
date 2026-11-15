@@ -1,7 +1,16 @@
 """Software preview renderer (no GPU): toon-shaded tiles with outlines, laid out as labelled contact sheets."""
-import math
+import math, os
 import numpy as np
 from PIL import Image, ImageDraw
+
+_TEX = {}
+def _tex(name):
+    if name not in _TEX:
+        root = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'assets', 'textures'))
+        for folder in ('painted', 'terrain_painted'):
+            f = os.path.join(root, folder, name + '_col.jpg')
+            if os.path.exists(f): _TEX[name] = np.asarray(Image.open(f).convert('RGB').resize((256, 256), Image.LANCZOS), dtype=float) / 255
+    return _TEX.get(name)
 
 def render(model, size=300, yaw=35, pitch=22, bg=(232, 238, 246)):
     S = size * 2; baked = model.baked()
@@ -13,10 +22,11 @@ def render(model, size=300, yaw=35, pitch=22, bg=(232, 238, 246)):
     allv = np.vstack([b[0] for b in baked.values()]); p = (allv - ctr) @ R.T
     ext = max(np.abs(p[:, :2]).max(), 1e-6) * 1.12
     img = np.tile(np.array(bg, float) / 255, (S, S, 1)); zb = np.full((S, S), -1e9); L = np.array([-.45, .75, .5]); L = L / np.linalg.norm(L)
-    for m, (v, n, c, f) in baked.items():
+    for m, (v, n, c, f, uv) in baked.items():
+        tex = _tex(m[4:].replace('_2s', '')) if uv is not None else None
         pv = (v - ctr) @ R.T; pn = n @ R.T
         sx = (pv[:, 0] / ext * .5 + .5) * S; sy = (.5 - pv[:, 1] / ext * .5) * S; sz = pv[:, 2]
-        glow = m.startswith('glow'); two = m == 'matte2s'
+        glow = m.startswith('glow'); two = m == 'matte2s' or m.endswith('_2s')
         for a, b, d in f:
             x0, x1, x2, y0, y1, y2 = sx[a], sx[b], sx[d], sy[a], sy[b], sy[d]
             area = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0)
@@ -29,6 +39,9 @@ def render(model, size=300, yaw=35, pitch=22, bg=(232, 238, 246)):
             sub = zb[ya_:yb, xa:xb]; ok = ins & (z > sub)
             if not ok.any(): continue
             nn = w0[..., None] * pn[a] + w1[..., None] * pn[b] + w2[..., None] * pn[d]; cc = w0[..., None] * c[a] + w1[..., None] * c[b] + w2[..., None] * c[d]
+            if tex is not None:
+                tu = w0 * uv[a, 0] + w1 * uv[b, 0] + w2 * uv[d, 0]; tv = w0 * uv[a, 1] + w1 * uv[b, 1] + w2 * uv[d, 1]
+                cc = cc * tex[(np.floor(tv * 256).astype(int)) % 256, (np.floor(tu * 256).astype(int)) % 256]
             ndl = (nn @ L) / np.maximum(np.linalg.norm(nn, axis=2), 1e-9)
             if two: ndl = np.abs(ndl)
             lit = np.clip((ndl * .5 + .5 - .47) / .04, 0, 1)[..., None]

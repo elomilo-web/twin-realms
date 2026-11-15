@@ -5,9 +5,13 @@ from kitlib import *
 
 WOOD = ('5e3b2a', '8f6142'); PLASTER = ('e6d8c2', 'fbf3e4'); STONE = ('7d8298', 'b7bccb')
 
+ROOFTEX = {'e2644a': 'roof_red', 'b8423c': 'roof_red', '4a78c8': 'roof_blue', '3fae9a': 'roof_teal', 'd9a23a': 'thatch', '8a5fb8': 'roof_violet'}
+RULES = {PLASTER: ('plaster', 3.0), STONE: ('stone_bricks', 2.0), (STONE[0], STONE[0]): ('stone_bricks', 2.0), (STONE[0], 'cfd3dc'): ('stone_bricks', 2.0), WOOD: ('planks_dark', 1.5), (WOOD[0], WOOD[0]): ('planks_dark', 1.5),
+         (WOOD[1], WOOD[1]): ('planks', 1.5), ('6a3f26', '99623a'): ('planks', 1.2), ('9a6c44', 'c8996a'): ('planks', 1.4), ('8a3a2e', 'e2644a'): ('roof_red', 1.7)}
+
 def roof(w, d, h, colour, y, over=.45):
     lo, hi = mixc(colour, '20143a', .35), mixc(colour, 'ffffff', .18)
-    r = extrude([(-w / 2 - over, 0), (w / 2 + over, 0), (0, h)], d + over * 2).grad(lo, hi).move(0, y, 0)
+    r = extrude([(-w / 2 - over, 0), (w / 2 + over, 0), (0, h)], d + over * 2).grad(lo, hi).move(0, y, 0).tex(ROOFTEX.get(colour, 'roof_red'), 1.7, 'roof')
     ridge = box(.16, .12, d + over * 2 + .1, mixc(colour, '20143a', .5)).move(0, y + h - .06, 0)
     eaves = [box(.1, .1, d + over * 2 + .06, WOOD[0]).rot(z=0).move(sx * (w / 2 + over - .02), y - .04, 0) for sx in (-1, 1)]
     return [r, ridge] + eaves
@@ -136,6 +140,9 @@ def waystone(name):
     m.add(torus(.42, .03, 14, 4, 'ffd25a', 'metal').rot(x=20).move(0, 4.22, 0)); return m
 
 def all_models():
+    return [m.autotex(RULES) for m in _models()]
+
+def _models():
     return [house('house_cottage', 4.6, 4.0, 1, 'e2644a'), house('house_town_blue', 5.2, 4.4, 2, '4a78c8'), house('house_town_teal', 4.0, 4.6, 2, '3fae9a', chimney=False),
             house('house_shop', 5.4, 4.2, 2, 'd9a23a', shop='e2644a'), house('house_inn_lit', 7.0, 5.0, 2, 'b8423c', lit=True), house('house_hut', 3.2, 3.0, 1, '8a5fb8', chimney=False),
             windmill('windmill'), well('well'), stall('market_stall_red'), stall('market_stall_blue', '4a78c8'), bridge('bridge_stone'), waystone('waystone'),
