@@ -2,7 +2,7 @@
   "_help": "Character models (scripts/Avatar.cs). Bodies, hair and outfit parts share one skeleton, so gear parts deform with the body. Gear is matched by keywords in the item name (first match wins). 'parts' are outfit glTF names in assets/models/outfit ({s} = Male/Female). 'tint' multiplies the part colours. 'kit' = rigid Twin Realms kit pieces on a bone ({model, bone, pos, rot, scale}, pos/rot like 'hold'; tune with tools/run.ps1 fit-tune). 'proc' = a procedural shape, used when there is no kit piece. Weapons: model is grip-at-origin, blade along +Z; 'len' is the length in metres. Trinkets are never shown.",
   "bodies": {
     "male": "res://assets/models/char/TR_Male_Body.glb",
-    "female": "res://assets/models/char/Superhero_Female_FullBody.gltf",
+    "female": "res://assets/models/char/TR_Female_Body.glb",
     "_stylized": { "male": "res://assets/models/char/Superhero_Male_FullBody.gltf", "female": "res://assets/models/char/Superhero_Female_FullBody.gltf" },
     "_gothicHelp": "TR_*_Body.glb: realistic MPFB bodies on the same skeleton (tools/blender_gothic/humans.py); skin = baked texture x race colour (skinScatter, skinRoughness below)"
   },
@@ -13,9 +13,12 @@
   "gait": { "_help": "Each locomotion clip's own ground speed in m/s (measured: Shots --feel). Playback = speed / this, clamped to minScale..maxScale, so feet do not skate. runAt / sprintAt: speeds where the gait changes.", "walk": 0.83, "run": 2.68, "sprint": 3.48, "minScale": 0.8, "maxScale": 2.3, "runAt": 2.6, "sprintAt": 6.8, "_tuned": "2026-11-11: hero run 4.6 -> 5.6 m/s and sprint 6.6 -> 8.0 (data/feel.json move); run/sprint raised by the same ratio so the legs keep their pace and the body now keeps up with them (the sprint clip used to hit maxScale and slide)" },
   "_raceFeaturesHelp": "true = add the procedural cones for pointy ears, tusks and horns (data/races.json look). Off: they stuck out of heads.",
   "hair": {
-    "male": ["Hair_SimpleParted", "Hair_Buzzed", "Hair_Long"],
-    "female": ["Hair_Long", "Hair_Buns", "Hair_BuzzedFemale", "Hair_SimpleParted"],
-    "beard": "Hair_Beard"
+    "male": ["TR_Hair_Male_short.glb", "TR_Hair_Male_buzzed.glb", "TR_Hair_Male_swept.glb", "TR_Hair_Male_long.glb"],
+    "female": ["TR_Hair_Female_long.glb", "TR_Hair_Female_swept.glb", "TR_Hair_Female_flowing.glb"],
+    "_stylizedMale": ["Hair_SimpleParted", "Hair_Buzzed", "Hair_Long"],
+    "_stylizedFemale": ["Hair_Long", "Hair_Buns", "Hair_BuzzedFemale", "Hair_SimpleParted"],
+    "beard": "",
+    "_stylizedBeard": "Hair_Beard"
   },
   "anims": ["res://assets/models/anim/UAL2_Standard.glb", "res://assets/models/anim/AL_Standard.fbx"],
   "_animsHelp": "The game loads assets/models/anim/clips.res (only the clips listed under 'clips'). After changing 'clips', rebuild it: godot --headless --path . -- --bake-anims. The source files above are not exported. animPelvis = hip height of the animation rig.",

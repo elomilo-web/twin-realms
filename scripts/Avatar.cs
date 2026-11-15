@@ -54,8 +54,10 @@ public partial class Avatar : Node3D
         var hl = L(Cfg.GetProperty("hair"), _sex); if (hl.Count > 0)
         {
             int h = Math.Abs(seed.GetHashCode()) % hl.Count;
-            _hair.AddRange(AddPart(HairDir + hl[h] + ".gltf", "hair", ap.Hair, true));
-            if (ap.Beard && !Female) _hair.AddRange(AddPart(HairDir + S(Cfg.GetProperty("hair"), "beard") + ".gltf", "hair", ap.Hair, true));
+            string Ext(string n) => n.EndsWith(".glb") || n.EndsWith(".gltf") ? n : n + ".gltf";   // TR_* hair is .glb
+            _hair.AddRange(AddPart(HairDir + Ext(hl[h]), "hair", ap.Hair, true));
+            string beard = S(Cfg.GetProperty("hair"), "beard");
+            if (ap.Beard && !Female && beard != "") _hair.AddRange(AddPart(HairDir + Ext(beard), "hair", ap.Hair, true));
         }
         if (Cfg.TryGetProperty("raceFeatures", out var rf) && rf.ValueKind == JsonValueKind.True) RaceFeatures(ap);   // off: no cones for ears, tusks or horns
         _ap = new AnimationPlayer { Name = "Anim" }; Body.AddChild(_ap); _ap.RootNode = new NodePath("..");
@@ -79,6 +81,25 @@ public partial class Avatar : Node3D
             d.SubsurfScatterEnabled = true; d.SubsurfScatterStrength = JsonUtil.F(Cfg, "skinScatter", .35f); d.SubsurfScatterSkinMode = true;
             d.Roughness = JsonUtil.F(Cfg, "skinRoughness", .55f);
             mi.SetSurfaceOverrideMaterial(s, d); any = true;
+        }
+        return any;
+    }
+
+    /// <summary>Realistic hair (material TR_Hair, strand atlas with alpha): the hair colour multiplies the strands; alpha cut, two-sided.</summary>
+    static bool RealHair(MeshInstance3D mi, Color? tint)
+    {
+        if (mi.Mesh == null) return false;
+        bool any = false;
+        for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
+        {
+            if (mi.Mesh.SurfaceGetMaterial(s) is not StandardMaterial3D b || !(b.ResourceName ?? "").StartsWith("TR_Hair")) continue;
+            var d = (StandardMaterial3D)b.Duplicate();
+            if (tint != null) d.AlbedoColor = tint.Value.Lightened(.1f);
+            d.Transparency = BaseMaterial3D.TransparencyEnum.AlphaScissor; d.AlphaScissorThreshold = .42f;
+            d.AlphaAntialiasingMode = BaseMaterial3D.AlphaAntiAliasing.AlphaToCoverage;
+            d.CullMode = BaseMaterial3D.CullModeEnum.Disabled; d.Roughness = .45f;
+            d.SpecularMode = BaseMaterial3D.SpecularModeEnum.SchlickGgx;
+            mi.SetSurfaceOverrideMaterial(s, d); mi.CastShadow = GeometryInstance3D.ShadowCastingSetting.On; any = true;
         }
         return any;
     }
@@ -124,6 +145,7 @@ public partial class Avatar : Node3D
                 psk.RemoveChild(mi); mi.Owner = null; _sk.AddChild(mi); mi.Skeleton = new NodePath(".."); mi.Skin = skin;
                 float grow = slot == "hair" ? 0f : .006f;
                 var kind = slot == "hair" ? Genshin.Kind.Hair : Genshin.Kind.Cloth;
+                if (RealHair(mi, tint)) { res.Add(mi); continue; }   // gothic realism strand cards (tools/blender_gothic/humans.py)
                 if (tint != null) Tint(mi, flat ? null : tint, flat ? tint : null, 0, flat, grow, kind); else Tint(mi, null, null, 0, false, grow, kind);
                 res.Add(mi);
             }

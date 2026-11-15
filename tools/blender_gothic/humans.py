@@ -169,7 +169,71 @@ def _body_mesh(h, new):
 
 
 # ------------------------------------------------------------------ textures
+FACE = {}   # eye centre and sex for _face_masks, set by build_body
+
+
+def _face_masks(nt, body):
+    """Shader-math masks from the surface position (per pixel in the bake): arched brows with a hair-like breakup,
+    a stubble shadow on the jaw (male), and cheek colour."""
+    N, L = nt.nodes, nt.links
+    geo = N.new("ShaderNodeNewGeometry")
+    xyz = N.new("ShaderNodeSeparateXYZ"); L.new(geo.outputs["Position"], xyz.inputs[0])
+    X, Y, Z = xyz.outputs
+    cx, cy, cz = FACE["centre"]
+
+    def op(o, a, b=None):
+        n = N.new("ShaderNodeMath"); n.operation = o
+        for i, v in enumerate((a, b)):
+            if v is None:
+                continue
+            if isinstance(v, (int, float)):
+                n.inputs[i].default_value = v
+            else:
+                L.new(v, n.inputs[i])
+        return n.outputs[0]
+
+    def gauss(d, w):
+        return op("EXPONENT", op("MULTIPLY", op("POWER", op("DIVIDE", d, w), 2.0), -1.0))
+
+    def clamp01(v):
+        n = N.new("ShaderNodeClamp"); L.new(v, n.inputs[0]); return n.outputs[0]
+
+    nz = N.new("ShaderNodeTexNoise"); nz.inputs["Scale"].default_value = 700.0; nz.inputs["Detail"].default_value = 3.0
+    L.new(geo.outputs["Position"], nz.inputs["Vector"])
+    front = op("LESS_THAN", Y, cy)
+    brow = cheek = None
+    for s in (1, -1):
+        lx = op("MULTIPLY", op("SUBTRACT", X, cx * s), float(s))            # outwards from the nose
+        t = clamp01(op("DIVIDE", op("ADD", lx, 0.024), 0.056))
+        inside = op("MULTIPLY", op("GREATER_THAN", lx, -0.024), op("LESS_THAN", lx, 0.032))
+        zc = op("ADD", cz + 0.019, op("MULTIPLY", op("SINE", op("MULTIPLY", op("MINIMUM", op("MULTIPLY", t, 1.2), 1.0), math.pi)), 0.005))
+        th = op("MULTIPLY", op("SUBTRACT", 1.15, op("MULTIPLY", t, 0.5)), 0.0042)
+        fade = clamp01(op("MINIMUM", op("DIVIDE", t, 0.12), op("DIVIDE", op("SUBTRACT", 1.0, t), 0.2)))
+        b = op("MULTIPLY", op("MULTIPLY", gauss(op("SUBTRACT", Z, zc), th), fade), op("MULTIPLY", inside, front))
+        b = op("MULTIPLY", b, op("ADD", 0.6, op("MULTIPLY", nz.outputs["Fac"], 0.6)))
+        brow = b if brow is None else op("MAXIMUM", brow, b)
+        cd = op("SQRT", op("ADD", op("POWER", op("SUBTRACT", X, cx * s * 1.25), 2.0), op("POWER", op("SUBTRACT", Z, cz - 0.045), 2.0)))
+        ch = op("MULTIPLY", gauss(cd, 0.025), op("LESS_THAN", Y, cy + 0.02))
+        cheek = ch if cheek is None else op("MAXIMUM", cheek, ch)
+    if FACE.get("male"):
+        jaw = op("MULTIPLY", op("LESS_THAN", Z, cz - 0.045), op("GREATER_THAN", Z, cz - 0.13))
+        jaw = op("MULTIPLY", jaw, op("LESS_THAN", op("ABSOLUTE", X), 0.065))
+        jaw = op("MULTIPLY", jaw, op("LESS_THAN", Y, cy + 0.06))
+        beard = op("MULTIPLY", op("MULTIPLY", jaw, clamp01(op("DIVIDE", op("SUBTRACT", cz - 0.045, Z), 0.02))), 0.55)
+    else:
+        beard = op("MULTIPLY", X, 0.0)
+    return {"brow": clamp01(brow), "cheek": cheek, "beard": beard}
+
+
 def _brow_attr(body, eyes_o, sex):
+    ev = [eyes_o.matrix_world @ v.co for v in eyes_o.data.vertices]
+    right = [v for v in ev if v.x > 0]
+    FACE["centre"] = tuple(sum(right, Vector()) / max(1, len(right)))
+    FACE["male"] = sex == "male"
+    return
+
+
+def _brow_attr_old(body, eyes_o, sex):
     """Per-vertex brow / stubble / cheek weights for the skin bake (brows painted, not modelled)."""
     me = body.data
     ev = [eyes_o.matrix_world @ v.co for v in eyes_o.data.vertices]
@@ -184,7 +248,7 @@ def _brow_attr(body, eyes_o, sex):
             if p.y < c.y and -0.024 < lx < 0.032:
                 t = (lx + 0.024) / 0.056                        # 0 at the inner end, 1 at the tail
                 zc = c.z + 0.019 + 0.005 * math.sin(math.pi * min(1.0, t * 1.2))
-                thick = 0.0042 * (1.15 - 0.6 * t)
+                thick = 0.0058 * (1.15 - 0.55 * t)
                 fade = min(1.0, t / 0.12, (1 - t) / 0.2)
                 brow = max(brow, math.exp(-((p.z - zc) / thick) ** 2) * max(0.0, fade))
             cd = ((p.x - c.x * 1.25) ** 2 + (p.z - (c.z - 0.045)) ** 2) ** 0.5
@@ -248,17 +312,16 @@ def _skin_material(body, col_img, nrm_img):
     base = (0.93, 0.85, 0.81)
     c = mix(base, (0.86, 0.72, 0.70), noise(9.0, 4.0))                    # blotches
     c = mix(c, (0.97, 0.9, 0.86), mul(noise(55.0, 8.0, 0.7), 0.6))         # fine mottling
-    attr = N.new("ShaderNodeVertexColor"); attr.layer_name = "Paint"
-    sep = N.new("ShaderNodeSeparateColor"); L.new(attr.outputs["Color"], sep.inputs["Color"])
-    c = mix(c, (0.9, 0.66, 0.64), mul(sep.outputs["Blue"], 0.55))          # cheeks
+    face = _face_masks(nt, body)                                            # brows / stubble / cheeks, per pixel
+    c = mix(c, (0.9, 0.66, 0.64), mul(face["cheek"], 0.55))                # cheeks
     c = mix(c, (0.9, 0.78, 0.74), mul(mask("mpfb_ears.jpg"), 0.5))
     c = mix(c, (0.78, 0.5, 0.5), mask("mpfb_lips.jpg"))
     c = mix(c, (0.8, 0.66, 0.64), mul(mask("mpfb_eyelids.jpg"), 0.6))
     c = mix(c, (0.98, 0.92, 0.88), mask("mpfb_fingernails.jpg"))
     c = mix(c, (0.98, 0.92, 0.88), mask("mpfb_toenails.jpg"))
     c = mix(c, (0.72, 0.52, 0.48), mask("mpfb_aureolae.jpg"))
-    c = mix(c, (0.62, 0.55, 0.52), mul(sep.outputs["Green"], 0.7))        # stubble shadow
-    c = mix(c, (0.2, 0.15, 0.13), mul(sep.outputs["Red"], 0.92))          # brows
+    c = mix(c, (0.62, 0.55, 0.52), mul(face["beard"], 0.7))                # stubble shadow
+    c = mix(c, (0.12, 0.09, 0.08), mul(face["brow"], 0.95))                # brows
     L.new(c, em.inputs["Color"])
     # pores and fine wrinkles for the normal bake
     bump = N.new("ShaderNodeBump"); bump.inputs["Strength"].default_value = 0.35; bump.inputs["Distance"].default_value = 0.0006
@@ -355,8 +418,173 @@ def _eyes(eyes_o, sex, size=512, iris=(0.33, 0.27, 0.2)):
     me.materials.clear(); me.materials.append(em)
 
 
+# ------------------------------------------------------------------ hair
+HAIR_STYLES = {
+    # length (m) at the crown and at the hairline, cards, card width, gravity, comb back, how long it hugs the head
+    "short": dict(L=0.07, Lfront=0.05, n=520, w=0.022, grav=0.25, back=0.55, hug=1.0),
+    "buzzed": dict(L=0.016, Lfront=0.012, n=700, w=0.014, grav=0.05, back=0.4, hug=1.0),
+    "swept": dict(L=0.13, Lfront=0.11, n=520, w=0.026, grav=0.35, back=0.75, hug=0.75),
+    "long": dict(L=0.42, Lfront=0.24, n=460, w=0.03, grav=1.0, back=0.55, hug=0.4),
+    "flowing": dict(L=0.72, Lfront=0.36, n=560, w=0.034, grav=1.0, back=0.6, hug=0.35),   # Scarletta
+}
+
+
+def _hair_texture(size=512):
+    """Strand atlas (white-ish, tinted in game by the hair colour): dense at the root (top), thinning tips."""
+    import numpy as np
+    W, H = size, size * 2
+    rnd = np.random.default_rng(11)
+    col = np.zeros((H, W), np.float32); alpha = np.zeros((H, W), np.float32)
+    v = np.linspace(0, 1, H)[:, None]
+    for _ in range(900):
+        x = rnd.uniform(0, W); end = rnd.uniform(0.55, 1.0); wv = rnd.uniform(0.6, 1.6); bright = rnd.uniform(0.55, 1.0)
+        wave = np.sin(v[:, 0] * rnd.uniform(4, 9) + rnd.uniform(0, 6.3)) * rnd.uniform(0.5, 3.0)
+        xs = x + wave
+        cols = np.arange(W)[None, :]
+        d = np.abs(cols - xs[:, None])
+        a = np.clip(1 - d / wv, 0, 1) * (v < end) * np.clip((end - v) / 0.08, 0, 1)
+        alpha = np.maximum(alpha, a * 0.95)
+        col = np.where(a > 0.3, bright, col)
+    root = np.clip(1 - v / 0.12, 0, 1) * 0.35
+    alpha = np.clip(alpha + root, 0, 1)
+    shade = (0.55 + 0.45 * col) * (0.8 + 0.2 * v)                     # a little darker at the root
+    rgba = np.stack([shade * 0.92, shade * 0.88, shade * 0.84, alpha], axis=2)
+    im = _image("TR_hair_strands", 4)
+    im.scale(W, H)
+    im.pixels.foreach_set(rgba[::-1].astype(np.float32).reshape(-1))
+    im.alpha_mode = "STRAIGHT"
+    im.filepath_raw = os.path.join(TMP, "TR_hair_strands.png"); im.file_format = "PNG"; im.save()
+    return im
+
+
+def build_hair(sex, style, seed=5):
+    """Hair cards for the body built last in scene Humans_<sex>; exports assets/models/hair/TR_Hair_<Sex>_<style>.glb."""
+    import numpy as np
+    S = HAIR_STYLES[style]
+    sc = bpy.data.scenes["Humans_" + sex]; bpy.context.window.scene = sc
+    body = next(o for o in sc.objects if o.type == "MESH" and "scalp" in o.vertex_groups and o.parent and o.parent.type == "ARMATURE"
+                and o.parent.name.startswith("Armature"))   # the exported game skeleton, not the MPFB rig
+    arm = body.parent
+    me = body.data; mw = body.matrix_world; nmw = mw.to_3x3().inverted().transposed()
+    g = body.vertex_groups["scalp"].index
+    roots = [(mw @ v.co, (nmw @ v.normal).normalized()) for v in me.vertices if any(x.group == g and x.weight > 0.5 for x in v.groups)]
+    pts = np.array([r[0] for r in roots]); nrm = np.array([r[1] for r in roots])
+    centre = Vector((pts - nrm * 0.09).mean(axis=0))
+    R = float(np.mean(np.linalg.norm(pts - np.array(centre), axis=1)))
+    fwd = Vector((0, -1, 0)); up = Vector((0, 0, 1))
+    rnd = random.Random(seed)
+    P = bmesh.new(); uvl = P.loops.layers.uv.verify()
+    cards = []
+    for k in range(S["n"]):
+        i = rnd.randrange(len(roots)); p0, n0 = roots[i]
+        # jitter the root across the scalp a little
+        p0 = p0 + Vector((rnd.uniform(-0.006, 0.006), rnd.uniform(-0.006, 0.006), rnd.uniform(-0.004, 0.004)))
+        front = max(0.0, (-(p0 - centre).normalized().dot(fwd)))          # 1 at the hairline, 0 at the back
+        L = (S["L"] * (1 - front) + S["Lfront"] * front) * rnd.uniform(0.8, 1.15)
+        layer = rnd.uniform(0.0, 1.0)
+        segs = 8 if L > 0.1 else 4
+        d = (n0 * 0.35 + (Vector((0, 0, 0)) - fwd) * S["back"] + Vector((rnd.uniform(-0.15, 0.15), 0, 0))).normalized()
+        guide = [p0.copy()]
+        for s in range(segs):
+            t = (s + 1) / segs
+            grav = S["grav"] * min(1.0, t / max(0.05, S["hug"]))
+            d = (d + (-up) * grav * 0.6 + (-fwd) * S["back"] * 0.15).normalized()
+            q = guide[-1] + d * (L / segs)
+            # stay outside the head, a little further out for the outer layers
+            rr = R + 0.004 + 0.008 * layer
+            off = q - centre
+            if off.length < rr and t <= S["hug"] + 0.3:
+                q = centre + off.normalized() * rr
+            # long hair falls behind the shoulders, not through the neck
+            if q.z < centre.z - 0.08 and q.y < centre.y + 0.05:
+                q.y = centre.y + 0.05 + (centre.z - 0.08 - q.z) * 0.15
+            guide.append(q)
+        cards.append((guide, layer))
+    for guide, layer in cards:
+        w0 = S["w"] * rnd.uniform(0.8, 1.2)
+        u0 = rnd.choice((0.0, 0.25, 0.5, 0.75))
+        prev = None
+        n = len(guide)
+        for j, q in enumerate(guide):
+            t = j / (n - 1)
+            dirv = (guide[min(j + 1, n - 1)] - guide[max(j - 1, 0)]).normalized()
+            radial = (q - centre).normalized()
+            side = dirv.cross(radial).normalized() * (w0 * (1 - 0.55 * t) / 2)
+            a = P.verts.new(q - side); b = P.verts.new(q + side)
+            if prev:
+                f = P.faces.new((prev[0], prev[1], b, a))
+                for loop, uv in zip(f.loops, ((u0, 1 - (j - 1) / (n - 1)), (u0 + 0.25, 1 - (j - 1) / (n - 1)), (u0 + 0.25, 1 - t), (u0, 1 - t))):
+                    loop[uvl].uv = uv
+            prev = (a, b)
+    # a cap over the scalp so no skin shows between the cards
+    bm = bmesh.new(); bm.from_mesh(me); dl = bm.verts.layers.deform.verify()
+    keep = {v for v in bm.verts if g in v[dl] and v[dl][g] > 0.3}
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if v not in keep], context="VERTS")
+    for v in bm.verts:
+        v.co = v.co + v.normal * 0.0025
+    capm = bpy.data.meshes.new("cap"); bm.to_mesh(capm); bm.free()
+    capuv = capm.uv_layers[0].data if capm.uv_layers else None
+    hm = bpy.data.meshes.new("Hair"); P.to_mesh(hm); P.free()
+    hair = bpy.data.objects.new("Hair", hm); sc.collection.objects.link(hair)
+    cap = bpy.data.objects.new("HairCap", capm); sc.collection.objects.link(cap); cap.matrix_world = mw.copy()
+    if capm.uv_layers:
+        for d in capm.uv_layers[0].data:
+            d.uv = (0.1 + 0.8 * (d.uv.x % 1.0), 0.97)          # the dense root rows of the atlas
+    for o in (hair, cap):
+        if not o.data.uv_layers:
+            o.data.uv_layers.new(name="UVMap")
+        o.data.uv_layers[0].name = "UVMap"
+    bpy.ops.object.select_all(action="DESELECT"); hair.select_set(True); cap.select_set(True); bpy.context.view_layer.objects.active = hair
+    bpy.ops.object.join()
+    for vg in list(hair.vertex_groups):
+        hair.vertex_groups.remove(vg)
+    vg = hair.vertex_groups.new(name="Head"); vg.add(list(range(len(hair.data.vertices))), 1.0, "REPLACE")
+    im = bpy.data.images.get("TR_hair_strands") or _hair_texture()
+    m = bpy.data.materials.get("TR_Hair") or bpy.data.materials.new("TR_Hair")
+    m.use_nodes = True; nt = m.node_tree; bsdf = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
+    t = next((n for n in nt.nodes if n.type == "TEX_IMAGE"), None) or nt.nodes.new("ShaderNodeTexImage"); t.image = im
+    nt.links.new(t.outputs["Color"], bsdf.inputs["Base Color"]); nt.links.new(t.outputs["Alpha"], bsdf.inputs["Alpha"])
+    bsdf.inputs["Roughness"].default_value = 0.45
+    hair.data.materials.clear(); hair.data.materials.append(m)
+    for p in hair.data.polygons:
+        p.use_smooth = True
+    hair.parent = arm; hair.matrix_parent_inverse = arm.matrix_world.inverted()
+    am = hair.modifiers.new("Armature", "ARMATURE"); am.object = arm
+    os.makedirs(os.path.join(ROOT, "assets", "models", "hair"), exist_ok=True)
+    path = os.path.join(ROOT, "assets", "models", "hair", "TR_Hair_%s_%s.glb" % (sex.capitalize(), style))
+    _export_objs(path, [arm, hair])
+    print("[humans] hair", sex, style, len(hair.data.polygons), "faces ->", path)
+    bpy.data.objects.remove(hair)
+    return path
+
+
+def _claim_armature_name(objs):
+    """The clips address 'Armature/Skeleton3D:<bone>', so the exported armature must be called exactly Armature
+    (Blender names are global: another scene's rig may hold the name)."""
+    for o in objs:
+        if o.type == "ARMATURE" and o.name != "Armature":
+            other = bpy.data.objects.get("Armature")
+            if other:
+                other.name = "Armature_other"
+            o.name = "Armature"
+
+
+def _export_objs(path, objs):
+    _claim_armature_name(objs)
+    for s in bpy.data.scenes:
+        for vl in s.view_layers:
+            for o in s.objects:
+                o.select_set(False, view_layer=vl)
+    for o in objs:
+        o.hide_set(False); o.select_set(True)
+    bpy.ops.export_scene.gltf(filepath=path, export_format="GLB", use_selection=True, use_active_scene=True, export_yup=True,
+                              export_apply=False, export_skins=True, export_animations=False, export_morph=False,
+                              export_def_bones=False, export_tangents=True, export_image_format="AUTO")
+
+
 def export(sex, objs):
     path = os.path.join(OUT, "TR_%s_Body.glb" % sex.capitalize())
+    _claim_armature_name(objs)
     for s in bpy.data.scenes:   # the exporter also looks at selections in other scenes
         for vl in s.view_layers:
             for o in s.objects:
