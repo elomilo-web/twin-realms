@@ -77,7 +77,16 @@ public static class Kit
         s = m;
         Cfg.TryGetProperty("materials", out var all);
         JsonElement tw = default; bool has = all.ValueKind == JsonValueKind.Object && all.TryGetProperty(k, out tw);
+        // gothic realism: a realistic shared material by name ("gothic": "G_Stone" in env.json, or a G_* name from tools/blender_gothic)
+        string gname = has && tw.TryGetProperty("gothic", out var gv) ? gv.GetString() ?? "" : k.StartsWith("G_") ? k : "";
         if (has && tw.TryGetProperty("glow", out var g) && g.ValueKind == JsonValueKind.True) s = World.WindowMat;
+        else if (gname != "" && GothicMats.For(gname) is StandardMaterial3D gm)
+        {
+            var d = (StandardMaterial3D)gm.Duplicate(); d.ResourceName = k;
+            d.Uv1WorldTriplanar = true;   // static scenery: the texture runs on across modular pieces
+            if (has && tw.TryGetProperty("tint", out var tv) && tv.ValueKind == JsonValueKind.String) d.AlbedoColor *= Color.FromHtml(tv.GetString()!);
+            World.Track(d); s = d;
+        }
         else if (m is StandardMaterial3D sm)
         {
             if (has) sm.Metallic = JsonUtil.F(tw, "metallic", sm.Metallic);

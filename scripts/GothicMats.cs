@@ -16,7 +16,7 @@ public static class GothicMats
     /// <summary>The shared material for a model material name ("G_Leather", "G_Leather.001"), or null if it is not a G_ material.</summary>
     public static BaseMaterial3D? For(string? name)
     {
-        if (string.IsNullOrEmpty(name) || !name.StartsWith("G_")) return null;
+        if (string.IsNullOrEmpty(name) || !name.StartsWith("G_") || name.StartsWith("G_Glow_")) return null;   // glows keep their own colour
         int dot = name.IndexOf('.'); if (dot > 0) name = name[..dot];
         if (_cache.TryGetValue(name, out var m)) return m;
         string path = Dir + name + ".tres";

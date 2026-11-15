@@ -12,7 +12,7 @@ namespace TwinRealms;
 public static class Gfx
 {
     const int S = 256;
-    static readonly Dictionary<string, (ImageTexture alb, ImageTexture nrm)> _tex = new();
+    static readonly Dictionary<string, (Texture2D alb, Texture2D nrm)> _tex = new();
 
     // ---------------------------------------------------------------- tileable noise
     static float H(int x, int y, uint seed)
@@ -124,10 +124,40 @@ public static class Gfx
 
     class Ctx { public List<int>[] Rows = new List<int>[5]; public int[] Off = new int[5]; }
 
-    /// <summary>Albedo (grey, multiplies the material colour) and normal map for a texture kind, generated once.</summary>
-    public static (ImageTexture alb, ImageTexture nrm) Get(string kind)
+    // gothic realism: these kinds use the scanned CC0 texture sets in assets/textures/gothic (ambientCG) instead of the generated ones
+    static readonly Dictionary<string, string> RealSet = new()
+    {
+        ["plaster"] = "plaster", ["stone"] = "stone", ["planks"] = "planks", ["grain"] = "wood", ["shingle"] = "slate",
+        ["bark"] = "bark", ["rock"] = "rock", ["cobble"] = "cobble", ["cloth"] = "cloth",
+    };
+
+    /// <summary>A scanned texture set made to work like the generated ones: colour half kept, brightness normalised, so the
+    /// caller's material colour still sets hue and value (realm tints, palettes) while the detail is real.</summary>
+    static (Texture2D alb, Texture2D nrm)? Real(string kind)
+    {
+        if (!RealSet.TryGetValue(kind, out var set)) return null;
+        string a = $"res://assets/textures/gothic/{set}_col.jpg", n = $"res://assets/textures/gothic/{set}_nrm.jpg";
+        if (!ResourceLoader.Exists(a) || !ResourceLoader.Exists(n)) return null;
+        var img = GD.Load<Texture2D>(a)?.GetImage(); if (img == null) return null;
+        if (img.IsCompressed()) img.Decompress();
+        img.ClearMipmaps(); img.Convert(Image.Format.Rgb8);
+        var d = img.GetData(); double sum = 0; int px = d.Length / 3;
+        for (int i = 0; i < d.Length; i += 3) sum += .2126 * d[i] + .7152 * d[i + 1] + .0722 * d[i + 2];
+        float k = .8f * 255f / (float)Math.Max(1, sum / px), keep = .45f;
+        for (int i = 0; i < d.Length; i += 3)
+        {
+            float l = .2126f * d[i] + .7152f * d[i + 1] + .0722f * d[i + 2];
+            for (int c = 0; c < 3; c++) d[i + c] = (byte)Math.Clamp((l + (d[i + c] - l) * keep) * k, 0, 255);
+        }
+        var o = Image.CreateFromData(img.GetWidth(), img.GetHeight(), false, Image.Format.Rgb8, d); o.GenerateMipmaps();
+        return (ImageTexture.CreateFromImage(o), GD.Load<Texture2D>(n));
+    }
+
+    /// <summary>Albedo (grey, multiplies the material colour) and normal map for a texture kind, made once (scanned sets where they exist).</summary>
+    public static (Texture2D alb, Texture2D nrm) Get(string kind)
     {
         if (_tex.TryGetValue(kind, out var t)) return t;
+        if (Real(kind) is { } real) { _tex[kind] = real; return real; }
         var c = new Ctx();
         for (int r = 0; r < 5; r++)
         {
