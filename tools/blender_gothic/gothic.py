@@ -26,8 +26,13 @@ MATS = {
     "G_Cloth_Black": ("cloth", (0.1, 0.095, 0.095), 0.0, 1.0, 3.0),
     "G_Parchment": ("cloth", (0.78, 0.7, 0.56), 0.0, 1.0, 5.0),
     "G_Cloth_Blue": ("cloth", (0.07, 0.09, 0.16), 0.0, 1.0, 3.0),
+    "G_Bark": ("bark", (0.5, 0.42, 0.38), 0.0, 1.0, 1.2),
 }
-STEEL, IRON, RUST, BRASS, LEATHER, WOOD, CLOTH, CLOTH_B, PARCH, CLOTH_BLUE = MATS.keys()
+STEEL, IRON, RUST, BRASS, LEATHER, WOOD, CLOTH, CLOTH_B, PARCH, CLOTH_BLUE, BARK = MATS.keys()
+
+
+CARDS = {"G_Leaves": ("leaves_cluster.png", (0.62, 0.66, 0.48)), "G_Needles": ("needles.png", (0.55, 0.62, 0.5))}
+LEAVES, NEEDLES = CARDS.keys()
 
 
 def G(x, y, z):
@@ -57,6 +62,20 @@ def material(name):
     m.use_nodes = True
     nt = m.node_tree
     p = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
+    if name in CARDS:   # UV-mapped alpha cards (leaves, needles); Godot uses assets/materials/gothic/<name>.tres
+        tex, tint = CARDS[name]
+        n = nt.nodes.new("ShaderNodeTexImage"); n.image = _img(os.path.join(TEX, tex))
+        mul = nt.nodes.new("ShaderNodeMix"); mul.data_type = "RGBA"; mul.blend_type = "MULTIPLY"
+        mul.inputs["Factor"].default_value = 1.0; mul.inputs["B"].default_value = (*tint, 1)
+        nt.links.new(n.outputs["Color"], mul.inputs["A"]); nt.links.new(mul.outputs["Result"], p.inputs["Base Color"])
+        nt.links.new(n.outputs["Alpha"], p.inputs["Alpha"])
+        p.inputs["Roughness"].default_value = 0.85
+        m.diffuse_color = (*tint, 1)
+        try:
+            m.surface_render_method = "DITHERED"
+        except Exception:
+            pass
+        return m
     if name.startswith("G_Glow_"):
         c = tuple(int(name[7:][i:i + 2], 16) / 255 for i in (0, 2, 4))
         p.inputs["Base Color"].default_value = (0.02, 0.02, 0.02, 1)   # purely emissive: the colour comes from the glow
@@ -123,7 +142,7 @@ class Part:
     def v(self, p):
         return self.bm.verts.new(G(*p))
 
-    def face(self, verts, mat):
+    def face(self, verts, mat, uvs=None):
         if mat not in self.mats:
             self.mats.append(mat)
         try:
@@ -131,6 +150,10 @@ class Part:
         except ValueError:
             return None
         f.material_index = self.mats.index(mat)
+        if uvs:   # per-corner UVs (leaf cards); other parts are triplanar and need none
+            lay = self.bm.loops.layers.uv.verify()
+            for loop, uv in zip(f.loops, uvs):
+                loop[lay].uv = uv
         return f
 
     def obj(self):
@@ -138,6 +161,8 @@ class Part:
         bmesh.ops.remove_doubles(self.bm, verts=self.bm.verts, dist=1e-6)
         bmesh.ops.recalc_face_normals(self.bm, faces=self.bm.faces)
         self.bm.to_mesh(me); self.bm.free()
+        if len(me.uv_layers):
+            me.uv_layers[0].name = "UVMap"   # one shared name, so joined parts keep a real UV map for the export
         for m in self.mats:
             me.materials.append(material(m))
         o = bpy.data.objects.new(self.name, me)

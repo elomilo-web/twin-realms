@@ -11,11 +11,11 @@ import importlib, os, sys
 HERE = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else os.path.join(os.path.expanduser("~"), "Documents", "GitHub", "twin-realms", "tools", "blender_gothic")
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
-import gothic, weapons, armor  # noqa: E402
-importlib.reload(gothic); importlib.reload(weapons); importlib.reload(armor)
+import gothic, weapons, armor, nature  # noqa: E402
+importlib.reload(gothic); importlib.reload(weapons); importlib.reload(armor); importlib.reload(nature)
 
 KIT = os.path.join(gothic.ROOT, "assets", "models", "kit")
-GROUPS = {"weapons": weapons.WEAPONS, "armor": armor.ARMOR}   # group folder -> {name: builder}
+GROUPS = {"weapons": weapons.WEAPONS, "armor": armor.ARMOR, "nature": nature.NATURE}   # group folder -> {name: builder}
 
 
 def _flat(x):
