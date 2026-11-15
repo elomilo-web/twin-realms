@@ -61,3 +61,10 @@ Soft anime-fantasy textures, all seamless, all from `tools/kit_gen/tex_gen.py` (
 - `assets/textures/painted/`: plaster, planks, planks_dark, stone_bricks, dungeon_bricks, roof_red, roof_blue, roof_teal, thatch, floor_slabs, cobble_dark. Each has `_col`, `_nrm`.
 - Ground: `data/look.json` `terrain._set` picks the folder (`terrain_painted` now; `terrain` = the old ambientCG photos). The `terrain_painted` block there resets the tints and grading that were tuned for the photos.
 - Not done: the `World.cs` change has not been compiled; snow, path and cobble are not blended by the terrain shader yet; no building or dungeon uses the building textures yet (kit models are vertex-coloured).
+
+## Icons and menu pieces (batch 2 of the art pack)
+Made by `tools/kit_gen/ui_gen.py` (original, CC0). Previews: `icons.png`, `ui_mock.png` (a mock pack window and HUD built only from these files).
+- `assets/ui/icons/skill/<skill id>.png`: one 128 px icon for every skill in `data/skills.json` (69). The picture comes from the skill's kind, the colour from its damage type. A new skill gets an icon by re-running the script.
+- `assets/ui/icons/item/<id>.png` (48): weapon types, armour slots (the same ids `Icons.ForItem` returns), `hp` / `mp` / `st` potions, every material id in `data/gather.json`, plus `gold`, `key`, `scroll`, `card`.
+- `assets/ui/frames/`: `panel`, `panel_light`, `tooltip` (9-slice; margins 24, 24, 16 px), `button`, `button_hover`, `button_pressed` (margin 12), `slot`, `slot_selected` (margin 12), `bar_frame` + `bar_hp` / `bar_mp` / `bar_st` / `bar_xp`, `rarity_0` to `rarity_4` (136 px overlays for a 128 px icon, colours from `data/items.json`), `marker_quest`, `marker_turnin`, `marker_pin`, `cursor`.
+- Not done: nothing in the game uses these yet. `Icons.cs` still draws its vector icons and the menus still use `data/ui_theme.json` colours. To wire in: draw the PNG when `res://assets/ui/icons/...` exists, otherwise fall back to the vector icon.
