@@ -76,7 +76,10 @@
   "grass_tile": 3.5, "meadow_tile": 5.0, "gravel_tile": 2.5, "rock_tile": 6.0, "sand_tile": 4.0, "forest_tile": 3.0,
   "grass_tint": "d0f5a0", "meadow_tint": "ffffff", "forest_tint": "b4b896", "road_tint": "f2e6d2", "rock_tint": "d8d4cc", "sand_tint": "ffffff",
   "saturation": 1.3, "brightness": 1.08, "normal_depth": 0.9,
-  "meadow_amount": 0.55, "gravel_amount": 0.5
+  "meadow_amount": 0.55, "gravel_amount": 0.5,
+  "_set": "terrain_painted",
+  "_setHelp": "_set = folder under assets/textures with the six ground layers: 'terrain' (ambientCG photos) or 'terrain_painted' (the painted anime pack, tools/kit_gen/tex_gen.py). The block named after the set overrides the values above while that set is in use.",
+  "terrain_painted": { "grass_tint": "ffffff", "meadow_tint": "ffffff", "forest_tint": "ffffff", "road_tint": "ffffff", "rock_tint": "ffffff", "sand_tint": "ffffff", "saturation": 1.0, "brightness": 1.0, "normal_depth": 0.6 }
  },
  "sky": {
   "dayTop": "2a64b8",

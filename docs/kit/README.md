@@ -54,3 +54,10 @@ Code-generated people look crude, so characters should come from real anime-styl
 - The current bodies (Quaternius Universal Base Characters, CC0) also come in "Regular" and "Teen" proportions, which read more anime than the "Superhero" ones in use now: https://quaternius.com/packs/universalbasecharacters.html
 
 Bringing VRoid models in means: download on the PC, import into Godot, retarget the existing animations to the new skeleton, and point `data/avatar.json` at them. That has to be done and checked in the editor.
+
+## Painted texture pack (batch 1 of the art pack)
+Soft anime-fantasy textures, all seamless, all from `tools/kit_gen/tex_gen.py` (original, CC0). Preview: `textures.png` (each tiled 2 x 2).
+- `assets/textures/terrain_painted/`: grass, meadow, gravel, rock, sand, forest (the six layers `World.cs` blends), plus snow, path, cobble. Each has `_col`, `_nrm`, `_ao`, 1024 px.
+- `assets/textures/painted/`: plaster, planks, planks_dark, stone_bricks, dungeon_bricks, roof_red, roof_blue, roof_teal, thatch, floor_slabs, cobble_dark. Each has `_col`, `_nrm`.
+- Ground: `data/look.json` `terrain._set` picks the folder (`terrain_painted` now; `terrain` = the old ambientCG photos). The `terrain_painted` block there resets the tints and grading that were tuned for the photos.
+- Not done: the `World.cs` change has not been compiled; snow, path and cobble are not blended by the terrain shader yet; no building or dungeon uses the building textures yet (kit models are vertex-coloured).

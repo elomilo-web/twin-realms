@@ -110,3 +110,6 @@ Animated low-poly monsters by **Quaternius** (Ultimate Monsters, Animated Enemie
 | `raptor.glb` | Dino | https://poly.pizza/m/wuerCFCWNR |
 | `kitsune.glb` | Fox | https://poly.pizza/m/Bc97C66HKi |
 
+
+## Painted textures (`textures/terrain_painted/`, `textures/painted/`)
+Original work made for this game by `tools/kit_gen/tex_gen.py` (code-generated, CC0). 20 seamless textures. See `docs/kit/README.md`.
