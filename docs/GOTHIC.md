@@ -26,6 +26,6 @@ Rules: CC0 only (record in `assets/ASSETS.md`); one shared material library; bui
 | Scarletta (golden armour, deep red hair, one angel wing, giant katana) | done: realistic female body, flowing deep-red hair + strand-card locks, polished gold cuirass/pauldrons/gauntlets/greaves over a crimson gown, feathered angel wing (wing_angel.glb), katana_long with a rot-green edge. Showcase shots 05/06 |
 | Monsters (25 Quaternius) | done: 18 creatures rebuilt by tools/blender_gothic/creatures.py (skin-modifier bodies, auto weights, generated Idle/Run/Attack/HitReact/Death clips, gothic materials); 7 humanoids are realistic bodies in gear (avatar.json enemies). Code-drawn enemies replaced too: deer, rabbit, boar, wolf, shade hound, shade stag, skeleton (new creatures), wraith (ghost), Obsidian Golem (earthGolem), Vorthrax (wyvern), goblin / revenant / Barrow King (realistic bodies) |
 | Kit castle / dungeon / spell models | todo (castle/dungeon kit not placed in game yet) |
-| Spell flipbooks, particles | todo |
+| Spell flipbooks, particles | flipbooks done: fx_gen.py cel() is a smooth smoky ramp with gothic palettes (GOTHIC flag), regenerate with uv run --with numpy --with pillow python tools/kit_gen/fx_gen.py. Kenney particle sprites: todo |
 | Sound effects, ambience, music | todo |
 | UI | todo |

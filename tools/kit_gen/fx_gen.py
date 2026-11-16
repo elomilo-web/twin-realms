@@ -1,5 +1,5 @@
 """Spell and skill animations as flipbook sprite sheets (4x4 = 16 frames, 256 px each, straight alpha).
-Anime look: every effect is a brightness field cut into four flat colour bands (dark edge, colour, bright, white core).
+Gothic realism look (cel(), GOTHIC = True): every effect is a brightness field run through a smooth smoky colour ramp (was: four flat anime bands).
 Run from the repo root:  python tools/kit_gen/fx_gen.py   -> assets/vfx/flipbooks/*.png, data/spellfx.json, docs/kit/spellfx.gif"""
 import json, math, os, sys
 import numpy as np
@@ -12,9 +12,10 @@ TAU = 2 * math.pi
 
 def hx(h): return np.array([int(h[i:i + 2], 16) / 255 for i in (0, 2, 4)])
 PAL = {k: [hx(c) for c in v.split()] for k, v in {
-    'fire': '8a1a08 f25a1e ffb42e fff6c8', 'ice': '1c4f9c 4fb4f0 b8eeff ffffff', 'bolt': '3a2a9c 7a8cff d4e2ff ffffff', 'holy': 'b86a14 ffc83a ffeea0 ffffff',
-    'shadow': '1a0828 5a1e9a b46af0 f0d8ff', 'nature': '14522a 3fae52 b4e86a f6ffd8', 'arcane': '4a148c c83ae0 ff9af0 ffffff', 'blood': '4a0a1e c81e46 ff7a8c ffe0e0',
-    'wind': '6a8aa8 c8e0f0 f0faff ffffff', 'poison': '2a3a0a 6a9a14 c8e83a f8ffb0', 'slash': '1a6ad8 4fd0ff c8f6ff ffffff', 'earth': '4a3220 9a6e44 d8b888 fff0d8'}.items()}
+    # gothic realism palettes: dark smoke at the edge, embers and a pale hot core (the anime palettes are in git history)
+    'fire': '1e0804 7a2408 e0661a ffe0a0', 'ice': '0c1824 34607e a6cadc eef8ff', 'bolt': '14142a 4e5a96 bccaf4 ffffff', 'holy': '2a1a06 a8782a eccf8a fff6e2',
+    'shadow': '070309 26103a 64387e c4a6dc', 'nature': '0c1a0c 34602a 92b058 e4eec4', 'arcane': '140820 4e2470 a87ccc eedcff', 'blood': '160306 600c16 ae2c2c eeb0a6',
+    'wind': '343a42 828e9a ccd4da f4f6f8', 'poison': '10160a 3a5410 84a02a d4e49c', 'slash': '1c2026 66727e c6ced6 ffffff', 'earth': '241a12 54402e 948066 d4c8b0'}.items()}
 
 def sm(a, b, x): t = np.clip((x - a) / (b - a + 1e-9), 0, 1); return t * t * (3 - 2 * t)
 def eo(t, p=3): return 1 - (1 - min(max(t, 0), 1)) ** p
@@ -30,11 +31,28 @@ def fbm(x, y, per=8, octs=3):
     for o in range(octs): v = v + vnoise(x * 2 ** o + 17 * o, y * 2 ** o + 5 * o, per * 2 ** o) * a; tot += a; a *= .5
     return v / tot
 
+GOTHIC = True   # gothic realism (2026-11-15): smooth, smoky ramps instead of the four flat anime bands
+_TURB = None
 def cel(v, pal, cuts=(.08, .38, .68, .9), aa=.035):
-    """Brightness field -> RGBA in four flat bands with thin anti-aliased edges."""
-    v = np.asarray(v, float); rgb = np.tile(pal[0], v.shape + (1,))
-    for c, t in zip(pal[1:], cuts[1:]): k = sm(t - aa, t + aa, v)[..., None]; rgb = rgb * (1 - k) + c * k
-    return np.dstack([rgb, sm(cuts[0] - aa, cuts[0] + aa, v)])
+    """Brightness field -> RGBA. Gothic: a continuous ramp through the palette, soft smoky edges broken up by turbulence.
+    (GOTHIC = False gives the old look: four flat bands with thin anti-aliased edges.)"""
+    v = np.asarray(v, float)
+    if not GOTHIC:
+        rgb = np.tile(pal[0], v.shape + (1,))
+        for c, t in zip(pal[1:], cuts[1:]): k = sm(t - aa, t + aa, v)[..., None]; rgb = rgb * (1 - k) + c * k
+        return np.dstack([rgb, sm(cuts[0] - aa, cuts[0] + aa, v)])
+    global _TURB
+    if _TURB is None or _TURB.shape != v.shape:
+        h, w = v.shape; yy, xx = np.mgrid[0:h, 0:w] / max(h, w) * 12
+        _TURB = fbm(xx, yy, per=12, octs=4)
+    n = _TURB
+    vv = np.clip(v + (n - .5) * .16 * (1 - np.clip(v, 0, 1)), 0, 1)      # turbulence eats into the soft outer parts
+    pos = np.array([cuts[0], (cuts[0] + cuts[1]) / 2 + .1, (cuts[2] + cuts[3]) / 2, 1.0])
+    rgb = np.empty(v.shape + (3,))
+    for c in range(3): rgb[..., c] = np.interp(vv, pos, [p[c] for p in pal])
+    a = sm(cuts[0] - .1, cuts[0] + .22, vv) * (.72 + .28 * n)
+    a = np.clip(a * (.55 + .45 * sm(cuts[0], cuts[1] + .1, vv)), 0, 1)  # thin, smoky fringe; dense where it is hot
+    return np.dstack([rgb, a])
 
 def over(a, b):
     """b drawn on top of a (straight alpha)."""
