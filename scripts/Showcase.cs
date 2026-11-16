@@ -137,6 +137,17 @@ public partial class Showcase : Node
         foreach (var f in foes) if (IsInstanceValid(f)) { f.Rotation = new Vector3(0, Mathf.Pi, 0); f.SetProcess(false); f.SetPhysicsProcess(false); }
         Free(World.OnGround(0.5f, 11f, 2.6f), World.OnGround(0.5f, 2f, 1.1f)); await Wait(1f); await Shot("foes");
         Free(null); foreach (var f in foes) if (IsInstanceValid(f)) f.QueueFree(); await Wait(.3f);
+        // beasts and the undead
+        var row2 = new[] { "wolf", "boar", "deer", "skeleton", "goblin", "revenant", "golem" }; foes.Clear();
+        for (int i = 0; i < row2.Length; i++)
+        {
+            var f = new Enemy { Type = row2[i], Level = 20, AnyRealm = true, NoLeash = true, Position = World.OnGround(-7f + i * 2.4f, 2f, .3f) };
+            Game.Root!.AddChild(f); foes.Add(f);
+        }
+        await Wait(1.2f);
+        foreach (var f in foes) if (IsInstanceValid(f)) { f.Rotation = new Vector3(0, Mathf.Pi * .8f, 0); f.SetProcess(false); f.SetPhysicsProcess(false); }
+        Free(World.OnGround(0.5f, 13f, 3.5f), World.OnGround(0.5f, 2f, 1.3f)); await Wait(1f); await Shot("beasts");
+        Free(null); foreach (var f in foes) if (IsInstanceValid(f)) f.QueueFree(); await Wait(.3f);
     }
 
     async Task Fight()

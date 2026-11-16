@@ -994,3 +994,111 @@ def ghost():
         _clip(arm, "Flying_Idle", 48, idle); _clip(arm, "Fast_Flying", 24, run); _clip(arm, "Attack", 28, atk, False)
         _clip(arm, "HitReact", 12, hit, False); _clip(arm, "Death", 36, death, False)
     return B, anims
+
+
+# ------------------------------------------------------------------ wildlife and the undead
+def _antlers(B, hd, s_scale=1.0):
+    for s in (1, -1):
+        base = (s * 0.05, hd.y + 0.12, hd.z - 0.18)
+        tip = Vector((s * 0.25, hd.y + 0.5, hd.z - 0.3)) * 1.0
+        pts = [Vector(base), Vector(base) + Vector((s * 0.08, 0.18, -0.03)), tip]
+        B.extra(tube("antler", [tuple(p) for p in pts], 0.02, "TR_Bone", sides=6, radii=[0.022, 0.016, 0.006]), "head")
+        for k, f in enumerate((0.35, 0.6, 0.85)):
+            a = pts[0].lerp(tip, f); B.extra(spike("tine", tuple(a), tuple(a + Vector((s * 0.05, 0.14, 0.08 - 0.04 * k))), 0.01, "TR_Bone", 4), "head")
+
+
+@creature
+def wolf():
+    B = Body("G_Fur"); B.rough = 0.004; B.wide = 1.0
+    legs = quadruped(B, 0.75, 0.62, 0.17, 0.035, 0.32, neck=0.25, tail=(0.5, 4))
+    hd = B.bones["head"]["tail"]
+    eyes(B, "head", (0, hd.y + 0.07, hd.z - 0.14), 0.045, 0.014, "G_Glow_ffd25a")
+    teeth(B, "head", hd.y - 0.02, hd.z - 0.03, 0.025, 4, 0.025, 0.005)
+    for s in (1, -1):
+        B.extra(lathe("ear", [(0.0, 0.0), (0.04, 0.005), (0.03, 0.05), (0.0, 0.1)], "G_Fur", seg=8, sz=0.45, x=s * 0.055, z=hd.z - 0.22, y0=hd.y + 0.09), "head")
+    return B, lambda arm: quad_anims(arm, legs, 38)
+
+
+@creature
+def hound():
+    B, a = wolf()
+    B.mat = "G_Leather"; B.rough = 0.008
+    for o, _ in B.extras:
+        if o.data.materials and o.data.materials[0] and o.data.materials[0].name == "G_Glow_ffd25a":
+            o.data.materials[0] = material("G_Glow_b884ff")
+    return B, a
+
+
+@creature
+def deer():
+    B = Body("G_Fur"); B.rough = 0.003; B.wide = 0.95
+    legs = quadruped(B, 0.85, 0.95, 0.17, 0.025, 0.3, neck=0.45, tail=(0.12, 2))
+    hd = B.bones["head"]["tail"]
+    eyes(B, "head", (0, hd.y + 0.07, hd.z - 0.15), 0.05, 0.016)
+    for s in (1, -1):
+        B.extra(lathe("ear", [(0.0, 0.0), (0.035, 0.01), (0.03, 0.08), (0.0, 0.12)], "G_Fur", seg=8, sz=0.35, x=s * 0.08, z=hd.z - 0.2, y0=hd.y + 0.06), "head")
+    return B, lambda arm: quad_anims(arm, legs, 36)
+
+
+@creature
+def shadeStag():
+    B, a = deer()
+    B.mat = "G_Cloth_Black"
+    _antlers(B, B.bones["head"]["tail"])
+    eyes(B, "head", (0, B.bones["head"]["tail"].y + 0.07, B.bones["head"]["tail"].z - 0.15), 0.052, 0.012, "G_Glow_b884ff")
+    return B, a
+
+
+@creature
+def rabbit():
+    B = Body("G_Fur"); B.rough = 0.002; B.wide = 1.1
+    legs = quadruped(B, 0.22, 0.17, 0.09, 0.018, 0.1, neck=0.04, tail=(0.0, 0))
+    hd = B.bones["head"]["tail"]
+    eyes(B, "head", (0, hd.y + 0.03, hd.z - 0.06), 0.03, 0.01)
+    for s in (1, -1):
+        B.extra(lathe("ear", [(0.0, 0.0), (0.018, 0.01), (0.015, 0.09), (0.0, 0.13)], "G_Fur", seg=8, sz=0.35, x=s * 0.02, z=hd.z - 0.09, y0=hd.y + 0.03), "head")
+    B.extra(ball("tail", (0, 0.2, -0.16), 0.03, "G_Fur", seg=8, rings_=6), "hips")
+    return B, lambda arm: quad_anims(arm, legs, 40)
+
+
+@creature
+def boar():
+    B = Body("G_Fur"); B.rough = 0.006; B.wide = 1.25
+    legs = quadruped(B, 0.75, 0.55, 0.26, 0.045, 0.3, neck=0.1, tail=(0.15, 2))
+    hd = B.bones["head"]["tail"]
+    eyes(B, "head", (0, hd.y + 0.09, hd.z - 0.2), 0.07, 0.013)
+    for s in (1, -1):
+        B.extra(tube("tusk", [(s * 0.05, hd.y - 0.02, hd.z - 0.05), (s * 0.09, hd.y + 0.05, hd.z + 0.02), (s * 0.08, hd.y + 0.11, hd.z - 0.01)], 0.012, "TR_Bone", sides=6, radii=[0.016, 0.01, 0.003]), "head")
+    for k in range(10):   # bristles down the spine
+        z = 0.35 - k * 0.07
+        B.extra(spike("bristle", (0, 0.55 + 0.22, z), (0, 0.55 + 0.32, z - 0.03), 0.012, "G_Fur", 4), "chest" if z > 0 else "hips")
+    return B, lambda arm: quad_anims(arm, legs, 30)
+
+
+@creature
+def skeleton():
+    """A skeleton warrior: real bones (skull, spine, ribcage, pelvis, limb bones) on a humanoid frame."""
+    B = Body(); B.skin = False
+    biped(B, 0.95, 0.14, lean=0.05, arms=True, neck=0.12, head_len=0.08, r_leg=0.04)
+    for n, b in B.bones.items():
+        if n.startswith(("leg_", "arm_", "shoulder_", "hip_")) and (b["tail"] - b["head"]).length > 0.05:
+            B.extra(tube("bone", [tuple(b["head"].lerp(b["tail"], 0.06)), tuple(b["head"].lerp(b["tail"], 0.94))], 0.018, "TR_Bone", sides=6,
+                         radii=[0.024, 0.016]), n)
+            B.extra(ball("joint", tuple(b["head"]), 0.026, "TR_Bone", seg=8, rings_=6), n)
+    sp = B.bones["hips"]["head"]; top = B.bones["chest"]["tail"]
+    for k in range(9):   # vertebrae
+        p = sp.lerp(top, k / 8); B.extra(ball("vert", tuple(p + Vector((0, 0, -0.04))), 0.022, "TR_Bone", sy=0.6, seg=8, rings_=5), "hips" if k < 4 else "chest")
+    for k in range(6):   # ribs
+        y = top.y - 0.04 - k * 0.055; r = 0.15 - 0.012 * abs(k - 2)
+        pts = [(r * math.sin(a), y - 0.02 * math.cos(a), r * 0.75 * math.cos(a) - 0.02) for a in [math.pi * (0.15 + 1.7 * i / 12) for i in range(13)]]
+        B.extra(tube("rib", pts, 0.01, "TR_Bone", sides=5), "chest")
+    B.extra(lathe("pelvis", [(0.0, -0.06), (0.13, -0.04), (0.15, 0.02), (0.1, 0.06), (0.0, 0.05)], "TR_Bone", seg=10, sz=0.6, y0=sp.y), "hips")
+    hd = B.bones["head"]
+    B.extra(ball("skull", tuple(hd["head"] + Vector((0, 0.1, 0.02))), 0.1, "TR_Bone", sx=0.85, sy=1.0, sz=1.05, seg=16, rings_=10), "head")
+    B.extra(ball("jaw", tuple(hd["head"] + Vector((0, 0.03, 0.06))), 0.06, "TR_Bone", sx=0.8, sy=0.5, sz=0.8, seg=10, rings_=6), "head")
+    for s in (1, -1):
+        B.extra(ball("socket", tuple(hd["head"] + Vector((s * 0.035, 0.11, 0.1))), 0.025, "G_Glow_9af0ff", seg=8, rings_=5), "head")
+    r_hand = B.bones["arm_r3"]["tail"]
+    blade = tube("blade", [tuple(r_hand), tuple(r_hand + Vector((0, 0.05, 0.75)))], 0.02, "G_Metal_Rust", sides=4, radii=[0.03, 0.005])
+    B.extra(blade, "arm_r3")
+    return B, lambda arm: biped_anims(arm, 26)
