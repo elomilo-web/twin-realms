@@ -61,7 +61,7 @@ public partial class Player
             {
                 // the preview: the spell's real radius on the ground, in its damage colour
                 var c = Skills.Compute(id!); float r = Mathf.Max(1.2f, k.Kind == "leap" ? c.Radius : c.Radius); var col = Dmg.TypeColor(c.Type);
-                var mat = new StandardMaterial3D { AlbedoColor = new Color(col.Darkened(.15f), .3f),   // gothic: a dimmer telegraph ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, BlendMode = BaseMaterial3D.BlendModeEnum.Add, NoDepthTest = false };
+                var mat = new StandardMaterial3D { AlbedoColor = new Color(col.Darkened(.15f), .3f), ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, BlendMode = BaseMaterial3D.BlendModeEnum.Add, NoDepthTest = false };
                 _aimDisc = new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = r, BottomRadius = r, Height = .05f, RadialSegments = 40 }, MaterialOverride = mat, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
                 _aimDisc.AddChild(new MeshInstance3D { Mesh = new TorusMesh { InnerRadius = r * .94f, OuterRadius = r, Rings = 48, RingSegments = 3 }, Position = Vector3.Up * .03f, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
                     MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(col.Lightened(.4f), 1f), ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, BlendMode = BaseMaterial3D.BlendModeEnum.Add } });
