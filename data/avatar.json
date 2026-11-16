@@ -29,6 +29,7 @@
   "_stylizedDefault": { "armor": ["{s}_Peasant_Body", "{s}_Peasant_Legs"], "feet": ["{s}_Peasant_Feet"], "hands": [] },
   "armor": [
     { "match": ["Robe"], "parts": ["TR_{s}_Robe.glb", "TR_{s}_Trousers.glb"], "tint": "class" },
+    { "match": ["Scarletta"], "parts": ["TR_{s}_Robe.glb", "TR_{s}_Cuirass.glb", "TR_{s}_Pauldrons.glb"] },
     { "match": ["Plate", "Cuirass"], "parts": ["TR_{s}_Gambeson.glb", "TR_{s}_Trousers.glb", "TR_{s}_Cuirass.glb", "TR_{s}_Pauldrons.glb"] },
     { "match": ["Hauberk"], "parts": ["TR_{s}_Gambeson.glb", "TR_{s}_Trousers.glb", "TR_{s}_Cuirass.glb"] },
     { "match": [""], "parts": ["TR_{s}_Gambeson.glb", "TR_{s}_Trousers.glb"] }

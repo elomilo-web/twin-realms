@@ -80,6 +80,9 @@ public partial class Showcase : Node
         // 4. a fight: meteor on two golems, HUD on, as it looks while playing
         await Fight();
 
+        // 4b. Scarletta, The Rotting Blade (raid boss), standing in the open: front and back (the wing)
+        await Scarletta();
+
         // 5. the whole world from high above
         World.TimeOfDay = .40f; await Wait(.5f);
         Free(new Vector3(0, 650, 1150), new Vector3(0, 0, -150)); await Wait(2.5f); await Shot("world_aerial");
@@ -108,6 +111,18 @@ public partial class Showcase : Node
         Dungeon.Enter("barrow", 1); await Wait(2.5f);
         foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Enemy e && e.GlobalPosition.DistanceTo(P.GlobalPosition) < 14f) e.QueueFree();
         P.Teleport(P.GlobalPosition, Mathf.Pi); Cam(-.7f, 4f); await Wait(1.5f); Heal(); await Shot("dungeon");
+    }
+
+    async Task Scarletta()
+    {
+        var spot = World.OnGround(1.5f, 2f, .3f); World.TimeOfDay = .5f; ClearFoes();   // the open plaza, at noon
+        P.Teleport(World.OnGround(1.5f, 40f, .5f), 0f); await Wait(.3f);
+        var e = new Enemy { Type = "scarletta", Level = 40, AnyRealm = true, NoLeash = true, Position = spot };
+        Game.Root!.AddChild(e); await Wait(1.5f);
+        e.Rotation = new Vector3(0, Mathf.Pi, 0);   // face the camera (+Z)
+        Free(spot + new Vector3(1.5f, 4.4f, 7.5f), spot + new Vector3(0, 3.4f, 0)); await Wait(1.2f); await Shot("scarletta_front");
+        Free(spot + new Vector3(-4f, 5.5f, -9f), spot + new Vector3(0, 4f, 0)); await Wait(.8f); await Shot("scarletta_back");
+        Free(null); e.QueueFree(); await Wait(.3f);
     }
 
     async Task Fight()

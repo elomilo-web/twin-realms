@@ -31,8 +31,9 @@ MATS = {
 STEEL, IRON, RUST, BRASS, LEATHER, WOOD, CLOTH, CLOTH_B, PARCH, CLOTH_BLUE, BARK = MATS.keys()
 
 
-CARDS = {"G_Leaves": ("leaves_cluster.png", (0.62, 0.66, 0.48)), "G_Needles": ("needles.png", (0.55, 0.62, 0.5))}
-LEAVES, NEEDLES = CARDS.keys()
+CARDS = {"G_Leaves": ("leaves_cluster.png", (0.62, 0.66, 0.48)), "G_Needles": ("needles.png", (0.55, 0.62, 0.5)),
+         "TR_Feather": ("feather.png", (1.0, 1.0, 1.0))}
+LEAVES, NEEDLES, FEATHER = CARDS.keys()
 
 
 def G(x, y, z):

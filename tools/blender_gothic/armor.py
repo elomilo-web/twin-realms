@@ -148,6 +148,85 @@ def pauldron_spiked():
     return _pauldron(True)
 
 
+# ------------------------------------------------------------------ wings
+def feather_texture(size=256):
+    """White feather atlas (tinted in game): one feather, shaft up the middle, barbs, soft splits. assets/textures/gothic/feather.png"""
+    import numpy as np, os
+    W, H = size, size * 4
+    rnd = np.random.default_rng(5)
+    u = (np.arange(W) / (W - 1))[None, :] * 2 - 1          # -1..1 across
+    v = (np.arange(H) / (H - 1))[:, None]                    # 0 at the quill, 1 at the tip
+    half = np.clip(np.sin(np.pi * np.clip(v * 1.05, 0, 1)) ** 0.55, 0, 1) * (0.92 - 0.25 * v)
+    inside = np.abs(u) < half
+    barb = 0.5 + 0.5 * np.sin((v * 140 + np.abs(u) * 30) + rnd.normal(0, 0.4, (H, W)))
+    split = np.ones((H, W), np.float32)
+    for _ in range(14):   # gaps where the barbs part
+        y0 = rnd.uniform(0.15, 0.95); side = rnd.choice([-1, 1])
+        gap = np.exp(-((v - y0 - np.abs(u) * 0.25) / 0.006) ** 2) * (u * side > 0.15)
+        split -= gap * 0.9
+    alpha = (inside * np.clip((half - np.abs(u)) / 0.06, 0, 1) * np.clip(split, 0, 1) * (v > 0.04)).astype(np.float32)
+    shaft = np.exp(-(u / 0.025) ** 2)
+    col = 0.82 + 0.12 * barb - 0.25 * np.abs(u) ** 2 - 0.12 * shaft + 0.08 * v
+    alpha = np.maximum(alpha, (shaft > 0.35) * (v < 0.98) * 1.0)
+    col = np.clip(col, 0, 1)
+    rgba = np.stack([col, col * 0.985, col * 0.96, alpha], axis=2).astype(np.float32)
+    im = bpy.data.images.get("feather") or bpy.data.images.new("feather", W, H, alpha=True)
+    if tuple(im.size) != (W, H):
+        im.scale(W, H)
+    im.pixels.foreach_set(rgba[::-1].reshape(-1))
+    im.filepath_raw = os.path.join(TEX, "feather.png"); im.file_format = "PNG"; im.save()
+    return im
+
+
+def _feather(P, base, along, out, L, W, bend=0.08):
+    """A feather card: 4 segments, curling toward `out` (the back), texture quill at the base."""
+    a = along.normalized(); o = out.normalized(); s = a.cross(o).normalized()
+    prev = None
+    for k in range(5):
+        t = k / 4
+        c = base + a * (L * t) + o * (bend * L * t * t)
+        w = W * (0.6 + 0.4 * math.sin(math.pi * min(1.0, t * 1.1 + 0.05)))
+        l = P.v(tuple(c - s * w / 2)); r = P.v(tuple(c + s * w / 2))
+        if prev:
+            P.face((prev[0], prev[1], r, l), "TR_Feather", uvs=[(0, 1 - (k - 1) / 4), (1, 1 - (k - 1) / 4), (1, 1 - t), (0, 1 - t)])   # quill at the image top
+        prev = (l, r)
+
+
+@armor
+def wing_angel():
+    """One feathered wing for the +X side (Avatar mirrors it for the other side): origin = the shoulder joint on the back,
+    the arm rises outward, feathers hang and fan down from it, their faces toward the back (-Z)."""
+    if not bpy.data.images.get("feather"):
+        feather_texture()
+    rnd = random.Random(9)
+    rise = math.radians(32)
+    arm_dir = Vector((math.cos(rise), math.sin(rise), -0.15)).normalized()
+    ARM = 0.66
+    joints = [Vector((0, 0, 0)), arm_dir * ARM * 0.38, arm_dir * ARM * 0.75 + Vector((0, -0.02, 0)), arm_dir * ARM]
+    p = [tube("wing_arm", [tuple(j) for j in joints], 0.03, PARCH, sides=8,
+              radii=[0.04, 0.032, 0.024, 0.012])]
+    P = Part("feathers")
+    back = Vector((0, 0, -1))
+    # primaries off the hand, secondaries off the forearm, coverts and scapulars over them
+    rows = [("primary", 10, 0.62, 1.0, 0.36, 0.95, (-95, -20)), ("secondary", 12, 0.18, 0.62, 0.30, 0.42, (-108, -88)),
+            ("covert", 14, 0.08, 0.98, 0.16, 0.2, (-100, -50)), ("covert2", 12, 0.05, 0.9, 0.09, 0.11, (-95, -55)),
+            ("scapular", 6, 0.0, 0.18, 0.22, 0.28, (-120, -100))]
+    for r, (name, n, t0, t1, l0, l1, (a0, a1)) in enumerate(rows):
+        for i in range(n):
+            f = i / max(1, n - 1)
+            t = t0 + (t1 - t0) * f
+            seg = min(2, int(t * 3)); local = t * 3 - seg
+            root = joints[seg].lerp(joints[seg + 1], local) + back * (0.012 * r) + Vector((0, -0.01 * r, 0))
+            ang = math.radians(a0 + (a1 - a0) * f + rnd.uniform(-3, 3))
+            d = Vector((math.cos(ang) * 0.55 + 0.25 * t, math.sin(ang), -0.05)).normalized()
+            L = (l0 + (l1 - l0) * (f ** 1.3 if name == "primary" else f)) * rnd.uniform(0.93, 1.05)
+            if name == "secondary":
+                L = l0 + (l1 - l0) * (1 - abs(f - 0.6))
+            _feather(P, root, d, back, L, 0.06 + 0.09 * L, bend=0.06 + 0.03 * r)
+    p.append(P.obj())
+    return p
+
+
 # ------------------------------------------------------------------ capes
 def _cape(mat, seed=3):
     import random

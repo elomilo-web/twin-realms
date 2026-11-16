@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 
 namespace TwinRealms;
@@ -47,10 +48,11 @@ public partial class Enemy
     {
         Def = Def.Clone();   // her defences are rewritten per fight (Assess)
         var gold = new Color(1f, .78f, .34f);
-        var ap = new Appearance { Female = true, Skin = new Color(.96f, .8f, .45f), Hair = new Color(.62f, .05f, .07f), GlowEyes = true, Eyes = new Color(.6f, 1f, .4f) };   // deep red hair
+        var ap = new Appearance { Female = true, Skin = new Color(.93f, .8f, .72f), Hair = new Color(.62f, .05f, .07f), GlowEyes = true, Eyes = new Color(.6f, 1f, .4f) };   // deep red hair
         _av = new Avatar { Name = "Avatar", Scale = Vector3.One * _scale }; _body.AddChild(_av); _av.Build(ap, "scarletta");
-        var outfit = new Dictionary<string, Item?> { ["armor"] = new Item { Name = "Plate", Slot = "armor" }, ["hands"] = new Item { Name = "Gauntlets", Slot = "hands" }, ["feet"] = new Item { Name = "Greaves", Slot = "feet" } };
+        var outfit = new Dictionary<string, Item?> { ["armor"] = new Item { Name = "Scarletta Plate", Slot = "armor" }, ["hands"] = new Item { Name = "Gauntlets", Slot = "hands" }, ["feet"] = new Item { Name = "Greaves", Slot = "feet" } };
         _av.Dress(s => outfit.GetValueOrDefault(s), "none", gold, gold);
+        ScarGothic(ap);
         // gold over everything: a bright rim and a warm sheen; rot-green when she gathers a heavy blow
         _goldMat = new ShaderMaterial { Shader = new Shader { Code = @"shader_type spatial;
 render_mode blend_add, depth_draw_never, unshaded, cull_back, shadows_disabled;
@@ -59,12 +61,71 @@ uniform vec4 rot : source_color = vec4(.45, 1.0, .25, 1.0);
 uniform float glow = 0.0;
 void fragment() {
 	float f = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 2.5);
-	ALBEDO = mix(rim.rgb * (.12 + .55 * f), rot.rgb * (.3 + .9 * f), glow);
+	ALBEDO = mix(rim.rgb * (.015 + .3 * f), rot.rgb * (.3 + .9 * f), glow);
 }" } };
         void Over(Node n) { foreach (var c in n.GetChildren()) { if (c is GeometryInstance3D g && g.MaterialOverlay == null) g.MaterialOverlay = _goldMat; Over(c); } }
         Over(_av);
+        _av.SetHair("TR_Hair_Female_flowing.glb", ap.Hair);   // after the gold overlay: the hair stays red
         // the blade: an enormous katana with a slight curve and a rot-green edge
         var hold = _av.HandSocket("sword");
+        if (ScarKatana(hold) is { } tipAt)
+        {   // gothic realism: the long katana model (assets/models/kit/weapons/katana_long.glb)
+            var kb = new Node3D { Position = new Vector3(0, 0, tipAt * .3f) }; var kt = new Node3D { Position = new Vector3(0, 0, tipAt) }; hold.AddChild(kb); hold.AddChild(kt);
+            _sTrail = new SwordTrail { Col = new Color(.75f, 1f, .45f), Life = .35f }; AddChild(_sTrail); _sTrail.Base = kb; _sTrail.Tip = kt;
+        }
+        else BoxKatana(hold, gold);
+        // a single angel wing on her back
+        _av.AddWings(new Color(.97f, .96f, .92f), gold, left: false, right: true, span: 1.45f, glow: .25f);
+        ScarHair();
+        AddChild(new GpuParticles3D { Position = new Vector3(0, 2.5f, 0), Amount = 40, Lifetime = 2.5f, ProcessMaterial = RotMotes(), DrawPass1 = new SphereMesh { Radius = .06f, Height = .12f, RadialSegments = 6, Rings = 3, Material = new StandardMaterial3D { AlbedoColor = new Color(.6f, 1f, .4f), EmissionEnabled = true, Emission = new Color(.5f, 1f, .3f), EmissionEnergyMultiplier = 2f, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded } } });
+        AddChild(new OmniLight3D { LightColor = new Color(1f, .82f, .45f), OmniRange = 10f, LightEnergy = 1.2f, Position = new Vector3(0, 4f, 0), ShadowEnabled = false });
+        _av.Play("idleArmed");
+    }
+
+    static ParticleProcessMaterial RotMotes() => new() { EmissionShape = ParticleProcessMaterial.EmissionShapeEnum.Sphere, EmissionSphereRadius = 2.5f, Direction = Vector3.Up, Spread = 60, InitialVelocityMin = .2f, InitialVelocityMax = .8f, Gravity = new Vector3(0, .3f, 0), ScaleMin = .5f, ScaleMax = 1.4f };
+
+    /// <summary>
+    /// Gothic realism look (realistic body): long flowing deep-red hair, the plate turned to polished gold and the robe to crimson,
+    /// gold gauntlets and greaves. Works on the materials the Avatar made from the TR garments.
+    /// </summary>
+    void ScarGothic(Appearance ap)
+    {
+        var goldSrc = GothicMats.For("G_Metal_Brass"); var crimson = GothicMats.For("G_Cloth");
+        foreach (var n in _av.FindChildren("*", "MeshInstance3D", true, false))
+        {
+            if (n is not MeshInstance3D mi || mi.Mesh == null) continue;
+            if (mi.Skin == null) continue;
+            for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
+            {
+                var cur = mi.GetSurfaceOverrideMaterial(s) as BaseMaterial3D; string nm = cur?.ResourceName ?? mi.Mesh.SurfaceGetMaterial(s)?.ResourceName ?? "";
+                BaseMaterial3D? src = nm.StartsWith("G_Metal") || nm.StartsWith("G_Leather") ? goldSrc : nm.StartsWith("G_Cloth") ? crimson : null;
+                if (src == null) continue;
+                var d = (BaseMaterial3D)src.Duplicate(); d.Uv1Triplanar = false; d.Uv1Scale = new Vector3(6, 6, 1); d.VertexColorUseAsAlbedo = false;
+                if (src == goldSrc) { d.AlbedoColor = new Color(1f, .82f, .5f); d.Roughness = .32f; d.Metallic = 1f; }
+                else d.AlbedoColor = new Color(.42f, .05f, .06f);
+                mi.SetSurfaceOverrideMaterial(s, d);
+            }
+        }
+    }
+
+    /// <summary>The long katana model in her hand; returns the tip's distance along the blade, or null if the model is missing.</summary>
+    float? ScarKatana(Node3D hold)
+    {
+        const string path = "res://assets/models/kit/weapons/katana_long.glb";
+        if (!ResourceLoader.Exists(path)) return null;
+        var k = GD.Load<PackedScene>(path).Instantiate<Node3D>();
+        float L = RT("bladeLength", 2.4f), sc = (L + .3f) / 2.59f;   // the model's tip is 2.59 m from the grip
+        k.Rotation = new Vector3(-Mathf.Pi / 2, 0, 0); k.Scale = Vector3.One * sc; hold.AddChild(k);
+        var rot = new StandardMaterial3D { AlbedoColor = new Color(.55f, 1f, .4f), Metallic = .6f, Roughness = .25f, EmissionEnabled = true, Emission = new Color(.45f, 1f, .3f), EmissionEnergyMultiplier = 2.2f };
+        foreach (var n in k.FindChildren("*", "MeshInstance3D", true, false))
+            if (n is MeshInstance3D mi && mi.Mesh != null)
+                for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
+                    if ((mi.Mesh.SurfaceGetMaterial(s)?.ResourceName ?? "").Contains("Edge")) mi.SetSurfaceOverrideMaterial(s, rot);
+        return 2.59f * sc;
+    }
+
+    void BoxKatana(Node3D hold, Color gold)
+    {
         var steel = new StandardMaterial3D { AlbedoColor = new Color(.86f, .88f, .9f), Metallic = .95f, Roughness = .18f };
         var edge = new StandardMaterial3D { AlbedoColor = new Color(.5f, 1f, .35f), EmissionEnabled = true, Emission = new Color(.45f, 1f, .3f), EmissionEnergyMultiplier = 2.2f };
         var wrap = new StandardMaterial3D { AlbedoColor = new Color(.35f, .08f, .12f), Roughness = .8f }; var guard = new StandardMaterial3D { AlbedoColor = gold, Metallic = .9f, Roughness = .3f };
@@ -80,13 +141,21 @@ void fragment() {
         }
         var bb = new Node3D { Position = new Vector3(0, 0, .6f) }; var bt = new Node3D { Position = at }; hold.AddChild(bb); hold.AddChild(bt);
         _sTrail = new SwordTrail { Col = new Color(.75f, 1f, .45f), Life = .35f }; AddChild(_sTrail); _sTrail.Base = bb; _sTrail.Tip = bt;
-        // a single angel wing on her back
-        _av.AddWings(new Color(.97f, .96f, .92f), gold, left: false, right: true, span: 1.45f, glow: .25f);
-        // long, flowing red hair: five full strands from the crown and the back of the head down to the backs of her knees.
-        // Each strand is a chain of joints, so it ripples as a wave runs down it and streams back when she moves (HairSway).
+    }
+
+    /// <summary>
+    /// Long, flowing red hair: five locks from the crown and the back of the head down to the backs of her knees, over the
+    /// flowing hairstyle. Each lock is a chain of joints, so it ripples as a wave runs down it and streams back when she moves
+    /// (HairSway). Gothic realism: the locks are crossed strand cards with the hair strand texture, not capsules.
+    /// </summary>
+    void ScarHair()
+    {
         _av.ShowHair();   // her plate must not hide it
-        var hairMat = new StandardMaterial3D { AlbedoColor = new Color(.66f, .05f, .08f), Roughness = .55f, CullMode = BaseMaterial3D.CullModeEnum.Disabled, EmissionEnabled = true, Emission = new Color(.35f, .02f, .03f), EmissionEnergyMultiplier = .35f, RimEnabled = true, Rim = .6f };
-        var tipMat = new StandardMaterial3D { AlbedoColor = new Color(.86f, .16f, .12f), Roughness = .5f, CullMode = BaseMaterial3D.CullModeEnum.Disabled, EmissionEnabled = true, Emission = new Color(.5f, .06f, .04f), EmissionEnergyMultiplier = .45f };
+        var tex = ResourceLoader.Exists("res://assets/textures/gothic/hair_strands.png") ? GD.Load<Texture2D>("res://assets/textures/gothic/hair_strands.png") : null;
+        StandardMaterial3D M(Color c, float e) => tex != null
+            ? new StandardMaterial3D { AlbedoTexture = tex, Uv1Scale = new Vector3(.25f, 1, 1), AlbedoColor = c, Roughness = .6f, CullMode = BaseMaterial3D.CullModeEnum.Disabled, Transparency = BaseMaterial3D.TransparencyEnum.AlphaScissor, AlphaScissorThreshold = .4f, AlphaAntialiasingMode = BaseMaterial3D.AlphaAntiAliasing.AlphaToCoverage, EmissionEnabled = true, Emission = c * .4f, EmissionEnergyMultiplier = e }
+            : new StandardMaterial3D { AlbedoColor = c, Roughness = .55f, CullMode = BaseMaterial3D.CullModeEnum.Disabled, EmissionEnabled = true, Emission = c * .5f, EmissionEnergyMultiplier = e };
+        var hairMat = M(new Color(.6f, .05f, .07f), .3f); var tipMat = M(new Color(.78f, .14f, .1f), .4f);
         const int Segs = HairSegs; float[] xs = { -.1f, -.05f, 0f, .05f, .1f };
         for (int s = 0; s < xs.Length; s++)
         {
@@ -94,17 +163,14 @@ void fragment() {
             Node3D parent = _av.Socket("Head", new Vector3(x, .06f - Mathf.Abs(x) * .3f, -.1f), new Vector3(18, 0, fan), "hair");
             for (int i = 0; i < Segs; i++)
             {
-                float k = i / (float)(Segs - 1), w = Mathf.Lerp(.15f, .07f, k * k) * (s == 2 ? 1.15f : 1f), thick = Mathf.Lerp(.07f, .025f, k), len = .1f;   // 12 x 0.1 = from the crown to the backs of her knees
+                float k = i / (float)(Segs - 1), w = Mathf.Lerp(.16f, .08f, k * k) * (s == 2 ? 1.15f : 1f), len = .1f;   // 12 x 0.1 = from the crown to the backs of her knees
                 var seg = new Node3D { Name = "Hair" + i, Position = i == 0 ? Vector3.Zero : new Vector3(0, -len, 0) }; parent.AddChild(seg);
-                seg.AddChild(new MeshInstance3D { Mesh = new CapsuleMesh { Radius = thick, Height = len * 1.25f + thick * 2, RadialSegments = 8, Rings = 2 }, MaterialOverride = i >= Segs - 3 ? tipMat : hairMat, Position = new Vector3(0, -len / 2, 0), Scale = new Vector3(w / thick * .5f, 1, 1) });
+                var mat = i >= Segs - 3 ? tipMat : hairMat;
+                for (int c = 0; c < 2; c++)   // two crossed cards give the lock volume from every side
+                    seg.AddChild(new MeshInstance3D { Mesh = new QuadMesh { Size = new Vector2(w, len * 1.3f) }, MaterialOverride = mat, Position = new Vector3(0, -len / 2, 0), Rotation = new Vector3(0, c * Mathf.Pi / 2 + .3f, 0) });
                 _hair.Add(seg); parent = seg;
             }
         }
-        // drifting motes of rot around her
-        var pm = new ParticleProcessMaterial { EmissionShape = ParticleProcessMaterial.EmissionShapeEnum.Sphere, EmissionSphereRadius = 2.5f, Direction = Vector3.Up, Spread = 60, InitialVelocityMin = .2f, InitialVelocityMax = .8f, Gravity = new Vector3(0, .3f, 0), ScaleMin = .5f, ScaleMax = 1.4f };
-        AddChild(new GpuParticles3D { Position = new Vector3(0, 2.5f, 0), Amount = 40, Lifetime = 2.5f, ProcessMaterial = pm, DrawPass1 = new SphereMesh { Radius = .06f, Height = .12f, RadialSegments = 6, Rings = 3, Material = new StandardMaterial3D { AlbedoColor = new Color(.6f, 1f, .4f), EmissionEnabled = true, Emission = new Color(.5f, 1f, .3f), EmissionEnergyMultiplier = 2f, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded } } });
-        AddChild(new OmniLight3D { LightColor = new Color(1f, .82f, .45f), OmniRange = 10f, LightEnergy = 1.2f, Position = new Vector3(0, 4f, 0), ShadowEnabled = false });
-        _av.Play("idleArmed");
     }
     void ScarTell(float k) => _goldMat?.SetShaderParameter("glow", Mathf.Clamp(k, 0, 1));
 

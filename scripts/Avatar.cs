@@ -287,6 +287,14 @@ public partial class Avatar : Node3D
     bool _slotHas(Node n) { foreach (var l in _slot.Values) if (l.Contains(n)) return true; return false; }
 
     // ------------------------------------------------------------------ back accessories
+    /// <summary>Swaps the hairstyle for a given hair file in assets/models/hair (bosses and story characters with a fixed look).</summary>
+    public void SetHair(string file, Color colour)
+    {
+        foreach (var n in _hair) if (IsInstanceValid(n)) { n.GetParent()?.RemoveChild(n); n.QueueFree(); }
+        _hair.Clear(); if (_slot.TryGetValue("hair", out var l)) l.Clear();
+        _hair.AddRange(AddPart(HairDir + file, "hair", colour, true));
+    }
+
     public Node3D? Cape;
     /// <summary>A plain cloth cape on the upper back: the fallback when an equipped cape has no kit model. Rotate Cape about X to let it stream back.</summary>
     public void AddCape(Color c)
@@ -302,6 +310,33 @@ public partial class Avatar : Node3D
     public Node3D? WingL, WingR;
     public void AddWings(Color feather, Color edge, bool left = true, bool right = true, float span = 1f, float glow = .5f)
     {
+        // gothic realism: a real feathered wing (tools/blender_gothic/armor.py wing_angel), mirrored for the other side
+        string wingPath = S(Cfg, "wingModel", "res://assets/models/kit/armor/wing_angel.glb");
+        if (ResourceLoader.Exists(wingPath) && ResourceLoader.Exists("res://assets/textures/gothic/feather.png"))
+        {
+            var fm = new StandardMaterial3D
+            {
+                AlbedoTexture = GD.Load<Texture2D>("res://assets/textures/gothic/feather.png"), AlbedoColor = feather, Roughness = .6f,
+                Transparency = BaseMaterial3D.TransparencyEnum.AlphaScissor, AlphaScissorThreshold = .4f, CullMode = BaseMaterial3D.CullModeEnum.Disabled,
+                AlphaAntialiasingMode = BaseMaterial3D.AlphaAntiAliasing.AlphaToCoverage, BacklightEnabled = true, Backlight = feather * .35f,
+                EmissionEnabled = glow > 0, Emission = feather, EmissionEnergyMultiplier = glow * .4f, VertexColorUseAsAlbedo = true,
+            };
+            var am = new StandardMaterial3D { AlbedoColor = edge, Metallic = .7f, Roughness = .35f, VertexColorUseAsAlbedo = true };
+            foreach (float s in new[] { 1f, -1f })
+            {
+                if (s > 0 && !left || s < 0 && !right) continue;
+                var h = Holder("spine_03", new Vector3(s * .08f, .1f, -.17f), Vector3.Zero, "cape");
+                var pivot = new Node3D { Name = s > 0 ? "WingL" : "WingR" }; h.AddChild(pivot);
+                if (s > 0) WingL = pivot; else WingR = pivot;
+                var w = GD.Load<PackedScene>(wingPath).Instantiate<Node3D>(); w.Scale = new Vector3(s * span, span, span); pivot.AddChild(w);
+                foreach (var n in w.FindChildren("*", "MeshInstance3D", true, false))
+                    if (n is MeshInstance3D mi && mi.Mesh != null)
+                        for (int i = 0; i < mi.Mesh.GetSurfaceCount(); i++)
+                            mi.SetSurfaceOverrideMaterial(i, (mi.Mesh.SurfaceGetMaterial(i)?.ResourceName ?? "").StartsWith("TR_Feather") ? fm : am);
+            }
+            FlapWings(0, false);
+            return;
+        }
         var mat = new StandardMaterial3D { AlbedoColor = feather, Metallic = .55f, Roughness = .35f, CullMode = BaseMaterial3D.CullModeEnum.Disabled, EmissionEnabled = glow > 0, Emission = feather, EmissionEnergyMultiplier = glow };
         var tip = new StandardMaterial3D { AlbedoColor = edge, Metallic = .8f, Roughness = .25f, CullMode = BaseMaterial3D.CullModeEnum.Disabled, EmissionEnabled = true, Emission = edge, EmissionEnergyMultiplier = glow + .3f };
         foreach (float s in new[] { 1f, -1f })

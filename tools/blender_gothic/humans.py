@@ -660,10 +660,70 @@ def Tunic(body, R, lm, sex):
                   or (R[i][0] == "thigh" and R[i][1].z > lm["pelvis"] - 0.2), 0.008, 0.004, G_LINEN, "Tunic")
 
 
+def _skirt(body, lm, mat, top_z, bottom_z, flare=0.55, folds=14, name="Skirt"):
+    """A free-hanging skirt: a flared, folded cone from top_z to bottom_z around the hips, weighted from the pelvis at the
+    waist to the thighs lower down (so the legs swing it). Cylindrical UVs."""
+    import numpy as np
+    mw = body.matrix_world
+    pts = np.array([tuple(mw @ v.co) for v in body.data.vertices])
+    band = pts[(pts[:, 2] > lm["pelvis"] - 0.12) & (pts[:, 2] < lm["pelvis"] + 0.02)]
+    cx, cy = float(band[:, 0].mean()), float(band[:, 1].mean())
+    rx = float(np.abs(band[:, 0] - cx).max()) + 0.045; ry = float(np.abs(band[:, 1] - cy).max()) + 0.05
+    P = bmesh.new(); uvl = P.loops.layers.uv.verify(); dl = P.verts.layers.deform.verify()
+    o = bpy.data.objects.new(name, bpy.data.meshes.new(name)); bpy.context.scene.collection.objects.link(o)
+    gi = {}
+    for bn in ("pelvis", "thigh_l", "thigh_r", "calf_l", "calf_r"):
+        gi[bn] = o.vertex_groups.new(name=bn).index
+    N, rows = 56, 18
+    grid = []
+    for j in range(rows + 1):
+        t = j / rows
+        z = top_z + (bottom_z - top_z) * t
+        k = 1 + flare * t ** 1.3
+        row = []
+        for i in range(N):
+            a = 2 * math.pi * i / N
+            fold = 1 + 0.06 * t * math.sin(a * folds + 1.3 * math.sin(a * 3))
+            x = cx + rx * k * fold * math.cos(a); y = cy + ry * k * fold * math.sin(a)
+            v = P.verts.new(mw.inverted() @ Vector((x, y, z)))
+            s = min(1.0, max(0.0, 0.5 + (x - cx) / 0.16))
+            leg = min(1.0, t * 1.4) * 0.85
+            v[dl][gi["pelvis"]] = 1 - leg
+            if leg > 0:
+                v[dl][gi["thigh_l"]] = leg * s * (1 - 0.3 * t); v[dl][gi["thigh_r"]] = leg * (1 - s) * (1 - 0.3 * t)
+                if t > 0.6:
+                    v[dl][gi["calf_l"]] = leg * s * 0.3 * t; v[dl][gi["calf_r"]] = leg * (1 - s) * 0.3 * t
+            row.append(v)
+        grid.append(row)
+    for j in range(rows):
+        for i in range(N):
+            i2 = (i + 1) % N
+            f = P.faces.new((grid[j][i], grid[j][i2], grid[j + 1][i2], grid[j + 1][i]))
+            for loop, uv in zip(f.loops, ((i / N, 1 - j / rows), ((i + 1) / N, 1 - j / rows), ((i + 1) / N, 1 - (j + 1) / rows), (i / N, 1 - (j + 1) / rows))):
+                loop[uvl].uv = (uv[0] * 3, uv[1])
+    bmesh.ops.recalc_face_normals(P, faces=P.faces)
+    P.to_mesh(o.data); P.free()
+    o.data.uv_layers[0].name = "UVMap"
+    o.matrix_world = mw.copy()
+    sol = o.modifiers.new("Solid", "SOLIDIFY"); sol.thickness = 0.005; sol.offset = 1.0
+    bpy.ops.object.select_all(action="DESELECT"); o.select_set(True); bpy.context.view_layer.objects.active = o
+    bpy.ops.object.modifier_apply(modifier="Solid")
+    am = o.modifiers.new("Armature", "ARMATURE"); am.object = body.parent
+    o.parent = body.parent; o.matrix_parent_inverse = body.parent.matrix_world.inverted()
+    o.data.materials.append(bpy.data.materials.get(mat) or bpy.data.materials.new(mat))
+    for p in o.data.polygons:
+        p.use_smooth = True
+    return o
+
+
 @garment
 def Robe(body, R, lm, sex):
-    return _shell(body, lambda i: R[i][0] in ("torso", "uarm", "farm", "thigh") and R[i][1].z < lm["neck"] + 0.01
-                  or (R[i][0] == "calf" and R[i][1].z > lm["ankle"] + 0.12), 0.012, 0.004, G_WOOL, "Robe")
+    top = _shell(body, lambda i: R[i][0] in ("torso", "uarm", "farm") and R[i][1].z < lm["neck"] + 0.01
+                 or (R[i][0] == "thigh" and R[i][1].z > lm["pelvis"] - 0.08), 0.012, 0.004, G_WOOL, "RobeTop")
+    skirt = _skirt(body, lm, G_WOOL, lm["pelvis"] + 0.02, lm["ankle"] + 0.04, name="RobeSkirt")
+    # the same cloth on the legs under the skirt: a knee pushing through in a wide stance shows fabric, not skin
+    legs = _shell(body, lambda i: R[i][0] in ("thigh", "calf") and R[i][1].z > lm["ankle"] + 0.05, 0.007, 0.003, G_WOOL, "RobeLegs")
+    return _join([top, skirt, legs], "Robe")
 
 
 @garment
