@@ -61,6 +61,7 @@ public partial class Ui
             top.AddChild(b);
         }
         var search = new LineEdit { Text = _skillSearch, PlaceholderText = "Search skills...", CustomMinimumSize = new Vector2(170, 30), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; top.AddChild(search);
+        top.AddChild(Btn($"Macros ({Inputs.KeyOf(Inputs.Macro1)} / {Inputs.KeyOf(Inputs.Macro2)})", OpenMacros, true));
         top.AddChild(Btn($"Modifier tree ({Inputs.KeyOf(Inputs.ModsUi)})", OpenMods, true));
         top.AddChild(Btn($"Basic attacks ({Inputs.KeyOf(Inputs.AttacksUi)})", () => OpenAttacks(null), true));
 

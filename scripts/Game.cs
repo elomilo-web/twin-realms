@@ -26,6 +26,8 @@ public class Settings
     public int AutoTarget = 0;            // auto target when nothing is locked: 0 off, 1 monsters that hit you (or you hit), 2 nearest, 3 lowest health
     // multiplayer: what we see of other players (Settings > Game); all on by default, older settings files get true
     public bool OthersFx = true, OthersNumbers = true, OthersStatus = true;
+    // auto potions (Settings > Game): drink when health / mana falls below this share (0 = off), at most once per AutoPotDelay seconds each
+    public float AutoHp = 0f, AutoMp = 0f, AutoPotDelay = 4f;
     public Dictionary<string, string> Binds = new();   // rebound controls: action -> "k:keycode" / "m:button" (older settings files: empty = defaults)
 }
 

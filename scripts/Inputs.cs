@@ -16,6 +16,7 @@ public static class Inputs
     public const string Pack = "ui_pack", Journal = "ui_journal", Map = "ui_map", Tree = "ui_tree";
     public const string Lock = "lock_on", Unlock = "lock_off", SkillsUi = "ui_skills", AttacksUi = "ui_attacks", ModsUi = "ui_mods";
     public const string Attack = "attack", Guard = "guard", Heavy = "heavy_attack";
+    public const string Macro1 = "macro1", Macro2 = "macro2";   // skill chains (PlayerMacros.cs; set up in Skills > Macros)
     public const string Flag = "playtest_flag";   // F8: screenshot + report for later review (scripts/Flag.cs)
 
     /// <summary>Actions shown in the Controls menu, in order, with their names.</summary>
@@ -24,6 +25,7 @@ public static class Inputs
         (Forward, "Move forward"), (Back, "Move back"), (Left, "Move left"), (Right, "Move right"),
         (Sprint, "Sprint"), (Jump, "Jump"), (Roll, "Roll"), (Attack, "Attack (hold to keep the chain going)"), (Heavy, "Heavy attack"), (Guard, "Guard with shield"),
         (Spell1, "Skill 1"), (Spell2, "Skill 2"), (Spell3, "Skill 3"), (Spell4, "Skill 4"), ("spell5", "Skill 5"), ("spell6", "Skill 6"),
+        (Macro1, "Macro 1 (tap: play once, hold: loop)"), (Macro2, "Macro 2 (tap: play once, hold: loop)"),
         (PotHp, "Health potion"), (PotMp, "Mana potion"), (Use, "Interact"), (Realm, "Shift realm"), (Mount, "Horse"),
         (Lock, "Lock on / next target"), (Unlock, "Release lock-on"),
         (Pack, "Pack"), (Journal, "Journal"), (Map, "Map"), (Tree, "Skill tree"), (SkillsUi, "Skills"), (AttacksUi, "Basic attacks"), (ModsUi, "Modifier tree"), (Pause, "Menu"),
@@ -37,7 +39,7 @@ public static class Inputs
         if (_done) return; _done = true;
         Bind(Left, Key.A); Bind(Right, Key.D); Bind(Forward, Key.W); Bind(Back, Key.S);
         Bind(Jump, Key.Space); Bind(Sprint, Key.Shift); Bind(Roll, Key.C); Bind(Pause, Key.Escape);
-        Bind(Spell1, Key.Key1); Bind(Spell2, Key.Key2); Bind(Spell3, Key.Key3); Bind(Spell4, Key.Key4); Bind("spell5", Key.Key5); Bind("spell6", Key.Key6);
+        Bind(Macro1, Key.Z); Bind(Macro2, Key.X); Bind(Spell1, Key.Key1); Bind(Spell2, Key.Key2); Bind(Spell3, Key.Key3); Bind(Spell4, Key.Key4); Bind("spell5", Key.Key5); Bind("spell6", Key.Key6);
         Bind(PotHp, Key.H); Bind(PotMp, Key.G); Bind(Use, Key.E); Bind(Realm, Key.R); Bind(Mount, Key.T);
         Bind(Pack, Key.I); Bind(Journal, Key.J); Bind(Map, Key.M); Bind(Tree, Key.K);
         Bind(Lock, Key.Tab); Bind(Unlock, Key.Q); Bind(SkillsUi, Key.L); Bind(AttacksUi, Key.O); Bind(ModsUi, Key.U); Bind(Flag, Key.F8);

@@ -1,0 +1,89 @@
+using System;
+using System.Linq;
+using Godot;
+
+namespace TwinRealms;
+
+/// <summary>Skills > Macros: build the two skill chains for the Macro 1 / Macro 2 keys (PlayerMacros.cs).</summary>
+public partial class Ui
+{
+    static int _macroTab;
+    const int MacroMaxSteps = 12;
+
+    public void OpenMacros()
+    {
+        var d = Game.D; var mac = d.MacroAt(_macroTab); HideInfo();
+        var v = Frame("macros", "Macros", new Vector2(1000, 640), OpenMacros);
+
+        // ---- which macro, its key, its name
+        var top = new HBoxContainer(); top.AddThemeConstantOverride("separation", 8); v.AddChild(top);
+        for (int i = 0; i < 2; i++)
+        {
+            int m = i; var mm = d.MacroAt(i);
+            var b = Btn($"Macro {i + 1}  [{Inputs.KeyOf(i == 0 ? Inputs.Macro1 : Inputs.Macro2)}]" + (mm.Name != "" ? $"  {mm.Name}" : ""), () => { _macroTab = m; OpenMacros(); }, true);
+            b.CustomMinimumSize = new Vector2(190, 32); Mark(b, i == _macroTab); top.AddChild(b);
+        }
+        var name = new LineEdit { Text = mac.Name, PlaceholderText = "Name (optional)", MaxLength = 24, CustomMinimumSize = new Vector2(200, 32) }; top.AddChild(name);
+        name.TextChanged += s => { mac.Name = s.Trim(); Game.Save(); };
+        top.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Ignore });
+        top.AddChild(Btn("Change keys", () => OpenControls(), true));
+        top.AddChild(Btn($"Back to skills ({Inputs.KeyOf(Inputs.SkillsUi)})", OpenSkills, true));
+
+        var cols = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; cols.AddThemeConstantOverride("separation", 18); v.AddChild(cols);
+
+        // ---- left: settings and the chain
+        var left = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; left.AddThemeConstantOverride("separation", 8); cols.AddChild(left);
+        Choice(left, "Looping", "Hold: tap plays the chain once, holding the key keeps it looping and skips skills on cooldown. Toggle: tap starts looping, tap again stops. Once: always plays the chain one time.",
+            new[] { "Hold to loop", "Tap to toggle", "Once" }, Math.Clamp(mac.Loop, 0, 2), i => { mac.Loop = i; Game.Save(); });
+        SliderRow(left, "Time between skills", "A pause after each skill finishes, before the next one starts.", mac.Gap, 0f, 2f, .05f, x => $"{x:0.00} s", x => { mac.Gap = x; Game.Save(); });
+        SliderRow(left, "Wait for cooldowns", "On a single pass, how long to wait for a skill still on cooldown (or short on mana) before skipping it. Looping never waits.", mac.MaxWait, 0f, 6f, .25f, x => x <= 0 ? "Skip" : $"{x:0.00} s", x => { mac.MaxWait = x; Game.Save(); });
+
+        Lbl($"CHAIN   {mac.Steps.Count}/{MacroMaxSteps}   ·   plays top to bottom   ·   extra pause per step on the right", 13, UiTheme.Accent, left);
+        var sc = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, CustomMinimumSize = new Vector2(0, 200), HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; left.AddChild(sc);
+        var list = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; list.AddThemeConstantOverride("separation", 4); sc.AddChild(list);
+        if (mac.Steps.Count == 0) Lbl("Empty. Click learned skills on the right to add them.", 14, UiTheme.Dim, list);
+        for (int i = 0; i < mac.Steps.Count; i++)
+        {
+            int idx = i; var st = mac.Steps[i]; var k = Skills.Get(st.Skill); bool known = k != null && d.Skills.ContainsKey(st.Skill);
+            var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 8); list.AddChild(row);
+            Lbl($"{i + 1}.", 15, UiTheme.Dim, row).CustomMinimumSize = new Vector2(26, 0);
+            row.AddChild(new IconBox { Icon = k != null ? Icons.ForSkill(k) : "", CustomMinimumSize = new Vector2(34, 34) });
+            var nl = Lbl(k?.Name ?? st.Skill, 15, known ? Colors.White : new Color(1, .55f, .5f), row); nl.CustomMinimumSize = new Vector2(170, 0);
+            if (!known) nl.TooltipText = "Not learned: skipped";
+            var sl = new HSlider { MinValue = 0, MaxValue = 3, Step = .05, Value = st.Delay, CustomMinimumSize = new Vector2(130, 24), SizeFlagsVertical = Control.SizeFlags.ShrinkCenter, FocusMode = Control.FocusModeEnum.None };
+            row.AddChild(sl);
+            var dl = Lbl(st.Delay > 0 ? $"+{st.Delay:0.00} s" : "no pause", 13, UiTheme.Accent, row); dl.CustomMinimumSize = new Vector2(70, 0);
+            sl.ValueChanged += x => { st.Delay = (float)x; dl.Text = x > 0 ? $"+{x:0.00} s" : "no pause"; Game.Save(); };
+            row.AddChild(Btn("▲", () => { if (idx > 0) { (mac.Steps[idx - 1], mac.Steps[idx]) = (mac.Steps[idx], mac.Steps[idx - 1]); Game.Save(); OpenMacros(); } }, true));
+            row.AddChild(Btn("▼", () => { if (idx < mac.Steps.Count - 1) { (mac.Steps[idx + 1], mac.Steps[idx]) = (mac.Steps[idx], mac.Steps[idx + 1]); Game.Save(); OpenMacros(); } }, true));
+            row.AddChild(Btn("✕", () => { mac.Steps.RemoveAt(idx); Game.Save(); OpenMacros(); }, true));
+        }
+        var bot = new HBoxContainer(); bot.AddThemeConstantOverride("separation", 8); left.AddChild(bot);
+        bot.AddChild(Btn("Clear chain", () => { mac.Steps.Clear(); Game.Save(); OpenMacros(); }, true));
+        bot.AddChild(Btn("Copy hotbar", () =>
+        {
+            mac.Steps.Clear(); foreach (var id in d.Bar) if (!string.IsNullOrEmpty(id) && d.Skills.ContainsKey(id)) mac.Steps.Add(new MacroStep { Skill = id });
+            Game.Save(); OpenMacros();
+        }, true));
+
+        // ---- right: learned skills to add (hotbar or not)
+        var right = new VBoxContainer { CustomMinimumSize = new Vector2(400, 0) }; right.AddThemeConstantOverride("separation", 6); cols.AddChild(right);
+        Lbl("LEARNED SKILLS   click to add to the end of the chain", 13, UiTheme.Accent, right);
+        var gs = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; right.AddChild(gs);
+        var grid = new GridContainer { Columns = 6 }; grid.AddThemeConstantOverride("h_separation", 6); grid.AddThemeConstantOverride("v_separation", 6); gs.AddChild(grid);
+        var learned = Skills.All.Where(k => d.Skills.ContainsKey(k.Id)).ToList();
+        if (learned.Count == 0) Lbl("No skills learned yet.", 14, UiTheme.Dim, right);
+        foreach (var k in learned)
+        {
+            string id = k.Id; int key = Array.IndexOf(d.Bar, id);
+            var t = new SkillTile { Icon = Icons.ForSkill(k), Known = true, Rank = d.Skills[id].Rank, MaxRank = Skills.MaxRank, Key = key, Tint = Dmg.TypeColor(k.Type), CustomMinimumSize = new Vector2(58, 58), Selected = mac.Steps.Any(s => s.Skill == id) };
+            t.Click = () =>
+            {
+                if (mac.Steps.Count >= MacroMaxSteps) { Note($"A macro holds up to {MacroMaxSteps} skills", new Color(1, .6f, .5f)); return; }
+                mac.Steps.Add(new MacroStep { Skill = id }); Game.Save(); OpenMacros();
+            };
+            t.Hover = (on, at) => { if (on) Info(at, k.Name, Dmg.TypeColor(k.Type).Lerp(Colors.White, .4f), SkillTipLines(k)); else HideInfo(); };
+            grid.AddChild(t);
+        }
+    }
+}

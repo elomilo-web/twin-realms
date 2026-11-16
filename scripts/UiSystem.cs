@@ -109,6 +109,10 @@ public partial class Ui
                 SliderRow(list, "Field of view", "How wide the camera sees.", s.Fov, 55f, 100f, 1f, x => $"{x:0}°", x => s.Fov = x);
                 SliderRow(list, "Camera shake", "Shake on heavy hits and spells.", s.Shake, 0f, 1.5f, .05f, Pct, x => s.Shake = x);
                 Choice(list, "Auto target", "With nothing locked on (Tab), attacks and spells aim at: the monster that hit you or that you hit, the nearest monster, or the one with the least health. A thin gold ring marks it; the camera stays free.", new[] { "Off", "Hit you", "Nearest", "Lowest HP" }, Math.Clamp(s.AutoTarget, 0, 3), i => s.AutoTarget = i);
+                static string PotPct(float x) => x <= 0 ? "Off" : $"{x * 100:0}%";
+                SliderRow(list, "Auto health potion", "Drink a health potion by itself when health falls below this. Off at 0.", s.AutoHp, 0f, .9f, .05f, PotPct, x => s.AutoHp = x);
+                SliderRow(list, "Auto mana potion", "Drink a mana potion by itself when mana falls below this. Off at 0.", s.AutoMp, 0f, .9f, .05f, PotPct, x => s.AutoMp = x);
+                SliderRow(list, "Auto potion delay", "Shortest time between two automatic potions of the same kind, so one bad moment does not empty your bag.", s.AutoPotDelay, 1f, 15f, .5f, x => $"{x:0.0} s", x => s.AutoPotDelay = x);
                 Choice(list, "Friends' spell effects", "Multiplayer: see the spell and skill effects other players cast.", OffOn, s.OthersFx ? 1 : 0, i => s.OthersFx = i == 1);
                 Choice(list, "Friends' damage and healing", "Multiplayer: see the damage and healing numbers of other players (their hits, the hits they take, their heals).", OffOn, s.OthersNumbers ? 1 : 0, i => s.OthersNumbers = i == 1);
                 Choice(list, "Friends' status icons", "Multiplayer: see the statuses on other players (burning, poisoned, chilled...) above their names.", OffOn, s.OthersStatus ? 1 : 0, i => s.OthersStatus = i == 1);
@@ -129,7 +133,7 @@ public partial class Ui
             switch (_setTab)
             {
                 case "display": s.WindowMode = def.WindowMode; s.VSync = def.VSync; s.MaxFps = def.MaxFps; s.RenderScale = def.RenderScale; s.Outlines = def.Outlines; s.ShowFps = def.ShowFps; s.Quality = def.Quality; s.ViewDist = def.ViewDist; s.Grass = def.Grass; break;
-                case "game": s.Sens = def.Sens; s.InvertY = def.InvertY; s.Fov = def.Fov; s.Shake = def.Shake; s.AutoTarget = def.AutoTarget; s.OthersFx = def.OthersFx; s.OthersNumbers = def.OthersNumbers; s.OthersStatus = def.OthersStatus; break;
+                case "game": s.Sens = def.Sens; s.InvertY = def.InvertY; s.Fov = def.Fov; s.Shake = def.Shake; s.AutoTarget = def.AutoTarget; s.OthersFx = def.OthersFx; s.OthersNumbers = def.OthersNumbers; s.OthersStatus = def.OthersStatus; s.AutoHp = def.AutoHp; s.AutoMp = def.AutoMp; s.AutoPotDelay = def.AutoPotDelay; break;
                 default: s.Master = def.Master; s.Music = def.Music; s.Ambient = def.Ambient; s.Sfx = def.Sfx; s.Steps = def.Steps; s.UiVol = def.UiVol; break;
             }
             Game.SaveSettings(); Game.ApplyDisplay(); OpenSettings();

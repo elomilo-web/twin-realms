@@ -8,6 +8,21 @@ namespace TwinRealms;
 
 public class SkillState { public int Rank = 1; public List<string> Sup = new(); }
 
+/// <summary>
+/// A macro: a chain of learned skills played by one key (PlayerMacros.cs). The skills do not need to be on the hotbar.
+/// Loop: 0 = tap plays it once, hold keeps looping (skipping skills on cooldown); 1 = tap starts looping, tap again stops;
+/// 2 = always plays once. Gap = seconds between steps; MaxWait = how long a single pass waits for a skill still on cooldown.
+/// </summary>
+public class Macro
+{
+    public string Name = "";
+    public List<MacroStep> Steps = new();
+    public int Loop = 0;
+    public float Gap = .15f, MaxWait = 2f;
+}
+/// <summary>One macro step: a skill id and an extra pause after it (seconds).</summary>
+public class MacroStep { public string Skill = ""; public float Delay = 0f; }
+
 public class SkillDef
 {
     public string Id = "", Name = "", Kind = "projectile", Type = "physical", Scale = "spell", Desc = "";

@@ -18,6 +18,9 @@ public class PlayerStats
     public List<string> AtkSteps = new();                 // unlocked attack steps, as "class.step"
     public List<string> AtkMods = new();                  // unlocked attack modifiers
     public string[] Bar = new string[6];                  // hotbar keys 1-6
+    public List<Macro> Macros = new() { new Macro(), new Macro() };   // skill chains on the macro keys (PlayerMacros.cs); older saves load two empty ones
+    /// <summary>Macro slot i (0 or 1), created if an older save has fewer.</summary>
+    public Macro MacroAt(int i) { Macros ??= new(); while (Macros.Count <= i) Macros.Add(new Macro()); return Macros[i] ??= new Macro(); }
     public int RankPts = 2;                               // skill rank points (1 per level)
     public int TreeVer = 0;                               // skill tree layout version; older trees are refunded on load
     public int Level = 1, Xp = 0, Gold = 60, AttrPts = 0, SkillPts = 3, Kills = 0;

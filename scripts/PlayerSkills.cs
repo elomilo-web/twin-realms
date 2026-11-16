@@ -90,9 +90,17 @@ public partial class Player
     void TryCast(int slot, Vector3? at = null, float charge = 0)
     {
         var D = Game.D; if (slot >= D.Bar.Length) return; var id = D.Bar[slot];        if (string.IsNullOrEmpty(id) || !D.Skills.ContainsKey(id) || Skills.Get(id) == null) { Ui.Note($"No skill on key {Inputs.KeyOf("spell" + (slot + 1))}. Press {Inputs.KeyOf(Inputs.SkillsUi)} to set one.", new Color(.7f, .8f, 1)); return; }
-        if (Dead || Busy || _rollT > 0 || _stagger > 0) return;
-        if (Mounted) { Ui.Note("You cannot use skills while mounted", new Color(0.7f, 0.8f, 1)); return; }
-        if (CdOf(id) > 0) return;
+        CastSkill(id, at, charge);
+    }
+
+    /// <summary>Casts a learned skill by id, on the hotbar or not (hotbar keys and macros). quiet = no "not enough mana" notes.
+    /// True when the skill went into its wind-up (paid, on cooldown).</summary>
+    bool CastSkill(string id, Vector3? at = null, float charge = 0, bool quiet = false)
+    {
+        var D = Game.D; if (!D.Skills.ContainsKey(id) || Skills.Get(id) == null) return false;
+        if (Dead || Busy || _rollT > 0 || _stagger > 0) return false;
+        if (Mounted) { if (!quiet) Ui.Note("You cannot use skills while mounted", new Color(0.7f, 0.8f, 1)); return false; }
+        if (CdOf(id) > 0) return false;
         var c = Skills.Compute(id); var k = c.Def;
         c.At = at;
         if (charge > 0)
@@ -100,10 +108,10 @@ public partial class Player
             c.Charge = charge; c.Dmg *= 1 + .8f * charge; c.Radius *= 1 + .3f * charge; c.Speed *= 1 + .2f * charge; c.Mp *= 1 + .25f * charge;
             if (charge >= .999f) FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.3f, 0), "Empowered", new Color(1f, .82f, .4f), .6f);
         }
-        if (k.Tags.Contains("bow") && D.WType() != "bow") { Ui.Note(k.Name + " needs a bow", new Color(1, .6f, .5f)); return; }
-        if (k.Kind == "resurrect") { TryResurrect(id, c); return; }   // a channel, not a cast (PlayerDowned.cs)
-        if (Mp < c.Mp) { Ui.Note("Not enough mana", new Color(0.4f, 0.65f, 1f)); return; }
-        if (St < c.St) { Ui.Note("Not enough stamina", new Color(0.6f, 0.9f, .7f)); return; }
+        if (k.Tags.Contains("bow") && D.WType() != "bow") { if (!quiet) Ui.Note(k.Name + " needs a bow", new Color(1, .6f, .5f)); return false; }
+        if (k.Kind == "resurrect") { TryResurrect(id, c); return true; }   // a channel, not a cast (PlayerDowned.cs)
+        if (Mp < c.Mp) { if (!quiet) Ui.Note("Not enough mana", new Color(0.4f, 0.65f, 1f)); return false; }
+        if (St < c.St) { if (!quiet) Ui.Note("Not enough stamina", new Color(0.6f, 0.9f, .7f)); return false; }
         Mp -= c.Mp; if (c.St > 0) UseStamina(c.St); StartCd(id, c.Cd); PendCast(id, c.Mp, c.St);
         FaceAim();
         if (WeaponKinds.Contains(k.Kind) && !W.Ranged)
@@ -113,6 +121,7 @@ public partial class Player
         }
         else { _castSkill = c; _castT = _castDur = Mathf.Max(.12f, c.Cast); _atkT = 0; _fired = false; _castSerial++; CastFx(c, MuzzlePos()); _castFxDone = true; }   // spells gather during the wind-up
         Sfx.Play(k.Type == "physical" ? "swing" : k.Type == "frost" ? "ice" : k.Type == "lightning" ? "zap" : "fire");
+        return true;
     }
     void StartCd(string id, float cd) { _skillCd[id] = cd; _skillCdMax[id] = cd; }
 

@@ -206,6 +206,8 @@ public partial class HudCanvas : Control
         float sx0 = hx; float isz = Mathf.Max(22, u * 2.1f);
         foreach (var b in p.Buffs) { StatusChip(new Vector2(sx0, hy - isz - 8), isz, new Color(1f, .82f, .4f), Skills.Get(b.id)?.Name[..1] ?? "+", b.t, 0); sx0 += isz + 4; }
         foreach (var s in p.Statuses.List) { StatusChip(new Vector2(sx0, hy - isz - 8), isz, s.Def.Col, s.Def.Name[..1], s.T, s.Stacks); sx0 += isz + 4; }
+        // a running macro (PlayerMacros.cs), above the status chips
+        if (p.MacroStatus is { Length: > 0 } ms) Txt(new Vector2(hx, hy - isz - 16), "▶ " + ms, fs(1f), UiTheme.Highlight);
         // minimap bottom-right
         DrawMini(p, new Vector2(sz.X - pad - u * 7, sz.Y - pad - u * 7), u * 7);
         if (p.Downed)

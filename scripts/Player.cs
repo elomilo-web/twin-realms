@@ -514,6 +514,9 @@ public partial class Player : CharacterBody3D, IDamageable
 
         // ---- hotkeys
         SkillKeys(captured, dt);   // press casts, or hold to aim (ground spells) / charge (projectiles), release casts
+        if (captured && _mRun >= 0 && (Input.IsActionJustPressed(Inputs.Roll) || _holdSlot >= 0)) StopMacro();   // dodging or using a hotbar skill stops a macro
+        MacroKeys(captured, dt);   // Macro 1 / 2: chains of skills (PlayerMacros.cs)
+        AutoPotions(dt);
         if (captured && Input.IsActionJustPressed(Inputs.PotHp)) UsePotion(true);
         if (captured && Input.IsActionJustPressed(Inputs.PotMp)) UsePotion(false);
         if (captured && Input.IsActionJustPressed(Inputs.Mount)) ToggleMount();
