@@ -15,12 +15,22 @@ public static class Icons
         ci.DrawColoredPolygon(pts, fill);
         if (line != null) { var l = new Vector2[pts.Length + 1]; pts.CopyTo(l, 0); l[^1] = pts[0]; ci.DrawPolyline(l, line.Value, w, true); }
     }
-    static void Glow(CanvasItem ci, Vector2 c, float r, Color col) { for (int i = 4; i >= 1; i--) ci.DrawCircle(c, r * (0.55f + i * 0.14f), col with { A = col.A * 0.12f }); }
+    static void Glow(CanvasItem ci, Vector2 c, float r, Color col) { for (int i = 4; i >= 1; i--) ci.DrawCircle(c, r * (0.55f + i * 0.14f), col with { A = col.A * 0.07f }); }
+
+    /// <summary>Gothic realism: icon colours lose most of their saturation and some brightness and warm toward old parchment,
+    /// so the bright vector icons read as aged, painted emblems (data/ui_theme.json iconSaturation / iconValue).</summary>
+    static readonly float Sat = UiThemeF("iconSaturation", .5f), Val = UiThemeF("iconValue", .82f);
+    static float UiThemeF(string k, float d) { using var doc = JsonUtil.Load("res://data/ui_theme.json"); return JsonUtil.F(doc.RootElement, k, d); }
+    static Color Mute(Color k)
+    {
+        var m = Color.FromHsv(k.H, k.S * Sat, k.V * Val, k.A);
+        return m.Lerp(new Color(.78f, .68f, .5f, k.A), .12f);
+    }
 
     public static void Draw(CanvasItem ci, string id, Vector2 c, float size, float alpha = 1f)
     {
         float s = size / 2f; var ol = new Color(0, 0, 0, .7f * alpha);
-        Color A(Color k) => k with { A = k.A * alpha };
+        Color A(Color k) => Mute(k) with { A = k.A * alpha };
         switch (id)
         {
             // ---------------- spells

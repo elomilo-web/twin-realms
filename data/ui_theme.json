@@ -16,5 +16,7 @@
  "grid": "#00000000",
  "corner": 1,
  "glowSize": 0,
- "openTime": 0.22
+ "openTime": 0.22,
+ "iconSaturation": 0.5,
+ "iconValue": 0.82
 }
