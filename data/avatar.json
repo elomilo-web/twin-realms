@@ -141,6 +141,12 @@
   },
   "enemies": {
     "_help": "Humanoid enemy types drawn with the character model (others stay procedural). tint colours the outfit.",
+    "_gothicHelp": "Gothic realism (2026-11-15): the humanoid monsters (orcWarrior, hobgoblin, ninja, darkMage, oni) are realistic bodies in gothic gear now instead of the chibi Quaternius models (enemies.json keeps their old model under _model).",
+    "orcWarrior": { "body": "male", "armor": "Cuirass", "hands": "Gauntlets", "feet": "Greaves", "weapon": "axe", "skin": "6f7a5c", "tint": "4a3a2c", "scale": 1.0 },
+    "hobgoblin": { "body": "male", "armor": "Leather", "head": "Hood", "feet": "Boots", "weapon": "dagger", "skin": "7c8658", "tint": "3c3428", "scale": 0.92 },
+    "ninja": { "body": "male", "armor": "Leather", "head": "Hood", "hands": "Gloves", "feet": "Boots", "weapon": "katana", "tint": "1c1b20" },
+    "darkMage": { "body": "male", "armor": "Robe", "head": "Hood", "feet": "Boots", "weapon": "staff", "tint": "24161c" },
+    "oni": { "body": "male", "armor": "Robe", "hands": "Wraps", "feet": "Boots", "weapon": "mace", "skin": "8c3c30", "tint": "2a1e1a" },
     "bandit": { "body": "male", "armor": "Leather", "head": "Hood", "hands": "Gloves", "feet": "Boots", "weapon": "sword", "tint": "6b5a4a" },
     "archer": { "body": "female", "armor": "Leather", "head": "Hood", "feet": "Boots", "weapon": "bow", "tint": "4f6b45" },
     "brute": { "body": "male", "armor": "Robe", "hands": "Wraps", "weapon": "mace", "skin": "8fa36a", "tint": "5b4636" },

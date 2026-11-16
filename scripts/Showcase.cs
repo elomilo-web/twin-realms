@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Godot;
@@ -123,6 +124,19 @@ public partial class Showcase : Node
         Free(spot + new Vector3(1.5f, 4.4f, 7.5f), spot + new Vector3(0, 3.4f, 0)); await Wait(1.2f); await Shot("scarletta_front");
         Free(spot + new Vector3(-4f, 5.5f, -9f), spot + new Vector3(0, 4f, 0)); await Wait(.8f); await Shot("scarletta_back");
         Free(null); e.QueueFree(); await Wait(.3f);
+        // the humanoid foes in a row (realistic bodies in gothic gear)
+        P.Teleport(World.OnGround(1.5f, 90f, .5f), 0f);   // out of their reach
+        var row = new[] { "orcWarrior", "hobgoblin", "ninja", "darkMage", "oni", "bandit" };
+        var foes = new List<Enemy>();
+        for (int i = 0; i < row.Length; i++)
+        {
+            var f = new Enemy { Type = row[i], Level = 20, AnyRealm = true, NoLeash = true, Position = World.OnGround(-5f + i * 2.2f, 2f, .3f) };
+            Game.Root!.AddChild(f); foes.Add(f);
+        }
+        await Wait(1.2f);
+        foreach (var f in foes) if (IsInstanceValid(f)) { f.Rotation = new Vector3(0, Mathf.Pi, 0); f.SetProcess(false); f.SetPhysicsProcess(false); }
+        Free(World.OnGround(0.5f, 11f, 2.6f), World.OnGround(0.5f, 2f, 1.1f)); await Wait(1f); await Shot("foes");
+        Free(null); foreach (var f in foes) if (IsInstanceValid(f)) f.QueueFree(); await Wait(.3f);
     }
 
     async Task Fight()
