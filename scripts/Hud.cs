@@ -49,8 +49,8 @@ public partial class HudCanvas : Control
     {
         DrawRect(r, new Color(0, 0, 0, .6f)); frac = Mathf.Clamp(frac, 0, 1);
         var f = rtl ? new Rect2(r.Position.X + r.Size.X * (1 - frac), r.Position.Y, r.Size.X * frac, r.Size.Y) : new Rect2(r.Position, new Vector2(r.Size.X * frac, r.Size.Y));
-        DrawRect(f, a); DrawRect(new Rect2(f.Position, new Vector2(f.Size.X, f.Size.Y * .45f)), new Color(1, 1, 1, .12f));
-        DrawRect(r, new Color(1, 1, 1, .35f), false, 1f);
+        DrawRect(f, a); DrawRect(new Rect2(f.Position, new Vector2(f.Size.X, f.Size.Y * .45f)), new Color(1, 1, 1, .05f));
+        DrawRect(r, new Color(.72f, .58f, .3f, .55f), false, 1f);   // tarnished-gold frame
     }
 
     public override void _Draw()
@@ -70,13 +70,13 @@ public partial class HudCanvas : Control
         if (Titles.Get(d.Title) is { } title)   // the worn title, in pale gold after the name
             Txt(new Vector2(px + 20 + F.GetStringSize(d.Name.ToUpper(), HorizontalAlignment.Left, -1, fs(1.2f)).X, py + fs(1.2f) + 6), title.Name, fs(.95f), new Color(1f, .93f, .72f));
         Txt(new Vector2(px + 12, py + fs(1.2f) + 6), $"Lv {d.Level}", fs(1.1f), UiTheme.Accent, HorizontalAlignment.Right, pw - 24);
-        float hpF = Mathf.Clamp(p.Hp / d.MaxHp(), 0, 1); var hpCol = hpF > .5f ? new Color("5be37d") : hpF > .25f ? new Color("f2d14b") : new Color("ff5a4f");
+        float hpF = Mathf.Clamp(p.Hp / d.MaxHp(), 0, 1); var hpCol = hpF > .25f ? new Color("8e1c1a") : new Color("c0281f");   // gothic: crimson health, brighter when low
         float bx0 = px + 12, bw0 = pw - 24, by0 = py + fs(1.2f) + 14;
         SlantBar(new Rect2(bx0, by0, bw0, 14), hpF, hpCol, 10, 10);
         Txt(new Vector2(bx0, by0 + 30), "HP", fs(.85f), UiTheme.Dim);
         Txt(new Vector2(bx0, by0 + 30), $"{Mathf.CeilToInt(p.Hp)} / {d.MaxHp()}", fs(.95f), Colors.White, HorizontalAlignment.Right, bw0 - 8);
-        SlantBar(new Rect2(bx0 + 28, by0 + 36, bw0 * .62f, 7), p.Mp / d.MaxMp(), new Color("4fb6ff"), 5, 0);
-        SlantBar(new Rect2(bx0 + 28, by0 + 47, bw0 * .62f, 5), p.St / d.MaxSt(), new Color("9ef0b8"), 4, 0);
+        SlantBar(new Rect2(bx0 + 28, by0 + 36, bw0 * .62f, 7), p.Mp / d.MaxMp(), new Color("3c5c98"), 5, 0);
+        SlantBar(new Rect2(bx0 + 28, by0 + 47, bw0 * .62f, 5), p.St / d.MaxSt(), new Color("5c7a3c"), 4, 0);
         Txt(new Vector2(bx0, by0 + 44), "MP", fs(.75f), UiTheme.Dim);
         DrawRect(new Rect2(px + 1, py + ph - 4, pw - 2, 2), new Color(0, 0, 0, .4f)); DrawRect(new Rect2(px + 1, py + ph - 4, (pw - 2) * Mathf.Clamp((float)d.Xp / d.XpNeed(), 0, 1), 2), UiTheme.Highlight);
         // realm, clock, place and gold sit under the compass (the notes column starts just below the status window)

@@ -28,4 +28,4 @@ Rules: CC0 only (record in `assets/ASSETS.md`); one shared material library; bui
 | Kit castle / dungeon / spell models | todo (castle/dungeon kit not placed in game yet) |
 | Spell flipbooks, particles | flipbooks done: fx_gen.py cel() is a smooth smoky ramp with gothic palettes (GOTHIC flag), regenerate with uv run --with numpy --with pillow python tools/kit_gen/fx_gen.py. Kenney particle sprites: todo |
 | Sound effects, ambience, music | todo |
-| UI | todo |
+| UI | theme done: data/ui_theme.json (dark smoky panels, tarnished gold, parchment text, no glow/grid), HUD bars crimson / steel blue / olive with gold frames. Todo: skill icons, target ring colours, a serif font (needs a CC0 font) |
