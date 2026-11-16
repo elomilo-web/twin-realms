@@ -18,10 +18,10 @@ public static class Builder
     public static void BuildAll(Node3D over)
     {
         _rg = World.Rng(424242u);   // restart the seed: every build (and every machine in a multiplayer game) places the same world
-        Wall = World.Mat(new Color(.79f, .71f, .56f), new Color(.29f, .26f, .35f)); Roof = World.Mat(new Color(.55f, .23f, .16f), new Color(.1f, .08f, .15f)); RoofB = World.Mat(new Color(.33f, .38f, .44f), new Color(.1f, .09f, .18f));
-        Wood = World.Mat(new Color(.42f, .29f, .17f), new Color(.17f, .14f, .22f)); Stone = World.Mat(new Color(.55f, .54f, .52f), new Color(.23f, .2f, .31f), 1f);
-        Dark = World.Mat(new Color(.23f, .16f, .1f), new Color(.1f, .07f, .14f)); Cloth = World.Mat(new Color(.69f, .23f, .23f), new Color(.29f, .11f, .36f)); Hay = World.Mat(new Color(.79f, .66f, .29f), new Color(.29f, .23f, .35f));
-        Sand = World.Mat(new Color(.84f, .75f, .53f), new Color(.23f, .18f, .28f), 1f); Rock = World.Mat(new Color(.54f, .54f, .52f), new Color(.23f, .19f, .28f), 1f); Gold = World.Mat(new Color(.88f, .69f, .24f), new Color(.54f, .35f, .66f), .4f, .8f);
+        Wall = World.Mat(new Color(.79f, .71f, .56f), new Color(.29f, .26f, .35f)); Roof = World.Mat(new Color(.36f, .28f, .24f), new Color(.1f, .08f, .15f)); /* gothic: weathered slate-brown, was a bright red */ RoofB = World.Mat(new Color(.33f, .38f, .44f), new Color(.1f, .09f, .18f));
+        Wood = World.Mat(new Color(.36f, .27f, .2f), new Color(.17f, .14f, .22f)); Stone = World.Mat(new Color(.55f, .54f, .52f), new Color(.23f, .2f, .31f), 1f);
+        Dark = World.Mat(new Color(.23f, .16f, .1f), new Color(.1f, .07f, .14f)); Cloth = World.Mat(new Color(.42f, .14f, .13f), new Color(.29f, .11f, .36f)); Hay = World.Mat(new Color(.6f, .52f, .32f), new Color(.29f, .23f, .35f));
+        Sand = World.Mat(new Color(.84f, .75f, .53f), new Color(.23f, .18f, .28f), 1f); Rock = World.Mat(new Color(.54f, .54f, .52f), new Color(.23f, .19f, .28f), 1f); Gold = World.Mat(new Color(.7f, .56f, .3f), new Color(.54f, .35f, .66f), .4f, .8f);
         Metal = World.Mat(new Color(.48f, .5f, .53f), new Color(.29f, .27f, .38f), .4f, .7f); Crim = World.Mat(new Color(.6f, .12f, .16f), new Color(.23f, .08f, .35f)); Beam = World.Mat(new Color(.29f, .21f, .14f), new Color(.1f, .08f, .13f));
         // procedural surface detail (scripts/Gfx.cs): plaster, stone courses, planks, wood grain, shingles, rock, sand, cloth
         Gfx.Tex(Wall, "plaster", 2.5f, true, .6f); Gfx.Tex(Stone, "stone", 2.6f); Gfx.Tex(Wood, "planks", 1.6f); Gfx.Tex(Beam, "grain", 1.2f); Gfx.Tex(Dark, "grain", 1.2f);
