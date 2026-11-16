@@ -46,8 +46,10 @@ All from ambientCG (ambientcg.com), CC0 1.0, 1K JPG. Colour map kept for each, t
 ## Music (`audio/music/`), played by `Sfx.cs` with long quiet gaps between songs
 | File | Title / author | Source |
 |---|---|---|
-| `day/jrpg_piano.mp3` | "JRPG Piano", Joth | https://opengameart.org/content/jrpg-piano |
-| `day/a_new_town.mp3` | "A New Town", The Cynic Project / cynicmusic | https://opengameart.org/content/a-new-town-rpg-theme |
+| `day/lament_warriors_soul.mp3` | "Fantasy: Lament for a Warrior's Soul", RandomMind (CC0, added 2026-11-15) | https://opengameart.org/content/fantasy-lament-for-a-warriors-soul |
+| `day/dark_forest.mp3` | "Dark Forest Theme", cynicmusic (CC0, added 2026-11-15) | https://opengameart.org/content/dark-forest-theme |
+| `night/vampires_piano.mp3` | "Vampire's Piano", TAD (CC0, added 2026-11-15) | https://opengameart.org/content/vampires-piano |
+| `night/forgotten_tombs.mp3` | "Forgoten Tomb Ambience", kindland (CC0, added 2026-11-15) | https://opengameart.org/content/forgoten-tomb-ambience |
 | `night/contemplation.mp3` | "Contemplation" | https://opengameart.org/content/contemplation-0 |
 | `night/deep_blue_piano.wav` | "Yoiyami Core Theme â€“ Deep Blue Ambient Piano", Yoiyami (converted to mono 22 kHz) | https://opengameart.org/content/yoiyami-core-theme-%E2%80%93-deep-blue-ambient-piano |
 | `night/budding_of_consciousness.wav` | "The Budding of Consciousness", Yoiyami (mono 22 kHz) | https://opengameart.org/content/the-budding-of-consciousness-%E2%80%93-cc0-ambient-minimalist-theme-yoiyami-blue-series-%E2%80%93-no4 |
@@ -62,12 +64,20 @@ All from ambientCG (ambientcg.com), CC0 1.0, 1K JPG. Colour map kept for each, t
 ## Sound effects (`audio/sfx/`, `<id>_<n>` = random variants of one sound id)
 | Files | Source |
 |---|---|
-| `swing_1..4.wav` | "Swishes Sound Pack" (light swishes) â€” https://opengameart.org/content/swishes-sound-pack |
-| `coin_*.wav`, `block_*.wav`, `roar_*.wav` | "RPG Sound Pack", artisticdude â€” https://opengameart.org/content/rpg-sound-pack |
-| `pickup_*.ogg`, `click_*.ogg`, `ice_*.ogg` | Kenney "Interface Sounds" â€” https://opengameart.org/content/interface-sounds |
-| `heal_1.wav` | "Magic Words + Healing Sound Effect" (mono 44 kHz) â€” https://opengameart.org/content/magic-words-healing-sound-effect |
+Gothic realism (2026-11-15): replaced with realistic CC0 recordings, all from OpenGameArt:
+| Files | Source |
+|---|---|
+| `swing_1..6.ogg` | "20 Sword Sound Effects (Attacks and Clashes)", StarNinjas: sword attacks — https://opengameart.org/content/20-sword-sound-effects-attacks-and-clashes |
+| `block_1..4.ogg` | same pack: sword clashes |
+| `hit_1..3.ogg` | "75 CC0 breaking / falling / hit sfx", rubberduck — https://opengameart.org/content/75-cc0-breaking-falling-hit-sfx |
+| `hit_4..5.ogg`, `fire_1..4.ogg`, `zap_1..2.ogg`, `coin_1..4.ogg`, `pickup_1..3.ogg`, `roar_1..3.ogg`, `die_1.ogg` | "80 CC0 RPG SFX", rubberduck — https://opengameart.org/content/80-cc0-rpg-sfx |
+| `roar_4..6.ogg` | "80 CC0 creature SFX", rubberduck — https://opengameart.org/content/80-cc0-creature-sfx |
+| `hurt_1..3.ogg` | "100 CC0 SFX #2", rubberduck — https://opengameart.org/content/100-cc0-sfx-2 |
+| `ice_1..2.wav` | "Ice spells" — https://opengameart.org/content/ice-spells |
+| `heal_1..3.wav` | "Cure magic" — https://opengameart.org/content/cure-magic |
+| `click_*.ogg` | Kenney "Interface Sounds" — https://opengameart.org/content/interface-sounds |
 
-Sounds with no file (hit, hurt, fire, zap, level, portal, shift, die) use soft synthesised bells in `Sfx.cs`.
+Sounds with no file (level, portal, shift) use soft synthesised bells in `Sfx.cs`.
 
 ## Particle textures (`vfx/particles/`, added 2026-11-12)
 Kenney "Particle Pack" 1.1 by Kenney Vleugels (www.kenney.nl), CC0 (license in `vfx/particles/LICENSE_Kenney.txt`). 43 of its 80 sprites, scaled to 256x256: flames, smoke, sparks, stars, magic wisps, twirls, light, scorch, dirt, circles, slashes. Taken from the Godot packaging at https://github.com/Calinou/kenney-particle-pack (original page: https://kenney.nl/assets/particle-pack). Used by `scripts/Vfx.cs` (`Vfx.Sets`).
