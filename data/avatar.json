@@ -147,6 +147,8 @@
     "ninja": { "body": "male", "armor": "Leather", "head": "Hood", "hands": "Gloves", "feet": "Boots", "weapon": "katana", "tint": "1c1b20" },
     "darkMage": { "body": "male", "armor": "Robe", "head": "Hood", "feet": "Boots", "weapon": "staff", "tint": "24161c" },
     "oni": { "body": "male", "armor": "Robe", "hands": "Wraps", "feet": "Boots", "weapon": "mace", "skin": "8c3c30", "tint": "2a1e1a" },
+    "yeti": { "body": "male", "armor": "Robe", "hands": "Wraps", "feet": "Boots", "weapon": "mace", "skin": "b4b0a8", "tint": "d4d0c8", "scale": 1.15 },
+    "lesserDemon": { "body": "male", "armor": "Hauberk", "hands": "Gauntlets", "feet": "Greaves", "weapon": "greatsword", "skin": "6a2420", "tint": "2a1414" },
     "bandit": { "body": "male", "armor": "Leather", "head": "Hood", "hands": "Gloves", "feet": "Boots", "weapon": "sword", "tint": "6b5a4a" },
     "archer": { "body": "female", "armor": "Leather", "head": "Hood", "feet": "Boots", "weapon": "bow", "tint": "4f6b45" },
     "brute": { "body": "male", "armor": "Robe", "hands": "Wraps", "weapon": "mace", "skin": "8fa36a", "tint": "5b4636" },

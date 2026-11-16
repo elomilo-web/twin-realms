@@ -82,6 +82,8 @@ Original work made for this game by `tools/kit_gen/` (code-generated, CC0). 164 
 
 ## Monsters (assets/models/monsters/, added 2026-11-11)
 
+Gothic realism (2026-11-15): 18 of these files are now original models made for this game by `tools/blender_gothic/creatures.py` (rigged, animated, CC0): giantRat, giantSpider, slime, toxicBlob, spikeSlime, viper, earthGolem, goleling, giantWasp, giantCrab, raptor, wyvern, kitsune, myconid, mushroomKing, cactusFiend (now a thorn fiend), flameSkull, ghost (a wraith). The humanoid ones (orcWarrior, hobgoblin, ninja, darkMage, oni, yeti, lesserDemon) are drawn with the realistic hero bodies instead; their Quaternius files stay in the folder, unused. The rest of this section describes the original Quaternius files (in git history for the replaced ones).
+
 Animated low-poly monsters by **Quaternius** (Ultimate Monsters, Animated Enemies, Animated Animal packs), **CC0 / Public Domain**, downloaded from poly.pizza. Used as data/enemies.json "model". Sources (ssets/models/monsters/_sources.tsv):
 
 | File | Original model | Page |

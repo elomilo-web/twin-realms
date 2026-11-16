@@ -27,8 +27,12 @@ MATS = {
     "G_Parchment": ("cloth", (0.78, 0.7, 0.56), 0.0, 1.0, 5.0),
     "G_Cloth_Blue": ("cloth", (0.07, 0.09, 0.16), 0.0, 1.0, 3.0),
     "G_Bark": ("bark", (0.5, 0.42, 0.38), 0.0, 1.0, 1.2),
+    "G_Fur": ("fur", (0.62, 0.52, 0.42), 0.0, 1.0, 4.0),
+    "G_Scales": ("scales", (0.62, 0.6, 0.5), 0.0, 0.7, 6.0),
+    "G_Moss": ("moss", (0.7, 0.78, 0.6), 0.0, 1.0, 2.0),
+    "G_Rock": ("rock", (0.75, 0.74, 0.7), 0.0, 1.0, 1.0),
 }
-STEEL, IRON, RUST, BRASS, LEATHER, WOOD, CLOTH, CLOTH_B, PARCH, CLOTH_BLUE, BARK = MATS.keys()
+STEEL, IRON, RUST, BRASS, LEATHER, WOOD, CLOTH, CLOTH_B, PARCH, CLOTH_BLUE, BARK, FUR, SCALES, MOSS, ROCK = MATS.keys()
 
 
 CARDS = {"G_Leaves": ("leaves_cluster.png", (0.62, 0.66, 0.48)), "G_Needles": ("needles.png", (0.55, 0.62, 0.5)),

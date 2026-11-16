@@ -306,7 +306,9 @@ public partial class Enemy : CharacterBody3D, IDamageable
             for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
             {
                 if (mi.GetActiveMaterial(s) is not BaseMaterial3D m0) continue;
-                var m = (BaseMaterial3D)m0.Duplicate(); var c = tint is { } tc ? m.AlbedoColor * tc : m.AlbedoColor;
+                var gsrc = GothicMats.For(m0.ResourceName);   // gothic creatures (tools/blender_gothic/creatures.py): shared realistic material on their UVs
+                var m = (BaseMaterial3D)(gsrc ?? m0).Duplicate(); var c = tint is { } tc ? m.AlbedoColor * tc : m.AlbedoColor;
+                if (gsrc != null) { m.Uv1Triplanar = false; m.Uv1Scale = new Vector3(3f, 3f, 1f); }
                 if (Def.Emissive) { m.EmissionEnabled = true; m.Emission = (tint ?? c).Darkened(.2f); m.EmissionEnergyMultiplier = .7f; }
                 m.AlbedoColor = c; mi.SetSurfaceOverrideMaterial(s, m);
                 if (m is StandardMaterial3D sm) { _mats.Add(sm); _baseCols.Add(c); }
