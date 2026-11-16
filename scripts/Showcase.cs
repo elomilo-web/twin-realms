@@ -122,15 +122,6 @@ public partial class Showcase : Node
         var d = Game.D; Skills.GrantStarting(d);
         var learned = d.Skills.Keys.Where(id => Skills.Get(id) is { } k && k.Kind is not "resurrect").Take(3).ToList();
         var mac = d.MacroAt(0); mac.Steps.Clear(); foreach (var id in learned) mac.Steps.Add(new MacroStep { Skill = id }); mac.Loop = 0; mac.Gap = .1f;
-        P.ResetCooldowns(); Heal(); P.Teleport(World.OnGround(-46, 34, .5f), 2.2f); await Wait(.5f);
-        Input.MouseMode = Input.MouseModeEnum.Captured; await Wait(3f);
-        Say($"macro test: dead={P.Dead} busy={P.Busy} staggered={P.Staggered}");
-        int c0 = P.MacroCasts; Input.ActionPress(Inputs.Macro1); await Wait(.12f); Input.ActionRelease(Inputs.Macro1);
-        await Wait(.4f); Say($"macro after 0.4 s: running={P.MacroStatus != ""} status='{P.MacroStatus}' casts={P.MacroCasts - c0} mouse={Input.MouseMode}");
-        await Wait(4f); Say($"macro tap: casts={P.MacroCasts - c0} (want {learned.Count}), running={P.MacroStatus != ""}");
-        Input.ActionPress(Inputs.Macro1); await Wait(5f); Say($"macro hold 5 s: casts={P.MacroCasts - c0}, running={P.MacroStatus != ""}"); Input.ActionRelease(Inputs.Macro1); await Wait(3f);
-        Say($"macro released: running={P.MacroStatus != ""}");
-        Say("macro steps " + string.Join(",", learned) + " -> on cooldown: " + string.Join(",", learned.Select(id => $"{id}={P.CdOf(id):0.0}")) + " running=" + (P.MacroStatus != ""));
         Ui.I?.OpenMacros(); if (Ui.I != null) Ui.I.Visible = true; await Wait(.6f); await Shot("macros_menu");
         Ui.I?.Close(); if (Ui.I != null) Ui.I.Visible = false; Input.MouseMode = Input.MouseModeEnum.Captured; await Wait(.3f);
     }
