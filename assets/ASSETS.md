@@ -81,6 +81,7 @@ Sounds with no file (level, portal, shift) use soft synthesised bells in `Sfx.cs
 
 ## Particle textures (`vfx/particles/`, added 2026-11-12)
 Kenney "Particle Pack" 1.1 by Kenney Vleugels (www.kenney.nl), CC0 (license in `vfx/particles/LICENSE_Kenney.txt`). 43 of its 80 sprites, scaled to 256x256: flames, smoke, sparks, stars, magic wisps, twirls, light, scorch, dirt, circles, slashes. Taken from the Godot packaging at https://github.com/Calinou/kenney-particle-pack (original page: https://kenney.nl/assets/particle-pack). Used by `scripts/Vfx.cs` (`Vfx.Sets`).
+Gothic realism (2026-11-15): smoke, fire, flame, spark, dirt, star, light and scorch sprites are now original, made by `tools/kit_gen/particles_gen.py` (CC0); the Kenney magic, twirl, circle, slash and trace sprites stay.
 
 ## Shader
 `scripts/Toon.cs` â€” toon lighting + screen-space outline, written for this project (no third-party code).
