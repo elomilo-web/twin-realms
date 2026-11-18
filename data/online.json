@@ -1,0 +1,13 @@
+{
+  "_comment": "Online server (MMO) settings. 'server' is the address the title screen's Play Online button connects to: after deploying on Railway put your public domain here, e.g. wss://twin-realms-production.up.railway.app",
+  "server": "",
+  "port": 8080,
+  "maxPlayers": 64,
+  "saveEverySec": 20,
+  "minPassword": 8,
+  "maxSaveKb": 1024,
+  "failedLoginsBeforeLock": 5,
+  "lockSeconds": 60,
+  "loginTimeoutSec": 600,
+  "hashIterations": 120000
+}

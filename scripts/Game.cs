@@ -77,8 +77,28 @@ public static class Game
     public static bool HasSave() => Peek(Slot) != null;
     public static void DeleteSlot(int slot) { var f = File(); f.Slots[slot] = null; WriteFile(f); }
 
+    // ---- online: while logged in to the online server the save file comes from the server and every write is uploaded to it
+    public static bool Online; public static string OnlineEmail = "";
+    static string _offlinePath = "";
+    /// <summary>Logged in: use the account's save file from the server (empty for a new account).</summary>
+    public static void UseOnline(string email, string saveJson)
+    {
+        if (!Online) _offlinePath = SavePath;
+        Online = true; OnlineEmail = email; SavePath = "online://" + email; _filePath = SavePath; _file = new SaveFile();
+        try { if (saveJson != "") _file = JsonSerializer.Deserialize<SaveFile>(saveJson, Opt) ?? new SaveFile(); } catch (Exception e) { GD.PushError("online save unreadable: " + e.Message); }
+        if (_file.Slots == null || _file.Slots.Length != MaxSlots) Array.Resize(ref _file.Slots, MaxSlots);
+        _file.Last = Math.Clamp(_file.Last, 0, MaxSlots - 1); Slot = _file.Last;
+    }
+    /// <summary>Logged out: back to the save file on this computer.</summary>
+    public static void LeaveOnline()
+    {
+        if (!Online) return;
+        Online = false; OnlineEmail = ""; SavePath = _offlinePath != "" ? _offlinePath : "user://save.json"; _file = null; Slot = File().Last;
+    }
+
     static void WriteFile(SaveFile file)
     {
+        if (Online) { Net.I?.UploadSave(JsonSerializer.Serialize(file, Opt)); return; }
         // write to a temporary file first, then swap it in, so a crash mid-write never loses all three heroes
         string tmp = SavePath + ".tmp";
         using (var f = Godot.FileAccess.Open(tmp, Godot.FileAccess.ModeFlags.Write)) { if (f == null) throw new Exception("cannot write " + tmp); f.StoreString(JsonSerializer.Serialize(file, Opt)); }
@@ -103,7 +123,8 @@ public static class Game
         try
         {
             // a fresh copy from disk so the in-memory slot and the hero being played are never the same object by accident
-            _file = null; var d0 = Peek(Slot); if (d0 == null) return false;
+            if (!Online) _file = null;   // online, the server's copy in memory is the latest
+            var d0 = Peek(Slot); if (d0 == null) return false;
             var d = JsonSerializer.Deserialize<PlayerStats>(JsonSerializer.Serialize(d0, Opt), Opt);
             if (d == null) return false;
             D = d; TreeDb.Load();

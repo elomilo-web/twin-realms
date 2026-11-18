@@ -696,7 +696,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         if (!Net.Active || Puppet || Arena || (FromDungeon && !Dungeon.Shared)) return me;
         Node3D? best = null; float bd = float.MaxValue;
         foreach (var h in FromDungeon ? Net.DungeonHeroes() : Net.WorldHeroes()) { float d = h.GlobalPosition.DistanceSquaredTo(GlobalPosition); if (d < bd) { bd = d; best = h; } }
-        return best ?? me;
+        return best ?? (Net.Dedicated ? null : me);   // the online server's own (hidden) hero is never chased
     }
 
     public const int NetStride = 8;   // index + x, y, z, yaw, hp, state, wind-up progress

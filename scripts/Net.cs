@@ -29,7 +29,8 @@ public class PartyInfo
 public partial class Net : Node
 {
     public static Net? I;
-    public const int DefaultPort = 24565, Protocol = 2, MaxPlayers = 8;   // Protocol 2: beta 1.0 (party dungeons); older builds are told to update
+    public const int DefaultPort = 24565, Protocol = 2;   // Protocol 2: beta 1.0 (party dungeons); older builds are told to update
+    public static int MaxPlayers = 8;              // friend hosting; the online server reads data/online.json
     const int Channels = 8;   // 0 reliable events, 1 poses, 2 enemy snapshots, 3 clock, 4 shots (both sides must open the same number)
     public static bool Active => I != null && I._live;
     public static bool IsHost => Active && I!._server;
@@ -45,7 +46,7 @@ public partial class Net : Node
     public static string LastNote = "";            // shown on the title screen after a disconnect
     public static int HostPort = DefaultPort;      // the port we are hosting on (put into the join codes)
 
-    ENetMultiplayerPeer? _peer; bool _live, _server; long _myId = 1; Action? _onWelcome;
+    MultiplayerPeer? _peer; bool _live, _server; long _myId = 1; Action? _onWelcome;
     public readonly Dictionary<long, PeerInfo> Players = new();
     public readonly Dictionary<int, PartyInfo> Parties = new();
     public readonly Dictionary<long, RemoteHero> Heroes = new();
@@ -63,12 +64,13 @@ public partial class Net : Node
         I = this; ProcessMode = ProcessModeEnum.Always;
         Multiplayer.PeerConnected += OnPeerConnected; Multiplayer.PeerDisconnected += OnPeerDisconnected;
         Multiplayer.ConnectedToServer += OnConnected; Multiplayer.ConnectionFailed += OnFailed; Multiplayer.ServerDisconnected += OnServerGone;
+        HookAuth();
     }
     public override void _ExitTree()
     {
         Multiplayer.PeerConnected -= OnPeerConnected; Multiplayer.PeerDisconnected -= OnPeerDisconnected;
         Multiplayer.ConnectedToServer -= OnConnected; Multiplayer.ConnectionFailed -= OnFailed; Multiplayer.ServerDisconnected -= OnServerGone;
-        Shutdown(); if (I == this) I = null;
+        Shutdown(); UnhookAuth(); if (I == this) I = null;
     }
 
     // ================================================================== connect
@@ -107,8 +109,10 @@ public partial class Net : Node
     /// <summary>Leaves the lobby (clients) or stops hosting (host). The world keeps running locally.</summary>
     public void Shutdown()
     {
-        if (_peer != null) { _peer.Close(); }
-        if (IsInsideTree()) Multiplayer.MultiplayerPeer = new OfflineMultiplayerPeer();
+        if (_peer != null) { FlushOnline(); _peer.Close(); }
+        if (IsInsideTree()) { Multiplayer.MultiplayerPeer = new OfflineMultiplayerPeer(); ClearAuth(); }
+        if (Game.Online) Game.LeaveOnline();   // back to the heroes saved on this computer
+        OnlineState = "";
         _peer = null; _live = false; _server = false; _myId = 1; Players.Clear(); Parties.Clear(); Duel = null;
         foreach (var h in Heroes.Values) if (IsInstanceValid(h)) h.QueueFree(); Heroes.Clear();
         foreach (var l in LootNodes.Values) if (IsInstanceValid(l)) l.QueueFree(); LootNodes.Clear(); _lootRecs.Clear();
@@ -121,11 +125,15 @@ public partial class Net : Node
         _live = true; _myId = Multiplayer.GetUniqueId(); Status = "Connected, waiting for the host ...";
         RpcId(1, MethodName.R_Hello, Protocol, ToJson(MeInfo()));
     }
-    void OnFailed() { Status = "Could not reach the host. Check the address, the port, and that the host's firewall allows the game."; _peer = null; _live = false; Multiplayer.MultiplayerPeer = new OfflineMultiplayerPeer(); }
+    void OnFailed()
+    {
+        if (OnlineState != "") { AuthMsg = "Could not reach the online server. Check the address and your internet connection."; CloseOnline(); return; }
+        Status = "Could not reach the host. Check the address, the port, and that the host's firewall allows the game."; _peer = null; _live = false; Multiplayer.MultiplayerPeer = new OfflineMultiplayerPeer();
+    }
     void OnServerGone()
     {
         GD.Print("[NET] lost the connection to the host");
-        LastNote = "The host closed the game. Your hero was saved.";
+        LastNote = Game.Online ? "Lost the connection to the online server. Your hero is saved on the server up to the last autosave." : "The host closed the game. Your hero was saved.";
         Game.Save(); Shutdown();
         // back to the title (the test bot keeps its window so it can finish its report)
         if (Ui.InGame && !AutoAccept) { Ui.InGame = false; GetTree().Paused = false; GetTree().CallDeferred(SceneTree.MethodName.ReloadCurrentScene); }
@@ -135,14 +143,15 @@ public partial class Net : Node
     {
         GD.Print($"[NET] peer {id} connected");
         // building the world takes a joining game a few seconds without network traffic: allow up to a minute of silence before giving up
-        _peer?.GetPeer((int)id)?.SetTimeout(32, 15000, 60000);
+        (_peer as ENetMultiplayerPeer)?.GetPeer((int)id)?.SetTimeout(32, 15000, 60000);
     }
     void OnPeerDisconnected(long id)
     {
         GD.Print($"[NET] peer {id} disconnected");
-        string n = Players.GetValueOrDefault(id)?.Name ?? "A player";
+        string n = Players.GetValueOrDefault(id)?.Name ?? "A player"; _acct.Remove(id); _authMsgs.Remove(id);
         if (Heroes.Remove(id, out var h) && IsInstanceValid(h)) h.QueueFree();
         if (!_server) return;
+        if (Dedicated && !Players.ContainsKey(id)) return;   // never entered the world, or already removed (a replaced session)
         if (Duel != null && (Duel.A == id || Duel.B == id)) HostDuelOver(Duel.A == id ? Duel.B : Duel.A, id);
         HostLeaveParty(id, false); Players.Remove(id);
         Broadcast(MethodName.R_Note, n + " left the game"); Ui.Note(n + " left the game", Ui.Dim);
@@ -158,12 +167,13 @@ public partial class Net : Node
     {
         if (!_server) return; long id = Sender;
         if (protocol != Protocol) { RpcId(id, MethodName.R_Kick, $"The host runs a different version of Twin Realms (host: {Game.Version}). Both players need the newest download from the beta folder."); return; }
+        if (Dedicated && !_acct.ContainsKey(id)) { RpcId(id, MethodName.R_Kick, "Please log in first."); return; }
         if (Players.Count >= MaxPlayers) { RpcId(id, MethodName.R_Kick, "The host's world is full."); return; }
         var info = FromJson<PeerInfo>(infoJson) ?? new PeerInfo(); info.Id = id; info.Party = 0; Players[id] = info;
-        var me = Player.Instance; var at = me != null && MyZone == 0 ? me.GlobalPosition : World.OnGround(0, 9, .6f);
+        var me = Player.Instance; var at = me != null && MyZone == 0 && !Dedicated ? me.GlobalPosition : World.OnGround(0, 9, .6f);
         RpcId(id, MethodName.R_Welcome, World.Realm, World.TimeOfDay, at);
         foreach (var other in Players.Keys) if (other != id && other != MyId) RpcId(other, MethodName.R_Note, info.Name + " joined the world");
-        Ui.Note(info.Name + " joined your world", Ui.Gold); Sfx.Play("portal");
+        if (Dedicated) GD.Print($"[SERVER] {info.Name} entered the world ({Players.Count} online)"); else { Ui.Note(info.Name + " joined your world", Ui.Gold); Sfx.Play("portal"); }
         SendRoster(); Count("joins");
     }
     [Rpc(MultiplayerApi.RpcMode.Authority)]
@@ -182,7 +192,7 @@ public partial class Net : Node
     void SendRoster()
     {
         if (!_server) return;
-        if (Players.ContainsKey(1)) { var me = MeInfo(); me.Party = Players[1].Party; Players[1] = me; }
+        if (!Dedicated && Players.ContainsKey(1)) { var me = MeInfo(); me.Party = Players[1].Party; Players[1] = me; }
         var roster = ToJson(new List<PeerInfo>(Players.Values)); var parties = ToJson(new List<PartyInfo>(Parties.Values));
         Broadcast(MethodName.R_Roster, roster, parties); SyncHeroes();
     }
@@ -223,14 +233,16 @@ public partial class Net : Node
     {
         if (!Active) return; float dt = (float)delta; var me = Player.Instance;
         if (me == null) return;
-        if (Heroes.Count != Math.Max(0, Players.Count - 1)) SyncHeroes();
-        // our pose 20 times a second to everyone
+        if (Heroes.Count != Math.Max(0, Players.Count - (Players.ContainsKey(MyId) ? 1 : 0))) SyncHeroes();
+        // our pose 20 times a second to everyone (the online server has no hero of its own)
+        if (!Dedicated) {
         _poseT -= dt; if (_poseT <= 0) { _poseT = .05f; Rpc(MethodName.R_Pose, me.NetPacket()); if (Players.TryGetValue(MyId, out var mi)) { mi.Hp = me.Hp; mi.MaxHp = Game.D.MaxHp(); mi.Zone = MyZone; } }
         // level, gear or zone changed: tell the host (it re-sends the roster)
         _meT -= dt; if (_meT <= 0)
         {
             _meT = .5f; var d = Game.D; string sig = d.Level + "|" + MyZone + "|" + d.Name; foreach (var s in PlayerStats.Slots) { var it = d.Eq.GetValueOrDefault(s); sig += "|" + (it == null ? "-" : it.Name + it.Rar + it.Up); }
             if (sig != _meSig) { _meSig = sig; if (_server) SendRoster(); else RpcId(1, MethodName.R_Me, ToJson(MeInfo())); }
+        }
         }
         if (_server)
         {
@@ -360,7 +372,7 @@ public partial class Net : Node
     /// <summary>Living heroes in the overworld that the host's enemies can chase: our own hero and every remote hero.</summary>
     public static IEnumerable<Node3D> WorldHeroes()
     {
-        var me = Player.Instance; if (me != null && !me.Dead && MyZone == 0) yield return me;
+        var me = Player.Instance; if (me != null && !me.Dead && MyZone == 0 && !Dedicated) yield return me;
         if (I == null) yield break;
         foreach (var h in I.Heroes.Values) if (IsInstanceValid(h) && h.HasPose && h.Zone == 0 && !h.Dead) yield return h;
     }
@@ -388,7 +400,7 @@ public partial class Net : Node
     }
     public Vector3? PosOf(long id)
     {
-        if (id == MyId) return Player.Instance != null && MyZone == 0 ? Player.Instance.GlobalPosition : null;
+        if (id == MyId) return Player.Instance != null && MyZone == 0 && !Dedicated ? Player.Instance.GlobalPosition : null;
         return Heroes.TryGetValue(id, out var h) && IsInstanceValid(h) && h.HasPose && h.Zone == 0 ? h.GlobalPosition : null;
     }
     /// <summary>Host: hands out experience, kill counts, quest progress and materials for a shared overworld kill.</summary>

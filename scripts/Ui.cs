@@ -47,10 +47,10 @@ public partial class Ui : CanvasLayer
         _banner = Lbl("", 52, UiTheme.Title); _banner.AddThemeColorOverride("font_outline_color", new Color(0.02f, 0.1f, 0.2f)); _banner.AddThemeConstantOverride("outline_size", 10); _banner.HorizontalAlignment = HorizontalAlignment.Center; _banner.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.CenterTop); _banner.OffsetTop = 130; _banner.OffsetLeft = -400; _banner.OffsetRight = 400; _banner.Modulate = new Color(1, 1, 1, 0);
         _bannerSub = Lbl("", 20, UiTheme.Accent); _bannerSub.HorizontalAlignment = HorizontalAlignment.Center; _bannerSub.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.CenterTop); _bannerSub.OffsetTop = 200; _bannerSub.OffsetLeft = -400; _bannerSub.OffsetRight = 400; _bannerSub.Modulate = new Color(1, 1, 1, 0);
         _flash = new ColorRect { Color = new Color(1, 1, 1, 0), MouseFilter = Control.MouseFilterEnum.Ignore }; _flash.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); AddChild(_flash);
-        Game.Changed += OnChanged;
+        Game.Changed += OnChanged; Net.OnlineChanged += OnOnlineChanged;
     }
     void OnChanged() { if (_rebuild != null && _panel != null) _rebuild(); }
-    public override void _ExitTree() { Game.Changed -= OnChanged; if (I == this) I = null; }
+    public override void _ExitTree() { Game.Changed -= OnChanged; Net.OnlineChanged -= OnOnlineChanged; if (I == this) I = null; }
 
     public override void _Process(double delta) => Feel.Tick(); // Ui always processes, so hit-stop always ends
 
@@ -360,13 +360,23 @@ public partial class Ui : CanvasLayer
         var v = Frame("title", "TWIN REALMS", new Vector2(1060, 640), ShowTitle);
         var top = new HBoxContainer(); v.AddChild(top); top.AddThemeConstantOverride("separation", 12);
         Lbl("Two worlds. One hero. Press R to cross between Light and Shadow.", 16, Dim, top).SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        top.AddChild(Btn("Multiplayer", OpenMultiplayer));
+        if (Game.Online) top.AddChild(Btn("Log out", () => { Net.I?.Logout(); ShowTitle(); }));
+        else { top.AddChild(Btn("Play Online", ShowOnline)); top.AddChild(Btn("Multiplayer", OpenMultiplayer)); }
         top.AddChild(Btn("Settings", OpenSettings));
         top.AddChild(Btn("Quit game", () => GetTree().Quit()));
         Lbl("Version " + Game.Version, 13, Dim, v);
         if (Net.LastNote != "") Row(v, Net.LastNote, new Color(1f, .7f, .5f), 15);
-        Lbl("CHOOSE YOUR HERO", 18, UiTheme.Accent, v);
-        Row(v, "Three heroes share this save. Click a hero to select it (Multiplayer brings the selected hero), Play to enter the world, or create a hero in an empty slot.", Dim, 14);
+        if (Game.Online)
+        {
+            Lbl("ONLINE AS " + Game.OnlineEmail.ToUpper() + " - CHOOSE YOUR HERO", 18, UiTheme.Accent, v);
+            Row(v, "These heroes are saved on the server, so you can play them from any computer. Play enters the shared world with everyone else online.", Dim, 14);
+            if (Net.AuthMsg != "" && Net.OnlineState == "entering") Row(v, Net.AuthMsg, UiTheme.Highlight, 14);
+        }
+        else
+        {
+            Lbl("CHOOSE YOUR HERO", 18, UiTheme.Accent, v);
+            Row(v, "Three heroes share this save. Click a hero to select it (Multiplayer brings the selected hero), Play to enter the world, or create a hero in an empty slot.", Dim, 14);
+        }
         var cards = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; cards.AddThemeConstantOverride("separation", 16); v.AddChild(cards);
         for (int i = 0; i < Game.MaxSlots; i++)
         {

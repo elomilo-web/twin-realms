@@ -1,0 +1,15 @@
+# Not needed to run the online server (keeps the Railway build small and fast)
+.git
+.godot
+.mono
+bin
+obj
+beta
+build
+build_stage
+export
+screenshots
+bot_out
+observe_out
+*.zip
+*.log
