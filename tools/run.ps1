@@ -6,7 +6,8 @@
 #   powershell -File tools/run.ps1 observe  -> builds, runs the observer, writes observe_out/
 #   powershell -File tools/run.ps1 release   -> exports the Windows game and zips it into beta/ (the zip is not committed)
 #   powershell -File tools/run.ps1 upload    -> uploads the zip already in beta/ (no rebuild)
-#   powershell -File tools/run.ps1 publish   -> release, then uploads the zip as a GitHub Release v<version> (notes: tools/release_notes.md)
+#   powershell -File tools/run.ps1 publish   -> release, then uploads the zip as a GitHub Release v<version> (notes: tools/release_notes.md),
+#                                               and pushes data/release.json so the online server makes every game update to it on launch
 # Set $env:GODOT to your Godot .NET console executable if it is not at the default path below.
 param([string]$mode = "bot")
 $ErrorActionPreference = "Continue"
@@ -83,9 +84,16 @@ if ($mode -eq "bot") {
   # builds the game and puts the download for players in beta/ (one zip, replaced each release; GitHub allows files up to 100 MB)
   $ver = ((Select-String project.godot -Pattern 'config/version="([^"]+)"').Matches[0].Groups[1].Value) -replace '[^0-9A-Za-z.]+', '-'
   $zip = "beta/TwinRealms-$ver-Windows.zip"
+  $git = (Get-Command git -ErrorAction SilentlyContinue).Source
+  if (-not $git) { $git = Get-ChildItem "$env:LOCALAPPDATA\GitHubDesktop\app-*\resources\app\git\cmd\git.exe" | Select-Object -Last 1 -ExpandProperty FullName }
   if ($mode -eq "upload") { if (-not (Test-Path $zip)) { "UPLOAD_FAIL: $zip missing, run publish"; exit 1 } } else {
   if (Test-Path build) { Remove-Item -Recurse -Force build }
   New-Item -ItemType Directory -Force build, beta | Out-Null
+  # build id baked into the export (data/build.json, not committed): on launch the game (scripts/Updater.cs) compares it with the build
+  # the online server names in data/release.json (written below by publish) and updates itself when they differ
+  $build = (Get-Date).ToUniversalTime().ToString("yyyyMMddHHmmss") + "-" + ((& $git rev-parse --short HEAD) -join "")
+  $bj = '{ "version": "' + ($ver -replace '-', ' ') + '", "build": "' + $build + '" }'
+  [IO.File]::WriteAllText((Join-Path (Get-Location) "data/build.json"), $bj)
   & $godot --path . --export-release "Windows Desktop" build/TwinRealms.exe 2>&1 | ForEach-Object { "$_" } | Out-File -Encoding utf8 export_log.txt   # not --headless: shader baking needs the GPU (see export)
   if (-not (Test-Path build/TwinRealms.exe)) { "EXPORT_FAIL: see export_log.txt"; exit 1 }
   $stage = "build_stage/TwinRealms"; if (Test-Path build_stage) { Remove-Item -Recurse -Force build_stage }
@@ -102,8 +110,7 @@ if ($mode -eq "bot") {
     # upload the zip as a GitHub Release (2 GB per file, so the 100 MB git limit does not apply). Uses the GitHub login git already has
     # (Windows Credential Manager); the release is tagged v<version> on the current branch and marked as a pre-release.
     # Release notes: tools/release_notes.md if it exists. Extra arg: the branch/commit to tag (default: the current branch).
-    $git = (Get-Command git -ErrorAction SilentlyContinue).Source
-    if (-not $git) { $git = Get-ChildItem "$env:LOCALAPPDATA\GitHubDesktop\app-*\resources\app\git\cmd\git.exe" | Select-Object -Last 1 -ExpandProperty FullName }
+    if (-not (Test-Path data/build.json)) { "PUBLISH_FAIL: data/build.json missing, run release (or publish) first"; exit 1 }
     $remote = & $git remote get-url origin; $repo = ($remote -replace '^https://github.com/', '' -replace '\.git$', '')
     # (fed from a file: a PowerShell pipe adds a byte-order mark and git then rejects the request)
     $q = Join-Path $env:TEMP "tr_credq.txt"; [IO.File]::WriteAllText($q, "protocol=https`nhost=github.com`n`n")
@@ -119,11 +126,20 @@ if ($mode -eq "bot") {
     $body = @{ tag_name = $tag; target_commitish = $branch; name = "Twin Realms $($ver -replace '-', ' ')"; body = $notes; prerelease = $true } | ConvertTo-Json
     try {
     $rel = Invoke-RestMethod -Method Post -Headers $h -ContentType "application/json; charset=utf-8" -Body ([Text.Encoding]::UTF8.GetBytes($body)) "https://api.github.com/repos/$repo/releases"
-    $name = Split-Path $zip -Leaf
+    # the asset name carries the build id, so a player's updater can never download a different build than the server names
+    $bjs = [IO.File]::ReadAllText((Resolve-Path data/build.json)) | ConvertFrom-Json
+    $name = "TwinRealms-$ver-Windows-$($bjs.build).zip"
     $up = Invoke-RestMethod -Method Post -Headers $h -ContentType "application/zip" -InFile $zip -TimeoutSec 3600 "https://uploads.github.com/repos/$repo/releases/$($rel.id)/assets?name=$name"
     "PUBLISH_OK  $($rel.html_url)"
     "DOWNLOAD    $($up.browser_download_url)"
     } catch { "PUBLISH_FAIL: $($_.Exception.Message) $($_.ErrorDetails.Message)"; exit 1 }
+    # tell the online server which build players must run: commit data/release.json and push, which redeploys the server on Railway.
+    # Players' games then update themselves to this zip on their next launch.
+    $rj = '{ "_comment": "Written by tools/run.ps1 publish. The online server tells every game to run this build (scripts/Updater.cs).", "version": "' + $bjs.version + '", "build": "' + $bjs.build + '", "zip": "' + $up.browser_download_url + '" }'
+    [IO.File]::WriteAllText((Join-Path (Get-Location) "data/release.json"), $rj + "`n")
+    & $git add data/release.json; [IO.File]::WriteAllText((Join-Path $env:TEMP "tr_relmsg.txt"), "Release $($bjs.version) ($($bjs.build)): players update to it on launch`n")
+    & $git commit -q -F (Join-Path $env:TEMP "tr_relmsg.txt"); & $git push -q
+    "SERVER      data/release.json pushed; Railway redeploys the server with build $($bjs.build)"
   }
 } else {
   & $godot --path . -- --observe 2>&1 | ForEach-Object { "$_" } | Out-File -Encoding utf8 observe_log.txt

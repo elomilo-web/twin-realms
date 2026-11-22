@@ -9,10 +9,19 @@ One shared world on a server that is always on. Players create an account with e
 - **Accounts**: `TR_DATA/accounts/<id>.json` holds the email, a random salt and a PBKDF2-SHA256 hash (120,000 rounds, `data/online.json` "hashIterations"). Passwords are never stored or logged; logs show `te***@example.com`.
 - **Saves**: `TR_DATA/saves/<id>.json`, the same three-slot format as the local save file. The player's game uploads it on every save: every 20 s in the world (`saveEverySec`), on level changes, and when quitting. The previous copy is kept as `.bak`.
 - **Protection**: a wrong password 5 times in a row locks the account for 60 s. One login per account (logging in elsewhere closes the older session). At most 60 login messages per connection. Saves over 1 MB or with the wrong shape are refused.
-- **Settings**: `data/online.json` (server address shown on the login screen, port, max players, save interval, password length, lockout).
+- **Server address**: fixed in the game, `wss://twin-realms-production.up.railway.app` (`OnlineCfg.Server` in `scripts/Accounts.cs`). Players cannot change it.
+- **Settings**: `data/online.json` (port, max players, save interval, password length, lockout).
+
+## Updates on launch
+Before the title screen the game asks the server which build players must run (`scripts/Updater.cs`). The server answers from `data/release.json`.
+- The exported game has a different build: it downloads that release zip from GitHub (progress bar), closes, copies the new files over its folder and starts again. Saves are in %APPDATA% and are not touched.
+- Same build: **Play Online** unlocks.
+- Server unreachable, download failed, or the game cannot be updated (for example running from source on another network version): **Play Online** stays locked; offline play and friend hosting still work. The title screen says why.
+- Releasing: `tools/run.ps1 publish` exports the game with a build id (`data/build.json`, not committed), uploads `TwinRealms-<version>-Windows-<build>.zip` as the GitHub Release, then writes, commits and pushes `data/release.json`. That push redeploys the server, and from then on every player's game updates itself on launch. Until the redeploy finishes (5-10 minutes) the server still names the previous build, whose zip is gone, so players see "download failed" and can try again shortly.
+- `-- --no-update` skips the check (Play Online stays locked).
 
 ## Play
-Title screen > **Play Online** > type the server address (filled in from `data/online.json`), email and password > **Create account** the first time, **Log in** afterwards. Pick or create a hero, then **Play**. **Log out** (title) or **Quit to title** (pause menu) returns to the heroes saved on this computer.
+Title screen > **Play Online** > email and password > **Create account** the first time, **Log in** afterwards. Pick or create a hero, then **Play**. **Log out** (title) or **Quit to title** (pause menu) returns to the heroes saved on this computer.
 
 ## Deploy on Railway (from GitHub)
 The repository already contains `Dockerfile`, `.dockerignore` and `railway.json`.
@@ -22,7 +31,7 @@ The repository already contains `Dockerfile`, `.dockerignore` and `railway.json`
 4. Service > **Settings > Networking > Generate Domain**, port **8080**. You get an address like `twin-realms-production.up.railway.app`.
 5. **Deployments > View logs** should show:
    `[SERVER] Twin Realms <version> listening on port 8080 (WebSocket), up to 64 players, data in /data`
-6. Put the address in `data/online.json` as `"server": "wss://twin-realms-production.up.railway.app"`, push, and export a new Windows build (`tools/run.ps1 release`) so the login screen fills it in. Players can also type it.
+6. The domain must be exactly `twin-realms-production.up.railway.app` (the game always connects there). Then run `tools/run.ps1 publish` so players get a build that matches the server.
 
 Every push to `main` redeploys the server (players are disconnected for a minute; their heroes are saved up to the last autosave). Keep **1 replica**: the world and the account files live in one process and one volume.
 

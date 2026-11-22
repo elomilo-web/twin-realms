@@ -67,11 +67,19 @@ public partial class Net
         string op = Str(m, "op");
         switch (op)
         {
+            case "version":
+            {
+                // the game's launch check (Updater.cs): which version players must run, and where to download it (data/release.json, written by tools/run.ps1 publish)
+                var rel = Release.Load();
+                Reply(id, new { op = "version", protocol = Protocol, version = rel.Version != "" ? rel.Version : Game.Version, build = rel.Build, zip = rel.Zip });
+                GetTree().CreateTimer(5f).Timeout += () => { if (_peer != null && Array.IndexOf(SM.GetAuthenticatingPeers(), (int)id) >= 0 && !_acct.ContainsKey(id)) SM.DisconnectPeer((int)id); };
+                break;
+            }
             case "login":
             case "register":
             {
                 if (_acct.ContainsKey(id)) return;
-                if (Int(m, "ver") != Protocol) { Reply(id, new { op = "auth", ok = false, msg = $"The server runs a different version of Twin Realms ({Game.Version}). Please download the newest build." }); return; }
+                if (Int(m, "ver") != Protocol) { Reply(id, new { op = "auth", ok = false, msg = $"The server runs a different version of Twin Realms ({Game.Version}). Restart the game to update it." }); return; }
                 string email = Str(m, "email"), pw = Str(m, "pw");
                 // password hashing is slow on purpose: do it off the game thread, then answer on it
                 Task.Run(() =>
@@ -147,6 +155,7 @@ public partial class Net
     /// <summary>Connects to the online server and logs in (op "login") or creates an account (op "register").</summary>
     public bool Connect(string url, string op, string email, string password)
     {
+        if (op != "version" && !Updater.OnlineOk && !OnlineBot.Wanted()) { AuthMsg = Updater.OnlineWhy; OnlineChanged?.Invoke(); return false; }
         Shutdown(); OnlineCfg.Load();
         url = url.Trim(); if (url == "") { AuthMsg = "Type the server address first."; OnlineChanged?.Invoke(); return false; }
         if (!url.Contains("://")) url = (url.StartsWith("localhost") || url.StartsWith("127.") ? "ws://" : "wss://") + url;
@@ -172,6 +181,13 @@ public partial class Net
         var m = Read(data); if (m == null || id != 1) return;
         switch (Str(m, "op"))
         {
+            case "version":
+            {
+                var cb = VersionReply; VersionReply = null; AuthMsg = "";
+                int pr = Int(m, "protocol"); string ve = Str(m, "version"), bu = Str(m, "build"), zi = Str(m, "zip");
+                Callable.From(() => { Shutdown(); cb?.Invoke(pr, ve, bu, zi); }).CallDeferred();   // not inside the peer's own callback
+                return;
+            }
             case "auth":
                 AuthMsg = Str(m, "msg");
                 if (Flag(m, "ok")) { Game.UseOnline(Str(m, "email"), Str(m, "save")); OnlineState = "lobby"; GD.Print("[NET] logged in to the online server"); }
@@ -212,8 +228,23 @@ public partial class Net
         while (wp.GetCurrentOutboundBufferedAmount() > 0 && Time.GetTicksMsec() - t0 < 2000) { ws.Poll(); OS.DelayMsec(5); }
     }
 
+    /// <summary>Launch check (Updater.cs): asks the online server which version to run. reply(protocol, version, build, zipUrl); failure: VersionFailed.</summary>
+    public Action<int, string, string, string>? VersionReply;
+    public void AskVersion(Action<int, string, string, string> reply)
+    {
+        OnlineCfg.Load(); VersionReply = reply;
+        if (!Connect(OnlineCfg.Server, "version", "", "")) { VersionReply = null; VersionFailed?.Invoke(AuthMsg); }
+    }
+
     /// <summary>Log out: close the connection and go back to the heroes saved on this computer.</summary>
     public void Logout() { AuthMsg = ""; Shutdown(); OnlineChanged?.Invoke(); }
 
-    void CloseOnline() { string keep = AuthMsg; Shutdown(); AuthMsg = keep; OnlineChanged?.Invoke(); }
+    void CloseOnline()
+    {
+        string keep = AuthMsg; bool versionCheck = VersionReply != null; VersionReply = null;
+        Shutdown(); AuthMsg = keep;
+        if (versionCheck) { VersionFailed?.Invoke(keep); return; }   // the launch check could not reach the server
+        OnlineChanged?.Invoke();
+    }
+    public Action<string>? VersionFailed;
 }

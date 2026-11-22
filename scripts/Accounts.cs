@@ -12,14 +12,16 @@ namespace TwinRealms;
 /// <summary>Settings for the online server and the Play Online screen (data/online.json).</summary>
 public static class OnlineCfg
 {
-    public static string Server = ""; public static int Port = 8080, MaxPlayers = 64, MinPassword = 8, MaxSaveKb = 1024, FailedBeforeLock = 5, Iterations = 120000;
+    /// <summary>The one online server every player uses (Railway). Players cannot change it.</summary>
+    public const string Server = "wss://twin-realms-production.up.railway.app";
+    public static int Port = 8080, MaxPlayers = 64, MinPassword = 8, MaxSaveKb = 1024, FailedBeforeLock = 5, Iterations = 120000;
     public static float SaveEvery = 20f, LockSeconds = 60f, LoginTimeout = 600f;
     static bool _loaded;
     public static void Load()
     {
         if (_loaded) return; _loaded = true;
         var r = JsonUtil.Load("res://data/online.json").RootElement;
-        Server = JsonUtil.S(r, "server"); Port = (int)JsonUtil.F(r, "port", Port); MaxPlayers = (int)JsonUtil.F(r, "maxPlayers", MaxPlayers);
+        Port = (int)JsonUtil.F(r, "port", Port); MaxPlayers = (int)JsonUtil.F(r, "maxPlayers", MaxPlayers);
         SaveEvery = JsonUtil.F(r, "saveEverySec", SaveEvery); MinPassword = (int)JsonUtil.F(r, "minPassword", MinPassword); MaxSaveKb = (int)JsonUtil.F(r, "maxSaveKb", MaxSaveKb);
         FailedBeforeLock = (int)JsonUtil.F(r, "failedLoginsBeforeLock", FailedBeforeLock); LockSeconds = JsonUtil.F(r, "lockSeconds", LockSeconds);
         LoginTimeout = JsonUtil.F(r, "loginTimeoutSec", LoginTimeout); Iterations = (int)JsonUtil.F(r, "hashIterations", Iterations);

@@ -3,15 +3,16 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c4m07cou0femv"
-path="res://.godot/imported/bark_col.jpg-af37ae049d713e79ad1d6b3c2a0ba2c7.ctex"
+path.s3tc="res://.godot/imported/bark_col.jpg-af37ae049d713e79ad1d6b3c2a0ba2c7.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/textures/gothic/bark_col.jpg"
-dest_files=["res://.godot/imported/bark_col.jpg-af37ae049d713e79ad1d6b3c2a0ba2c7.ctex"]
+dest_files=["res://.godot/imported/bark_col.jpg-af37ae049d713e79ad1d6b3c2a0ba2c7.s3tc.ctex"]
 
 [params]
 

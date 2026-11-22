@@ -3,15 +3,16 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bd2q82uuyq7rk"
-path="res://.godot/imported/brick_nrm.jpg-c90b83f5ca55b60c6d0d0495b2e392ad.ctex"
+path.s3tc="res://.godot/imported/brick_nrm.jpg-c90b83f5ca55b60c6d0d0495b2e392ad.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/textures/gothic/brick_nrm.jpg"
-dest_files=["res://.godot/imported/brick_nrm.jpg-c90b83f5ca55b60c6d0d0495b2e392ad.ctex"]
+dest_files=["res://.godot/imported/brick_nrm.jpg-c90b83f5ca55b60c6d0d0495b2e392ad.s3tc.ctex"]
 
 [params]
 

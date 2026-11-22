@@ -3,15 +3,16 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://1pv0qy8axxq2"
-path="res://.godot/imported/planks_nrm.jpg-eb35dceb919322b039b270ffb39c9fa9.ctex"
+path.s3tc="res://.godot/imported/planks_nrm.jpg-eb35dceb919322b039b270ffb39c9fa9.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/textures/gothic/planks_nrm.jpg"
-dest_files=["res://.godot/imported/planks_nrm.jpg-eb35dceb919322b039b270ffb39c9fa9.ctex"]
+dest_files=["res://.godot/imported/planks_nrm.jpg-eb35dceb919322b039b270ffb39c9fa9.s3tc.ctex"]
 
 [params]
 

@@ -60,7 +60,7 @@ public partial class Main : Node3D
                 GetTree().CreateTimer(5).Timeout += () => { GD.Print($"[QT] replay started={_started} player={Player.Instance != null && IsInstanceValid(Player.Instance)} hp={Player.Instance?.Hp}"); GetTree().Quit(); };
             };
         }
-        ui.ShowTitle();
+        if (Updater.Wanted()) ui.ShowUpdate(); else ui.ShowTitle();   // exported game: get the newest version from GitHub before anyone plays (Updater.cs)
         // a calm backdrop behind the title screen
         var cam = new Camera3D { Name = "TitleCam", Position = new Vector3(0, 30, 60), RotationDegrees = new Vector3(-12, 0, 0), Current = true }; AddChild(cam);
         AddChild(new WorldEnvironment { Name = "TitleEnv", Environment = new Godot.Environment { BackgroundMode = Godot.Environment.BGMode.Color, BackgroundColor = new Color(.04f, .03f, .08f) } });

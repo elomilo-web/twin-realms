@@ -53,7 +53,7 @@ public partial class Ui : CanvasLayer
     void OnChanged() { if (_rebuild != null && _panel != null) _rebuild(); }
     public override void _ExitTree() { Game.Changed -= OnChanged; Net.OnlineChanged -= OnOnlineChanged; if (I == this) I = null; }
 
-    public override void _Process(double delta) => Feel.Tick(); // Ui always processes, so hit-stop always ends
+    public override void _Process(double delta) { Feel.Tick(); UpdateTick(); } // Ui always processes, so hit-stop always ends; UpdateTick: download progress (Updater.cs)
 
     Label Lbl(string t, int size, Color? c = null, Node? parent = null)
     {
@@ -525,11 +525,16 @@ public partial class Ui : CanvasLayer
         var top = new HBoxContainer(); v.AddChild(top); top.AddThemeConstantOverride("separation", 12);
         Lbl("Two worlds. One hero. Press R to cross between Light and Shadow.", 16, Dim, top).SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         if (Game.Online) top.AddChild(Btn("Log out", () => { Net.I?.Logout(); ShowTitle(); }));
-        else { top.AddChild(Btn("Play Online", ShowOnline)); top.AddChild(Btn("Multiplayer", OpenMultiplayer)); }
+        else
+        {
+            var po = Btn("Play Online", ShowOnline); po.Disabled = !Updater.OnlineOk; if (!Updater.OnlineOk) po.TooltipText = Updater.OnlineWhy; top.AddChild(po);   // locked until the launch check matched the server (Updater.cs)
+            top.AddChild(Btn("Multiplayer", OpenMultiplayer));
+        }
         top.AddChild(Btn("Settings", OpenSettings));
         top.AddChild(Btn("Quit game", () => GetTree().Quit()));
         Lbl("Version " + Game.Version, 13, Dim, v);
         if (Net.LastNote != "") Row(v, Net.LastNote, new Color(1f, .7f, .5f), 15);
+        if (!Game.Online && !Updater.OnlineOk) Row(v, "Play Online is locked: " + Updater.OnlineWhy + " Restart the game to try again.", new Color(1f, .7f, .5f), 14);
         if (Game.Online)
         {
             Lbl("ONLINE AS " + Game.OnlineEmail.ToUpper() + " - CHOOSE YOUR HERO", 18, UiTheme.Accent, v);
