@@ -15,6 +15,8 @@ RUN unzip -q /godot.zip -d /opt \
 
 # ---- build the scripts and import the assets
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+# Godot loads these on Linux even when headless (without libfontconfig it fails with "libfontconfig.so.1: cannot open shared object file")
+RUN apt-get update && apt-get install -y --no-install-recommends libfontconfig1 libfreetype6 && rm -rf /var/lib/apt/lists/*
 COPY --from=godot /opt/godot /opt/godot
 WORKDIR /game
 COPY . .
@@ -25,6 +27,7 @@ RUN dotnet build \
 
 # ---- run (the .NET runtime is enough here)
 FROM mcr.microsoft.com/dotnet/runtime:8.0
+RUN apt-get update && apt-get install -y --no-install-recommends libfontconfig1 libfreetype6 && rm -rf /var/lib/apt/lists/*
 COPY --from=build /opt/godot /opt/godot
 COPY --from=build /game /game
 WORKDIR /game
