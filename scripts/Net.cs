@@ -172,7 +172,7 @@ public partial class Net : Node
     void R_Hello(int protocol, string infoJson)
     {
         if (!_server) return; long id = Sender;
-        if (protocol != Protocol) { RpcId(id, MethodName.R_Kick, $"The host runs a different version of Twin Realms (host: {Game.Version}). Both players need the newest download from the beta folder."); return; }
+        if (protocol != Protocol) { RpcId(id, MethodName.R_Kick, $"The host runs a different version of Twin Realms (host: {Game.Version}). Both players need the newest version: restart the game to update it."); return; }
         if (Dedicated && !_acct.ContainsKey(id)) { RpcId(id, MethodName.R_Kick, "Please log in first."); return; }
         if (Players.Count >= MaxPlayers) { RpcId(id, MethodName.R_Kick, "The host's world is full."); return; }
         var info = FromJson<PeerInfo>(infoJson) ?? new PeerInfo(); info.Id = id; info.Party = 0; Players[id] = info;
