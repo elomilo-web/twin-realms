@@ -3,6 +3,8 @@ Units are metres, Y is up, every model sits on y = 0 with its centre at x = z = 
 import json, math, struct
 import numpy as np
 
+TERRAIN_TEX = ('grass', 'meadow', 'gravel', 'rock', 'sand', 'forest', 'snow', 'path', 'cobble')
+
 def hexc(h):
     h = h.lstrip('#'); return np.array([int(h[i:i + 2], 16) / 255 for i in (0, 2, 4)])
 def lin(c): c = np.asarray(c, float); return np.where(c <= .04045, c / 12.92, ((c + .055) / 1.055) ** 2.4)
@@ -14,7 +16,14 @@ class Part:
     def __init__(s, v, f, c=None, mat='matte', smooth=False):
         s.v = np.asarray(v, float).reshape(-1, 3); s.f = np.asarray(f, int).reshape(-1, 3)
         s.c = np.ones((len(s.v), 3)) if c is None else np.asarray(c, float); s.mat = mat; s.smooth = smooth
-    def copy(s): return Part(s.v.copy(), s.f.copy(), s.c.copy(), s.mat, s.smooth)
+        s.tag = None; s.texn = None; s.tile = 2.0; s.mode = 'box'; s.round = False
+    def copy(s):
+        p = Part(s.v.copy(), s.f.copy(), s.c.copy(), s.mat, s.smooth); p.tag, p.texn, p.tile, p.mode, p.round = s.tag, s.texn, s.tile, s.mode, s.round; return p
+    def tex(s, name, tile=2.0, mode=None):
+        """Use a painted texture (assets/textures/painted/<name>_col.jpg, or terrain_painted). tile = metres per repeat.
+        mode: box (flat sides), wrap (round towers, cones), roof (rows run along Z, down the slope). The part's colour becomes light/dark shading only."""
+        s.texn = name; s.tile = tile; s.mode = mode or ('wrap' if s.round else 'box')
+        lum = s.c @ np.array([.3, .59, .11]); s.c = np.repeat(np.clip(.72 + .28 * lum / max(lum.max(), 1e-6), 0, 1)[:, None], 3, 1); return s
     def move(s, x=0, y=0, z=0): s.v = s.v + [x, y, z]; return s
     def scale(s, x=1, y=None, z=None):
         y = x if y is None else y; z = x if z is None else z; s.v = s.v * [x, y, z]
@@ -26,10 +35,10 @@ class Part:
                 a = math.radians(a); c_, s_ = math.cos(a), math.sin(a); i, j = [(1, 2), (2, 0), (0, 1)][ax]
                 vi, vj = s.v[:, i].copy(), s.v[:, j].copy(); s.v[:, i] = vi * c_ - vj * s_; s.v[:, j] = vi * s_ + vj * c_
         return s
-    def paint(s, c): s.c = np.tile(col(c), (len(s.v), 1)); return s
+    def paint(s, c): s.c = np.tile(col(c), (len(s.v), 1)); s.tag = (str(c), str(c)); return s
     def grad(s, bottom, top, axis=1, power=1.0):
         a = s.v[:, axis]; t = (a - a.min()) / max(a.max() - a.min(), 1e-9); t = t[:, None] ** power
-        s.c = col(bottom) * (1 - t) + col(top) * t; return s
+        s.c = col(bottom) * (1 - t) + col(top) * t; s.tag = (str(bottom), str(top)); return s
     def noise(s, amt, seed=0, freq=1.0):
         """Push vertices in and out along their direction from the centre (lumpy rocks, leafy blobs)."""
         ctr = s.v.mean(0); d = s.v - ctr; n = d / np.maximum(np.linalg.norm(d, axis=1, keepdims=True), 1e-9)
@@ -66,7 +75,7 @@ def lathe(profile, seg=12, c='ffffff', mat='matte', smooth=True, caps=True):
                 k = len(v); v.append([0, profile[j][1], 0])
                 for i in range(seg):
                     a, b = j * seg + i, j * seg + (i + 1) % seg; f.append([k, b, a] if flip else [k, a, b])
-    p = Part(v, f, mat=mat, smooth=smooth).paint(c)
+    p = Part(v, f, mat=mat, smooth=smooth).paint(c); p.round = seg >= 6
     return p
 
 def ico(r=1.0, sub=2, c='ffffff', mat='matte', smooth=True):
@@ -120,6 +129,13 @@ def torus(R, r, seg=16, tube=6, c='ffffff', mat='matte', arc=360):
 
 class Model:
     def __init__(s, name): s.name = name; s.parts = []
+    def autotex(s, rules, min_size=.3):
+        """Give parts a painted texture by the colours they were painted with: rules = {(low colour, high colour): (texture, tile)}."""
+        for p in s.parts:
+            if p.texn or p.mat not in ('matte', 'matte2s') or p.tag not in rules: continue
+            if (p.v.max(0) - p.v.min(0)).max() < min_size: continue
+            name, tile = rules[p.tag]; p.tex(name, tile)
+        return s
     def add(s, *ps):
         for p in ps:
             if isinstance(p, Model): s.parts += [q.copy() for q in p.parts]
@@ -133,7 +149,7 @@ class Model:
     def bounds(s): a = np.vstack([p.v for p in s.parts]); return a.min(0), a.max(0)
 
     def baked(s):
-        """Per material: positions, normals, colours (sRGB), indices; flat parts get one normal per face."""
+        """Per material: positions, normals, colours (sRGB), indices, uvs (None if untextured); flat parts get one normal per face."""
         out = {}
         for p in s.parts:
             if len(p.f) == 0: continue
@@ -147,29 +163,49 @@ class Model:
                 v = p.v[p.f].reshape(-1, 3); c = p.c[p.f].reshape(-1, 3); n = np.repeat(fn, 3, axis=0); f = np.arange(len(v)).reshape(-1, 3)
             n = n / np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-12)
             mat = p.mat if p.mat != 'glow' else 'glow_' + ''.join('%02x' % int(round(x * 255)) for x in np.clip(p.c[0], 0, 1))
-            o = out.setdefault(mat, [[], [], [], [], 0])
-            o[0].append(v); o[1].append(n); o[2].append(c); o[3].append(f + o[4]); o[4] += len(v)
-        return {m: (np.vstack(o[0]), np.vstack(o[1]), np.vstack(o[2]), np.vstack(o[3])) for m, o in out.items()}
+            uv = np.zeros((len(v), 2))
+            if p.texn:
+                mat = 'tex_' + p.texn + ('_2s' if p.mat == 'matte2s' else ''); t = p.tile
+                if p.mode == 'wrap':        # round the Y axis: whole repeats round the circumference, so there is no seam
+                    ctr = p.v[:, [0, 2]].mean(0); d = v[:, [0, 2]] - ctr; rad = max(np.hypot(*(p.v[:, [0, 2]] - ctr).T).max(), 1e-6)
+                    if not p.smooth:        # one face = one angle span; keep each triangle on one side of the seam
+                        ang = np.arctan2(d[:, 1], d[:, 0]).reshape(-1, 3); ang = np.where(ang.max(1, keepdims=True) - ang > math.pi, ang + 2 * math.pi, ang).reshape(-1)
+                    else: ang = np.arctan2(d[:, 1], d[:, 0])
+                    uv = np.stack([ang / (2 * math.pi) * max(1, round(2 * math.pi * rad / t)), -v[:, 1] / t], 1)
+                elif p.mode == 'roof': uv = np.stack([v[:, 2] / t, -v[:, 1] / (t * .62)], 1)
+                else:
+                    ax = np.abs(n).argmax(1); uv = np.where((ax == 1)[:, None], v[:, [0, 2]], np.where((ax == 0)[:, None], np.stack([v[:, 2], -v[:, 1]], 1), np.stack([v[:, 0], -v[:, 1]], 1))) / t
+            o = out.setdefault(mat, [[], [], [], [], 0, []])
+            o[0].append(v); o[1].append(n); o[2].append(c); o[3].append(f + o[4]); o[4] += len(v); o[5].append(uv)
+        return {m: (np.vstack(o[0]), np.vstack(o[1]), np.vstack(o[2]), np.vstack(o[3]), np.vstack(o[5]) if m.startswith('tex_') else None) for m, o in out.items()}
 
-    def save(s, path):
-        prims = []; mats = []; accs = []; views = []; blob = bytearray()
+    def save(s, path, tex_rel='../../../textures'):
+        prims = []; mats = []; accs = []; views = []; blob = bytearray(); images = []; textures = []
         def push(arr, ctype, typ, target, mm=False):
             while len(blob) % 4: blob.append(0)
             b = arr.tobytes(); views.append({"buffer": 0, "byteOffset": len(blob), "byteLength": len(b), "target": target}); blob.extend(b)
             a = {"bufferView": len(views) - 1, "componentType": ctype, "count": len(arr), "type": typ}
             if mm: a["min"] = arr.min(0).tolist(); a["max"] = arr.max(0).tolist()
             accs.append(a); return len(accs) - 1
-        for m, (v, n, c, f) in sorted(s.baked().items()):
+        for m, (v, n, c, f, uv) in sorted(s.baked().items()):
             mat = {"name": "TR_" + m.split('_')[0].capitalize(), "pbrMetallicRoughness": {"baseColorFactor": [1, 1, 1, 1], "metallicFactor": 0.0, "roughnessFactor": 0.9}}
             if m == 'metal': mat["pbrMetallicRoughness"].update(metallicFactor=0.8, roughnessFactor=0.35)
             if m == 'matte2s': mat["doubleSided"] = True; mat["name"] = "TR_Matte2S"
             if m.startswith('glow_'): mat["name"] = "TR_Glow_" + m[5:]; mat["emissiveFactor"] = [float(x) for x in lin(hexc(m[5:]))]
+            if m.startswith('tex_'):
+                name = m[4:].replace('_2s', ''); folder = 'terrain_painted' if name in TERRAIN_TEX else 'painted'; mat["name"] = "TR_Tex_" + name
+                if m.endswith('_2s'): mat["doubleSided"] = True
+                for kind in ('col', 'nrm'):
+                    images.append({"uri": f"{tex_rel}/{folder}/{name}_{kind}.jpg"}); textures.append({"source": len(images) - 1, "sampler": 0})
+                mat["pbrMetallicRoughness"]["baseColorTexture"] = {"index": len(textures) - 2}; mat["normalTexture"] = {"index": len(textures) - 1, "scale": 0.7}
             rgba = np.hstack([lin(np.clip(c, 0, 1)), np.ones((len(c), 1))]).astype('<f4')
             prims.append({"attributes": {"POSITION": push(v.astype('<f4'), 5126, "VEC3", 34962, True), "NORMAL": push(n.astype('<f4'), 5126, "VEC3", 34962),
                                          "COLOR_0": push(rgba, 5126, "VEC4", 34962)}, "indices": push(f.astype('<u4').reshape(-1), 5125, "SCALAR", 34963), "material": len(mats)})
+            if uv is not None: prims[-1]["attributes"]["TEXCOORD_0"] = push(uv.astype('<f4'), 5126, "VEC2", 34962)
             mats.append(mat)
         g = {"asset": {"version": "2.0", "generator": "Twin Realms kit_gen"}, "scene": 0, "scenes": [{"nodes": [0]}], "nodes": [{"name": s.name, "mesh": 0}],
              "meshes": [{"name": s.name, "primitives": prims}], "materials": mats, "accessors": accs, "bufferViews": views, "buffers": [{"byteLength": len(blob)}]}
+        if images: g["images"] = images; g["textures"] = textures; g["samplers"] = [{"magFilter": 9729, "minFilter": 9987, "wrapS": 10497, "wrapT": 10497}]
         js = json.dumps(g, separators=(',', ':')).encode(); js += b' ' * (-len(js) % 4); blob += b'\0' * (-len(blob) % 4)
         with open(path, 'wb') as fh:
             fh.write(struct.pack('<III', 0x46546C67, 2, 28 + len(js) + len(blob))); fh.write(struct.pack('<II', len(js), 0x4E4F534A)); fh.write(js)

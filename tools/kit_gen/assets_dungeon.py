@@ -9,7 +9,7 @@ def floor(name, seed=1, rune=None):
     m = Model(name); rs = np.random.RandomState(seed); m.add(box(4, .1, 4, DK).move(0, -.1, 0))
     for i in range(4):
         for j in range(4):
-            c = mixc(ST[0], ST[1], .25 + rs.rand() * .45); m.add(box(.94, .06, .94, c).move(-1.5 + i, -.02 - rs.rand() * .02, -1.5 + j))
+            c = mixc(ST[0], ST[1], .25 + rs.rand() * .45); m.add(box(.94, .06, .94, c).tex('floor_slabs', 2.0).move(-1.5 + i, -.02 - rs.rand() * .02, -1.5 + j))
     if rune: m.add(torus(1.2, .05, 20, 3, mat='glow').paint(rune).scale(1, .3, 1).move(0, .05, 0)); m.add(torus(.7, .04, 6, 3, mat='glow').paint(rune).scale(1, .3, 1).move(0, .05, 0))
     return m
 
@@ -96,7 +96,12 @@ def sarcophagus(name):
     m = Model(name); m.add(box(1.3, .25, 2.6, DK)); m.add(box(1.0, .7, 2.3).grad(*ST).move(0, .25, 0))
     m.add(extrude([(-.58, 0), (.58, 0), (.4, .22), (-.4, .22)], 2.45).grad(ST[0], ST[1]).move(0, .95, 0)); m.add(box(.12, .03, 1.2, GOLD, 'metal').move(0, 1.17, 0)); m.add(box(.6, .03, .12, GOLD, 'metal').move(0, 1.17, .3)); return m
 
+RULES = {ST: ('dungeon_bricks', 2.5), (DK, ST[0]): ('dungeon_bricks', 2.5), (DK, DK): ('dungeon_bricks', 2.5), (DK, ST[1]): ('dungeon_bricks', 2.5), (ST[0], ST[1]): ('dungeon_bricks', 2.5), WOOD: ('planks_dark', 1.5)}
+
 def all_models():
+    return [m.autotex(RULES) for m in _models()]
+
+def _models():
     return [floor('dun_floor_a', 1), floor('dun_floor_b', 2), floor('dun_floor_rune', 3, '6fe8ff'), wall('dun_wall', None, 1), wall('dun_wall_torch', 'ff9a3a', 2), wall('dun_wall_torch_blue', '6fe8ff', 3),
             doorway('dun_doorway'), pillar('dun_pillar'), pillar('dun_pillar_broken', True), stairs('dun_stairs'), gate('dun_gate'), spikes('dun_spikes'),
             chest('chest_wood'), chest('chest_rare', '3a5aa8', GOLD, '6fe8ff'), chest('chest_epic', '6a3a9a', GOLD, 'ffd25a'), brazier('brazier'), brazier('brazier_blue', '6fe8ff'),

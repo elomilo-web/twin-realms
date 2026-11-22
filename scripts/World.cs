@@ -294,9 +294,14 @@ void sky(){
 
         var sh = new Shader { Code = TerrainShader };
         _terrMat = new ShaderMaterial { Shader = sh }; _terrMat.SetShaderParameter("realm_t", 0f);
+        // data/look.json "terrain"."_set": which folder under assets/textures holds the ground textures ("terrain" = ambientCG photos, "terrain_painted" = the painted pack)
+        string terrSet = "terrain";
+        using (var ls = JsonUtil.Load("res://data/look.json"))
+            if (ls.RootElement.TryGetProperty("terrain", out var ts)) terrSet = JsonUtil.S(ts, "_set", "terrain");
+        if (!ResourceLoader.Exists($"res://assets/textures/{terrSet}/grass_col.jpg")) terrSet = "terrain";
         foreach (var layer in new[] { "grass", "meadow", "gravel", "rock", "sand", "forest" })
         {
-            string col = $"res://assets/textures/terrain/{layer}_col.jpg", nrm = $"res://assets/textures/terrain/{layer}_nrm.jpg", ao = $"res://assets/textures/terrain/{layer}_ao.jpg";
+            string col = $"res://assets/textures/{terrSet}/{layer}_col.jpg", nrm = $"res://assets/textures/{terrSet}/{layer}_nrm.jpg", ao = $"res://assets/textures/{terrSet}/{layer}_ao.jpg";
             if (ResourceLoader.Exists(ao)) _terrMat.SetShaderParameter(layer + "_ao", GD.Load<Texture2D>(ao));
             if (ResourceLoader.Exists(col)) _terrMat.SetShaderParameter(layer + "_col", GD.Load<Texture2D>(col));
             if (ResourceLoader.Exists(nrm)) _terrMat.SetShaderParameter(layer + "_nrm", GD.Load<Texture2D>(nrm));
@@ -305,6 +310,15 @@ void sky(){
         using (var ld = JsonUtil.Load("res://data/look.json"))
             if (ld.RootElement.TryGetProperty("terrain", out var tc))
                 foreach (var p in tc.EnumerateObject())
+                {
+                    if (p.Name.StartsWith("_")) continue;
+                    if (p.Value.ValueKind == JsonValueKind.Number) _terrMat.SetShaderParameter(p.Name, p.Value.GetSingle());
+                    else if (p.Value.ValueKind == JsonValueKind.String) _terrMat.SetShaderParameter(p.Name, Color.FromHtml(p.Value.GetString()!));
+                }
+        // the chosen texture set can bring its own tints and grading: look.json "terrain"."<set name>" { ... } is laid over the values above
+        using (var ld2 = JsonUtil.Load("res://data/look.json"))
+            if (ld2.RootElement.TryGetProperty("terrain", out var tc2) && tc2.TryGetProperty(terrSet, out var ov) && ov.ValueKind == JsonValueKind.Object)
+                foreach (var p in ov.EnumerateObject())
                 {
                     if (p.Name.StartsWith("_")) continue;
                     if (p.Value.ValueKind == JsonValueKind.Number) _terrMat.SetShaderParameter(p.Name, p.Value.GetSingle());

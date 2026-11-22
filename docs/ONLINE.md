@@ -16,7 +16,7 @@ Title screen > **Play Online** > type the server address (filled in from `data/o
 
 ## Deploy on Railway (from GitHub)
 The repository already contains `Dockerfile`, `.dockerignore` and `railway.json`.
-1. On railway.com: **New Project > Deploy from GitHub repo** > pick `twin-realms`, then under the service's **Settings > Source** pick the branch to run (`gothic-realism` has the newest game plus the server; `main` has the server on the older art). Railway sees `railway.json` and builds the `Dockerfile`. The first build takes about 5-10 minutes (it downloads Godot and imports the assets).
+1. On railway.com: **New Project > Deploy from GitHub repo** > pick `twin-realms` (branch `main`, the only branch). Railway sees `railway.json` and builds the `Dockerfile`. The first build takes about 5-10 minutes (it downloads Godot and imports the assets).
 2. Open the service > **Variables**: add `PORT` = `8080`.
 3. Right-click the service (or the canvas) > **Attach Volume** > mount path **`/data`**. Without a volume every redeploy deletes all accounts and saves.
 4. Service > **Settings > Networking > Generate Domain**, port **8080**. You get an address like `twin-realms-production.up.railway.app`.
@@ -24,7 +24,7 @@ The repository already contains `Dockerfile`, `.dockerignore` and `railway.json`
    `[SERVER] Twin Realms <version> listening on port 8080 (WebSocket), up to 64 players, data in /data`
 6. Put the address in `data/online.json` as `"server": "wss://twin-realms-production.up.railway.app"`, push, and export a new Windows build (`tools/run.ps1 release`) so the login screen fills it in. Players can also type it.
 
-Every push to the chosen branch redeploys the server (players are disconnected for a minute; their heroes are saved up to the last autosave). Keep **1 replica**: the world and the account files live in one process and one volume.
+Every push to `main` redeploys the server (players are disconnected for a minute; their heroes are saved up to the last autosave). Keep **1 replica**: the world and the account files live in one process and one volume.
 
 Cost: Railway bills for memory and CPU while the server runs; the Hobby plan includes $5 of usage a month. Check Metrics after a few days.
 
