@@ -4,6 +4,7 @@
 .vs
 .vscode
 .godot
+installer
 .mono
 bin
 obj

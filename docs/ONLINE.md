@@ -12,6 +12,11 @@ One shared world on a server that is always on. Players create an account with e
 - **Server address**: fixed in the game, `wss://twin-realms-production.up.railway.app` (`OnlineCfg.Server` in `scripts/Accounts.cs`). Players cannot change it.
 - **Settings**: `data/online.json` (port, max players, save interval, password length, lockout).
 
+## Installer and launcher
+- **Installer** (`installer/`, `TwinRealmsSetup.exe`, about 0.5 MB, .NET Framework 4.8 which Windows 10/11 include): installs for the current user into `%LOCALAPPDATA%\Programs\Twin Realms` (no admin prompt; the folder must stay writable so the game can update itself). It reads `data/release.json` from GitHub, downloads that zip, unpacks it, adds Start menu / desktop shortcuts and an Apps & features entry (uninstall: `TwinRealmsSetup.exe /uninstall`, which asks before deleting offline saves), then starts the game. Running it again repairs the install with the newest version. Link for players: `https://github.com/elomilo-web/twin-realms/releases/latest/download/TwinRealmsSetup.exe`. It is not code-signed, so Windows SmartScreen shows "More info > Run anyway".
+- **Launcher** (`scripts/Updater.cs`): every start of the game opens it first (a 1280x760 window). It checks the server for the current version and updates the game with progress bars, shows the patch notes (from `tools/release_notes.md`, sent by the server), and has the online login with **Remember me** and **Log in automatically**. **PLAY ONLINE** (after logging in) goes straight to the online hero select; **PLAY OFFLINE** opens the usual title screen (offline heroes, Multiplayer).
+- **Saved login**: the server hands out a login token (only its hash is stored in the account file, valid 30 days, at most 5 per account). With Remember me the launcher keeps it in `user://launcher.dat`, encrypted with a key tied to this computer; the password is never stored. Log out in the launcher also tells the server to forget the token.
+
 ## Updates on launch
 Before the title screen the game asks the server which build players must run (`scripts/Updater.cs`). The server answers from `data/release.json`.
 - The exported game has a different build: it downloads that release zip from GitHub (progress bar), closes, copies the new files over its folder and starts again. Saves are in %APPDATA% and are not touched.

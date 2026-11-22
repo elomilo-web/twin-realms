@@ -71,12 +71,13 @@ public partial class Net
             {
                 // the game's launch check (Updater.cs): which version players must run, and where to download it (data/release.json, written by tools/run.ps1 publish)
                 var rel = Release.Load();
-                Reply(id, new { op = "version", protocol = Protocol, version = rel.Version != "" ? rel.Version : Game.Version, build = rel.Build, zip = rel.Zip });
+                Reply(id, new { op = "version", protocol = Protocol, version = rel.Version != "" ? rel.Version : Game.Version, build = rel.Build, zip = rel.Zip, notes = rel.Notes });
                 GetTree().CreateTimer(5f).Timeout += () => { if (_peer != null && Array.IndexOf(SM.GetAuthenticatingPeers(), (int)id) >= 0 && !_acct.ContainsKey(id)) SM.DisconnectPeer((int)id); };
                 break;
             }
             case "login":
             case "register":
+            case "resume":   // pw holds a saved login token (launcher "Remember me")
             {
                 if (_acct.ContainsKey(id)) return;
                 if (Int(m, "ver") != Protocol) { Reply(id, new { op = "auth", ok = false, msg = $"The server runs a different version of Twin Realms ({Game.Version}). Restart the game to update it." }); return; }
@@ -84,10 +85,16 @@ public partial class Net
                 // password hashing is slow on purpose: do it off the game thread, then answer on it
                 Task.Run(() =>
                 {
-                    var res = op == "register" ? Accounts.Register(email, pw) : Accounts.Login(email, pw);
+                    var res = op == "register" ? Accounts.Register(email, pw) : op == "resume" ? Accounts.LoginToken(email, pw) : Accounts.Login(email, pw);
                     string save = res.Ok ? Accounts.LoadSave(res.Key) : "";
-                    Callable.From(() => AuthDone(id, Accounts.Normalize(email), res, save)).CallDeferred();
+                    string token = res.Ok ? (op == "resume" ? pw : Accounts.IssueToken(res.Key)) : "";
+                    Callable.From(() => AuthDone(id, Accounts.Normalize(email), res, save, token)).CallDeferred();
                 });
+                break;
+            }
+            case "forget":
+            {
+                if (_acct.TryGetValue(id, out var k)) { string t = Str(m, "pw"); Task.Run(() => Accounts.DropToken(k, t)); }
                 break;
             }
             case "save":
@@ -107,7 +114,7 @@ public partial class Net
         }
     }
 
-    void AuthDone(long id, string email, Accounts.Result res, string save)
+    void AuthDone(long id, string email, Accounts.Result res, string save, string token)
     {
         if (Array.IndexOf(SM.GetAuthenticatingPeers(), (int)id) < 0) return;   // they left while the password was checked
         if (!res.Ok) { Reply(id, new { op = "auth", ok = false, msg = res.Message }); return; }
@@ -119,7 +126,7 @@ public partial class Net
                 DropSession(kv.Key, "You logged in from somewhere else.");
             }
         _acct[id] = res.Key;
-        Reply(id, new { op = "auth", ok = true, msg = res.Message, email, save });
+        Reply(id, new { op = "auth", ok = true, msg = res.Message, email, save, token });
     }
 
     /// <summary>
@@ -184,13 +191,13 @@ public partial class Net
             case "version":
             {
                 var cb = VersionReply; VersionReply = null; AuthMsg = "";
-                int pr = Int(m, "protocol"); string ve = Str(m, "version"), bu = Str(m, "build"), zi = Str(m, "zip");
+                int pr = Int(m, "protocol"); string ve = Str(m, "version"), bu = Str(m, "build"), zi = Str(m, "zip"); ServerNotes = Str(m, "notes");
                 Callable.From(() => { Shutdown(); cb?.Invoke(pr, ve, bu, zi); }).CallDeferred();   // not inside the peer's own callback
                 return;
             }
             case "auth":
                 AuthMsg = Str(m, "msg");
-                if (Flag(m, "ok")) { Game.UseOnline(Str(m, "email"), Str(m, "save")); OnlineState = "lobby"; GD.Print("[NET] logged in to the online server"); }
+                if (Flag(m, "ok")) { SessionToken = Str(m, "token"); SessionEmail = Str(m, "email"); Game.UseOnline(SessionEmail, Str(m, "save")); OnlineState = "lobby"; GD.Print("[NET] logged in to the online server"); }
                 else CloseOnline();
                 break;
             case "saved":
@@ -230,6 +237,12 @@ public partial class Net
 
     /// <summary>Launch check (Updater.cs): asks the online server which version to run. reply(protocol, version, build, zipUrl); failure: VersionFailed.</summary>
     public Action<int, string, string, string>? VersionReply;
+    /// <summary>Patch notes of the release the server names (markdown), from the version reply.</summary>
+    public static string ServerNotes = "";
+    /// <summary>The last successful login: its token logs in again without the password (the launcher saves it for "Remember me").</summary>
+    public static string SessionToken = "", SessionEmail = "";
+    /// <summary>While logged in (lobby): ask the server to forget a saved login token.</summary>
+    public void ForgetToken(string token) { if (OnlineState == "lobby" && token != "") SM.SendAuth(1, Msg(new { op = "forget", pw = token })); }
     public void AskVersion(Action<int, string, string, string> reply)
     {
         OnlineCfg.Load(); VersionReply = reply;

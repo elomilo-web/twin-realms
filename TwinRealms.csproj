@@ -5,4 +5,9 @@
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+  <ItemGroup>
+    <!-- the Windows installer is its own program (installer/TwinRealmsSetup.csproj) -->
+    <Compile Remove="installer/**" />
+    <None Remove="installer/**" />
+  </ItemGroup>
 </Project>

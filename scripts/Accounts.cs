@@ -38,7 +38,10 @@ public static class Accounts
     public class Account
     {
         public string Email = "", Salt = "", Hash = ""; public int Iter; public long Created, LastLogin;
+        public List<Token> Tokens = new();   // saved logins (launcher "Remember me"): only a hash of each token is stored
     }
+    public class Token { public string Hash = ""; public long Expires; }
+    public const int TokenDays = 30, MaxTokens = 5;
     public record Result(bool Ok, string Message, string Key = "");
 
     static readonly object Gate = new();
@@ -124,6 +127,50 @@ public static class Accounts
         }
         GD.Print($"[ACCOUNTS] login {Mask(email)}");
         return new(true, "Logged in.", key);
+    }
+
+    static string TokHash(string token) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token ?? ""))).ToLowerInvariant();
+    static Account? ReadAcc(string key) { try { return File.Exists(AccPath(key)) ? JsonSerializer.Deserialize<Account>(File.ReadAllText(AccPath(key)), Opt) : null; } catch (Exception e) { GD.PushError("account unreadable: " + e.Message); return null; } }
+
+    /// <summary>A new login token for the account (valid TokenDays; the oldest is dropped beyond MaxTokens). Lets the launcher log in again without the password.</summary>
+    public static string IssueToken(string key)
+    {
+        string token = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32)).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+        lock (Gate)
+        {
+            var acc = ReadAcc(key); if (acc == null) return "";
+            long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            acc.Tokens ??= new(); acc.Tokens.RemoveAll(t => t.Expires < now);
+            acc.Tokens.Add(new Token { Hash = TokHash(token), Expires = now + TokenDays * 86400L });
+            while (acc.Tokens.Count > MaxTokens) acc.Tokens.RemoveAt(0);
+            WriteAtomic(AccPath(key), JsonSerializer.Serialize(acc, Opt));
+        }
+        return token;
+    }
+
+    /// <summary>Login with a saved token instead of the password.</summary>
+    public static Result LoginToken(string email, string token)
+    {
+        email = Normalize(email); string key = KeyOf(email);
+        lock (Gate)
+        {
+            var acc = ReadAcc(key); long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds(); string h = TokHash(token);
+            if (acc == null || string.IsNullOrEmpty(token) || acc.Tokens == null || !acc.Tokens.Exists(t => t.Expires >= now && CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(t.Hash), Encoding.UTF8.GetBytes(h))))
+                return new(false, "Your saved login has expired. Log in with your password.");
+            acc.LastLogin = now; WriteAtomic(AccPath(key), JsonSerializer.Serialize(acc, Opt));
+        }
+        GD.Print($"[ACCOUNTS] login (saved) {Mask(email)}");
+        return new(true, "Logged in.", key);
+    }
+
+    /// <summary>Forget one saved login (launcher "Log out").</summary>
+    public static void DropToken(string key, string token)
+    {
+        lock (Gate)
+        {
+            var acc = ReadAcc(key); if (acc?.Tokens == null) return;
+            string h = TokHash(token); if (acc.Tokens.RemoveAll(t => t.Hash == h) > 0) WriteAtomic(AccPath(key), JsonSerializer.Serialize(acc, Opt));
+        }
     }
 
     /// <summary>The account's save file (three hero slots, the same format as the local save), or "" for a new account.</summary>

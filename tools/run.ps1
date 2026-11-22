@@ -7,7 +7,8 @@
 #   powershell -File tools/run.ps1 release   -> exports the Windows game and zips it into beta/ (the zip is not committed)
 #   powershell -File tools/run.ps1 upload    -> uploads the zip already in beta/ (no rebuild)
 #   powershell -File tools/run.ps1 publish   -> release, then uploads the zip as a GitHub Release v<version> (notes: tools/release_notes.md),
-#                                               and pushes data/release.json so the online server makes every game update to it on launch
+#                                               plus the installer, and pushes data/release.json so the online server makes every game update to it on launch
+#   powershell -File tools/run.ps1 setup     -> builds only the installer: build_setup/TwinRealmsSetup.exe
 # Set $env:GODOT to your Godot .NET console executable if it is not at the default path below.
 param([string]$mode = "bot")
 $ErrorActionPreference = "Continue"
@@ -80,6 +81,10 @@ if ($mode -eq "bot") {
   if (Test-Path TwinRealms-playtest.zip) { Remove-Item TwinRealms-playtest.zip }
   Compress-Archive -Path build/* -DestinationPath TwinRealms-playtest.zip
   "EXPORT_OK  build/TwinRealms.exe  ->  TwinRealms-playtest.zip ($([math]::Round((Get-Item TwinRealms-playtest.zip).Length / 1MB)) MB)"
+} elseif ($mode -eq "setup") {
+  # builds only the installer -> build_setup/TwinRealmsSetup.exe (publish builds and uploads it with every release)
+  dotnet build installer/TwinRealmsSetup.csproj -c Release -nologo -v q -o build_setup
+  if (Test-Path build_setup/TwinRealmsSetup.exe) { "SETUP_OK  build_setup/TwinRealmsSetup.exe" } else { "SETUP_FAIL"; exit 1 }
 } elseif ($mode -eq "release" -or $mode -eq "publish" -or $mode -eq "upload") {
   # builds the game and puts the download for players in beta/ (one zip, replaced each release; GitHub allows files up to 100 MB)
   $ver = ((Select-String project.godot -Pattern 'config/version="([^"]+)"').Matches[0].Groups[1].Value) -replace '[^0-9A-Za-z.]+', '-'
@@ -92,7 +97,8 @@ if ($mode -eq "bot") {
   # build id baked into the export (data/build.json, not committed): on launch the game (scripts/Updater.cs) compares it with the build
   # the online server names in data/release.json (written below by publish) and updates itself when they differ
   $build = (Get-Date).ToUniversalTime().ToString("yyyyMMddHHmmss") + "-" + ((& $git rev-parse --short HEAD) -join "")
-  $bj = '{ "version": "' + ($ver -replace '-', ' ') + '", "build": "' + $build + '" }'
+  $relNotes = if (Test-Path tools/release_notes.md) { [IO.File]::ReadAllText((Resolve-Path tools/release_notes.md)) } else { "" }   # shown in the launcher
+  $bj = [ordered]@{ version = ($ver -replace '-', ' '); build = $build; notes = $relNotes } | ConvertTo-Json -Compress
   [IO.File]::WriteAllText((Join-Path (Get-Location) "data/build.json"), $bj)
   & $godot --path . --export-release "Windows Desktop" build/TwinRealms.exe 2>&1 | ForEach-Object { "$_" } | Out-File -Encoding utf8 export_log.txt   # not --headless: shader baking needs the GPU (see export)
   if (-not (Test-Path build/TwinRealms.exe)) { "EXPORT_FAIL: see export_log.txt"; exit 1 }
@@ -123,19 +129,25 @@ if ($mode -eq "bot") {
     $notes = if (Test-Path tools/release_notes.md) { [IO.File]::ReadAllText((Resolve-Path tools/release_notes.md)) } else { "Twin Realms $ver for Windows. Download the zip below, extract it and run TwinRealms.exe." }
     $old = $null; try { $old = Invoke-RestMethod -Headers $h "https://api.github.com/repos/$repo/releases/tags/$tag" } catch {}
     if ($old) { "Replacing the existing release $tag"; Invoke-RestMethod -Method Delete -Headers $h "https://api.github.com/repos/$repo/releases/$($old.id)" | Out-Null; try { Invoke-RestMethod -Method Delete -Headers $h "https://api.github.com/repos/$repo/git/refs/tags/$tag" | Out-Null } catch {} }
-    $body = @{ tag_name = $tag; target_commitish = $branch; name = "Twin Realms $($ver -replace '-', ' ')"; body = $notes; prerelease = $true } | ConvertTo-Json
+    # the installer (installer/, a small .NET Framework program) goes up with every release: releases/latest/download/TwinRealmsSetup.exe
+    # always points at it, which is why releases are no longer marked as pre-releases
+    dotnet build installer/TwinRealmsSetup.csproj -c Release -nologo -v q -o build_setup | Out-Null
+    if (-not (Test-Path build_setup/TwinRealmsSetup.exe)) { "PUBLISH_FAIL: the installer did not build (dotnet build installer/TwinRealmsSetup.csproj)"; exit 1 }
+    $body = @{ tag_name = $tag; target_commitish = $branch; name = "Twin Realms $($ver -replace '-', ' ')"; body = $notes; prerelease = $false; make_latest = "true" } | ConvertTo-Json
     try {
     $rel = Invoke-RestMethod -Method Post -Headers $h -ContentType "application/json; charset=utf-8" -Body ([Text.Encoding]::UTF8.GetBytes($body)) "https://api.github.com/repos/$repo/releases"
     # the asset name carries the build id, so a player's updater can never download a different build than the server names
     $bjs = [IO.File]::ReadAllText((Resolve-Path data/build.json)) | ConvertFrom-Json
     $name = "TwinRealms-$ver-Windows-$($bjs.build).zip"
     $up = Invoke-RestMethod -Method Post -Headers $h -ContentType "application/zip" -InFile $zip -TimeoutSec 3600 "https://uploads.github.com/repos/$repo/releases/$($rel.id)/assets?name=$name"
+    $su = Invoke-RestMethod -Method Post -Headers $h -ContentType "application/octet-stream" -InFile build_setup/TwinRealmsSetup.exe "https://uploads.github.com/repos/$repo/releases/$($rel.id)/assets?name=TwinRealmsSetup.exe"
     "PUBLISH_OK  $($rel.html_url)"
     "DOWNLOAD    $($up.browser_download_url)"
+    "INSTALLER   https://github.com/$repo/releases/latest/download/TwinRealmsSetup.exe"
     } catch { "PUBLISH_FAIL: $($_.Exception.Message) $($_.ErrorDetails.Message)"; exit 1 }
     # tell the online server which build players must run: commit data/release.json and push, which redeploys the server on Railway.
     # Players' games then update themselves to this zip on their next launch.
-    $rj = '{ "_comment": "Written by tools/run.ps1 publish. The online server tells every game to run this build (scripts/Updater.cs).", "version": "' + $bjs.version + '", "build": "' + $bjs.build + '", "zip": "' + $up.browser_download_url + '" }'
+    $rj = [ordered]@{ _comment = "Written by tools/run.ps1 publish. The online server tells every game to run this build, and the installer installs it (scripts/Updater.cs, installer/Setup.cs)."; version = $bjs.version; build = $bjs.build; zip = $up.browser_download_url; notes = $bjs.notes } | ConvertTo-Json
     [IO.File]::WriteAllText((Join-Path (Get-Location) "data/release.json"), $rj + "`n")
     & $git add data/release.json; [IO.File]::WriteAllText((Join-Path $env:TEMP "tr_relmsg.txt"), "Release $($bjs.version) ($($bjs.build)): players update to it on launch`n")
     & $git commit -q -F (Join-Path $env:TEMP "tr_relmsg.txt"); & $git push -q

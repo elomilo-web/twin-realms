@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Twin Realms installer: a small Windows program (.NET Framework 4.8, built into Windows 10 and 11, so players need nothing else).
+       Build: dotnet build installer/TwinRealmsSetup.csproj -c Release  (tools/run.ps1 setup / publish do this) -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <AssemblyName>TwinRealmsSetup</AssemblyName>
+    <RootNamespace>TwinRealmsSetup</RootNamespace>
+    <ApplicationIcon>icon.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AssemblyTitle>Twin Realms Setup</AssemblyTitle>
+    <Product>Twin Realms</Product>
+    <Version>1.0.0</Version>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
+    <EmbeddedResource Include="..\assets\ui\art\title_shadow.jpg" LogicalName="bg.jpg" />
+    <EmbeddedResource Include="..\assets\ui\art\logo.png" LogicalName="logo.png" />
+    <EmbeddedResource Include="icon.ico" LogicalName="icon.ico" />
+  </ItemGroup>
+</Project>

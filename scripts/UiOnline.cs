@@ -37,7 +37,8 @@ public partial class Ui
     /// <summary>Login finished, failed or the connection dropped: show the right screen (only while on the title screens).</summary>
     void OnOnlineChanged()
     {
-        if (InGame || _upStage != "" || (_panelName != "title" && _panelName != "")) return;   // _upStage: the launch update check owns the screen   // "" = Play was pressed and entering failed
+        if (_lnOn) { OnLauncherOnline(); return; }   // the launcher owns the screen (Updater.cs)
+        if (InGame || (_panelName != "title" && _panelName != "")) return;   // "" = Play was pressed and entering failed
         if (Game.Online && Net.OnlineState == "lobby") { ShowTitle(); return; }
         if (!Game.Online) ShowOnline();
     }
