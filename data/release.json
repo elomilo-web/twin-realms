@@ -1,1 +1,1 @@
-{ "_comment": "Written by tools/run.ps1 publish. The online server tells every game to run this build (scripts/Updater.cs).", "version": "", "build": "", "zip": "" }
+{ "_comment": "Written by tools/run.ps1 publish. The online server tells every game to run this build (scripts/Updater.cs).", "version": "1.4 beta", "build": "20261122231259-3ae49fc", "zip": "https://github.com/elomilo-web/twin-realms/releases/download/v1.4-beta/TwinRealms-1.4-beta-Windows-20261122231259-3ae49fc.zip" }
