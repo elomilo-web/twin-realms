@@ -34,6 +34,16 @@
 - Verified: build OK, bot 81/81 with no engine errors, shots tour OK (131 shots, no errors). `tools/smoke_test.sh` prints "ERROR: 7 resources still in use at exit" and fails, the same as on main (pre-existing).
 - Looks wrong / to do: kit house windows do not light up at night (painted, not the night window material); kit houses and trees are not tinted for the Shadow realm beyond the global tint (`*_shadow` kit pieces unused); fire burst at full AoE size is large on big foes.
 
+**Online server / MMO (2026-11-18).** One shared world on Railway with email + password accounts and saves on the server. Details, Railway steps and known limits: `docs/ONLINE.md`.
+- New: `scripts/Accounts.cs` (accounts and saves as JSON files in `TR_DATA`, PBKDF2-SHA256 hashes, lockout after 5 wrong passwords), `scripts/NetOnline.cs` (headless server mode, WebSocket, login through Godot's authentication step, save uploads, one session per account), `scripts/UiOnline.cs` (Play Online screen), `scripts/OnlineBot.cs` + `tools/online_test.sh` (self-test), `data/online.json` (settings), `Dockerfile`, `.dockerignore`, `railway.json`.
+- Changed: title screen has Play Online, and Log out while online; the hero list comes from the server and every save is uploaded (every 20 s in the world). `Main` has `-- --server` (builds the world, hides its own hero, listens on `$PORT`). `Net`: the dedicated server is not on the roster and its hidden hero is never chased; peers can be ENet or WebSocket; queued data is flushed before an online client closes, so Quit to title right after a save loses nothing. `tools/smoke_test.sh` imports assets on first run and now fails when Godot does not run (it used to print SMOKE_OK even then).
+- Decisions (simplest option, ask to change): WebSocket for the server (Railway has no UDP; friend hosting stays on ENet). Files on a Railway volume instead of a database (no new dependency). Client-trusted saves for now. Quit to title logs out. Realm shift, party chest and the 64-player cap behave as in friend hosting.
+- Verified (Linux cloud machine, Godot 4.7.2 .NET): build OK; `tools/online_test.sh` 19/19 checks on each of two clients playing at once, no errors in the server log; the Docker image builds and runs (about 1 GB image; idle server about 530 MB memory and a third of a CPU core) and both clients pass against it.
+- Gameplay bot after the change: 81/81 (Linux, virtual display, OpenGL), no script errors.
+- Seen once: 2 harmless "ERROR" lines in the Docker server log when a test client logged out and straight back in (an old connection closing at the same moment the server ends it); not in the local runs.
+- Not verified: an actual Railway deployment (no Railway account here); more than 2 players at once; Windows release build with the new screen.
+- Existing, not new: the smoke test sometimes reports ambient sounds still in use at exit (also on the code before this change).
+
 **Art + audio overhaul (2026-11-09), in progress.** Goal: one cohesive Genshin-like look, gear as separate assets on plain base bodies, calm audio.
 Backup before the overhaul: `../twin-realms-backup-2026-11-09.zip` (git is not installed on this PC).
 - Done: `scripts/Toon.cs` (toon lighting + rim on every StandardMaterial3D, screen-space outlines; tune in `data/look.json` "toon"). Brighter grading in look.json.

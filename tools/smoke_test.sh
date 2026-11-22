@@ -7,7 +7,12 @@ set -e
 cd "$(dirname "$0")/.."
 GODOT="${GODOT:-godot}"
 dotnet build
+[ -d .godot/imported ] || "$GODOT" --headless --path . --import
 LOG="$(mktemp)"
-timeout 60 "$GODOT" --headless --path . --quit-after 300 2>&1 | tee "$LOG"
+set +e
+timeout 120 "$GODOT" --headless --path . --quit-after 300 2>&1 | tee "$LOG"
+CODE=${PIPESTATUS[0]}
+set -e
+if [ "$CODE" != 0 ]; then echo "SMOKE_FAIL (Godot exit code $CODE)"; exit 1; fi
 if grep -E "ERROR|SCRIPT ERROR|Unhandled exception|Failed to load" "$LOG"; then echo "SMOKE_FAIL"; exit 1; fi
 echo SMOKE_OK

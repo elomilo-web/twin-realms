@@ -242,7 +242,7 @@ public partial class HudCanvas : Control
         var ids = new System.Collections.Generic.List<long>(); if (party != null) ids.AddRange(party.Members); else ids.AddRange(net.Players.Keys);
         ids.Remove(Net.MyId);
         float w = Mathf.Max(200, u * 15), x = pad, y = sz.Y * .42f;
-        Txt(new Vector2(x, y), party != null ? "PARTY  ·  " + Net.LootModeName(party.Loot).Split(' ')[0].ToUpper() + " LOOT" : $"ONLINE {net.Players.Count}  ·  {(Net.IsHost ? "HOSTING" : "IN " + net.NameOf(1).ToUpper() + "'S WORLD")}", Mathf.Max(11, f - 2), UiTheme.Accent);
+        Txt(new Vector2(x, y), party != null ? "PARTY  ·  " + Net.LootModeName(party.Loot).Split(' ')[0].ToUpper() + " LOOT" : $"ONLINE {net.Players.Count}  ·  {(Net.IsHost ? "HOSTING" : Game.Online ? "TWIN REALMS ONLINE" : "IN " + net.NameOf(1).ToUpper() + "'S WORLD")}", Mathf.Max(11, f - 2), UiTheme.Accent);
         y += 8;
         foreach (var id in ids)
         {

@@ -1,5 +1,7 @@
 # Playing with friends
 
+For the always-on shared world with accounts (Play Online), see `docs/ONLINE.md`. This page is about hosting your own world for friends.
+
 ## Start a game
 - **Host:** title screen > Multiplayer > Host a game. Or, already in the world: Esc > Multiplayer > Open my world to friends.
 - **Join:** title screen > Multiplayer, paste the host's join code (or type their address), then Join. You appear next to the host.

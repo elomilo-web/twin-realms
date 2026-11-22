@@ -46,5 +46,8 @@ Buildings: timber frame, plaster or uneven brick, round clay-tile roofs, stone p
 ## Audio
 Calm and peaceful: soft piano/harp music (Minecraft-like, with long quiet gaps), nature ambience (birds, crickets, breeze, wind in the Shadow realm), gentle sound effects. Effects without a recording use soft synthesised bells in one key. Sources in `assets/ASSETS.md`.
 
+## Online (decided 2026-11-18)
+Twin Realms Online: one shared, always-on world (MMO style) next to single player and friend hosting. Players register and log in with email and password and keep three heroes on the server. The server is the game itself, headless, deployed from GitHub to Railway; it connects over WebSocket because Railway does not forward UDP. For now the player's game is trusted with its own hero (it uploads the save); the server runs the world, enemies, kills, loot, parties and duels. Details and limits: `docs/ONLINE.md`.
+
 ## Not in scope (yet)
-Multiplayer, voice acting, full-body IK, large cities.
+Voice acting, full-body IK, large cities, server-authoritative hero progress, email verification and password reset.

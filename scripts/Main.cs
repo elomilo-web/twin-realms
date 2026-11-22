@@ -15,7 +15,8 @@ public partial class Main : Node3D
         GD.Print("[MAIN] scene start"); Inputs.Setup(); Game.Root = this; Dungeon.Active = false; Arenas.Active = false; Threat.Reset(); World.Realm = 0; World.RealmT = 0; Ui.InGame = false;
         // "Quit to title" reloads this scene: forget the nodes of the old world, which are freed by now (applying the settings below touched the old sun and crashed)
         World.I = null; FloraField.I = null; Player.Instance = null; Enemy.CurrentBoss = null;
-        bool testing = Observer.Wanted() || Bot.Wanted() || Shots.Wanted() || Showcase.Wanted() || FitBot.Wanted() || MpBot.Wanted() != null;
+        if (ServerWanted()) { RunServer(); return; }
+        bool testing = Observer.Wanted() || Bot.Wanted() || Shots.Wanted() || Showcase.Wanted() || FitBot.Wanted() || MpBot.Wanted() != null || OnlineBot.Wanted();
         if (testing) Game.SetPath = "user://test_settings.json";
         Game.LoadSettings();
         if (testing) Inputs.ResetAll(false);   // test bots press the default keys
@@ -31,8 +32,9 @@ public partial class Main : Node3D
         AddChild(new Flag { Name = "Flag" });   // F8: playtest flag (screenshot + report in user://playtest/)
         AddChild(new Net { Name = "Net" });
         var ui = new Ui { Name = "Ui" }; AddChild(ui);
-        Ui.OnNew = (cls, name, race) => { Game.NewGame(cls, name, race); Game.D.Body = Ui.PickedBody; Game.D.PosX = 0; Game.D.PosZ = 9; Begin(); };
-        Ui.OnContinue = () => { if (!Game.Load()) Game.NewGame("warrior", "Hero"); Begin(); };   // plays the hero in Game.Slot (chosen on the character select screen)
+        // logged in to the online server: the hero goes into the shared world instead of a private one
+        Ui.OnNew = (cls, name, race) => { Game.NewGame(cls, name, race); Game.D.Body = Ui.PickedBody; Game.D.PosX = 0; Game.D.PosZ = 9; if (Game.Online) Net.I!.EnterOnline(JoinWorld); else Begin(); };
+        Ui.OnContinue = () => { if (!Game.Load()) Game.NewGame("warrior", "Hero"); if (Game.Online) Net.I!.EnterOnline(JoinWorld); else Begin(); };   // plays the hero in Game.Slot (chosen on the character select screen)
         // multiplayer from the title: bring the saved hero (or the one picked on the title screen)
         void Hero() { if (!Game.HasSave() || !Game.Load()) { Game.NewGame(Ui.PickedClass, Ui.PickedName, Ui.PickedRace); Game.D.Body = Ui.PickedBody; Game.D.PosX = 0; Game.D.PosZ = 9; } }
         Ui.OnHost = port => { Hero(); Begin(); Net.I!.Host(port); };
@@ -45,6 +47,7 @@ public partial class Main : Node3D
         if (Observer.Wanted()) { Game.NewGame("warrior", "Observer"); Begin(); AddChild(new Observer { Name = "Observer" }); return; }
         if (Perf.Wanted()) { Game.SavePath = "user://test_save.json"; Game.SetPath = "user://perf_settings.json"; Game.Set = new Settings(); Game.ApplyDisplay(); Game.NewGame("warrior", "Perf"); Begin(); AddChild(new Perf { Name = "Perf" }); return; }   // performance probe, fresh default settings
         if (Bot.Wanted()) { Game.NewGame("warrior", "Bot"); Begin(); AddChild(new Bot { Name = "Bot" }); return; }
+        if (OnlineBot.Wanted()) { Game.SavePath = "user://online_test_local_save.json"; AddChild(new OnlineBot { Name = "OnlineBot" }); return; }
         if (MpBot.Wanted() is string mode) { AddChild(new MpBot { Name = "MpBot", Mode = mode }); if (mode == "host") { Game.NewGame("paladin", "HostBot", "dwarf"); Begin(); } return; }
         if (System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--quit-test") >= 0)
         {
@@ -63,26 +66,51 @@ public partial class Main : Node3D
         AddChild(new WorldEnvironment { Name = "TitleEnv", Environment = new Godot.Environment { BackgroundMode = Godot.Environment.BGMode.Color, BackgroundColor = new Color(.04f, .03f, .08f) } });
     }
 
-    /// <summary>The host accepted us: build the world next to the host's hero.</summary>
+    /// <summary>The host accepted us: build the world next to the host's hero (online: where the hero was saved).</summary>
     public void JoinWorld()
     {
-        var at = Net.I!.WelcomePos; Game.D.PosX = at.X + 2.5f; Game.D.PosZ = at.Z + 2.5f; Game.D.Time = Net.I.WelcomeTime;
+        var at = Net.I!.WelcomePos; Game.D.Time = Net.I.WelcomeTime;
+        if (!Game.Online) { Game.D.PosX = at.X + 2.5f; Game.D.PosZ = at.Z + 2.5f; }
         Ui.I?.Close(); Begin();
-        Ui.Banner("Joined", $"{Net.I.NameOf(1)}'s world");
+        if (Game.Online) { Net.OnlineState = "in"; Ui.Banner("Twin Realms Online", $"{Net.I.Players.Count} heroes in the world"); }
+        else Ui.Banner("Joined", $"{Net.I.NameOf(1)}'s world");
     }
 
-    void Begin()
+    // ---- online server: godot --headless --path . -- --server   (port: PORT environment variable, else data/online.json)
+    static bool ServerWanted() => System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--server") >= 0;
+    void RunServer()
+    {
+        GD.Print("[SERVER] building the world ...");
+        OnlineCfg.Load(); Engine.MaxFps = 60;
+        Game.SavePath = "user://server_world_save.json"; Game.SetPath = "user://server_settings.json";
+        Net.ChestPath = System.IO.Path.Combine(Accounts.Dir, "party_chest.json");
+        AddChild(new Sfx { Name = "Sfx" });
+        AddChild(new Net { Name = "Net" });
+        AddChild(new Ui { Name = "Ui" });
+        Net.Dedicated = true;
+        Game.NewGame("warrior", "Server"); Game.D.PosX = 0; Game.D.PosZ = 9;
+        Begin(true);
+        // the server's own hero is only there because the world code expects one: hidden, frozen, never chased or listed
+        if (Player.Instance is Player p) { p.Visible = false; p.ProcessMode = ProcessModeEnum.Disabled; p.CollisionLayer = 0; p.CollisionMask = 0; }
+        if (GetNodeOrNull<Node>("CameraRig") is Node rig) rig.ProcessMode = ProcessModeEnum.Disabled;
+        string env = System.Environment.GetEnvironmentVariable("PORT") ?? "";
+        int port = int.TryParse(env, out var ep) && ep > 0 ? ep : OnlineCfg.Port;
+        if (!Net.I!.Serve(port)) GetTree().Quit(1);
+    }
+
+    void Begin(bool server = false)
     {
         if (_started) return; _started = true;
         GetNodeOrNull("TitleCam")?.QueueFree(); GetNodeOrNull("TitleEnv")?.QueueFree();
         Game.RecalcTree();
-        AddChild(new Toon { Name = "Toon" });   // first, so every mesh built after it gets the toon look
+        if (!server) AddChild(new Toon { Name = "Toon" });   // first, so every mesh built after it gets the toon look
         ulong t0 = Time.GetTicksMsec(); var world = new World { Name = "World" }; AddChild(world);
         GD.Print($"[MAIN] world built in {(Time.GetTicksMsec() - t0) / 1000f:0.0} s");   // a joining game is silent on the network this long
         float px = Game.D.PosX, pz = Game.D.PosZ; var pos = World.OnGround(px, pz, 0.6f);
         var player = new Player { Name = "Player", Position = pos };
         var rig = new CameraRig { Name = "CameraRig", Target = player, Position = pos + new Vector3(0, 1.6f, 0) };
         player.Rig = rig; AddChild(player); AddChild(rig); rig.ExcludeFromCollision(player);
+        if (server) return;
         AddChild(new Hud { Name = "Hud" });
         AddChild(new Ambient { Name = "Ambient" });
         Ui.InGame = true; Input.MouseMode = Input.MouseModeEnum.Captured;
@@ -100,9 +128,9 @@ public partial class Main : Node3D
     }
     public override void _Process(double delta)
     {
-        if (!_started) return;
+        if (!_started || Net.Dedicated) return;
         float dt = (float)delta; Game.PlayTime += dt; Game.D.Played += dt; Arenas.Tick(dt); Threat.Tick(dt);
         if (Dungeon.Active) Dungeon.LairTick();   // raid lair: the boss room intro (DungeonLair.cs)
-        _autosave += dt; if (_autosave > 60f && !Arenas.Active) { _autosave = 0; Game.Save(); }
+        _autosave += dt; if (_autosave > (Game.Online ? OnlineCfg.SaveEvery : 60f) && !Arenas.Active) { _autosave = 0; Game.Save(); }
     }
 }
