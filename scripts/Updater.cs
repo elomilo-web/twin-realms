@@ -27,6 +27,8 @@ public static class Updater
     public static bool Wanted()
     {
         if (_done) return false; _done = true;
+        // the blocks trial: never updates itself to the normal release and has no online play (its network version differs)
+        if (ProjectSettings.GetSetting("application/config/trial", false).AsBool()) { OnlineWhy = "this is the blocks trial (offline and friend hosting only)."; return false; }
         if (Array.IndexOf(OS.GetCmdlineUserArgs(), "--no-update") >= 0) { OnlineWhy = "the update check was skipped (--no-update)."; return false; }
         return true;
     }
