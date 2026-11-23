@@ -1,0 +1,93 @@
+{
+ "_help": "Spellcraft: build your own skills from cards, in the spirit of Two Worlds II (read by scripts/Spellcraft.cs, menu B). A spell needs one CARRIER (how it is delivered) and one EFFECT (what it does); MODIFIER cards change it. Extra copies of the same card stack (boosters). A spell can have a second section that goes off where the first one ends (a missile that bursts into an area = a fireball). Carriers come in three families: spell (mana, spell power), martial (stamina, weapon damage) and archery (stamina, weapon damage, needs a bow), so every class can craft. A carrier copies its numbers from an existing skill in data/skills.json ('from'), with 'set' overriding some of them; the effect then replaces its damage type, statuses and (for enchant and ward carriers) its buffs. Modifier 'mods' use the same keys as supports in data/skills.json. Cards are found: kill drops, chests, bosses; every hero starts with a kit for their class.",
+ "maxSpells": 8,
+ "slots": { "_help": "cards per spell (both sections together): base + 1 per perLevels levels + the class bonus for the spell's family, at most max", "base": 4, "perLevels": 5, "max": 10 },
+ "mastery": { "_help": "copies of one card a spell may hold: base + 1 per perLevels levels (Two Worlds II magic mastery)", "base": 2, "perLevels": 6, "max": 6 },
+ "stack": {
+  "_help": "each extra copy of the spell's effect card: +effectP % damage and healing, +statusDurP % status duration, buffs +effectP %. Each extra copy of its carrier card: radius/speed/duration/range/count grow by these %. Every card past the first two raises the cost by costP %.",
+  "effectP": 22, "statusDurP": 12, "costP": 10,
+  "carrier": { "radius": 12, "speed": 15, "dur": 20, "range": 12 }
+ },
+ "second": {
+  "_help": "the second section goes off where the first one ends: costs add up (costP % of its own cost), its cooldown adds cdP %. Only these carriers can be a second section.",
+  "costP": 60, "cdP": 30,
+  "carriers": ["missile", "area", "chain", "strike", "trap", "wall", "vortex", "altar"]
+ },
+ "classSlots": {
+  "_help": "extra cards per spell by class and family",
+  "mage": { "spell": 2 }, "warlock": { "spell": 2 }, "necromancer": { "spell": 2 }, "druid": { "spell": 1, "archery": 1 }, "cleric": { "spell": 1, "martial": 1 },
+  "spellblade": { "spell": 1, "martial": 1 }, "paladin": { "spell": 1, "martial": 1 },
+  "warrior": { "martial": 2 }, "berserker": { "martial": 2 }, "lancer": { "martial": 2 }, "warden": { "martial": 2 },
+  "rogue": { "archery": 2 }, "assassin": { "martial": 1, "archery": 1 }
+ },
+ "classFamilies": {
+  "_help": "which starter kits a class gets",
+  "mage": ["spell"], "warlock": ["spell"], "necromancer": ["spell"], "druid": ["spell", "archery"], "cleric": ["spell"],
+  "spellblade": ["spell", "martial"], "paladin": ["spell", "martial"],
+  "warrior": ["martial"], "berserker": ["martial"], "lancer": ["martial"], "warden": ["martial"],
+  "rogue": ["archery"], "assassin": ["martial", "archery"]
+ },
+ "start": {
+  "all": { "life": 1, "damage": 1 },
+  "spell": { "missile": 2, "area": 1, "fire": 2, "frost": 1, "storm": 1, "time": 1 },
+  "martial": { "slash": 2, "lunge": 1, "steel": 2, "fire": 1, "force": 1 },
+  "archery": { "volley": 2, "rain": 1, "steel": 1, "venom": 1, "fire": 1, "spray": 1 }
+ },
+ "drops": {
+  "_help": "chance a kill or chest gives a card (elite = an upgraded monster). Bosses give bossCards. A card is picked by type weight, then by its own 'w', among cards with req <= hero level + reqAhead.",
+  "kill": 0.045, "elite": 0.2, "boss": 1, "bossCards": 2, "chest": 0.4, "reqAhead": 2,
+  "types": { "carrier": 26, "effect": 40, "modifier": 34 }
+ },
+ "cards": {
+  "missile":  { "type": "carrier", "family": "spell",   "n": "Missile",      "from": "fire",        "req": 1, "w": 10, "d": "A bolt that flies to your aim and explodes.", "stackHint": "Each extra copy: faster and a wider blast." },
+  "area":     { "type": "carrier", "family": "spell",   "n": "Area",         "from": "nova",        "req": 1, "w": 9,  "d": "A burst all around you.", "stackHint": "Each extra copy: a wider burst." },
+  "chain":    { "type": "carrier", "family": "spell",   "n": "Arc",          "from": "zap",         "req": 2, "w": 7,  "d": "Leaps from foe to foe.", "stackHint": "Each extra copy: longer reach." },
+  "strike":   { "type": "carrier", "family": "spell",   "n": "Strike",       "from": "smite",       "req": 2, "w": 7,  "d": "A pillar falls on your target from the sky.", "stackHint": "Each extra copy: a wider impact." },
+  "trap":     { "type": "carrier", "family": "spell",   "n": "Trap",         "from": "runemine",    "req": 3, "w": 6,  "set": { "count": 1, "mp": 18, "cd": 6 }, "d": "A rune on the ground that erupts when a foe steps on it.", "stackHint": "Each extra copy: lasts longer, a wider blast." },
+  "altar":    { "type": "carrier", "family": "spell",   "n": "Altar",        "from": "arcsentry",   "req": 3, "w": 5,  "d": "Raises an altar that strikes the nearest foe again and again.", "stackHint": "Each extra copy: stands longer and reaches farther." },
+  "wall":     { "type": "carrier", "family": "spell",   "n": "Wall",         "from": "firewall",    "req": 4, "w": 5,  "d": "A line of magic across your aim that harms anything crossing it.", "stackHint": "Each extra copy: lasts longer, thicker." },
+  "vortex":   { "type": "carrier", "family": "spell",   "n": "Vortex",       "from": "singularity", "req": 7, "w": 3,  "d": "A well that drags foes in, then implodes.", "stackHint": "Each extra copy: a wider well." },
+  "beam":     { "type": "carrier", "family": "spell",   "n": "Ray",          "from": "sunlance",    "req": 5, "w": 4,  "d": "A ray you hold on the crosshair; it harms all along its length.", "stackHint": "Each extra copy: longer and held longer." },
+  "orbit":    { "type": "carrier", "family": "spell",   "n": "Halo",         "from": "emberhalo",   "req": 5, "w": 4,  "d": "Motes circle you and harm whatever they touch.", "stackHint": "Each extra copy: a wider ring that lasts longer." },
+  "enchant":  { "type": "carrier", "family": "spell",   "n": "Enchant",      "from": "hymnvalor",   "req": 2, "w": 6,  "set": { "mp": 40, "cd": 24, "dur": 12 }, "d": "Blesses you and nearby allies with the effect's power.", "stackHint": "Each extra copy: lasts longer, reaches farther." },
+  "ward":     { "type": "carrier", "family": "spell",   "n": "Ward",         "from": "stoneskin",   "req": 3, "w": 5,  "d": "A shield that soaks damage, shaped by the effect.", "stackHint": "Each extra copy: lasts longer." },
+
+  "slash":    { "type": "carrier", "family": "martial", "n": "Slash",        "from": "cleave",      "req": 1, "w": 9,  "d": "A wide swing of your weapon.", "stackHint": "Each extra copy: reaches farther." },
+  "whirl":    { "type": "carrier", "family": "martial", "n": "Whirl",        "from": "whirlwind",   "req": 2, "w": 6,  "d": "You spin, striking all around each turn.", "stackHint": "Each extra copy: a wider spin." },
+  "leap":     { "type": "carrier", "family": "martial", "n": "Leap",         "from": "leap",        "req": 2, "w": 6,  "d": "Leap to your target and slam down.", "stackHint": "Each extra copy: leap farther, a wider slam." },
+  "lunge":    { "type": "carrier", "family": "martial", "n": "Lunge",        "from": "lunge",       "req": 1, "w": 8,  "d": "Dash forward, striking all in your path.", "stackHint": "Each extra copy: dash farther." },
+  "quake":    { "type": "carrier", "family": "martial", "n": "Quake",        "from": "earthquake",  "req": 5, "w": 4,  "d": "Stamp the ground: it heaves around you in waves.", "stackHint": "Each extra copy: wider waves." },
+  "blades":   { "type": "carrier", "family": "martial", "n": "Blade Ring",   "from": "bladeorbit",  "req": 4, "w": 4,  "d": "Spectral blades orbit you.", "stackHint": "Each extra copy: a wider ring that lasts longer." },
+  "glaive":   { "type": "carrier", "family": "martial", "n": "Glaive",       "from": "moonglaive",  "req": 3, "w": 5,  "d": "A thrown blade that arcs out and back.", "stackHint": "Each extra copy: flies farther." },
+
+  "volley":   { "type": "carrier", "family": "archery", "n": "Volley",       "from": "volley",      "req": 1, "w": 9,  "d": "A fan of arrows.", "stackHint": "Each extra copy: faster arrows." },
+  "rain":     { "type": "carrier", "family": "archery", "n": "Arrow Rain",   "from": "rain",        "req": 2, "w": 7,  "d": "Arrows fall on an area.", "stackHint": "Each extra copy: a wider rain that lasts longer." },
+  "rebound":  { "type": "carrier", "family": "archery", "n": "Rebound Shot", "from": "ricochet",    "req": 3, "w": 5,  "d": "An arrow that bounces between foes.", "stackHint": "Each extra copy: a faster shot." },
+  "snare":    { "type": "carrier", "family": "archery", "n": "Snare",        "from": "beartrap",    "req": 2, "w": 6,  "d": "A hidden trap; the first foe to step on it is held fast.", "stackHint": "Each extra copy: lasts longer, a wider snare." },
+
+  "fire":     { "type": "effect", "n": "Fire",   "adj": "Flame",   "etype": "fire",      "req": 1, "w": 10, "status": { "burn": [1, 1, 0] },                       "buff": { "allP": 12, "critD": 15 },                       "ward": { "res_fire": 40 },               "d": "Fire damage; sets foes ablaze.",            "fx": { "projectile": "fire", "strike": "meteor", "wall": "firewall", "trap": "runemine", "orbit": "emberhalo" } },
+  "frost":    { "type": "effect", "n": "Frost",  "adj": "Frost",   "etype": "frost",     "req": 1, "w": 10, "status": { "chill": [1, 1.2, 0] },                    "buff": { "def": 25, "res_frost": 40 },                   "ward": { "res_frost": 40, "def": 15 },   "d": "Frost damage; chills foes. Three chills freeze.", "fx": { "projectile": "icelance", "nova": "nova", "wall": "icewall", "boomerang": "frostchakram", "vortex": "maelstrom" } },
+  "storm":    { "type": "effect", "n": "Storm",  "adj": "Storm",   "etype": "lightning", "req": 1, "w": 9,  "status": { "shock": [0.6, 1, 0] },                    "buff": { "move": 20, "aspd": 15, "castSpd": 15 },        "ward": { "thorns": 40 },                 "d": "Lightning damage; may shock foes so they take more damage.", "fx": { "chain": "zap", "turret": "arcsentry", "ward": "mirrorward" } },
+  "venom":    { "type": "effect", "n": "Venom",  "adj": "Venom",   "etype": "poison",    "req": 2, "w": 8,  "status": { "poison": [1, 1, 0] },                     "buff": { "poisonChance": 40, "poisonP": 25 },            "ward": { "res_poison": 40 },             "d": "Poison damage; poisons foes (stacks).",      "fx": { "projectile": "thornvolley", "zone": "hex", "wall": "bramble", "turret": "thorntotem" } },
+  "holy":     { "type": "effect", "n": "Holy",   "adj": "Holy",    "etype": "holy",      "req": 2, "w": 8,  "status": { "judged": [1, 1, 0] },                     "buff": { "mr": 20, "def": 15 }, "x": { "hot": 2 },       "ward": { "res_holy": 30, "mr": 20 },     "d": "Holy damage; judged foes take more damage.", "fx": { "strike": "smite", "zone": "consecrate", "beam": "sunlance", "enchant": "hymnvalor" } },
+  "shadow":   { "type": "effect", "n": "Shadow", "adj": "Shadow",  "etype": "shadow",    "req": 3, "w": 7,  "status": { "weaken": [0.7, 1, 0] },                   "buff": { "leech": 5, "hpP": 8 },                          "ward": { "res_shadow": 40 },             "d": "Shadow damage; weakened foes deal less damage.", "fx": { "projectile": "shadowbolt", "chain": "drain", "vortex": "singularity", "beam": "voidray" } },
+  "steel":    { "type": "effect", "n": "Steel",  "adj": "Steel",   "etype": "physical",  "req": 1, "w": 9,  "status": { "bleed": [0.6, 1, 0] },                    "buff": { "def": 30, "tenacity": 30 },                    "ward": { "def": 30, "tenacity": 30 },    "d": "Physical damage; may cause bleeding." },
+  "stone":    { "type": "effect", "n": "Stone",  "adj": "Stone",   "etype": "physical",  "req": 3, "w": 6,  "status": { "root": [0.35, 1, 0], "shred": [0.6, 1, 0] }, "knock": 3, "stun": 0.2, "buff": { "def": 40, "tenacity": 40 }, "ward": { "tenacity": 40, "def": 20 }, "d": "Heavy physical blows that sunder armor and may root foes." },
+  "life":     { "type": "effect", "n": "Life",   "adj": "Living",  "etype": "holy",      "req": 1, "w": 7,  "leech": 25, "heal": 0.2,                             "buff": { "hpP": 10 }, "x": { "hot": 3 },                 "ward": { "hpP": 10 },                    "d": "Holy damage that heals you for a quarter of it. On an enchant or ward it heals over time.", "fx": { "enchant": "renewal" } },
+
+  "damage":   { "type": "modifier", "n": "Damage",     "req": 1, "w": 10, "mods": { "dmgP": 25, "costP": 10 },           "d": "+25% damage, +10% cost." },
+  "time":     { "type": "modifier", "n": "Time",       "req": 1, "w": 8,  "mods": { "durP": 50 },                         "d": "Effects and statuses last 50% longer." },
+  "protection": { "type": "modifier", "n": "Protection", "req": 2, "w": 6, "mods": { "selfHeal": 3, "durP": 10 },          "d": "Each cast mends you for 3% of your health." },
+  "homing":   { "type": "modifier", "n": "Homing",     "req": 2, "w": 7,  "mods": { "homing": 1 },                        "d": "Missiles seek foes; other carriers find weak spots instead." },
+  "spray":    { "type": "modifier", "n": "Spray",      "req": 2, "w": 7,  "mods": { "projCount": 2, "dmgP": -20 },        "d": "Two more missiles (or bursts, strikes, waves), each 20% weaker." },
+  "ricochet": { "type": "modifier", "n": "Ricochet",   "req": 3, "w": 6,  "mods": { "chain": 2, "dmgP": -10 },            "d": "Hits leap on to two more foes." },
+  "pierce":   { "type": "modifier", "n": "Pierce",     "req": 2, "w": 6,  "mods": { "pierce": 2 },                        "d": "Missiles pass through two foes; other hits sunder armor." },
+  "force":    { "type": "modifier", "n": "Force",      "req": 1, "w": 7,  "mods": { "knockP": 60, "stun": 0.3 },          "d": "Hits knock foes back and stun them briefly." },
+  "haste":    { "type": "modifier", "n": "Haste",      "req": 2, "w": 6,  "mods": { "castP": -30, "cdP": -15 },           "d": "30% faster to cast, 15% shorter cooldown." },
+  "echo":     { "type": "modifier", "n": "Echo",       "req": 4, "w": 4,  "mods": { "echo": 1, "dmgP": -30 },             "d": "The spell goes off once more, 30% weaker." },
+  "efficiency": { "type": "modifier", "n": "Efficiency", "req": 1, "w": 7, "mods": { "costP": -30 },                       "d": "Costs 30% less mana or stamina." },
+  "wide":     { "type": "modifier", "n": "Expanse",    "req": 2, "w": 7,  "mods": { "aoeP": 40 },                         "d": "40% larger area; on carriers without one, a reach or blast of their own." },
+  "precision": { "type": "modifier", "n": "Precision", "req": 3, "w": 5,  "mods": { "critC": 12 },                        "d": "+12% critical strike chance." },
+  "reflex":   { "type": "modifier", "n": "Reflex",     "req": 5, "w": 3,  "mods": { "auto": "hit", "autoCd": 3, "dmgP": -20 }, "d": "While on your hotbar, the spell casts itself when you are hit (every 3 s at most)." }
+ }
+}

@@ -594,6 +594,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         if (IsShade) ShadeDrops();   // our own drops (friends roll theirs when their copy falls)
         if (Arena) Arenas.OnEnemyDown(this);
         else if (!netKill) Quests.OnKill(Type, Def.Realm, Def.Boss);
+        if (!Arena && !netKill && !Summoned && !Def.NoLoot && !noDrops) Spellcraft.OnKill(GlobalPosition, Def.Boss, UpgradeCount() > 0);   // spell cards (shared kills: Net.LocalKill)
         if (Def.Boss) { Ui.Banner(Def.N, "has fallen"); Sfx.Play("level"); if (FromDungeon) Dungeon.OnBossDown(this); }
         if (!Arena && !Summoned && !FromDungeon && !Ambusher && RespawnTime <= 0) RespawnTime = (Def.Boss ? Tune.F("monsters.bossRespawn", 600) : Tune.F("monsters.respawn", 260)) * Threat.RespawnMul;   // the land refills faster the longer you play
         Game.Save();

@@ -14,7 +14,7 @@ public static class Inputs
     public const string Spell1 = "spell1", Spell2 = "spell2", Spell3 = "spell3", Spell4 = "spell4";
     public const string PotHp = "pot_hp", PotMp = "pot_mp", Use = "interact", Realm = "realm", Mount = "mount";
     public const string Pack = "ui_pack", Journal = "ui_journal", Map = "ui_map", Tree = "ui_tree";
-    public const string Lock = "lock_on", Unlock = "lock_off", SkillsUi = "ui_skills", AttacksUi = "ui_attacks", ModsUi = "ui_mods";
+    public const string Lock = "lock_on", Unlock = "lock_off", SkillsUi = "ui_skills", AttacksUi = "ui_attacks", ModsUi = "ui_mods", SpellcraftUi = "ui_spellcraft";
     public const string Attack = "attack", Guard = "guard", Heavy = "heavy_attack";
     public const string Macro1 = "macro1", Macro2 = "macro2";   // skill chains (PlayerMacros.cs; set up in Skills > Macros)
     public const string Flag = "playtest_flag";   // F8: screenshot + report for later review (scripts/Flag.cs)
@@ -28,7 +28,7 @@ public static class Inputs
         (Macro1, "Macro 1 (tap: play once, hold: loop)"), (Macro2, "Macro 2 (tap: play once, hold: loop)"),
         (PotHp, "Health potion"), (PotMp, "Mana potion"), (Use, "Interact"), (Realm, "Shift realm"), (Mount, "Horse"),
         (Lock, "Lock on / next target"), (Unlock, "Release lock-on"),
-        (Pack, "Pack"), (Journal, "Journal"), (Map, "Map"), (Tree, "Skill tree"), (SkillsUi, "Skills"), (AttacksUi, "Basic attacks"), (ModsUi, "Modifier tree"), (Pause, "Menu"),
+        (Pack, "Pack"), (Journal, "Journal"), (Map, "Map"), (Tree, "Skill tree"), (SkillsUi, "Skills"), (AttacksUi, "Basic attacks"), (ModsUi, "Modifier tree"), (SpellcraftUi, "Spellcraft"), (Pause, "Menu"),
         (Flag, "Flag for review (screenshot + report)"),
     };
 
@@ -42,7 +42,7 @@ public static class Inputs
         Bind(Macro1, Key.Z); Bind(Macro2, Key.X); Bind(Spell1, Key.Key1); Bind(Spell2, Key.Key2); Bind(Spell3, Key.Key3); Bind(Spell4, Key.Key4); Bind("spell5", Key.Key5); Bind("spell6", Key.Key6);
         Bind(PotHp, Key.H); Bind(PotMp, Key.G); Bind(Use, Key.E); Bind(Realm, Key.R); Bind(Mount, Key.T);
         Bind(Pack, Key.I); Bind(Journal, Key.J); Bind(Map, Key.M); Bind(Tree, Key.K);
-        Bind(Lock, Key.Tab); Bind(Unlock, Key.Q); Bind(SkillsUi, Key.L); Bind(AttacksUi, Key.O); Bind(ModsUi, Key.U); Bind(Flag, Key.F8);
+        Bind(Lock, Key.Tab); Bind(Unlock, Key.Q); Bind(SkillsUi, Key.L); Bind(AttacksUi, Key.O); Bind(ModsUi, Key.U); Bind(SpellcraftUi, Key.B); Bind(Flag, Key.F8);
         BindMouse(Attack, MouseButton.Left); BindMouse(Heavy, MouseButton.Right); Bind(Guard, Key.F);
         InputMap.ActionAddEvent(Lock, new InputEventMouseButton { ButtonIndex = MouseButton.Middle });   // extra default, dropped once rebound
         ApplyBinds();

@@ -271,6 +271,40 @@ public partial class Bot : Node
             d.Supports.Clear(); d.Supports.AddRange(keepSup); Game.Notify();   // later steps unlock modifiers themselves
         });
 
+        await Step("spellcraft", async () =>
+        {
+            // cards make skills (Spellcraft.cs): every carrier with every effect forges; a missile with an area second section bursts where it lands
+            var d = Game.D; var keepCards = new Dictionary<string, int>(d.Cards); var keepSpells = d.Spells.ToList(); var keepBar = (string[])d.Bar.Clone(); var keepW = d.Eq["weapon"];
+            var keepSkills = new Dictionary<string, SkillState>(d.Skills); int keepLvl = d.Level, keepPts = d.RankPts;
+            d.Level = 40; foreach (var c in Spellcraft.All) d.Cards[c.Id] = 40;
+            var refused = new List<string>(); int n = 0;
+            foreach (var car in Spellcraft.All.Where(c => c.Type == "carrier")) foreach (var eff in Spellcraft.All.Where(c => c.Type == "effect"))
+            {
+                var w = new CraftedSpell { A = new() { car.Id, eff.Id } }; var err = Spellcraft.Forge(d, w, "");
+                if (err != null) { refused.Add($"{car.Id}+{eff.Id} ({err})"); continue; }
+                var cc = Skills.Compute(w.Id); if (!float.IsFinite(cc.Dmg) || cc.Cd <= 0 || (cc.Mp <= 0 && cc.St <= 0)) refused.Add($"{car.Id}+{eff.Id} (numbers)"); else n++;
+                Spellcraft.Dismantle(d, w.Id);
+            }
+            Check("spellcraft: every carrier with every effect makes a skill", refused.Count == 0, refused.Count == 0 ? $"{n} spells" : string.Join(", ", refused.Take(6)));
+            var fb = new CraftedSpell { A = new() { "missile", "fire" }, B = new() { "area", "frost" } }; var fe = Spellcraft.Forge(d, fb, "");
+            Check("spellcraft: a missile into a frost area forges", fe == null, fe ?? "");
+            if (fe == null)
+            {
+                d.Bar[0] = fb.Id; d.Eq["weapon"] = new Item { Name = "Bot wand", Slot = "weapon", Wt = "wand", Dmg = 10 }; Game.Notify();
+                var spot = World.OnGround(-70, -95, .5f); P.Teleport(spot, 0f); Heal(); await Wait(.2f);
+                var e = new Enemy { Type = "brute", Level = 40, AnyRealm = true, NoLeash = true, Position = P.GlobalPosition + new Vector3(0, 0, -7f) }; Game.Root!.AddChild(e);
+                await Wait(.25f); e.Stun(30f); Targeting.Set(e); Face(e.GlobalPosition); await Wait(.1f);
+                float hp0 = e.Hp; Press("spell1", true); await Wait(.05f); Press("spell1", false); await Wait(Skills.Compute(fb.Id).Cast + 1.2f);
+                bool alive = GodotObject.IsInstanceValid(e) && !e.Dead, hurt = !alive || e.Hp < hp0, chilled = !alive || e.Status.List.Exists(x => x.Def.Id is "chill" or "freeze");
+                Check("spellcraft: the missile hits and its second section goes off where it lands", hurt && chilled, $"hp {hp0:0}->{(alive ? e.Hp : 0):0}, chilled {chilled}");
+                Targeting.Clear(); if (GodotObject.IsInstanceValid(e)) e.QueueFree();
+                Spellcraft.Dismantle(d, fb.Id);
+            }
+            d.Level = keepLvl; d.RankPts = keepPts; d.Cards.Clear(); foreach (var kv in keepCards) d.Cards[kv.Key] = kv.Value;
+            d.Spells.Clear(); d.Spells.AddRange(keepSpells); d.Bar = keepBar; d.Eq["weapon"] = keepW;
+            d.Skills.Clear(); foreach (var kv in keepSkills) d.Skills[kv.Key] = kv.Value; Skills.GrantStarting(d); Game.Notify(); Heal();
+        });
+
         await Step("classes, races, skill tree, passives and storage", async () =>
         {
             TreeDb.Load(); var d = Game.D;

@@ -77,7 +77,8 @@ void fragment() {
     /// <summary>The animation a skill uses at a given moment, or "" if it has none.</summary>
     public static string For(string skillId, string moment)
     {
-        Load(); return _skills.TryGetValue(skillId, out var d) && d.TryGetValue(moment, out var n) ? n : "";
+        Load(); skillId = Spellcraft.FxOf(skillId);   // crafted spells play the animations of the skill they are built on
+        return _skills.TryGetValue(skillId, out var d) && d.TryGetValue(moment, out var n) ? n : "";
     }
 
     /// <summary>Play the animation data/spellfx.json gives this skill for this moment. Does nothing if there is none.</summary>
@@ -86,7 +87,7 @@ void fragment() {
     public static SpellFxSprite? Skill(string skillId, string moment, Vector3 pos, float scale = 1f, float life = 0f)
     {
         string n = For(skillId, moment); if (n == "") return null;
-        if (!Remote) Net.I?.Fx(skillId, moment, pos, scale, life, false);   // multiplayer: friends nearby see our skills (Settings > Game)
+        if (!Remote) Net.I?.Fx(Spellcraft.FxOf(skillId), moment, pos, scale, life, false);   // (friends do not know our crafted spells, only what they look like)   // multiplayer: friends nearby see our skills (Settings > Game)
         return Play(n, pos, scale, life);
     }
 
@@ -95,7 +96,7 @@ void fragment() {
     {
         string n = For(skillId, moment); if (n == "") return null;
         // effects on our own hero follow our drawn hero on friends' screens (projectile trails are drawn by the shared projectile itself)
-        if (!Remote && to is Player) Net.I?.Fx(skillId, moment, offset ?? Vector3.Zero, scale, life, true);
+        if (!Remote && to is Player) Net.I?.Fx(Spellcraft.FxOf(skillId), moment, offset ?? Vector3.Zero, scale, life, true);
         return Attach(n, to, offset, scale, life);
     }
 

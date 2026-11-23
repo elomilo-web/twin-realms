@@ -33,6 +33,9 @@ public class SkillDef
     public float XOr(string k, float d) => X.TryGetValue(k, out var v) ? v : d;
     public int Count = 1, Pierce, Chain, Req = 1, Cost = 1; public bool Homing, Self, Behind, Crit, Arrow;
     public Dictionary<string, float[]> Status = new(); public Dictionary<string, float> Buff = new();
+    // crafted spells (Spellcraft.cs): modifier cards built into the skill (support ids, applied on top of the socketed ones),
+    // the hidden skill its second section fires where this one ends ("" = none), and whether it was built from cards
+    public List<string> CardMods = new(); public string Then = ""; public bool Crafted;
 }
 public class SupportDef { public string Id = "", Name = "", Desc = ""; public List<string> Tags = new(); public int Cost = 1, Req = 1; public Dictionary<string, float> Num = new(); public string Auto = "", Convert = ""; public Dictionary<string, float[]> Status = new(); }
 
@@ -69,6 +72,12 @@ public static class Skills
     public static SupportDef? Sup(string id) { Load(); return _p.GetValueOrDefault(id); }
     public static IEnumerable<SkillDef> All { get { Load(); foreach (var k in SkillOrder) yield return _s[k]; } }
     public static IEnumerable<SupportDef> AllSupports { get { Load(); foreach (var k in SupportOrder) yield return _p[k]; } }
+
+    /// <summary>Crafted spells (Spellcraft.cs) join the skills at run time. listed = shown in the skills menu (the second sections and the menu preview are not).</summary>
+    public static void Register(SkillDef s, bool listed) { Load(); _s[s.Id] = s; if (listed) { if (!SkillOrder.Contains(s.Id)) SkillOrder.Add(s.Id); } else SkillOrder.Remove(s.Id); }
+    public static void Unregister(string id) { _s.Remove(id); SkillOrder.Remove(id); }
+    /// <summary>Modifier cards: supports that only crafted spells hold (not in the modifier tree, not socketable).</summary>
+    public static void RegisterSupport(SupportDef s) { Load(); _p[s.Id] = s; }
 
     static Dictionary<string, float[]> St(JsonElement e)
     {
@@ -121,7 +130,7 @@ public static class Skills
     /// <summary>Old saves and new characters: class skills are learned and put on the bar.</summary>
     public static void GrantStarting(PlayerStats d)
     {
-        Load();
+        Load(); Spellcraft.Sync(d);   // the hero's crafted spells become skills, new heroes get their starter cards
         foreach (var id in Classes.Get(d.Class).Skills) if (_s.ContainsKey(id) && !d.Skills.ContainsKey(id) && !d.Forgot.Contains(id)) d.Skills[id] = new SkillState();   // (not the ones you chose to unlearn)
         if (d.Skills.Count == 0 && d.Forgot.Count == 0) foreach (var id in new[] { "fire", "nova", "heal", "zap" }) d.Skills[id] = new SkillState();
         if (d.Bar == null || d.Bar.Length < 6) { var nb = new string[6]; if (d.Bar != null) Array.Copy(d.Bar, nb, d.Bar.Length); d.Bar = nb; }
@@ -144,6 +153,7 @@ public static class Skills
     {
         var d = Game.D; var s = Get(id); done = "";
         if (s == null || !d.Skills.TryGetValue(id, out var st)) return "Not learned";
+        if (st.Rank <= 1 && s.Crafted) return $"{s.Name} is a crafted spell: take it apart in Spellcraft ({Inputs.KeyOf(Inputs.SpellcraftUi)}) to get its cards back";
         if (st.Rank > 1)
         {
             st.Rank--; d.RankPts++; while (st.Sup.Count > Sockets(st.Rank)) st.Sup.RemoveAt(st.Sup.Count - 1);
@@ -179,14 +189,15 @@ public static class Skills
     /// Resolves a skill: base damage (spell: dmg + lvl x character level, times spell power; weapon: mult x weapon damage), rank bonus,
     /// support modifiers (more/less damage multiply; area, speed, cost and cooldown add up), passive bonuses (cdr, mcost, skillP, area), and statuses.
     /// </summary>
-    public static SkillCalc Compute(string id)
+    public static SkillCalc Compute(string id, string? stateOf = null)
     {
-        Load(); var d = Game.D; var TS = Game.TS; var k = _s[id]; var st = d.Skills.GetValueOrDefault(id) ?? new SkillState();
+        // stateOf: whose rank and sockets to use (a crafted spell's second section uses the spell's own)
+        Load(); var d = Game.D; var TS = Game.TS; var k = _s[id]; var st = d.Skills.GetValueOrDefault(stateOf ?? id) ?? new SkillState();
         var c = new SkillCalc { Def = k, Type = k.Type, Radius = k.Radius, Speed = k.Speed, Spread = k.Spread, Knock = k.Knock, Stun = k.Stun, Up = k.Up, Leech = k.Leech, Heal = k.Heal, Dur = k.Dur, Tick = k.Tick, Count = k.Count, Pierce = k.Pierce, Chain = k.Chain, Homing = k.Homing };
         float more = 1 + RankP * (st.Rank - 1) / 100f, aoe = 1 + TS["aoeP"] / 100f, spd = 1, cost = 1 + TS["mcost"] / 100f, cd = 1 - TS["cdr"] / 100f, cast = 1, knock = 1, dur = 1, tick = 1, heal = 1;
         float supMore = 1, supAoe = 1; bool off = false, offCrit = false;   // the modifiers' own share, for the stand-in effects below
         foreach (var kv in k.Status) c.Status.Add((kv.Key, kv.Value.Length > 0 ? kv.Value[0] : 1, kv.Value.Length > 1 ? kv.Value[1] : 1, kv.Value.Length > 2 ? kv.Value[2] : 0));
-        foreach (var sid in st.Sup)
+        foreach (var sid in k.CardMods.Count > 0 ? st.Sup.Concat(k.CardMods) : st.Sup)
         {
             var s = Sup(sid); if (s == null || !Fits(s, k)) continue; float N(string key) => s.Num.GetValueOrDefault(key);
             supMore *= 1 + N("dmgP") / 100f; supAoe += N("aoeP") / 100f;

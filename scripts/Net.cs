@@ -432,7 +432,7 @@ public partial class Net : Node
     void R_Kill(string type, int realm, bool boss, int xp, Vector3 at, string mats) { LocalKill(type, realm, boss, xp, at, mats); Count("kills"); }
     static void LocalKill(string type, int realm, bool boss, int xp, Vector3 at, string mats)
     {
-        Game.D.Kills++; Player.Instance?.AddXp(xp, at); Quests.OnKill(type, realm, boss);
+        Game.D.Kills++; Player.Instance?.AddXp(xp, at); Quests.OnKill(type, realm, boss); Spellcraft.OnKill(at, boss, false);
         foreach (var s in mats.Split(';', StringSplitOptions.RemoveEmptyEntries)) { var p = s.Split(':'); if (p.Length == 2 && int.TryParse(p[1], out int n)) GatherDb.Give(p[0], n, at); }
     }
 }

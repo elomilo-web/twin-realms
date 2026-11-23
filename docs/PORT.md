@@ -1,5 +1,13 @@
 # Port status
 
+**Spellcraft (2026-11-22).** Two Worlds II-style card crafting, open to every class (menu B, `scripts/Spellcraft.cs`, `scripts/UiSpellcraft.cs`, `scripts/PlayerSpellcraft.cs`, `data/spellcards.json`).
+- A spell = one carrier card (how: 12 spell carriers on mana, 7 weapon arts and 4 archery carriers on stamina) + one effect card (what: fire, frost, storm, venom, holy, shadow, steel, stone, life) + modifier cards (damage, time, protection, homing, spray, ricochet, pierce, force, haste, echo, efficiency, expanse, precision, reflex). Extra copies stack (boosters). Optional second section goes off where the first ends (missile into area = fireball; a leap can land in a fire burst).
+- A carrier copies an existing skill's numbers (`from`), so crafted spells use the existing kinds, animations and modifier stand-ins. They are registered as ordinary skills (`cs1`, `cs2`...; second sections `cs1.2`, hidden): hotbar, macros, rank-ups and socketed supports all work. Modifier cards are supports `card.<id>` held in `SkillDef.CardMods`.
+- Limits: cards per spell grow with level plus a class bonus per family (`classSlots`), copies of one card per section grow with level (`mastery`), 8 spells. Cards in a spell are in use until it is taken apart (ranks bought are refunded).
+- Cards drop from kills (4.5%, elites 20%, bosses 2), chests (40%); every hero gets a class kit once (old saves too).
+- Verified: builds with Godot.NET.Sdk 4.7.2 on Linux; headless test of the logic and both menus, 66/66 (every class kit forges; all 23x9 carrier x effect skills resolve; every modifier card changes a spell; stacking; second section rank; save/load; old saves; drops). New bot step "spellcraft" (fires a missile + frost area at a dummy) was not run here: run the bot.
+- Not done / limits: crafted enchants only bless your own hero in multiplayer (friends do not know the spell); friends see the animations of the skill a crafted spell is built on. No card shop or card trading yet.
+
 **Master tuning file (2026-11-11).** `data/tuning.json`: "game" = numbers moved out of code (player base stats, regen, potions, stamina costs, monster xp/gold/drop chances/respawns, area levels, camp counts, item stat formulas, shop prices, arena waves; `Tune.F`), "files" = overrides laid over the other data files in `JsonUtil.Load` (progression, enemies, loot, items, feel, valor, wildlife). enemies.json now also loads through JsonUtil. Bot step "master tuning file".
 - F8 playtest flag (`Flag.cs`), fairer sprint and faster run (feel.json "move") - see git log.
 

@@ -14,6 +14,7 @@ public partial class Projectile : Node3D
     public HashSet<Enemy> Hits = new();
     // skill projectiles: resolved skill (type, statuses, leech), pierce and chain counts, homing, colour
     public SkillCalc? Calc; public int PierceLeft, ChainLeft; public bool Homing; public Color? Tint; public Enemy? Source;
+    public System.Action<Vector3>? OnEnd;   // crafted spells: the second section goes off where the missile ends (PlayerSpellcraft.cs)
     public List<(string id, float chance)>? Statuses;   // basic-attack chain step statuses (data/attacks.json)
     HitInfo HitFor(Vector3 from)
     {
@@ -116,6 +117,7 @@ public partial class Projectile : Node3D
         if (Own == 'x') { if (Aoe > 0) Vfx.Explosion(to, Aoe); else Fx.Burst(to, new Color(0.8f, 0.8f, 0.9f), 4, 2f, 0.25f, 0.06f); QueueFree(); return; }
         if (Own == 'p')
         {
+            if (OnEnd != null) { var cb = OnEnd; OnEnd = null; cb(to); }
             if (Calc != null) SpellFx.Skill(Calc.Def.Id, "hit", to, Aoe > 0 ? Mathf.Max(1f, Aoe * 2f / Mathf.Max(.1f, SpellFx.SizeOf(SpellFx.For(Calc.Def.Id, "hit")))) : 1f);
             if (Aoe > 0)
             {

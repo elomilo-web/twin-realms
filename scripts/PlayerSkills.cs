@@ -240,6 +240,7 @@ public partial class Player
     {
         var k = c.Def; var origin = MuzzlePos(); var col = Dmg.TypeColor(c.Type);
         if (!_castFxDone) CastFx(c, origin); _castFxDone = false;   // weapon skills and auto-casts: the cast animation plays at the impact
+        _fuAt = null; _fuDelay = 0;   // where (and when) a crafted spell's second section goes off; the kinds below set it (PlayerSpellcraft.cs)
         switch (k.Kind)
         {
             case "projectile":
@@ -253,6 +254,7 @@ public partial class Player
                     string vis = c.Type == "fire" ? "fire" : k.Arrow || (k.Scale == "weapon" && c.Type == "physical") ? "arrow" : "bolt";
                     var p = Projectile.Spawn(vis, 'p', origin, d * c.Speed + (vis == "arrow" ? Vector3.Up * .5f : Vector3.Zero), c.Dmg, 2.4f, Crit(c), false, c.Radius, c.Charge > .5f);   // empowered: drawn bigger
                     p.Calc = c; p.PierceLeft = c.Pierce; p.ChainLeft = c.Chain; p.Homing = c.Homing; p.Tint = col;
+                    if (k.Then != "" && !echo) p.OnEnd = at => FollowUp(c, at);   // crafted spell: the second section bursts where it lands
                     SpellFx.SkillAttach(k.Id, "travel", p, null, 1f + .6f * c.Charge);
                 }
                 break;
@@ -272,7 +274,7 @@ public partial class Player
             case "chain":
             {
                 var (t, cur) = Aim(k.Range, forced); cur ??= NearestFoe(28f);
-                if (cur == null) { Vfx.Lightning(origin, t, col); BeamFx(k.Id, origin, t); break; }
+                if (cur == null) { Vfx.Lightning(origin, t, col); BeamFx(k.Id, origin, t); _fuAt = t; break; }
                 var seen = new HashSet<Enemy>();
                 int hitsN = System.Math.Max(1, c.Chain) + (k.Id == "zap" ? (int)Game.TS["chain"] : 0);
                 // more "projectiles": more bolts, each starting at a foe the others have not touched
@@ -283,7 +285,7 @@ public partial class Player
                     {
                         var pt = cur.GlobalPosition + new Vector3(0, cur.HeightM() * .55f, 0); Vfx.Lightning(prev, pt, col, .28f); seen.Add(cur);
                         BeamFx(k.Id, prev, pt); SpellFx.Skill(k.Id, "hit", pt);
-                        cur.TakeHit(c.Hit(dm, GlobalPosition, Crit(c))); dm *= .82f; prev = pt; cur = NearestFoe(c.Jump, cur.GlobalPosition, seen);
+                        cur.TakeHit(c.Hit(dm, GlobalPosition, Crit(c))); dm *= .82f; prev = pt; _fuAt = pt; cur = NearestFoe(c.Jump, cur.GlobalPosition, seen);
                     }
                     cur = NearestFoe(28f, GlobalPosition, seen);
                 }
@@ -308,16 +310,16 @@ public partial class Player
             case "zone":
             {
                 var at = k.Self ? GlobalPosition : c.At ?? Ground(Aim(40f, forced).pt);
-                var z = new SkillZone { Calc = c, Col = col, Rain = k.Id == "rain", Follow = k.Self }; Game.Root!.AddChild(z); z.GlobalPosition = at;
+                var z = new SkillZone { Calc = c, Col = col, Rain = Spellcraft.Base(k.Id) == "rain", Follow = k.Self }; Game.Root!.AddChild(z); z.GlobalPosition = at; _fuAt = at;
                 // more "projectiles": more zones around the first (they stay where they land)
-                for (int i = 1; i < c.Count; i++) { var z2 = new SkillZone { Calc = c, Col = col, Rain = k.Id == "rain" }; Game.Root!.AddChild(z2); z2.GlobalPosition = Ground(Around(at, i, c.Count, c.Radius * 1.7f)); }
+                for (int i = 1; i < c.Count; i++) { var z2 = new SkillZone { Calc = c, Col = col, Rain = Spellcraft.Base(k.Id) == "rain" }; Game.Root!.AddChild(z2); z2.GlobalPosition = Ground(Around(at, i, c.Count, c.Radius * 1.7f)); }
                 if (c.Chain > 0) ChainFrom(c, at, c.Chain);
                 break;
             }
             case "strike":
             {
                 var at = c.At ?? Ground(Aim(45f, forced).pt);
-                var s = new SkillZone { Calc = c, Col = col, Strike = true }; Game.Root!.AddChild(s); s.GlobalPosition = at;
+                var s = new SkillZone { Calc = c, Col = col, Strike = true }; Game.Root!.AddChild(s); s.GlobalPosition = at; _fuAt = at; _fuDelay = c.Delay + .05f;
                 // more "projectiles": more strikes around the first, each a moment later
                 for (int i = 1; i < c.Count; i++) { var s2 = new SkillZone { Calc = c, Col = col, Strike = true, Late = .12f * i }; Game.Root!.AddChild(s2); s2.GlobalPosition = Ground(Around(at, i, c.Count, c.Radius * 1.6f)); }
                 if (c.Chain > 0) GetTree().CreateTimer(Mathf.Max(.05f, c.Delay)).Timeout += () => { if (!Dead) ChainFrom(c, at, c.Chain); };
@@ -335,7 +337,7 @@ public partial class Player
                     p.Calc = c; p.PierceLeft = 2; p.Tint = c.Type == "physical" ? W.Trail : col;
                 }
                 if (hit != null) SpellFx.Skill(k.Id, "hit", hit.GlobalPosition + Vector3.Up * hit.HeightM() * .55f);
-                var front = GlobalPosition + fw * Mathf.Min(c.Range * .5f, 2.5f);
+                var front = GlobalPosition + fw * Mathf.Min(c.Range * .5f, 2.5f); _fuAt = hit != null ? hit.GlobalPosition : Ground(front);
                 SpellFx.Skill(k.Id, "ground", front, FxFit(k.Id, "ground", c.Range * .6f)); SpellFx.Skill(k.Id, "after", front, FxFit(k.Id, "after", c.Range * .6f));
                 if (c.Chain > 0 && hit != null)
                 {
@@ -366,7 +368,7 @@ public partial class Player
                     Vfx.Sparks(GlobalPosition + Vector3.Up, Ramp(new Color(.6f, .3f, 1f)), 24, 3, .5f, .6f, 1f, true, 180f, null, .3f, "twirl");
                     GlobalPosition = Ground(to) + Vector3.Up * .2f; var dd = target.GlobalPosition - GlobalPosition; _modelYaw = Util.YawTo(dd.X, dd.Z);
                     Vfx.Sparks(GlobalPosition + Vector3.Up, Ramp(new Color(.6f, .3f, 1f)), 24, 3, .5f, .6f, 1f, true, 180f, null, .3f, "twirl");
-                    target.TakeHit(c.Hit(c.Dmg, GlobalPosition, true)); Rig?.Shake(.15f);
+                    target.TakeHit(c.Hit(c.Dmg, GlobalPosition, true)); Rig?.Shake(.15f); _fuAt = target.GlobalPosition;
                     SpellFx.Skill(k.Id, "hit", target.GlobalPosition + Vector3.Up * target.HeightM() * .55f);
                     // more "projectiles": shadow copies strike the target again for half; echoes strike again in full; chains leap from it
                     var tg = target;
@@ -396,6 +398,8 @@ public partial class Player
             }
             default: ExecuteExtra(c, forced, echo); break;   // the newer kinds (PlayerSkillsExtra.cs)
         }
+        if (!echo && k.Then != "" && !(k.Kind is "projectile" or "leap" or "rush" || (k.Kind == "dash" && _fuAt == null)))   // those go off where they land (Projectile.OnEnd, Land)
+            FollowUp(c, _fuAt ?? c.At ?? (SelfKinds.Contains(k.Kind) ? GlobalPosition : Ground(Aim(40f, forced).pt)), _fuDelay);
         if (!echo && k.X.TryGetValue("hpCost", out var hpCost)) { float lose = Game.D.MaxHp() * hpCost; Hp = Mathf.Max(1, Hp - lose); FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.1f, 0), "-" + Mathf.RoundToInt(lose), new Color(.9f, .2f, .25f), .8f); }   // blood magic
         if (!echo)
         {
@@ -468,6 +472,7 @@ public partial class Player
     void Land(SkillCalc c)
     {
         var at = GlobalPosition;
+        if (c.Def.Then != "") FollowUp(c, Ground(at), .05f);   // crafted spell: the second section goes off where you land
         if (c.Def.Kind == "rush") { RushLand(c); return; }   // the gap closer strikes its target (PlayerSkillsExtra.cs)
         if (c.Def.Kind == "leap")
         {

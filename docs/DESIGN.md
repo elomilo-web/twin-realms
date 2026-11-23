@@ -4,7 +4,7 @@
 You wake in Oakhaven, a village on the edge of two overlapping worlds. Light is the living world. Shadow is its hungry reflection. Cross at the Whispering Stones, hunt in the arena, delve into barrows, and challenge the dragon Vorthrax.
 
 ## Camera and controls
-Third-person, free camera (mouse look, orbit, over-the-shoulder). WASD move, mouse look, LMB strike (hold for power attack), RMB guard (or aim with bow, wand or staff), Space jump, C roll, Shift sprint, 1-4 spells, R cross realms, E use, H health potion, G mana potion, T whistle for the horse, V first/third person, I pack/character/skill tree, J journal, M map, Esc pause.
+Third-person, free camera (mouse look, orbit, over-the-shoulder). WASD move, mouse look, LMB strike (hold for power attack), RMB guard (or aim with bow, wand or staff), Space jump, C roll, Shift sprint, 1-6 skills, R cross realms, E use, H health potion, G mana potion, T whistle for the horse, V first/third person, I pack/character/skill tree, B spellcraft, J journal, M map, Esc pause.
 
 ## Realms
 | | Light | Shadow |
@@ -22,6 +22,9 @@ Same terrain in both. Realm shift has a cooldown and a short visual transition. 
 - **Staff:** slow area orb. Two-handed.
 - Stamina for attacks, rolls and blocking. Mana for spells. Spells: Firebolt, Frost Nova, Healing Light, Chain Lightning.
 - Numbers live in `docs/spec/reference_logic.js` and `data/`.
+
+## Spellcraft (decided 2026-11-22)
+Two Worlds II's card magic, opened to every class. A spell is built in the Spellcraft menu (B) from cards: one **carrier** (how it is delivered), one **effect** (what it does) and any **modifiers**; extra copies of a card stack. A spell may have a second section that goes off where the first one ends (a missile that bursts into an area is a fireball). Carriers come in three families: spells (mana, spell power), weapon arts (stamina, weapon damage) and archery (stamina, needs a bow), so warriors and rangers craft too. Forged spells are ordinary skills: hotbar, macros, ranks and socketed modifiers. Cards drop from monsters, chests and bosses; each hero starts with a class kit. Cards per spell and copies per card grow with level, with a class bonus per family. Numbers in `data/spellcards.json`.
 
 ## Progression
 XP to levels. Each level gives 2 attribute points and 2 skill points. Attributes: STR, DEX, VIT, MAG. The passive tree has a central hub, three class arms, bridge rings between arms for hybrids, and keystone nodes. Allocation rule: a node can be taken only if connected to the hub through taken nodes. A node can be removed only if nothing taken depends on it.

@@ -41,6 +41,11 @@ public class PlayerStats
     public int PickRar = 0; public List<string> PickSkip = new(); public bool PickScrap = false;
     public List<string> Titles = new(); public string Title = "";   // earned titles and the one worn (scripts/Titles.cs); older saves load with none
     public List<string> Forgot = new();   // skills unlearned in the skills menu (class skills are not handed back on load)
+    // Spellcraft (scripts/Spellcraft.cs, data/spellcards.json): spell cards owned, the spells built from them, whether the starter kit was given.
+    // Older saves load with none and get their class kit once.
+    public Dictionary<string, int> Cards = new();
+    public List<CraftedSpell> Spells = new();
+    public bool CardsGiven = false; public int SpellSeq = 0;
 
     // ---- derived stats (methods so they are not serialised)
     static TreeStats TS => Game.TS;
