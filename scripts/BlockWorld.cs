@@ -41,9 +41,12 @@ public partial class BlockWorld : Node3D
     public static void RegisterGroundTile(Rect2 r, CollisionShape3D s) => GroundTiles.Add((r, s));
 
     /// <summary>Global shader values the terrain, water and grass shaders read (must exist before those shaders compile).</summary>
+    static bool _globals;
     public static void InitGlobals()
     {
-        if (!RenderingServer.GlobalShaderParameterGetList().Contains("vox_rect"))
+        if (_globals) return; _globals = true;
+        // (asking RenderingServer which globals exist is editor-only and slow; remember it ourselves)
+        
             RenderingServer.GlobalShaderParameterAdd("vox_rect", RenderingServer.GlobalShaderParameterType.Vec4, new Vector4(1e9f, 1e9f, -1e9f, -1e9f));
     }
 
@@ -230,7 +233,7 @@ public partial class BlockWorld : Node3D
     {
         Cut = r;
         var v = r is { } q ? new Vector4(q.Position.X, q.Position.Y, q.End.X, q.End.Y) : new Vector4(1e9f, 1e9f, -1e9f, -1e9f);
-        if (RenderingServer.GlobalShaderParameterGetList().Contains("vox_rect")) RenderingServer.GlobalShaderParameterSet("vox_rect", v);
+        if (_globals) RenderingServer.GlobalShaderParameterSet("vox_rect", v);
         foreach (var (tr, s) in GroundTiles)
             if (IsInstanceValid(s)) s.SetDeferred(CollisionShape3D.PropertyName.Disabled, r is { } q2 && q2.Encloses(tr));
     }
