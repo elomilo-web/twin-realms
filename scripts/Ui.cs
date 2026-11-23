@@ -118,7 +118,7 @@ public partial class Ui : CanvasLayer
         return v;
     }
     // leaving the menus turns Disassemble back off
-    public void Close() { _confirmQuit = false; _scrapMode = false; CloseNoUnpause(); if (InGame) { GetTree().Paused = false; Input.MouseMode = Input.MouseModeEnum.Captured; } }
+    public void Close() { _confirmQuit = false; _confirmUnstuck = false; _scrapMode = false; CloseNoUnpause(); if (InGame) { GetTree().Paused = false; Input.MouseMode = Input.MouseModeEnum.Captured; } }
     void CloseNoUnpause() { HideTip(); if (_panel != null) { _panel.QueueFree(); _panel = null; _panelName = ""; _rebuild = null; } }
 
     static Button Btn(string t, Action a, bool small = false)

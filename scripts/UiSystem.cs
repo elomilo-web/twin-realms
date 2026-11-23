@@ -48,10 +48,21 @@ public partial class Ui
         if (_savedAt != "") { var l = Lbl("Saved at " + _savedAt, 13, Dim, r); l.HorizontalAlignment = HorizontalAlignment.Center; }
         Big("Multiplayer" + (Net.Active ? $"  ({Net.I!.Players.Count} online)" : ""), OpenMultiplayer);
         Big("Settings", OpenSettings);
+        // Unstuck: back to the world spawn point (Oakhaven). Asks once, then a short cooldown so it is not a free escape every few seconds
+        float wait = UnstuckWait();
+        var un = Big(wait > 0 ? $"Unstuck (ready in {Mathf.CeilToInt(wait)} s)" : _confirmUnstuck ? "Really go back to Oakhaven?" : "Unstuck", () =>
+        {
+            if (UnstuckWait() > 0) { OpenPause(); return; }
+            if (!_confirmUnstuck) { _confirmUnstuck = true; _confirmQuit = false; OpenPause(); return; }
+            Unstuck();
+        });
+        un.Disabled = wait > 0 || p == null;
+        un.TooltipText = "Stuck in a wall or out of reach? Takes you back to the world spawn point in Oakhaven" + (Dungeon.Active || Arenas.Active ? " (leaves this dungeon or arena run)." : ".");
+        if (_confirmUnstuck) { un.AddThemeColorOverride("font_color", UiTheme.Highlight); var l = Row(r, Dungeon.Active || Arenas.Active ? "This leaves the dungeon or arena run. Click again to go." : "Click again to go back to Oakhaven.", Dim, 13); l.HorizontalAlignment = HorizontalAlignment.Center; }
         r.AddChild(new Control { SizeFlagsVertical = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Ignore });
         var quit = Big(_confirmQuit ? "Really quit to title?" : "Quit to title", () =>
         {
-            if (!_confirmQuit) { _confirmQuit = true; OpenPause(); return; }
+            if (!_confirmQuit) { _confirmQuit = true; _confirmUnstuck = false; OpenPause(); return; }
             QuitToTitle();
         });
         if (_confirmQuit)
@@ -60,6 +71,28 @@ public partial class Ui
             var l = Row(r, "Your hero is saved first. Click again to quit, or Resume to stay.", Dim, 13); l.HorizontalAlignment = HorizontalAlignment.Center;
         }
         var hint = Row(v, $"{K(Inputs.Pause)} resumes.   Every key can be changed in Settings > Controls.", Dim, 13); hint.HorizontalAlignment = HorizontalAlignment.Center;
+    }
+
+    // ---- Unstuck
+    bool _confirmUnstuck; static ulong _unstuckAt;
+    const float UnstuckCooldown = 60f;
+    static float UnstuckWait() => _unstuckAt == 0 ? 0f : Mathf.Max(0f, UnstuckCooldown - (Time.GetTicksMsec() - _unstuckAt) / 1000f);
+    /// <summary>The world spawn point: Oakhaven, where new heroes start (also where the online server places newcomers).</summary>
+    public static Vector3 SpawnPoint => World.OnGround(0, 9, 0.6f);
+
+    /// <summary>Leaves any dungeon, raid lair or arena run and puts the hero back at the world spawn point.</summary>
+    void Unstuck()
+    {
+        var p = Player.Instance; if (p == null) return;
+        _confirmUnstuck = false; _unstuckAt = Time.GetTicksMsec();
+        GD.Print("[UI] unstuck");
+        if (Dungeon.Active) Dungeon.Leave(false);
+        if (Arenas.Active) Arenas.Leave();
+        if (p.Mounted) p.ToggleMount(true);
+        Close();
+        p.Teleport(SpawnPoint, 0f);
+        Game.D.PosX = 0; Game.D.PosZ = 9; Game.Save();
+        Flash(Colors.White); Banner(World.GetPoi("village")?.Name ?? "Oakhaven", "back at the world spawn point");
     }
 
     /// <summary>Saves, leaves multiplayer and reloads the scene, which starts on the title screen.</summary>
