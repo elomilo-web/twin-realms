@@ -24,6 +24,14 @@ public class CardDef
     public SupportDef? Mod;   // modifier cards: what they do, as a support (registered with Skills as "card.<id>")
 }
 
+/// <summary>A node of the spell tree (data/spellcards.json "tree"): ranks bought with spell tree points, only crafted spells feel them.</summary>
+public class CraftNode
+{
+    public string Id = "", Branch = "", Name = "", Desc = "", Stat = "", Req = ""; public int Max = 1, At; public float Per;
+    /// <summary>The description at a rank (rank 0 shows what the first rank gives).</summary>
+    public string Text(int rank) => Desc.Replace("{v}", (Per * Math.Max(1, rank)).ToString("0.#"));
+}
+
 /// <summary>
 /// Spellcraft, in the spirit of Two Worlds II: skills built from cards. A carrier card says how the skill is delivered (it copies the
 /// numbers of an existing skill), an effect card says what it does (damage type, statuses, buffs), modifier cards change it; extra copies
@@ -71,7 +79,56 @@ public static class Spellcraft
             }
             _c[c.Id] = c; Order.Add(c.Id);
         }
+        if (_root.TryGetProperty("tree", out var tr))
+        {
+            TreePer = (int)JsonUtil.F(tr, "perLevels", 2);
+            if (tr.TryGetProperty("branches", out var br)) foreach (var b in br.EnumerateObject()) Branches.Add((b.Name, b.Value.GetString() ?? b.Name));
+            if (tr.TryGetProperty("nodes", out var ns))
+                foreach (var p in ns.EnumerateObject())
+                {
+                    var e = p.Value;
+                    Nodes.Add(new CraftNode { Id = p.Name, Branch = JsonUtil.S(e, "branch"), Name = JsonUtil.S(e, "n", p.Name), Desc = JsonUtil.S(e, "d"), Stat = JsonUtil.S(e, "stat"), Req = JsonUtil.S(e, "req"), Max = (int)JsonUtil.F(e, "max", 1), At = (int)JsonUtil.F(e, "at", 0), Per = JsonUtil.F(e, "per", 0) });
+                }
+        }
     }
+
+    // ---------------------------------------------------------------- the spell tree (data/spellcards.json "tree")
+    public static readonly List<CraftNode> Nodes = new();
+    public static readonly List<(string id, string name)> Branches = new();
+    static int TreePer = 2;
+    public static int TreeEvery { get { Load(); return Math.Max(1, TreePer); } }
+    static PlayerStats? _hero;   // whose tree applies while spells are built (set when a hero's spells are synced)
+    public static IEnumerable<CraftNode> TreeNodes { get { Load(); return Nodes; } }
+    public static IEnumerable<(string id, string name)> TreeBranches { get { Load(); return Branches; } }
+    public static int Rank(PlayerStats d, string node) => (d.CraftTree ??= new()).GetValueOrDefault(node);
+    public static int TreePoints(PlayerStats d) { Load(); return d.Level / Math.Max(1, TreePer); }
+    public static int TreeSpent(PlayerStats d) => (d.CraftTree ??= new()).Values.Sum();
+    public static int TreeSpentIn(PlayerStats d, string branch) => Nodes.Where(n => n.Branch == branch).Sum(n => Rank(d, n.Id));
+    public static int TreeFree(PlayerStats d) => TreePoints(d) - TreeSpent(d);
+    /// <summary>Total of a spell tree stat for this hero (e.g. dmgP 18 = +18%).</summary>
+    public static float TreeStat(PlayerStats? d, string stat) { if (d == null) return 0; Load(); float t = 0; foreach (var n in Nodes) if (n.Stat == stat) t += n.Per * Rank(d, n.Id); return t; }
+    static float T(string stat) => TreeStat(_hero ?? Game.D, stat);
+    /// <summary>Why this node cannot take another rank now, or null.</summary>
+    public static string? CanBuy(PlayerStats d, CraftNode n)
+    {
+        int r = Rank(d, n.Id);
+        if (r >= n.Max) return "Fully learned";
+        if (TreeFree(d) <= 0) return $"No spell tree points left (one every {TreePer} levels)";
+        if (n.Req != "" && Rank(d, n.Req) <= 0) return $"Needs {Nodes.FirstOrDefault(x => x.Id == n.Req)?.Name ?? n.Req} first";
+        if (TreeSpentIn(d, n.Branch) < n.At) return $"Spend {n.At} points in this branch first";
+        return null;
+    }
+    public static string? Buy(PlayerStats d, CraftNode n)
+    {
+        var why = CanBuy(d, n); if (why != null) return why;
+        d.CraftTree[n.Id] = Rank(d, n.Id) + 1; Rebuild(d); return null;
+    }
+    /// <summary>Gives every spell tree point back (free). Spells that no longer fit their card limits stay as they are until edited.</summary>
+    public static void ResetTree(PlayerStats d) { (d.CraftTree ??= new()).Clear(); Rebuild(d); }
+    /// <summary>Spell tree changed: rebuild the hero's crafted spells with the new numbers.</summary>
+    public static void Rebuild(PlayerStats d) { _hero = d; foreach (var s in d.Spells) Register(s); }
+    /// <summary>Spells the amulet holds for this hero (base + Wider Amulet).</summary>
+    public static int SpellCap(PlayerStats d) { Load(); return MaxSpells + (int)TreeStat(d, "spells"); }
     static Dictionary<string, float> Nums(JsonElement e, string key)
     {
         var d = new Dictionary<string, float>(); if (!e.TryGetProperty(key, out var o) || o.ValueKind != JsonValueKind.Object) return d;
@@ -104,11 +161,11 @@ public static class Spellcraft
     public static int MaxCards(PlayerStats d, string family)
     {
         Load(); float per = Mathf.Max(1, R("slots.perLevels", 5));
-        int bonus = (int)R($"classSlots.{d.Class}.{family}", 0);
-        return Math.Min((int)R("slots.max", 10), (int)R("slots.base", 4) + (int)(d.Level / per) + bonus);
+        int bonus = (int)R($"classSlots.{d.Class}.{family}", 0), tree = (int)TreeStat(d, "cards");
+        return Math.Min((int)R("slots.max", 10) + tree, (int)R("slots.base", 4) + (int)(d.Level / per) + bonus + tree);
     }
-    /// <summary>Copies of one card a spell may hold (magic mastery).</summary>
-    public static int MaxCopies(PlayerStats d) { Load(); return Math.Min((int)R("mastery.max", 6), (int)R("mastery.base", 2) + (int)(d.Level / Mathf.Max(1, R("mastery.perLevels", 6)))); }
+    /// <summary>Copies of one card a spell may hold (magic mastery, plus the spell tree).</summary>
+    public static int MaxCopies(PlayerStats d) { Load(); int tree = (int)TreeStat(d, "copies"); return Math.Min((int)R("mastery.max", 6) + tree, (int)R("mastery.base", 2) + (int)(d.Level / Mathf.Max(1, R("mastery.perLevels", 6))) + tree); }
     public static IEnumerable<string> SecondCarriers { get { Load(); if (_root.TryGetProperty("second", out var s) && s.TryGetProperty("carriers", out var a)) foreach (var x in a.EnumerateArray()) yield return x.GetString() ?? ""; } }
 
     /// <summary>Copies of a card owned and not held by another crafted spell (the one being edited, skip, counts as free).</summary>
@@ -190,7 +247,7 @@ public static class Spellcraft
         if (bless) { k.Buff = new(eff.Buff); foreach (var (xk, xv) in eff.X) k.X[xk] = xv; k.X.Remove("cleanse"); if (eff.Heal > 0) k.Heal = eff.Heal; }
         else if (k.Kind == "ward") k.Buff = new(eff.WardBuff);
         // ---- boosters: extra copies of the effect hit harder, extra copies of the carrier reach farther
-        float em = 1 + R("stack.effectP", 22) / 100f * (nEff - 1), sd = 1 + R("stack.statusDurP", 12) / 100f * (nEff - 1);
+        float em = 1 + (R("stack.effectP", 22) + T("effectP")) / 100f * (nEff - 1), sd = 1 + R("stack.statusDurP", 12) / 100f * (nEff - 1);
         k.Dmg *= em; k.Lvl *= em; k.Mult *= em; if (bless || k.Kind == "ward") k.Heal *= em;
         foreach (var s in k.Status.Values) if (s.Length > 1) s[1] *= sd;
         foreach (var b in k.Buff.Keys.ToList()) if (b is not ("statusImmune" or "ccImmune")) k.Buff[b] *= em;
@@ -203,6 +260,13 @@ public static class Spellcraft
         }
         // ---- cost: every card past the first two raises it
         float cm = 1 + R("stack.costP", 10) / 100f * Mathf.Max(0, cards.Count - 2); k.Mp *= cm; k.St *= cm;
+        // ---- the spell tree (Spellcraft menu > Spell tree)
+        float tp = 1 + (T("dmgP") + (id.EndsWith(Second) ? T("secondP") : 0)) / 100f;
+        k.Dmg *= tp; k.Lvl *= tp; k.Mult *= tp; if (bless || k.Kind == "ward") k.Heal *= tp; if (k.X.ContainsKey("hot")) k.X["hot"] *= tp;
+        float tc = Mathf.Max(.2f, 1 + T("costP") / 100f); k.Mp *= tc; k.St *= tc;
+        k.Cd *= Mathf.Max(.2f, 1 + T("cdP") / 100f); k.Cast *= Mathf.Max(.2f, 1 + T("castP") / 100f);
+        k.Radius *= 1 + T("aoeP") / 100f;
+        float ts = 1 + T("statusP") / 100f; foreach (var s in k.Status.Values) if (s.Length > 1) s[1] *= ts;
         k.CardMods = defs.Where(x => x.Type == "modifier").Select(x => x.Mod!.Id).ToList();
         k.Req = defs.Max(x => x.Req); k.Cost = 0;
         k.Name = (eff.Adj + " " + car.Name).Trim();
@@ -249,7 +313,7 @@ public static class Spellcraft
     /// <summary>A hero was loaded or made: their crafted spells become skills (anyone else's are dropped), and new heroes get their starter cards.</summary>
     public static void Sync(PlayerStats d)
     {
-        Load();
+        Load(); _hero = d; d.CraftTree ??= new();
         foreach (var id in _registered.ToList()) if (!id.EndsWith(Second) && id != EditId && !d.Spells.Exists(s => s.Id == id)) Unregister(id);
         d.Cards ??= new(); d.Spells ??= new();
         if (!d.CardsGiven) { GiveStart(d); d.CardsGiven = true; }
@@ -287,7 +351,7 @@ public static class Spellcraft
     {
         var s = editing == "" ? new CraftedSpell { Id = "" } : d.Spells.FirstOrDefault(x => x.Id == editing);
         if (s == null) return "That spell is gone";
-        if (editing == "" && d.Spells.Count >= MaxSpells) return $"Your amulet holds {MaxSpells} spells: dismantle one first";
+        if (editing == "" && d.Spells.Count >= SpellCap(d)) return $"Your amulet holds {SpellCap(d)} spells: dismantle one first (Wider Amulet in the spell tree holds more)";
         var test = new CraftedSpell { Id = editing, Name = work.Name, A = work.A.ToList(), B = work.B.ToList() };
         var err = Check(d, test); if (err != null) return err;
         if (editing == "") { int n = d.SpellSeq; do n++; while (d.Spells.Exists(x => x.Id == Prefix + n)); d.SpellSeq = n; s.Id = Prefix + n; d.Spells.Add(s); }

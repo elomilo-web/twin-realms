@@ -28,6 +28,7 @@ public partial class Ui
     public void OpenSpellcraft(string? edit)
     {
         var d = Game.D; Skills.GrantStarting(d);
+        if (_scTree) { OpenSpellTree(); return; }
         if (edit != null) ScLoad(edit);
         if (_scEdit != "" && !d.Spells.Exists(x => x.Id == _scEdit)) ScLoad("");
         var v = Frame("spellcraft", "Spellcraft", new Vector2(1180, 680), () => OpenSpellcraft(null)); HideInfo();
@@ -36,11 +37,15 @@ public partial class Ui
 
         // ---- top bar
         var top = new HBoxContainer(); v.AddChild(top); top.AddThemeConstantOverride("separation", 8);
-        Chip(top, $"Spells  {d.Spells.Count}/{Spellcraft.MaxSpells}", false);
+        Chip(top, $"Spells  {d.Spells.Count}/{Spellcraft.SpellCap(d)}", false);
         Chip(top, $"Cards per {fam} spell  {maxCards}", false);
         Chip(top, $"Copies of one card  {maxCopies}", false);
         var help = Lbl("A spell needs a carrier (how) and an effect (what). Modifiers change it; extra copies of a card make it stronger.", 13, Dim, top);
         help.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; help.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        int tfree = Spellcraft.TreeFree(d);
+        var tb = Btn(tfree > 0 ? $"Spell tree  ({tfree} to spend)" : "Spell tree", () => { _scTree = true; OpenSpellTree(); }, true);
+        if (tfree > 0) tb.AddThemeColorOverride("font_color", UiTheme.Highlight);
+        top.AddChild(tb);
         top.AddChild(Btn($"Skills ({Inputs.KeyOf(Inputs.SkillsUi)})", OpenSkills, true));
 
         var cols = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; cols.AddThemeConstantOverride("separation", 14); v.AddChild(cols);
@@ -179,6 +184,65 @@ public partial class Ui
                 grid.AddChild(t);
             }
         }
+    }
+
+    // ---------------------------------------------------------------- the spell tree (its own points; only crafted spells feel it)
+    static bool _scTree, _scTreeReset;
+    void OpenSpellTree()
+    {
+        var d = Game.D;
+        var v = Frame("spellcraft", "Spell tree", new Vector2(1180, 680), OpenSpellTree); HideInfo();
+        var top = new HBoxContainer(); v.AddChild(top); top.AddThemeConstantOverride("separation", 8);
+        top.AddChild(Btn("<  Back to Spellcraft", () => { _scTree = false; _scTreeReset = false; OpenSpellcraft(null); }, true));
+        int free = Spellcraft.TreeFree(d);
+        Chip(top, $"Points  {free} / {Spellcraft.TreePoints(d)}", free > 0);
+        var help = Lbl("Spell tree points come with your level. Every rank only strengthens the spells you forge in Spellcraft.", 13, Dim, top);
+        help.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; help.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        var rs = Btn(_scTreeReset ? "Click again to reset" : "Reset (free)", () =>
+        {
+            if (!_scTreeReset) { _scTreeReset = true; OpenSpellTree(); return; }
+            _scTreeReset = false; Spellcraft.ResetTree(d); Note("Spell tree reset: all points are back", UiTheme.Highlight); Game.Notify(); Game.Save(); OpenSpellTree();
+        }, true);
+        rs.Disabled = Spellcraft.TreeSpent(d) == 0; top.AddChild(rs);
+
+        var cols = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; cols.AddThemeConstantOverride("separation", 16); v.AddChild(cols);
+        foreach (var (bid, bname) in Spellcraft.TreeBranches)
+        {
+            var col = new PanelContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+            col.AddThemeStyleboxOverride("panel", UiTheme.Box(new Color(.02f, .06f, .12f, .7f), UiTheme.AccentSoft, 1, 14, 10, 0)); cols.AddChild(col);
+            var cv = new VBoxContainer(); cv.AddThemeConstantOverride("separation", 8); col.AddChild(cv);
+            var hr = new HBoxContainer(); cv.AddChild(hr);
+            var hl = Lbl(bname, 18, UiTheme.Accent, hr); hl.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            Lbl($"{Spellcraft.TreeSpentIn(d, bid)} spent", 13, Dim, hr);
+            foreach (var n in Spellcraft.TreeNodes.Where(x => x.Branch == bid))
+            {
+                var node = n; int r = Spellcraft.Rank(d, n.Id); string? why = Spellcraft.CanBuy(d, n);
+                bool full = r >= n.Max, open = why == null;
+                var box = new PanelContainer();
+                box.AddThemeStyleboxOverride("panel", UiTheme.Box(r > 0 ? UiTheme.ButtonHover : UiTheme.Button, full ? UiTheme.Highlight : open ? UiTheme.Accent : UiTheme.AccentSoft, full || open ? 2 : 1, 12, 8, 0));
+                cv.AddChild(box);
+                var bv = new VBoxContainer(); bv.AddThemeConstantOverride("separation", 2); box.AddChild(bv);
+                var nr = new HBoxContainer(); bv.AddChild(nr);
+                var nl = Lbl(n.Name, 16, r > 0 ? Colors.White : Dim.Lerp(Colors.White, .4f), nr); nl.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+                Lbl($"{r}/{n.Max}", 15, full ? UiTheme.Highlight : r > 0 ? UiTheme.Accent : Dim, nr);
+                Row(bv, r > 0 ? n.Text(r) : n.Text(1), r > 0 ? Colors.White : Dim, 13);
+                if (r > 0 && !full) Row(bv, "Next rank: " + n.Text(r + 1), UiTheme.Dim, 12);
+                var br = new HBoxContainer(); bv.AddChild(br);
+                if (!full)
+                {
+                    var b = Btn(r == 0 ? "Learn" : "Rank up", () =>
+                    {
+                        var e = Spellcraft.Buy(d, node);
+                        if (e != null) { Note(e, new Color(1, .6f, .5f)); return; }
+                        Sfx.Play("level"); Game.Notify(); Game.Save(); OpenSpellTree();
+                    }, true);
+                    b.Disabled = !open; br.AddChild(b);
+                    if (!open) { var wl = Lbl(why!, 12, new Color(1f, .7f, .55f), br); wl.AutowrapMode = TextServer.AutowrapMode.WordSmart; wl.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; }
+                }
+            }
+        }
+        var foot = Row(v, $"One point every {Spellcraft.TreeEvery} levels. Changes apply to your forged spells at once; resetting is free.", Dim, 12);
+        foot.HorizontalAlignment = HorizontalAlignment.Center;
     }
 
     static SkillTile CardTile(CardDef c, string corner) => new()

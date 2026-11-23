@@ -33,6 +33,25 @@
   "martial": { "slash": 2, "lunge": 1, "steel": 2, "fire": 1, "force": 1 },
   "archery": { "volley": 2, "rain": 1, "steel": 1, "venom": 1, "fire": 1, "spray": 1 }
  },
+ "tree": {
+  "_help": "The spell tree (Spellcraft menu > Spell tree): its own points, 1 per perLevels hero levels, spent on nodes that only affect crafted spells. Each node: branch (column), n (name), max ranks, per (value per rank), stat (what it changes), req (a node that needs at least 1 rank first), at (spent points in this branch needed first), d (text, {v} = total at the current rank). Stats: dmgP damage %, effectP extra % per extra effect copy, secondP second-section damage %, costP cost % (negative = cheaper), cdP cooldown %, castP cast time %, aoeP area %, statusP status duration %, cards extra cards per spell, copies extra copies of one card, spells extra spell slots. Resetting is free.",
+  "perLevels": 2,
+  "branches": { "power": "POWER", "flow": "EFFICIENCY", "mastery": "MASTERY" },
+  "nodes": {
+   "focus":     { "branch": "power",   "n": "Focused Weave",    "max": 5, "per": 6,   "stat": "dmgP",    "at": 0,                    "d": "Crafted spells deal +{v}% damage and healing." },
+   "resonance": { "branch": "power",   "n": "Resonance",        "max": 3, "per": 6,   "stat": "effectP", "at": 3, "req": "focus",    "d": "Each extra copy of an effect card adds +{v}% more power." },
+   "cascade":   { "branch": "power",   "n": "Cascade",          "max": 3, "per": 12,  "stat": "secondP", "at": 5, "req": "resonance", "d": "Second sections deal +{v}% damage." },
+   "expanse":   { "branch": "power",   "n": "Wide Weave",       "max": 3, "per": 8,   "stat": "aoeP",    "at": 8, "req": "cascade",  "d": "Crafted spells cover +{v}% more area." },
+   "thrift":    { "branch": "flow",    "n": "Thrift",           "max": 5, "per": -5,  "stat": "costP",   "at": 0,                    "d": "Crafted spells cost {v}% mana or stamina." },
+   "quicken":   { "branch": "flow",    "n": "Quickening",       "max": 5, "per": -4,  "stat": "cdP",     "at": 3, "req": "thrift",   "d": "Crafted spells recover {v}% faster (cooldown)." },
+   "fluency":   { "branch": "flow",    "n": "Fluency",          "max": 3, "per": -6,  "stat": "castP",   "at": 5, "req": "quicken",  "d": "Crafted spells take {v}% time to cast." },
+   "linger":    { "branch": "flow",    "n": "Lingering Mark",   "max": 3, "per": 15,  "stat": "statusP", "at": 8, "req": "fluency",  "d": "Statuses from crafted spells last +{v}% longer." },
+   "deck":      { "branch": "mastery", "n": "Deep Deck",        "max": 2, "per": 1,   "stat": "cards",   "at": 0,                    "d": "+{v} card slots in every spell." },
+   "copies":    { "branch": "mastery", "n": "Mastery",          "max": 2, "per": 1,   "stat": "copies",  "at": 2, "req": "deck",     "d": "+{v} copies of one card allowed per section." },
+   "amulet":    { "branch": "mastery", "n": "Wider Amulet",     "max": 2, "per": 2,   "stat": "spells",  "at": 4, "req": "copies",   "d": "Your amulet holds +{v} spells." },
+   "keystone":  { "branch": "mastery", "n": "Spellwright",      "max": 1, "per": 10,  "stat": "dmgP",    "at": 6, "req": "amulet",   "d": "Keystone: crafted spells deal +{v}% more damage." }
+  }
+ },
  "drops": {
   "_help": "chance a kill or chest gives a card (elite = an upgraded monster). Bosses give bossCards. A card is picked by type weight, then by its own 'w', among cards with req <= hero level + reqAhead.",
   "kill": 0.045, "elite": 0.2, "boss": 1, "bossCards": 2, "chest": 0.4, "reqAhead": 2,
