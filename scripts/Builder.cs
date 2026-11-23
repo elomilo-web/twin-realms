@@ -371,6 +371,7 @@ void fragment(){
     // ---------------------------------------------------------------- NPCs
     static void Npcs(Node3D over)
     {
+        if (Net.Dedicated) return;   // townsfolk are local to each player's game (talk, shops, quests): the online server needs none
         using var doc = JsonUtil.Load("res://data/quests.json");
         foreach (var n in doc.RootElement.GetProperty("npcs").EnumerateArray())
         {
@@ -382,7 +383,14 @@ void fragment(){
     }
 
     // ---------------------------------------------------------------- camps and enemies
-    static Enemy SpawnOW(Node3D over, string type, float x, float z, int lvl) { var e = new Enemy { Type = type, Level = lvl, Position = World.OnGround(x, z, 0.3f) }; over.AddChild(e); return e; }
+    static int _spawned;
+    static Enemy SpawnOW(Node3D over, string type, float x, float z, int lvl)
+    {
+        var e = new Enemy { Type = type, Level = lvl, Position = World.OnGround(x, z, 0.3f) }; over.AddChild(e);
+        // online server: building hundreds of monsters leaves a lot of temporary model data; collect it as we go so memory never spikes
+        if (Net.Dedicated && ++_spawned % 40 == 0) { System.GC.Collect(); System.GC.WaitForPendingFinalizers(); }
+        return e;
+    }
 
     static void Spawns(Node3D over)
     {

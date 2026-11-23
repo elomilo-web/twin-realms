@@ -80,10 +80,9 @@ public partial class Main : Node3D
     static bool ServerWanted() => System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--server") >= 0;
     void RunServer()
     {
-        GD.Print("[SERVER] building the world ...");
+        GD.Print($"[SERVER] building the world ... ({Mem()})");
         OnlineCfg.Load(); Engine.MaxFps = 60;
-        Game.SavePath = "user://server_world_save.json"; Game.SetPath = "user://server_settings.json";
-        Net.ChestPath = System.IO.Path.Combine(Accounts.Dir, "party_chest.json");
+        Game.SavePath = "user://server_world_save.json"; Game.SetPath = "user://server_settings.json";        Net.ChestPath = System.IO.Path.Combine(Accounts.Dir, "party_chest.json");
         AddChild(new Sfx { Name = "Sfx" });
         AddChild(new Net { Name = "Net" });
         AddChild(new Ui { Name = "Ui" });
@@ -95,7 +94,14 @@ public partial class Main : Node3D
         if (GetNodeOrNull<Node>("CameraRig") is Node rig) rig.ProcessMode = ProcessModeEnum.Disabled;
         string env = System.Environment.GetEnvironmentVariable("PORT") ?? "";
         int port = int.TryParse(env, out var ep) && ep > 0 ? ep : OnlineCfg.Port;
+        GD.Print($"[SERVER] world ready ({Mem()})");
         if (!Net.I!.Serve(port)) GetTree().Quit(1);
+    }
+    /// <summary>Server log: memory in use (the host's memory limit decides whether the server survives building the world).</summary>
+    static string Mem()
+    {
+        using var me = System.Diagnostics.Process.GetCurrentProcess();
+        return $"memory {me.WorkingSet64 >> 20} MB, engine {OS.GetStaticMemoryUsage() >> 20} MB, .NET {System.GC.GetTotalMemory(false) >> 20} MB, textures {(long)Performance.GetMonitor(Performance.Monitor.RenderTextureMemUsed) >> 20} MB, objects {(long)Performance.GetMonitor(Performance.Monitor.ObjectCount)}";
     }
 
     void Begin(bool server = false)

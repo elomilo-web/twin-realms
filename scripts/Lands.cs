@@ -331,6 +331,14 @@ public static class Lands
             int i0 = iz * n1 + ix, i1 = i0 + 1, i2 = i0 + n1, i3 = i2 + 1;
             idx[k++] = i0; idx[k++] = i1; idx[k++] = i2; idx[k++] = i1; idx[k++] = i3; idx[k++] = i2;
         }
+        if (Net.Dedicated)
+        {
+            // the online server never draws: collision only (the same triangles), no mesh (saves a lot of memory)
+            var sbody = new StaticBody3D { Name = "Terrain", CollisionLayer = 1 };
+            sbody.AddChild(World.GridCollision(L.H, n1, L.X0, L.Z0, L.Cell));
+            parent.AddChild(sbody);
+            return;
+        }
         var arrays = new Godot.Collections.Array(); arrays.Resize((int)Mesh.ArrayType.Max);
         arrays[(int)Mesh.ArrayType.Vertex] = verts; arrays[(int)Mesh.ArrayType.Normal] = norms; arrays[(int)Mesh.ArrayType.Color] = cols;
         arrays[(int)Mesh.ArrayType.TexUV2] = uv2; arrays[(int)Mesh.ArrayType.Index] = idx;

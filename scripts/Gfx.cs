@@ -180,6 +180,7 @@ public static class Gfx
     /// <summary>Puts a generated texture on a material. tileM = metres covered by one texture tile. Triplanar uses world space, so any mesh works.</summary>
     public static StandardMaterial3D Tex(StandardMaterial3D m, string kind, float tileM, bool triplanar = true, float bump = 1f)
     {
+        if (Net.Dedicated) return m;   // the online server never draws: no textures
         var (a, n) = Get(kind);
         m.AlbedoTexture = a; m.NormalEnabled = true; m.NormalTexture = n; m.NormalScale = bump;
         m.TextureFilter = BaseMaterial3D.TextureFilterEnum.LinearWithMipmapsAnisotropic;

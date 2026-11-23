@@ -43,7 +43,13 @@ public static class Kit
             // one mesh: use it as imported (keeps its automatic LODs); several: merge them, one surface per material
             if (parts.Count == 1) p = new Piece { Mesh = parts[0].mi.Mesh, Xf = parts[0].t };
             else if (parts.Count > 1) p = new Piece { Mesh = Merge(parts) };
-            if (p != null)
+            if (p != null && Net.Dedicated)
+            {
+                // online server: it never draws, so keep only a box of the model's size (same bounds, colliders and placement);
+                // the real mesh, its materials and textures are released
+                var box = p.Mesh.GetAabb(); p.Box = p.Xf * box; p.Mesh = BoxMesh(box);
+            }
+            else if (p != null)
             {
                 for (int i = 0; i < p.Mesh.GetSurfaceCount(); i++) if (p.Mesh.SurfaceGetMaterial(i) is { } m && p.Mesh is ArrayMesh am) am.SurfaceSetMaterial(i, Shared(m));
                 p.Box = p.Xf * p.Mesh.GetAabb();
@@ -52,6 +58,17 @@ public static class Kit
         }
         if (p == null) GD.PushWarning("[KIT] missing model " + path);
         _cache[name] = p; return p;
+    }
+
+    /// <summary>A plain box mesh with exactly these bounds (stands in for a model on the online server).</summary>
+    public static ArrayMesh BoxMesh(Aabb b)
+    {
+        var e = b.End; var p = b.Position;
+        var v = new[] { new Vector3(p.X, p.Y, p.Z), new Vector3(e.X, p.Y, p.Z), new Vector3(e.X, p.Y, e.Z), new Vector3(p.X, p.Y, e.Z), new Vector3(p.X, e.Y, p.Z), new Vector3(e.X, e.Y, p.Z), new Vector3(e.X, e.Y, e.Z), new Vector3(p.X, e.Y, e.Z) };
+        var idx = new[] { 0, 1, 2, 0, 2, 3, 4, 6, 5, 4, 7, 6, 0, 4, 5, 0, 5, 1, 1, 5, 6, 1, 6, 2, 2, 6, 7, 2, 7, 3, 3, 7, 4, 3, 4, 0 };
+        var arrays = new Godot.Collections.Array(); arrays.Resize((int)Mesh.ArrayType.Max);
+        arrays[(int)Mesh.ArrayType.Vertex] = v; arrays[(int)Mesh.ArrayType.Index] = idx;
+        var am = new ArrayMesh(); am.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays); return am;
     }
 
     static ArrayMesh Merge(List<(MeshInstance3D mi, Transform3D t)> parts)

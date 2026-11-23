@@ -155,8 +155,10 @@ public partial class World : Node3D
         I = this; LoadData();
         Lamps.RemoveAll(l => !IsInstanceValid(l.lt));   // lamps of a world freed by "Quit to title" (the list is static)
         Over = new Node3D { Name = "Overworld" }; AddChild(Over);
-        BuildEnvironment(); BuildTerrain(); BuildWater(); BuildBounds(); BuildVegetation(); Flora.Build(Over); Lands.Build(Over); BuildMapImage(); GatherDb.Spawn(Over);
-        Builder.BuildAll(Over); Wildlife.Spawn(Over); IndexEnemies();
+        // StripVisuals: only on the online server (it never draws), frees meshes after each big step
+        BuildEnvironment(); BuildTerrain(); BuildWater(); BuildBounds(); BuildVegetation(); Flora.Build(Over); StripVisuals(Over); Lands.Build(Over); StripVisuals(Over); BuildMapImage();
+        if (!Net.Dedicated) GatherDb.Spawn(Over);   // gathering is local to each player: the online server needs none
+        Builder.BuildAll(Over); StripVisuals(Over); Wildlife.Spawn(Over); IndexEnemies();
         Sfx.I?.SetRealmMix(0);
         TimeOfDay = Game.D.Time;
         UpdateVisuals(0, true);
@@ -287,12 +289,21 @@ void sky(){
             int i0 = iz * (N + 1) + ix, i1 = i0 + 1, i2 = i0 + N + 1, i3 = i2 + 1;
             idx[k++] = i0; idx[k++] = i1; idx[k++] = i2; idx[k++] = i1; idx[k++] = i3; idx[k++] = i2;
         }
+        var sh = new Shader { Code = TerrainShader };
+        if (Net.Dedicated)
+        {
+            // the online server never draws: collision only (the same triangles), no mesh, no ground textures (saves a lot of memory)
+            _terrMat = new ShaderMaterial { Shader = sh };
+            var sbody = new StaticBody3D { Name = "Terrain", CollisionLayer = 1 };
+            sbody.AddChild(GridCollision(HG, N + 1, -Half, -Half, Cell));
+            Over.AddChild(sbody);
+            return;
+        }
         var arrays = new Godot.Collections.Array(); arrays.Resize((int)Mesh.ArrayType.Max);
         arrays[(int)Mesh.ArrayType.Vertex] = verts; arrays[(int)Mesh.ArrayType.Normal] = norms; arrays[(int)Mesh.ArrayType.Color] = cols;
         arrays[(int)Mesh.ArrayType.TexUV] = uvs; arrays[(int)Mesh.ArrayType.TexUV2] = new Vector2[verts.Length]; arrays[(int)Mesh.ArrayType.Index] = idx;
         var mesh = new ArrayMesh(); mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
 
-        var sh = new Shader { Code = TerrainShader };
         _terrMat = new ShaderMaterial { Shader = sh }; _terrMat.SetShaderParameter("realm_t", 0f);
         // data/look.json "terrain"."_set": which folder under assets/textures holds the ground textures ("terrain" = ambientCG photos, "terrain_painted" = the painted pack)
         string terrSet = "terrain";
@@ -328,6 +339,38 @@ void sky(){
         body.AddChild(new MeshInstance3D { Mesh = mesh, MaterialOverride = _terrMat });
         body.AddChild(new CollisionShape3D { Shape = mesh.CreateTrimeshShape() });
         Over.AddChild(body);
+    }
+
+    /// <summary>
+    /// Online server only: drops the meshes of everything built so far (the server never draws, but a headless Godot keeps every mesh in memory).
+    /// Collision shapes, nodes and scripts stay, so walls, floors and enemies behave exactly as before.
+    /// </summary>
+    public static void StripVisuals(Node root)
+    {
+        if (!Net.Dedicated) return;
+        // loaded models stay alive until .NET collects their C# wrappers: collect now, so what was dropped is really freed
+        GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
+        var stack = new Stack<Node>(); stack.Push(root);
+        while (stack.Count > 0)
+        {
+            var n = stack.Pop();
+            if (n is MeshInstance3D mi && n is not Enemy) mi.Mesh = null;
+            else if (n is MultiMeshInstance3D mm) mm.Multimesh = null;
+            foreach (var c in n.GetChildren()) stack.Push(c);
+        }
+    }
+
+    /// <summary>
+    /// Online server: terrain collision as a height grid (same height points as the drawn ground, a small fraction of the memory of a triangle shape).
+    /// heights[iz * n1 + ix] at (x0 + ix * cell, z0 + iz * cell). The shape is scaled by cell, so the heights are stored divided by it.
+    /// </summary>
+    public static CollisionShape3D GridCollision(float[] heights, int n1, float x0, float z0, float cell)
+    {
+        var data = new float[n1 * n1];
+        for (int i = 0; i < data.Length; i++) data[i] = heights[i] / cell;
+        var shape = new HeightMapShape3D { MapWidth = n1, MapDepth = n1, MapData = data };
+        float span = (n1 - 1) * cell;
+        return new CollisionShape3D { Shape = shape, Position = new Vector3(x0 + span / 2, 0, z0 + span / 2), Scale = Vector3.One * cell };
     }
 
     const string TerrainShader = @"
