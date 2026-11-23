@@ -81,6 +81,15 @@ if ($mode -eq "bot") {
   if (Test-Path TwinRealms-playtest.zip) { Remove-Item TwinRealms-playtest.zip }
   Compress-Archive -Path build/* -DestinationPath TwinRealms-playtest.zip
   "EXPORT_OK  build/TwinRealms.exe  ->  TwinRealms-playtest.zip ($([math]::Round((Get-Item TwinRealms-playtest.zip).Length / 1MB)) MB)"
+} elseif ($mode -eq "smoke") {
+  # PowerShell version of tools/smoke_test.sh: run the game headless for 300 frames; fail on a crash or a script error
+  # (the long-known "Can't open file ... T_*_Normal.png" outfit texture lines are not counted: those files never existed)
+  & $godot --headless --path . --quit-after 300 2>&1 | ForEach-Object { "$_" } | Out-File -Encoding utf8 smoke_log.txt
+  $code = $LASTEXITCODE
+  $bad = Get-Content smoke_log.txt | Select-String "SCRIPT ERROR|Unhandled exception|Failed to load|ERROR" | Where-Object { $_ -notmatch "assets/models/outfit/T_" }
+  if ($code -ne 0) { "SMOKE_FAIL (Godot exit code $code, see smoke_log.txt)"; exit 1 }
+  if ($bad) { $bad | Select-Object -First 15; "SMOKE_FAIL"; exit 1 }
+  "SMOKE_OK"
 } elseif ($mode -eq "setup") {
   # builds only the installer -> build_setup/TwinRealmsSetup.exe (publish builds and uploads it with every release)
   dotnet build installer/TwinRealmsSetup.csproj -c Release -nologo -v q -o build_setup

@@ -1,0 +1,4 @@
+﻿Godot Engine v4.7.2.stable.mono.official.ed1daf0bf - https://godotengine.org
+
+[MAIN] scene start
+[UPDATE] server: protocol 12, version 1.0, build 20261122233153-5550d2c; this game: protocol 13, build source

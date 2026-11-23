@@ -53,7 +53,7 @@ public partial class Ui
     {
         var d = Game.D; var v = Frame("craft", "Crafting", new Vector2(820, 600), () => OpenCraft(tab));
         var top = new HBoxContainer(); v.AddChild(top);
-        Tabs(top, tab, ("gear", "Gear", () => OpenCraft("gear")), ("elem", "Elemental", () => OpenCraft("elem")), ("sets", "Set pieces", () => OpenCraft("sets")), ("pots", "Potions", () => OpenCraft("pots")));
+        Tabs(top, tab, ("gear", "Gear", () => OpenCraft("gear")), ("elem", "Elemental", () => OpenCraft("elem")), ("sets", "Set pieces", () => OpenCraft("sets")), ("pots", "Potions", () => OpenCraft("pots")), ("blocks", "Blocks", () => OpenCraft("blocks")));
         var back = Btn("Back to the pack", OpenPack, true); top.AddChild(back);
         // scraps on hand
         var have = new HBoxContainer(); have.AddThemeConstantOverride("separation", 6); v.AddChild(have); int shown = 0;
@@ -74,6 +74,25 @@ public partial class Ui
         var sc = Scroll(v, 380); var list = Inner(sc);
         switch (tab)
         {
+            case "blocks":
+            {
+                // block world (data/blocks.json "recipes"): costs are block ids or gather materials
+                Row(list, "Turn blocks into other blocks. Dig blocks in build mode (" + Inputs.KeyOf(Inputs.BuildMode) + ") to collect them.", Colors.White, 15);
+                foreach (var p in Blocks.Root.GetProperty("recipes").EnumerateObject())
+                {
+                    if (p.Value.ValueKind != JsonValueKind.Object || !Blocks.Exists(p.Name)) continue;
+                    string outId = p.Name; int n = (int)JsonUtil.F(p.Value, "out", 1);
+                    var cost = new Dictionary<string, int>();
+                    foreach (var k in p.Value.GetProperty("cost").EnumerateObject()) cost[Blocks.DropItem(k.Name)] = k.Value.GetInt32();
+                    AddRow(list, $"{n} {Blocks.Def(Blocks.Id(outId)).Name}:  {CostText(cost)}", CanPay(cost) ? Colors.White : Dim, "Craft", () =>
+                    {
+                        if (!CanPay(cost)) { Note("Not enough blocks", new Color(1, .5f, .5f)); return; }
+                        Pay(cost); var m = d.Mats; string item = Blocks.Item(outId); m[item] = m.GetValueOrDefault(item) + n;
+                        Note($"Crafted {n} {Blocks.Def(Blocks.Id(outId)).Name}", UiTheme.Highlight); Sfx.Play("level"); Game.Notify(); OpenCraft(tab);
+                    });
+                }
+                break;
+            }
             case "elem":
             {
                 var e = c.GetProperty("elemental"); int rar = (int)JsonUtil.F(e, "rar", 3), lb = (int)JsonUtil.F(e, "levelBonus", 1), cores = (int)JsonUtil.F(e, "cores", 4);

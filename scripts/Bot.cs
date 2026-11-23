@@ -801,6 +801,8 @@ public partial class Bot : Node
             }
         });
 
+        await Step("block world", async () => await BlockChecks());
+
         await Step("save and load", async () =>
         {
             int g = Game.D.Gold, lv = Game.D.Level; Game.Save(); bool ok = Game.Load(); Check("save then load", ok && Game.D.Gold == g && Game.D.Level == lv);
