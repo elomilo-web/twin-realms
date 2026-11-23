@@ -18,6 +18,7 @@ public static class Inputs
     public const string Attack = "attack", Guard = "guard", Heavy = "heavy_attack";
     public const string Macro1 = "macro1", Macro2 = "macro2";   // skill chains (PlayerMacros.cs; set up in Skills > Macros)
     public const string Flag = "playtest_flag";   // F8: screenshot + report for later review (scripts/Flag.cs)
+    public const string BuildMode = "build_mode", BlockRotate = "block_rotate";   // the block world (PlayerBlocks.cs)
 
     /// <summary>Actions shown in the Controls menu, in order, with their names.</summary>
     public static readonly (string id, string name)[] Rebindable =
@@ -30,6 +31,7 @@ public static class Inputs
         (Lock, "Lock on / next target"), (Unlock, "Release lock-on"),
         (Pack, "Pack"), (Journal, "Journal"), (Map, "Map"), (Tree, "Skill tree"), (SkillsUi, "Skills"), (AttacksUi, "Basic attacks"), (ModsUi, "Modifier tree"), (SpellcraftUi, "Spellcraft"), (Pause, "Menu"),
         (Flag, "Flag for review (screenshot + report)"),
+        (BuildMode, "Build mode (dig and place blocks)"), (BlockRotate, "Rotate block (build mode)"),
     };
 
     static bool _done;
@@ -43,6 +45,7 @@ public static class Inputs
         Bind(PotHp, Key.H); Bind(PotMp, Key.G); Bind(Use, Key.E); Bind(Realm, Key.R); Bind(Mount, Key.T);
         Bind(Pack, Key.I); Bind(Journal, Key.J); Bind(Map, Key.M); Bind(Tree, Key.K);
         Bind(Lock, Key.Tab); Bind(Unlock, Key.Q); Bind(SkillsUi, Key.L); Bind(AttacksUi, Key.O); Bind(ModsUi, Key.U); Bind(SpellcraftUi, Key.B); Bind(Flag, Key.F8);
+        Bind(BuildMode, Key.N); Bind(BlockRotate, Key.Y);
         BindMouse(Attack, MouseButton.Left); BindMouse(Heavy, MouseButton.Right); Bind(Guard, Key.F);
         InputMap.ActionAddEvent(Lock, new InputEventMouseButton { ButtonIndex = MouseButton.Middle });   // extra default, dropped once rebound
         ApplyBinds();

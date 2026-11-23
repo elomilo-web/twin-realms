@@ -129,6 +129,7 @@ public static partial class Dungeon
     {
         if (!Active) return;
         Teardown(); Active = false; Inst = 0; Owner = 0;
+        BlockWorld.I?.UseOverworld();   // back to the overworld's blocks (the floor's changes are kept with the hero)
         var w = World.I; w?.SetDungeonLook(false); w?.SetOverworldActive(true);
         if (Net.Active && World.Realm != Net.I!.Realm) World.ForceRealm(Net.I.Realm);   // the lobby may have shifted while we were below
         if (Player.Instance != null) { if (died) Player.Instance.Revive(_ret); else Player.Instance.Teleport(_ret, 0f); }
@@ -186,6 +187,22 @@ public static partial class Dungeon
             bool adj = false; for (int dz = -1; dz <= 1 && !adj; dz++) for (int dx = -1; dx <= 1; dx++) { int nx = x + dx, nz = z + dz; if (nx >= 0 && nz >= 0 && nx < GW && nz < GH && grid[nz * GW + nx]) { adj = true; break; } }
             if (adj) walls.Add((x, z));
         }
+        // the block world: floors, walls and ceiling as blocks of the theme (data/dungeons.json "blocks"); a raid lair keeps its built halls
+        bool blocks = BlockWorld.Enabled && !IsLair(key) && th.TryGetProperty("blocks", out var bt) && bt.ValueKind == JsonValueKind.Object;
+        if (blocks)
+        {
+            var bt2 = th.GetProperty("blocks"); string B(string k, string d) => JsonUtil.S(bt2, k, d);
+            var keep = DungeonGen.KeepTiles(grid, GW, GH, _rooms, bi);
+            bool[]? lava = null;
+            if (bt2.TryGetProperty("lava", out var lv) && lv.ValueKind == JsonValueKind.True)
+            {
+                lava = new bool[GW * GH];
+                foreach (var r in _rooms) foreach (var (lx, lz) in new[] { (r.X, r.Z), (r.X + r.W - 1, r.Z + r.H - 1) }) if (!keep[lz * GW + lx] && grid[lz * GW + lx]) lava[lz * GW + lx] = true;
+            }
+            var gen = new DungeonGen(grid, keep, lava, GW, GH, Tile, WallH, Origin, B("floor", "cobblestone"), B("wall", "stone"), B("ceiling", "dark_stone"));
+            BlockWorld.I!.UseDungeon(new BlockArea($"dun:{key}:{depth}:{seed}", gen));
+        }
+        else BlockWorld.I?.UseNone();
         MultiMeshInstance3D Inst(int n, Vector3 size, Material m) => new MultiMeshInstance3D { Multimesh = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseColors = true, Mesh = new BoxMesh { Size = size }, InstanceCount = n }, MaterialOverride = m };
         var fl = Inst(floors.Count, new Vector3(Tile, .6f, Tile), mat); var ce = Inst(floors.Count, new Vector3(Tile, .6f, Tile), ceilMat); var wl = Inst(walls.Count, new Vector3(Tile, WallH + .6f, Tile), wallMat);
         for (int i = 0; i < floors.Count; i++)
@@ -198,12 +215,14 @@ public static partial class Dungeon
         {
             var (x, z) = walls[i]; wl.Multimesh.SetInstanceTransform(i, new Transform3D(Basis.Identity, new Vector3((x + .5f) * Tile, (WallH + .6f) / 2 - .3f, (z + .5f) * Tile))); wl.Multimesh.SetInstanceColor(i, cW * (.8f + rnd() * .35f));
         }
+        var wallSet = new HashSet<(int, int)>(walls);
+        if (!blocks)
+        {
         Root.AddChild(fl); Root.AddChild(ce); Root.AddChild(wl);
         // collision: floor slab, ceiling slab, merged wall runs
         var body = new StaticBody3D { CollisionLayer = 1 }; Root.AddChild(body);
         body.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(GW * Tile, 1f, GH * Tile) }, Position = new Vector3(GW * Tile / 2, -.5f, GH * Tile / 2) });
         body.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(GW * Tile, 1f, GH * Tile) }, Position = new Vector3(GW * Tile / 2, WallH + .5f, GH * Tile / 2) });
-        var wallSet = new HashSet<(int, int)>(walls);
         for (int z = 0; z < GH; z++)
         {
             int x = 0; while (x < GW)
@@ -213,6 +232,8 @@ public static partial class Dungeon
                 body.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3((x - x0) * Tile, WallH + 1f, Tile) }, Position = new Vector3((x0 + x) * Tile / 2, (WallH + 1f) / 2, (z + .5f) * Tile) });
             }
         }
+        }
+        else { fl.QueueFree(); ce.QueueFree(); wl.QueueFree(); }
         // sealed border so nothing walks off the grid
         // braziers + decor
         var stone = Gfx.Tex(DMat(cW.Lightened(.25f)), "stone", 2.5f); var flame = JsonUtil.Hex(th.GetProperty("flame").GetInt32());

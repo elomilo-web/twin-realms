@@ -186,6 +186,19 @@ public static class Lands
         return h;
     }
 
+    /// <summary>
+    /// Water surface height at a point (the block world fills water up to it): the sea everywhere (0.25), raised by a lake or a river
+    /// running over this spot, matching the drawn water discs and river strips.
+    /// </summary>
+    public static float WaterAt(float x, float z)
+    {
+        float w = .25f;
+        var L = LandAt(x, z); if (L == null) return w;
+        foreach (var lk in L.Lakes) if (new Vector2(x - lk.X, z - lk.Z).Length() < lk.R * 1.35f) w = Mathf.Max(w, lk.Level);
+        foreach (var rv in L.Rivers) { if (!rv.Box.HasPoint(new Vector2(x, z))) continue; var (d, bed) = Near(rv, x, z); if (d < rv.W * .95f) w = Mathf.Max(w, Mathf.Max(bed + .95f, .3f)); }
+        return w;
+    }
+
     /// <summary>Distance to a line and the bed height there (rivers).</summary>
     static (float d, float bed) Near(Line l, float x, float z)
     {
@@ -345,7 +358,7 @@ public static class Lands
         var mesh = new ArrayMesh(); mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
         var body = new StaticBody3D { Name = "Terrain", CollisionLayer = 1 };
         body.AddChild(new MeshInstance3D { Mesh = mesh, MaterialOverride = TerrainMat(L.HasLook ? L.Look : null) });
-        body.AddChild(new CollisionShape3D { Shape = mesh.CreateTrimeshShape() });
+        World.TileCollision(body, verts, L.N, L.X0, L.Z0, L.Cell, 20);   // 32 m tiles the block world can switch off
         parent.AddChild(body);
     }
 

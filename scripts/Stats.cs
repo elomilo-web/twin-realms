@@ -47,6 +47,7 @@ public class PlayerStats
     public List<CraftedSpell> Spells = new();
     public bool CardsGiven = false; public int SpellSeq = 0;
     public Dictionary<string, int> CraftTree = new();   // spell tree ranks (Spellcraft menu > Spell tree): node id -> rank
+    public Dictionary<string, string> BlockDiffs = new();   // block world changes per area ("overworld", "dun:...") as packed diffs (BlockArea.Encode); older saves have none
 
     // ---- derived stats (methods so they are not serialised)
     static TreeStats TS => Game.TS;

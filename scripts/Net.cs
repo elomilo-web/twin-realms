@@ -31,7 +31,7 @@ public class PartyInfo
 public partial class Net : Node
 {
     public static Net? I;
-    public const int DefaultPort = 24565, Protocol = 12;   // Protocol 12: online server (accounts, login step); 11: party luck, bonus stats and glow on gear; 10: titles on heroes, lair shades; 9: lair intro and Scarletta's grab; 8: host's enemy list lines friends' monsters up (World.Reconcile); 7: taunts and revives (NetAggro.cs), raid lairs; 6: attack animations in poses; 5: shared ambushes, friends' effects, numbers and statuses; older builds are told to update
+    public const int DefaultPort = 24565, Protocol = 13;   // Protocol 13: the block world (NetBlocks.cs); 12: online server (accounts, login step); 11: party luck, bonus stats and glow on gear; 10: titles on heroes, lair shades; 9: lair intro and Scarletta's grab; 8: host's enemy list lines friends' monsters up (World.Reconcile); 7: taunts and revives (NetAggro.cs), raid lairs; 6: attack animations in poses; 5: shared ambushes, friends' effects, numbers and statuses; older builds are told to update
     public static int MaxPlayers = 8;              // friend hosting; the online server reads data/online.json
     const int Channels = 8;   // 0 reliable events, 1 poses, 2 enemy snapshots, 3 clock, 4 shots (both sides must open the same number)
     public static bool Active => I != null && I._live;
@@ -114,6 +114,7 @@ public partial class Net : Node
         if (_peer != null) { FlushOnline(); _peer.Close(); }
         if (IsInsideTree()) { Multiplayer.MultiplayerPeer = new OfflineMultiplayerPeer(); ClearAuth(); }
         if (Game.Online) Game.LeaveOnline();   // back to the heroes saved on this computer
+        BlockWorld.LeftHost();                 // a friend's block world: back to ours
         OnlineState = "";
         _peer = null; _live = false; _server = false; _myId = 1; Players.Clear(); Parties.Clear(); Duel = null;
         foreach (var h in Heroes.Values) if (IsInstanceValid(h)) h.QueueFree(); Heroes.Clear();
@@ -178,6 +179,7 @@ public partial class Net : Node
         var info = FromJson<PeerInfo>(infoJson) ?? new PeerInfo(); info.Id = id; info.Party = 0; Players[id] = info;
         var me = Player.Instance; var at = me != null && MyZone == 0 && !Dedicated ? me.GlobalPosition : World.OnGround(0, 9, .6f);
         RpcId(id, MethodName.R_Welcome, World.Realm, World.TimeOfDay, at);
+        SendBlockSync(id);   // the block world's changes (NetBlocks.cs)
         foreach (var other in Players.Keys) if (other != id && other != MyId) RpcId(other, MethodName.R_Note, info.Name + " joined the world");
         if (Dedicated) GD.Print($"[SERVER] {info.Name} entered the world ({Players.Count} online)"); else { Ui.Note(info.Name + " joined your world", Ui.Gold); Sfx.Play("portal"); }
         SendRoster(); Count("joins");

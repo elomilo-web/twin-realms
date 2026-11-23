@@ -22,6 +22,7 @@
                               },
                    "barrow":  {
                                   "name":  "Hollow Barrow",
+                                  "blocks":  { "_help": "block world: floor, walls and ceiling blocks (data/blocks.json); lava = lava pools in room corners", "floor": "cobblestone", "wall": "stone", "ceiling": "dark_stone" },
                                   "mobs":  [
                                                "skeleton",
                                                "skeleton",
@@ -58,6 +59,7 @@
                               },
                    "warrens":  {
                                    "name":  "Goblin Warrens",
+                                   "blocks":  { "floor": "dirt", "wall": "stone", "ceiling": "dirt" },
                                    "mobs":  [
                                                 "goblin",
                                                 "goblin",
@@ -96,6 +98,7 @@
                                },
                    "depths":  {
                                   "name":  "Ashen Depths",
+                                  "blocks":  { "floor": "dark_stone", "wall": "dark_stone", "ceiling": "obsidian", "lava": true },
                                   "mobs":  [
                                                "revenant",
                                                "skeleton",

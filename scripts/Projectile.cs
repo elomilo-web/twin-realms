@@ -81,6 +81,8 @@ public partial class Projectile : Node3D
         }
         var from = GlobalPosition; var to = from + Vel * dt;
         bool end = Life <= 0;
+        // the block world's water: everything slows in it, and fire goes out
+        if (BlockWorld.FluidAt(from) == "water") { Vel *= Mathf.Pow(.08f, dt); if (Calc?.Type == "fire" || Kind == "fire") { Fx.Burst(from, new Color(.8f, .85f, .9f), 6, 1.5f, .4f, .1f, 2f); QueueFree(); return; } }
 
         // world collision (ground, walls)
         var q = PhysicsRayQueryParameters3D.Create(from, to, 1);
@@ -114,6 +116,9 @@ public partial class Projectile : Node3D
         }
 
         if (!end) return;
+        // the block world: a skill's projectile hits blocks with its power and element; plain shots chip; monsters' shots follow their rules
+        if (Own == 'p') { if (Calc != null) BlockFx.Skill(Calc, to, Aoe); else BlockFx.Basic(to, Dmg, Kind == "bolt" ? "arcane" : "physical"); }
+        else if (Own == 'e') BlockFx.Enemy(to, Aoe, Dmg, Source != null && IsInstanceValid(Source) && Source.Def.Boss);
         if (Own == 'x') { if (Aoe > 0) Vfx.Explosion(to, Aoe); else Fx.Burst(to, new Color(0.8f, 0.8f, 0.9f), 4, 2f, 0.25f, 0.06f); QueueFree(); return; }
         if (Own == 'p')
         {

@@ -127,6 +127,7 @@ public static class Game
         {
             if (Player.Instance != null && !Dungeon.Active) { D.PosX = Player.Instance.GlobalPosition.X; D.PosZ = Player.Instance.GlobalPosition.Z; }
             D.Time = World.TimeOfDay;
+            BlockWorld.Store(D);   // the block world's changes (dug, built, burnt) go with the hero
             var file = File(); file.Slots[Slot] = D; file.Last = Slot; WriteFile(file);
         }
         catch (Exception e) { GD.PushError("save failed: " + e.Message); }

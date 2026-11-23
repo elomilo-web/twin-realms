@@ -337,8 +337,29 @@ void sky(){
                 }
         var body = new StaticBody3D { Name = "Terrain", CollisionLayer = 1 };
         body.AddChild(new MeshInstance3D { Mesh = mesh, MaterialOverride = _terrMat });
-        body.AddChild(new CollisionShape3D { Shape = mesh.CreateTrimeshShape() });
+        TileCollision(body, verts, N, -Half, -Half, Cell, 32);
         Over.AddChild(body);
+    }
+
+    /// <summary>
+    /// Terrain collision in square tiles (tile = cells per side) instead of one shape, so the block world can switch off the tiles it
+    /// covers (BlockWorld.SetCut). Same triangles as the drawn ground. verts are the (n+1) x (n+1) grid points.
+    /// </summary>
+    public static void TileCollision(Node body, Vector3[] verts, int n, float x0, float z0, float cell, int tile)
+    {
+        int n1 = n + 1;
+        for (int tz = 0; tz < n; tz += tile)
+            for (int tx = 0; tx < n; tx += tile)
+            {
+                int ex = Math.Min(tx + tile, n), ez = Math.Min(tz + tile, n); var faces = new List<Vector3>((ex - tx) * (ez - tz) * 6);
+                for (int iz = tz; iz < ez; iz++) for (int ix = tx; ix < ex; ix++)
+                {
+                    int i0 = iz * n1 + ix, i1 = i0 + 1, i2 = i0 + n1, i3 = i2 + 1;
+                    faces.Add(verts[i0]); faces.Add(verts[i1]); faces.Add(verts[i2]); faces.Add(verts[i1]); faces.Add(verts[i3]); faces.Add(verts[i2]);
+                }
+                var cs = new CollisionShape3D { Shape = new ConcavePolygonShape3D { Data = faces.ToArray() } }; body.AddChild(cs);
+                BlockWorld.RegisterGroundTile(new Rect2(x0 + tx * cell, z0 + tz * cell, (ex - tx) * cell, (ez - tz) * cell), cs);
+            }
     }
 
     /// <summary>
@@ -418,6 +439,7 @@ uniform float meadow_amount = 0.55;   // how much of the open grass has dirt pat
 uniform float gravel_amount = 0.5;    // loose gravel patches in the open
 varying vec3 wpos;
 varying vec3 wnrm;
+global uniform vec4 vox_rect;   // the block world's square around the player (BlockWorld.SetCut): the blocks are drawn there instead
 float h21(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(h21(i), h21(i+vec2(1.0,0.0)), f.x), mix(h21(i+vec2(0.0,1.0)), h21(i+vec2(1.0,1.0)), f.x), f.y); }
 float fb(vec2 p){ return vn(p)*0.5 + vn(p*2.07)*0.25 + vn(p*4.13)*0.125 + vn(p*8.3)*0.0625 + 0.03; }
@@ -435,6 +457,7 @@ void vertex(){
 }
 void fragment(){
   vec2 p = wpos.xz;
+  if (p.x > vox_rect.x && p.y > vox_rect.y && p.x < vox_rect.z && p.y < vox_rect.w) discard;
   float k = smoothstep(0.35, 0.65, fb(p * 0.05 + 3.1));                 // which of the two texture reads shows
   float macro = fb(p * 0.012), patchy = fb(p * 0.06 + 11.0), grit = fb(p * 0.045 + 31.0);
   float slope = 1.0 - clamp(wnrm.y, 0.0, 1.0);
@@ -516,6 +539,8 @@ uniform vec3 s_shallow : source_color; uniform vec3 s_deep : source_color;
 uniform float realm_t = 0.0;
 uniform sampler2D depth_tex : hint_depth_texture, filter_linear_mipmap;
 varying vec3 wp;
+global uniform vec4 vox_rect;   // the block world's square: water blocks are drawn there instead
+uniform float vox_cut = 1.0;    // 0 on the water blocks' own material
 float h21(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(h21(i), h21(i+vec2(1.0,0.0)), f.x), mix(h21(i+vec2(0.0,1.0)), h21(i+vec2(1.0,1.0)), f.x), f.y); }
 float waves(vec2 p, float t){
@@ -525,6 +550,7 @@ float waves(vec2 p, float t){
 void vertex(){ wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz; }
 void fragment(){
   float t = TIME; vec2 p = wp.xz; float e = 0.12;
+  if (vox_cut > 0.5 && p.x > vox_rect.x && p.y > vox_rect.y && p.x < vox_rect.z && p.y < vox_rect.w) discard;
   float w0 = waves(p, t), wx = waves(p + vec2(e, 0.0), t), wz = waves(p + vec2(0.0, e), t);
   vec3 nw = normalize(vec3((w0 - wx) / e * 0.35, 1.0, (w0 - wz) / e * 0.35));
   NORMAL = normalize((VIEW_MATRIX * vec4(nw, 0.0)).xyz);

@@ -380,6 +380,10 @@ public partial class Player : CharacterBody3D, IDamageable
         }
         if (hits > 0) { Rig?.Shake(_atkPower ? 0.25f : fin ? 0.15f : 0.08f); Sfx.Play("hit"); }
         if ((_atkPower || fin) && (a.Up > 0 || a.Arc >= 180 || stun > .5f)) { Vfx.Ring(GlobalPosition + Vector3.Up * .08f, range * .9f, w.Trail, .35f); }
+        // the block world: the blade meets whatever block is in front at chest height (axes cut wood and leaves, weak swings do nothing to stone)
+        var fwd = new Vector3(-Mathf.Sin(_modelYaw), 0, -Mathf.Cos(_modelYaw));
+        string bel = GearFx.Get(D.Weapon?.Elem) is { } ge && ge.Status != "" ? D.Weapon!.Elem : "physical";
+        BlockFx.Basic(GlobalPosition + Vector3.Up * .9f + fwd * Mathf.Min(range, 1.4f), D.WpnDmg() * mult, bel);
     }
 
     /// <summary>Hand poses for the current attack at progress p (0..1): rest -> wind-up -> mid-swing -> follow-through.</summary>
@@ -476,6 +480,7 @@ public partial class Player : CharacterBody3D, IDamageable
         float dt = (float)delta; var D = Game.D; var TS = Game.TS;
         var v = Velocity; v.X = _walkV.X; v.Z = _walkV.Z;   // steer the walking velocity only; pushes are added for the move below
         if (!IsOnFloor()) v.Y -= _gravity * dt;
+        BlockMove(dt, ref v);   // the block world: swimming, lava, ice (PlayerBlocks.cs)
         if (_liftT > 0)   // an updraft (Lands.Updraft): rise to its top, then hover there so the player can step off onto the sky island
         {
             _liftT -= dt;
@@ -539,12 +544,15 @@ public partial class Player : CharacterBody3D, IDamageable
         // ---- attack input: tap = light, hold = power (fires on release)
         // attack (left mouse): tap = next step of the chain, hold = keep swinging the chain.
         // heavy (right mouse): pressing starts a short gather; the heavy attack fires by itself when it ends (not on release)
-        bool lmb = captured && Input.IsActionPressed(Inputs.Attack);
+        BlockInput(dt, captured);   // build mode: dig and place instead of attacking (PlayerBlocks.cs)
+        bool building = BuildMode && BlockWorld.Enabled;
+        bool lmb = captured && !building && Input.IsActionPressed(Inputs.Attack);
         // a press during a swing or its recovery waits for them (it used to give up after 0.3 s, so a press early in a slow swing was lost)
-        if (captured && Input.IsActionJustPressed(Inputs.Attack)) { if (!TryAttack(false)) { _hasQueue = true; _queuePower = false; _queueT = Mathf.Max(0.3f, Mathf.Min(_atkT, .8f) + Mathf.Max(_recT, _recPending) + .15f); } }
+        if (building) { }
+        else if (captured && Input.IsActionJustPressed(Inputs.Attack)) { if (!TryAttack(false)) { _hasQueue = true; _queuePower = false; _queueT = Mathf.Max(0.3f, Mathf.Min(_atkT, .8f) + Mathf.Max(_recT, _recPending) + .15f); } }
         else if (lmb && !_hasQueue && _atkT <= 0 && _heavyT <= 0) TryAttack(false);   // held: the chain on repeat
         // pressing heavy drops a buffered light press, so the light swing cannot start during the gather and take the heavy's turn
-        if (captured && Input.IsActionJustPressed(Inputs.Heavy) && _heavyT <= 0 && !Dead) { _heavyT = HeavyGather; if (!_queuePower) _hasQueue = false; FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.1f, 0), "Heavy", new Color(1f, .8f, .45f), .35f); }
+        if (captured && !building && Input.IsActionJustPressed(Inputs.Heavy) && _heavyT <= 0 && !Dead) { _heavyT = HeavyGather; if (!_queuePower) _hasQueue = false; FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.1f, 0), "Heavy", new Color(1f, .8f, .45f), .35f); }
         if (_heavyT > 0) { _heavyT -= dt; if (_heavyT <= 0 && !TryAttack(true)) { _hasQueue = true; _queuePower = true; _queueT = Mathf.Max(0.3f, Mathf.Min(_atkT, .8f) + Mathf.Max(_recT, _recPending) + .15f); } }
         if (_hasQueue && _heavyT > 0 && !_queuePower) _hasQueue = false;   // no light swing while a heavy gathers
         if (_hasQueue) { _queueT -= dt; if (_queueT <= 0) _hasQueue = false; else if (_atkT <= 0 && TryAttack(_queuePower)) _hasQueue = false; }
@@ -612,11 +620,11 @@ public partial class Player : CharacterBody3D, IDamageable
             else if (_atkT > 0 || _castT > 0) speed *= 0.3f;
             if (_blocking) speed *= 0.5f;
             if (_backpedal) speed *= 0.75f;   // backing away from a locked foe is slower
-            speed *= Statuses.SpeedMul;
+            speed *= Statuses.SpeedMul * _fluidSpeed;   // swimming and wading in lava are slower
             if (_spinLeft > 0) speed = Mathf.Max(speed, 3.5f);
             if (_stagger > 0) speed = 0;
             if (sprint) { St = Mathf.Max(0, St - Feel.SprintDrain * dt); _stLockT = Mathf.Max(_stLockT, Feel.SprintRegenDelay); }   // data/feel.json "move"
-            var target = dir * speed; float a = (IsOnFloor() ? Accel : AirAccel) * dt;
+            var target = dir * speed; float a = (IsOnFloor() ? Accel : AirAccel) * dt * _accelMul;   // ice: slow to start and to stop
             v.X = Mathf.MoveToward(v.X, target.X, a); v.Z = Mathf.MoveToward(v.Z, target.Z, a);
             if (_atkT > 0 && !Ranged && _atk != null) Magnet(1f - _atkT / _atkDur, dt, ref v);   // melee step-in overrides the planted feet
             }

@@ -762,6 +762,8 @@ public partial class Enemy : CharacterBody3D, IDamageable
                         else if (dist - 0.4f <= Def.Reach + 0.5f)
                         {
                             if (Def.Slam) { Fx.Ring(GlobalPosition + Vector3.Up * 0.1f, Def.Reach + 0.8f, new Color(1, 0.5f, 0.2f)); if (pl is Player) Player.Instance?.Rig?.Shake(0.2f); }
+                            // the block world: the blow lands on the blocks in front too (monster rules: soft blocks only, never a dungeon floor; bosses capped)
+                            { var ef = new Vector3(-Mathf.Sin(_yaw), 0, -Mathf.Cos(_yaw)); BlockFx.Enemy(GlobalPosition + Vector3.Up * (Def.Slam ? .2f : 1f) + ef * Def.Reach * .7f, Def.Slam ? Def.Reach : 0f, Damage, Def.Boss); }
                             ((IDamageable)pl!).TakeHit(OnHit(new HitInfo { Damage = Damage, From = GlobalPosition, Knock = Def.Slam ? 9f : 4f, Stagger = Def.Slam, Attacker = this }));
                         }
                     }
@@ -809,6 +811,8 @@ public partial class Enemy : CharacterBody3D, IDamageable
         }
 
         _kb = _kb.MoveToward(Vector3.Zero, 22f * dt);
+        // the block world: monsters wade slowly through water and lava and float rather than sink like stones
+        if (BlockWorld.Enabled && BlockWorld.FluidAt(GlobalPosition + Vector3.Up * .6f) != "") { spdMul *= Blocks.F("fluids.swim.enemySpeed", .55f); v.Y = Mathf.Max(v.Y, -1.5f); }
         v.X = move.X * spdMul + _kb.X; v.Z = move.Z * spdMul + _kb.Z;
         Velocity = v;
         MoveAndSlide();

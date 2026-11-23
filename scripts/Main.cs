@@ -14,7 +14,8 @@ public partial class Main : Node3D
         if (AnimTool.Wanted()) { Game.Root = this; AddChild(new AnimTool { Name = "AnimTool" }); return; }   // tools: measure attack clips (impact timing)
         GD.Print("[MAIN] scene start"); Inputs.Setup(); Game.Root = this; Dungeon.Active = false; Arenas.Active = false; Threat.Reset(); World.Realm = 0; World.RealmT = 0; Ui.InGame = false;
         // "Quit to title" reloads this scene: forget the nodes of the old world, which are freed by now (applying the settings below touched the old sun and crashed)
-        World.I = null; FloraField.I = null; Player.Instance = null; Enemy.CurrentBoss = null;
+        World.I = null; FloraField.I = null; Player.Instance = null; Enemy.CurrentBoss = null; Player.BuildMode = false;
+        BlockWorld.InitGlobals();   // the terrain, water and grass shaders read the block world's cut-out square
         if (ServerWanted()) { RunServer(); return; }
         bool testing = Observer.Wanted() || Bot.Wanted() || Shots.Wanted() || Showcase.Wanted() || FitBot.Wanted() || MpBot.Wanted() != null || OnlineBot.Wanted();
         if (testing) Game.SetPath = "user://test_settings.json";
@@ -117,6 +118,7 @@ public partial class Main : Node3D
         var rig = new CameraRig { Name = "CameraRig", Target = player, Position = pos + new Vector3(0, 1.6f, 0) };
         player.Rig = rig; AddChild(player); AddChild(rig); rig.ExcludeFromCollision(player);
         if (server) return;
+        AddChild(new BlockWorld());   // the ground around the player as blocks (BlockWorld.cs)
         AddChild(new Hud { Name = "Hud" });
         AddChild(new Ambient { Name = "Ambient" });
         Ui.InGame = true; Input.MouseMode = Input.MouseModeEnum.Captured;

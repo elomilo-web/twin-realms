@@ -15,8 +15,10 @@ uniform float realm_t = 0.0;
 uniform float wind = 1.0;
 uniform float sway = 0.22;
 varying float h;
+global uniform vec4 vox_rect;   // the block world's square: no grass over the blocks (it would float over dug holes)
 void vertex(){
   h = UV.y;
+  vec3 o0 = MODEL_MATRIX[3].xyz; if (o0.x > vox_rect.x && o0.z > vox_rect.y && o0.x < vox_rect.z && o0.z < vox_rect.w) VERTEX *= 0.0;
   vec3 wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
   float t = TIME * 1.7;
   float gust = sin(t * 0.37 + wp.x * 0.045 + wp.z * 0.03) * 0.5 + 0.5;
@@ -51,6 +53,7 @@ uniform vec3 ground_tint : source_color = vec3(1.0);
 uniform float root_blend = 0.75;
 varying float h;
 varying vec3 root_col;
+global uniform vec4 vox_rect;   // the block world's square: no grass over the blocks
 float h21(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(h21(i), h21(i+vec2(1.0,0.0)), f.x), mix(h21(i+vec2(0.0,1.0)), h21(i+vec2(1.0,1.0)), f.x), f.y); }
 void vertex(){
@@ -58,6 +61,7 @@ void vertex(){
   vec3 origin = MODEL_MATRIX[3].xyz;
   float d = distance(origin, CAMERA_POSITION_WORLD);
   float keep = 1.0 - smoothstep(range * 0.55, range, d);
+  if (origin.x > vox_rect.x && origin.z > vox_rect.y && origin.x < vox_rect.z && origin.z < vox_rect.w) keep = 0.0;
   VERTEX.y *= keep;
   vec3 wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
   float t = TIME;

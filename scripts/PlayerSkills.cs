@@ -452,9 +452,11 @@ public partial class Player
                 e.TakeHit(h);
                 if (fx) SpellFx.Skill(c.Def.Id, "hit", e.GlobalPosition + Vector3.Up * e.HeightM() * .55f);
             }
+        BlockFx.Skill(c, at, r, mul);   // the block world: craters by power and area, element effects by damage type
     }
     Enemy? ArcHit(SkillCalc c, Vector3 fw, float arc, float range)
     {
+        BlockFx.Skill(c, GlobalPosition + Vector3.Up * .9f + fw * range * .6f, range * .45f);   // a weapon skill's sweep cuts into blocks in front
         Enemy? first = null; float fd = 1e9f; int hits = 0;
         foreach (var n in GetTree().GetNodesInGroup("enemies"))
         {
@@ -509,6 +511,7 @@ public partial class Player
                 var cp = a + ab * t; if (new Vector2(p.X - cp.X, p.Z - cp.Z).Length() < 1.6f + e.Def.R) { e.TakeHit(c.Hit(c.Dmg * mul, a, Crit(c))); SpellFx.Skill(c.Def.Id, "hit", p + Vector3.Up * e.HeightM() * .55f); }
             }
         if (mul < 1) Vfx.Lightning(a + Vector3.Up, b + Vector3.Up, W.Trail, .2f);
+        BlockFx.Skill(c, b + Vector3.Up * .9f, 1.6f, mul);   // the end of a dash strikes the blocks there
     }
 
     // ---------------------------------------------------------------- stand-in effects for modifiers (see Skills.Compute)
@@ -601,6 +604,8 @@ public partial class SkillZone : Node3D
     }
     void Hit(float mul)
     {
+        // strikes land with their full force on the blocks; lingering zones only apply their element each tick
+        BlockFx.Skill(Calc, GlobalPosition, Calc.Radius, Strike ? mul : 0f);
         foreach (var n in GetTree().GetNodesInGroup("enemies"))
             if (n is Enemy e && !e.Dead && e.Active && new Vector2(e.GlobalPosition.X - GlobalPosition.X, e.GlobalPosition.Z - GlobalPosition.Z).Length() - e.Def.R < Calc.Radius && Mathf.Abs(e.GlobalPosition.Y - GlobalPosition.Y) < 4f)
             {

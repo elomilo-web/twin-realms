@@ -46,7 +46,8 @@ public partial class CameraRig : Node3D
         }
         else if (e is InputEventMouseButton b && b.Pressed)
         {
-            if (b.ButtonIndex == MouseButton.WheelUp) Distance = Mathf.Clamp(Distance - 0.5f, 2f, 12f);
+            if (Player.BuildMode && b.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown && Player.Instance != null) Player.Instance.CycleBlock(b.ButtonIndex == MouseButton.WheelUp ? -1 : 1);   // build mode: the wheel picks the block
+            else if (b.ButtonIndex == MouseButton.WheelUp) Distance = Mathf.Clamp(Distance - 0.5f, 2f, 12f);
             else if (b.ButtonIndex == MouseButton.WheelDown) Distance = Mathf.Clamp(Distance + 0.5f, 2f, 12f);
             else if (Input.MouseMode != Input.MouseModeEnum.Captured && !Ui.AnyOpen) Input.MouseMode = Input.MouseModeEnum.Captured;
         }
