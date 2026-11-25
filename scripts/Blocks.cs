@@ -157,6 +157,7 @@ public static class Blocks
         float tile = JsonUtil.F(m, "tile", 2f); float s = 1f / Mathf.Max(.1f, tile);
         mat.Uv1Triplanar = true; mat.Uv1WorldTriplanar = true; mat.Uv1TriplanarSharpness = 8f; mat.Uv1Scale = new Vector3(s, s, s);
         mat.TextureFilter = BaseMaterial3D.TextureFilterEnum.LinearWithMipmapsAnisotropic;
+        if (mat.NormalEnabled) mat.NormalScale = .6f;   // subtle surface relief on block tops
         mat.VertexColorUseAsAlbedo = true;   // per-vertex light: face shading and ambient occlusion baked by the mesher
         var col = Color.FromHtml(JsonUtil.S(m, "color", "#ffffff"));
         float alpha = JsonUtil.F(m, "alpha", 1f);

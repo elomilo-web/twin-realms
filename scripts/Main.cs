@@ -127,6 +127,7 @@ public partial class Main : Node3D
         AddChild(new Hud { Name = "Hud" });
         AddChild(new Ambient { Name = "Ambient" }); AddChild(new Weather { Name = "Weather" });
         Ui.InGame = true; Input.MouseMode = Input.MouseModeEnum.Captured;
+        Warmup.Run(this);   // fire each lazily-built effect once so the first real use does not hitch (Warmup.cs)
         Ui.Banner(World.GetPoi("village")?.Name ?? "Oakhaven", $"{Inputs.KeyOf(Inputs.Pack)} pack, {Inputs.KeyOf(Inputs.Tree)} skill tree, {Inputs.KeyOf(Inputs.SkillsUi)} skills, {Inputs.KeyOf(Inputs.Journal)} quests, {Inputs.KeyOf(Inputs.Lock)} lock on");
         if (Game.TreeRefunded) { Game.TreeRefunded = false; Ui.Note("The skill tree has grown five times larger. Your tree points were refunded: press K.", new Color(1f, .85f, .4f)); }
         Game.Save();

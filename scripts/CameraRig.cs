@@ -31,6 +31,7 @@ public partial class CameraRig : Node3D
     // sprint feel: FOV +6 deg and +0.4 m arm (0.35 s ease), footstep-synced 0.03 m vertical bob (bob off when Shake = 0)
     public bool Sprinting; float _spr, _bob;
     Vector3 _lead, _lastTp; float _lockB, _camLen = -1f;
+    Vector3 _frame; float _frameDist, _framePitch, _flickX, _switchT; double _flickT0, _flickCool;
     public void StepBob() { if (Sprinting && Game.Set.Shake > 0) _bob = .03f; }
 
     public Camera3D Camera => _cam;
@@ -55,6 +56,18 @@ public partial class CameraRig : Node3D
     {
         if (e is InputEventMouseMotion m && Input.MouseMode == Input.MouseModeEnum.Captured)
         {
+            if (Targeting.Current != null)
+            {
+                // flick detection: horizontal travel beyond 90 px within 0.15 s switches the lock to that side
+                double now = Time.GetTicksMsec() / 1000.0;
+                if (now - _flickT0 > .15 || Mathf.Sign(m.Relative.X) != Mathf.Sign(_flickX)) { _flickT0 = now; _flickX = 0; }
+                _flickX += m.Relative.X;
+                if (Mathf.Abs(_flickX) > 90f && now > _flickCool)
+                {
+                    if (Targeting.SwitchSide(_flickX > 0 ? 1 : -1)) { _flickCool = now + .45; _switchT = .35f; }
+                    _flickX = 0;
+                }
+            }
             RotateY(-m.Relative.X * Sensitivity);
             _pitch = Mathf.Clamp(_pitch - m.Relative.Y * Sensitivity * (Game.Set.InvertY ? -1f : 1f), MinPitch, MaxPitch);
             _pivot.Rotation = new Vector3(_pitch, 0, 0);
@@ -83,20 +96,35 @@ public partial class CameraRig : Node3D
             var leadGoal = locked ? Vector3.Zero : hv.LimitLength(6f) / 6f * maxLead;
             _lead = _lead.Lerp(leadGoal, 1f - Mathf.Exp(-(float)delta / .4f));
             if (locked) _lead = _lead.Lerp(Vector3.Zero, 1f - Mathf.Exp(-12f * (float)delta));
-            var goal = tp + new Vector3(0, 1.6f, 0) + _lead;
+            // lock framing: look point = lerp(hero, target chest, 0.35); farther apart = farther back; tall targets tilt the view down; tau 0.25 s
+            Vector3 frameGoal = Vector3.Zero; float distGoal = 0f, pitchGoal = 0f;
+            if (locked && Targeting.Current is Enemy fe)
+            {
+                var chest = fe.GlobalPosition + Vector3.Up * fe.HeightM() * .6f; var hero = tp + new Vector3(0, 1.6f, 0);
+                frameGoal = (chest - hero) * .35f;
+                float sep = (fe.GlobalPosition - tp).Length();
+                distGoal = Mathf.Clamp(.15f * (sep - 4f), 0f, 3f);
+                pitchGoal = -.12f * Mathf.Clamp((fe.HeightM() - 2.5f) / 3f, 0f, 1f);
+            }
+            float kf = 1f - Mathf.Exp(-(float)delta / .25f);
+            _frame = _frame.Lerp(frameGoal, kf); _frameDist = Mathf.Lerp(_frameDist, distGoal, kf); _framePitch = Mathf.Lerp(_framePitch, pitchGoal, kf);
+            _pivot.Rotation = new Vector3(Mathf.Clamp(_pitch + _framePitch, MinPitch, MaxPitch), 0, 0);
+            var goal = tp + new Vector3(0, 1.6f, 0) + _lead + _frame;
             GlobalPosition = GlobalPosition.Lerp(goal, 1f - Mathf.Exp(-14f * (float)delta));
         }
         // lock-on: swing the camera so the target stays in view (mouse still controls pitch)
         if (Targeting.Current is Enemy t && IsInstanceValid(t) && Target != null)
         {
             var d = t.GlobalPosition - Target.GlobalPosition; d.Y = 0;
-            if (d.LengthSquared() > .5f) Rotation = new Vector3(0, Mathf.LerpAngle(Rotation.Y, Util.YawTo(d.X, d.Z), 1f - Mathf.Exp(-Feel.LockTurn * (float)delta)), 0);
+            _switchT = Mathf.Max(0, _switchT - (float)delta);
+            float turn = _switchT > 0 ? Mathf.Min(Feel.LockTurn, 7f) : Feel.LockTurn;   // short ease after a target switch
+            if (d.LengthSquared() > .5f) Rotation = new Vector3(0, Mathf.LerpAngle(Rotation.Y, Util.YawTo(d.X, d.Z), 1f - Mathf.Exp(-turn * (float)delta)), 0);
         }
         float pulse = 0f; if (_fovT > 0) { _fovT = Mathf.Max(0, _fovT - (float)delta); float u = _fovT / Mathf.Max(.01f, Feel.FovPulseTime); pulse = Feel.FovPulse * Mathf.Sin(u * Mathf.Pi); }
         _spr = Mathf.MoveToward(_spr, Sprinting ? 1f : 0f, (float)delta / .35f); float sE = _spr * _spr * (3f - 2f * _spr);
         _cam.Fov = Game.Set.Fov - pulse + 6f * sE;
         _kick *= Mathf.Exp(-16f * (float)delta); _bob *= Mathf.Exp(-9f * (float)delta);
-        _arm.SpringLength = Mathf.Lerp(_arm.SpringLength, Distance + .4f * sE, 1f - Mathf.Exp(-(10f - 4f * sE) * (float)delta));
+        _arm.SpringLength = Mathf.Lerp(_arm.SpringLength, Distance + .4f * sE + _frameDist,1f - Mathf.Exp(-(10f - 4f * sE) * (float)delta));
         _shake = Mathf.Max(0, _shake - (float)delta * 1.2f);
         // over the right shoulder, so the aim point at screen centre is not hidden behind the hero (data/feel.json camera.shoulder)
         // collision smoothing: pull in instantly, ease back out over ~0.35 s (camera local Z, applied after the arm's own placement)

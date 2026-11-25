@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Godot;
 
 namespace TwinRealms;
@@ -43,6 +44,88 @@ public partial class HudCanvas : Control
     float _deathFade;
     public override void _Process(double delta) { QueueRedraw(); float tgt = Player.Instance is { Dead: true, Downed: false } ? 1f : 0f; _deathFade = Mathf.MoveToward(_deathFade, tgt, (float)delta / (tgt > 0 ? 2.2f : .8f)); }
 
+    // ---- compass (Skyrim style): reused buffers, nothing allocated per frame
+    static readonly Color Parch = new Color("e8dcc0"), Blood = new Color(.62f, .07f, .07f);
+    static readonly string[] CardN = { "N", "E", "S", "W" }, InterN = { "NE", "SE", "SW", "NW" };
+    readonly Vector2[] _dia = new Vector2[4]; readonly List<Enemy> _hunt = new(); float _huntT;
+    string _tStr = "", _pStr = "", _gStr = ""; float _infoT; int _lastGold = -1;
+    void Dia(float x, float y, float r, Color c) { _dia[0] = new Vector2(x, y - r); _dia[1] = new Vector2(x + r * .7f, y); _dia[2] = new Vector2(x, y + r); _dia[3] = new Vector2(x - r * .7f, y); DrawColoredPolygon(_dia, c); }
+    void Rune(float x, float y, float r, Color c) { DrawLine(new Vector2(x, y - r), new Vector2(x, y + r), c, 1.6f); DrawLine(new Vector2(x, y), new Vector2(x - r * .7f, y - r * .7f), c, 1.4f); DrawLine(new Vector2(x, y), new Vector2(x + r * .7f, y - r * .7f), c, 1.4f); DrawLine(new Vector2(x - r * .5f, y + r * .5f), new Vector2(x + r * .5f, y + r * .5f), c, 1.2f); }
+
+    void DrawCompass(Player p, float yaw, float cx, float top, float w, float h, int bigF, int smallF, float dt)
+    {
+        float half = w / 2, scale = half / (Mathf.Pi / 2), left = cx - half, mid = top + h / 2, fadeW = 60f;
+        // dark translucent fill and thin gold rules, both fading out toward the ends (strips, no allocation)
+        const int N = 52; float sw = w / N;
+        for (int i = 0; i < N; i++)
+        {
+            float x0 = left + i * sw, e = Mathf.Clamp((half - Mathf.Abs(x0 + sw / 2 - cx)) / fadeW, 0, 1);
+            DrawRect(new Rect2(x0, top, sw + .5f, h), new Color(.04f, .03f, .06f, .62f * e));
+            var rc = new Color(.89f, .69f, .29f, .85f * e);
+            DrawRect(new Rect2(x0, top, sw + .5f, 1.5f), rc); DrawRect(new Rect2(x0, top + h - 1.5f, sw + .5f, 1.5f), rc);
+        }
+        var pp = p.GlobalPosition; var tickC = new Color(.89f, .69f, .29f, .5f);
+        // markers: heading = clockwise from north (-Z); camera faces -yaw, so +rel is to the right
+        if (!Dungeon.Active)
+        {
+            foreach (var poi in World.Pois)
+            {
+                float dx = poi.X - pp.X, dz = poi.Z - pp.Z, dist = Mathf.Sqrt(dx * dx + dz * dz); bool disc = Game.D.Disc.Contains(poi.Id);
+                if (!disc && dist > 150f) continue;
+                float xx = Mark(Mathf.Atan2(dx, -dz), yaw, scale, half, cx, out float edge);
+                float al = disc ? Mathf.Clamp(1.1f - dist / 700f, .4f, 1f) : Mathf.Clamp(1f - dist / 170f, .15f, .6f);
+                if (edge > 0) al *= .6f;
+                if (disc) Rune(xx, mid + h * .2f, Mathf.Max(4f, h * .17f), new Color(.95f, .76f, .3f, al)); else DrawCircle(new Vector2(xx, mid + h * .2f), 2.2f, new Color(.6f, .6f, .62f, al));
+            }
+        }
+        _huntT -= dt;
+        if (_huntT <= 0) { _huntT = .3f; _hunt.Clear(); foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Enemy en && !en.Dead && en.Active && en.Hunting && en.GlobalPosition.DistanceTo(pp) < 40f) _hunt.Add(en); }
+        for (int i = 0; i < _hunt.Count; i++)
+        {
+            var en = _hunt[i]; if (!IsInstanceValid(en) || en.Dead) continue;
+            var ep = en.GlobalPosition; float dx = ep.X - pp.X, dz = ep.Z - pp.Z; float al = Mathf.Clamp(1.1f - Mathf.Sqrt(dx * dx + dz * dz) / 45f, .35f, 1f);
+            Dia(Mark(Mathf.Atan2(dx, -dz), yaw, scale, half, cx, out _), mid + h * .2f, 3.6f, Blood with { A = al });
+        }
+        if (Targeting.Aim != null && IsInstanceValid(Targeting.Aim) && !Targeting.Aim.Dead)
+        {
+            var ep = Targeting.Aim.GlobalPosition; float tx = Mark(Mathf.Atan2(ep.X - pp.X, -(ep.Z - pp.Z)), yaw, scale, half, cx, out _);
+            Dia(tx, mid + h * .2f, 5.6f, new Color(.2f, .01f, .01f, .95f)); Dia(tx, mid + h * .2f, 4.2f, new Color(.85f, .1f, .1f));
+        }
+        // ticks every 15 degrees, letters at 45-degree steps
+        for (int k = 0; k < 24; k++)
+        {
+            float rel = Mathf.Wrap(k * Mathf.Tau / 24f + yaw, -Mathf.Pi, Mathf.Pi), xx = cx + rel * scale; float e = Mathf.Clamp((half - Mathf.Abs(xx - cx)) / fadeW, 0, 1); if (e <= 0) continue;
+            if (k % 3 != 0) { DrawLine(new Vector2(xx, top + h - 3), new Vector2(xx, top + h - 3 - h * .16f), tickC with { A = tickC.A * e }, 1f); continue; }
+            bool card = k % 6 == 0; string s = card ? CardN[k / 6] : InterN[k / 6]; int fz = card ? bigF : smallF;
+            var col = card ? (k == 0 ? UiTheme.Highlight : Parch) : UiTheme.Dim; col.A *= e;
+            var ts = F.GetStringSize(s, HorizontalAlignment.Left, -1, fz); var tp = new Vector2(xx - ts.X / 2, top + h * .5f + ts.Y * .22f - (card ? h * .06f : h * .1f));
+            DrawString(F, tp + new Vector2(1, 1), s, HorizontalAlignment.Left, -1, fz, new Color(0, 0, 0, .8f * e)); DrawString(F, tp, s, HorizontalAlignment.Left, -1, fz, col);
+        }
+        DrawColoredPolygon(Notch(cx, top), UiTheme.Accent);
+    }
+    Vector2[] Notch(float cx, float top) { _dia[0] = new Vector2(cx - 5, top); _dia[1] = new Vector2(cx + 5, top); _dia[2] = new Vector2(cx, top + 7); _dia[3] = new Vector2(cx, top + 7); return _dia; }
+    /// <summary>Screen x of a bearing; clamped to the bar edges (edge&gt;0 when clamped).</summary>
+    static float Mark(float bearing, float yaw, float scale, float half, float cx, out float edge)
+    {
+        float xx = Mathf.Wrap(bearing + yaw, -Mathf.Pi, Mathf.Pi) * scale; edge = Mathf.Abs(xx) > half - 8 ? 1f : 0f;
+        return cx + Mathf.Clamp(xx, -half + 8, half - 8);
+    }
+
+    void DrawInfoLine(Player p, float cx, float y, int fz, float hrs)
+    {
+        _infoT -= (float)GetProcessDeltaTime(); int gold = Game.D.Gold;
+        if (_infoT <= 0 || gold != _lastGold) { _infoT = .4f; _lastGold = gold; _tStr = $"{(int)hrs:00}:{(int)((hrs - (int)hrs) * 60):00}"; _pStr = Dungeon.Active ? $"Depth {Dungeon.Depth}" : PlaceName(p.GlobalPosition); _gStr = gold.ToString(); }
+        bool shadow = World.Realm == 1; var dim = new Color(UiTheme.Dim.Lightened(.15f), .85f);
+        float iw = fz, gap = fz * .7f, tw = F.GetStringSize(_tStr, HorizontalAlignment.Left, -1, fz).X, pw = F.GetStringSize(_pStr, HorizontalAlignment.Left, -1, fz).X, gw = F.GetStringSize(_gStr, HorizontalAlignment.Left, -1, fz).X;
+        float total = iw + gap + tw + gap + pw + gap + iw + 4 + gw, x = cx - total / 2, r = fz * .36f; var ic = new Vector2(x + iw / 2, y - fz * .32f);
+        if (shadow) { var vc = new Color(.78f, .62f, 1f, .9f); DrawCircle(ic, r, new Color(.05f, .02f, .09f)); DrawArc(ic, r + 1f, 0, Mathf.Tau, 16, vc, 1.4f); }
+        else { DrawCircle(ic, r * .7f, new Color(.95f, .78f, .35f, .9f)); for (int i = 0; i < 8; i++) { var dv = Vector2.Right.Rotated(i * Mathf.Tau / 8f); DrawLine(ic + dv * r, ic + dv * (r + 2.5f), new Color(.95f, .78f, .35f, .8f), 1f); } }
+        x += iw + gap; Txt(new Vector2(x, y), _tStr, fz, dim); x += tw + gap;
+        Txt(new Vector2(x, y), _pStr, fz, UiTheme.Accent); x += pw + gap;
+        var cc = new Vector2(x + iw / 2, y - fz * .32f); DrawCircle(cc, r, new Color(.9f, .7f, .25f)); DrawArc(cc, r * .6f, 0, Mathf.Tau, 12, new Color(.5f, .35f, .08f), 1f);
+        Txt(new Vector2(x + iw + 4, y), _gStr, fz, dim);
+    }
+
     void Txt(Vector2 pos, string s, int size, Color c, HorizontalAlignment al = HorizontalAlignment.Left, float width = -1)
     {
         DrawStringOutline(F, pos, s, al, width, size, 5, new Color(0, 0, 0, .9f)); DrawString(F, pos, s, al, width, size, c);
@@ -86,8 +169,8 @@ public partial class HudCanvas : Control
         Txt(new Vector2(bx0, by0 + 44), "MP", fs(.75f), UiTheme.Dim);
         DrawRect(new Rect2(px + 1, py + ph - 4, pw - 2, 2), new Color(0, 0, 0, .4f)); DrawRect(new Rect2(px + 1, py + ph - 4, (pw - 2) * Mathf.Clamp((float)d.Xp / d.XpNeed(), 0, 1), 2), UiTheme.Highlight);
         // realm, clock, place and gold sit under the compass (the notes column starts just below the status window)
-        float infoY = pad + fs(1.2f) + fs(.5f) + fs(1f) + 12;
-        Txt(new Vector2(sz.X / 2 - u * 20, infoY), Dungeon.Active ? $"DEPTH {Dungeon.Depth}" : $"{realm}   {(int)hrs:00}:{(int)((hrs - (int)hrs) * 60):00}   {PlaceName(p.GlobalPosition)}   {d.Gold} G", fs(.95f), World.Realm == 1 ? new Color(.78f, .62f, 1f) : UiTheme.Dim.Lightened(.2f), HorizontalAlignment.Center, u * 40);
+        float cBarH = fs(1.4f) + 16, infoY = pad + cBarH + fs(.85f) + 8;
+        DrawInfoLine(p, sz.X / 2, infoY, fs(.85f), hrs);
         if (Game.Set.ShowFps) Txt(new Vector2(sz.X - pad - 200, sz.Y - 4), $"{Engine.GetFramesPerSecond():0} FPS", 11, UiTheme.Dim, HorizontalAlignment.Right, 200);
         if (Arenas.Active) Txt(new Vector2(sz.X / 2 - u * 20, infoY + fs(1.2f) + 4), Arenas.Status, fs(1.15f), UiTheme.Highlight, HorizontalAlignment.Center, u * 40);
         // quest tracker, top right
@@ -98,18 +181,7 @@ public partial class HudCanvas : Control
             DrawTracker(aq, sz, u, pad, fs(.95f), fs(1f), dtv);
         }
         // compass
-        float yaw = p.Rig?.Yaw ?? 0f; float cw = u * 34, cx = sz.X / 2, cy = pad + fs(1.2f);
-        var cr = new Rect2(cx - cw / 2, cy - fs(1.2f), cw, fs(1.7f)); DrawRect(cr, UiTheme.Panel with { A = .45f });
-        DrawLine(cr.Position, cr.Position + new Vector2(cw, 0), UiTheme.AccentSoft, 1f); DrawLine(cr.Position + new Vector2(0, cr.Size.Y), cr.End, UiTheme.AccentSoft, 1f);
-        for (int k = 0; k < 16; k++)
-        {
-            // a = compass heading clockwise from north (-Z); the camera faces heading -yaw, so +rel is to the right
-            float a = k * Mathf.Tau / 16f; float rel = Mathf.Wrap(a + yaw, -Mathf.Pi, Mathf.Pi);
-            float xx = cx + rel / (Mathf.Pi / 2) * (cw / 2); if (Mathf.Abs(xx - cx) > cw / 2) continue;
-            string[] nm = { "N", "", "NE", "", "E", "", "SE", "", "S", "", "SW", "", "W", "", "NW", "" };
-            if (nm[k] != "") Txt(new Vector2(xx - 20, cy), nm[k], fs(1.1f), k == 0 ? UiTheme.Highlight : k % 4 == 0 ? UiTheme.Title : UiTheme.Dim, HorizontalAlignment.Center, 40); else DrawLine(new Vector2(xx, cy - fs(0.9f)), new Vector2(xx, cy - fs(0.4f)), UiTheme.AccentSoft, 1f);
-        }
-        DrawColoredPolygon(new[] { new Vector2(cx - 5, cr.End.Y + 6), new Vector2(cx + 5, cr.End.Y + 6), new Vector2(cx, cr.End.Y) }, UiTheme.Accent);
+        DrawCompass(p, p.Rig?.Yaw ?? 0f, sz.X / 2, pad, Mathf.Min(520f, sz.X * .4f), cBarH, fs(1.4f), fs(.8f), dtv);
         // target bar
         Enemy? tgt = Targeting.Aim != null && IsInstanceValid(Targeting.Aim) && !Targeting.Aim.Dead ? Targeting.Aim : Enemy.CurrentBoss != null && GodotObject.IsInstanceValid(Enemy.CurrentBoss) && !Enemy.CurrentBoss.Dead && Enemy.CurrentBoss.Active && Enemy.CurrentBoss.GlobalPosition.DistanceTo(p.GlobalPosition) < (Enemy.CurrentBoss.HpBars > 1 ? 120f : 35f) ? Enemy.CurrentBoss : p.Dead ? null : p.AimPoint(40f).enemy;
         if (tgt != null && !tgt.Dead)
@@ -243,7 +315,7 @@ public partial class HudCanvas : Control
         DrawRect(new Rect2(at + new Vector2(0, s + 1), new Vector2(s * Mathf.Clamp(t / 10f, 0, 1), 2)), c);
     }
 
-    static readonly Color BuffFrame = new("c9a24a"), DebuffFrame = new("7a1a1a"), Parch = new("e8dcc0");
+    static readonly Color BuffFrame = new("c9a24a"), DebuffFrame = new("7a1a1a");   // (Parch is declared above, L48)
     readonly System.Collections.Generic.Dictionary<string, float> _maxT = new();   // longest time seen per buff/status id, for the sweep
     float Span(string id, float t, float def) { if (!_maxT.TryGetValue(id, out var m) || t > m) { m = Mathf.Max(t, def); _maxT[id] = m; } return Mathf.Max(.1f, m); }
 

@@ -27,10 +27,56 @@ public static class Targeting
         if (next == null) { if (!cycle) Clear(); return; }
         Set(next);
     }
-    public static void Clear() { Current = null; if (_ring != null && GodotObject.IsInstanceValid(_ring)) _ring.Visible = false; }
+    public static void Clear() { Current = null; if (_ring != null && GodotObject.IsInstanceValid(_ring)) _ring.Visible = false; if (_ret != null && GodotObject.IsInstanceValid(_ret)) _ret.Visible = false; }
+    static Label3D? _ret; static float _lostT;
+
+    /// <summary>Nearest valid enemy within range (optionally only on one screen side: -1 left, +1 right).</summary>
+    static Enemy? Nearest(Player p, float range, Enemy? skip, int side)
+    {
+        var cam = p.Rig?.Camera; if (cam == null) return null;
+        var inv = cam.GlobalTransform.AffineInverse(); Enemy? best = null; float bs = 1e9f;
+        foreach (var n in p.GetTree().GetNodesInGroup("enemies"))
+        {
+            if (n is not Enemy e || e == skip || !Valid(e, p, range) || e.Proxy) continue;
+            if (side != 0) { var l = inv * (e.GlobalPosition + Vector3.Up); if (l.Z > 0 || l.X * side <= 0) continue; }
+            float d = (e.GlobalPosition - p.GlobalPosition).Length(); if (d < bs) { bs = d; best = e; }
+        }
+        return best;
+    }
+
+    /// <summary>Lock switch by flicking: nearest enemy within 25 m on the given screen side (-1 left, +1 right).</summary>
+    public static bool SwitchSide(int dir)
+    {
+        var p = Player.Instance; if (p == null || Current == null) return false;
+        var nx = Nearest(p, 25f, Current, dir); if (nx == null) return false;
+        Set(nx); return true;
+    }
+
+    static bool Sighted(Player p, Enemy e)
+    {
+        var from = p.GlobalPosition + Vector3.Up * 1.6f; var to = e.GlobalPosition + Vector3.Up * Mathf.Max(.6f, e.HeightM() * .6f);
+        var q = PhysicsRayQueryParameters3D.Create(from, to, 1, new Godot.Collections.Array<Rid> { p.GetRid() });
+        var r = p.GetWorld3D().DirectSpaceState.IntersectRay(q);
+        return r.Count == 0 || r["collider"].As<Node>() is Enemy;
+    }
+
+    /// <summary>Small gold diamond billboard at the locked target's chest, pulsing gently.</summary>
+    static void Reticle(Enemy? e)
+    {
+        if (_ret == null || !GodotObject.IsInstanceValid(_ret))
+        {
+            _ret = new Label3D { Text = "◆", Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, NoDepthTest = true, Shaded = false, FontSize = 64, PixelSize = .006f, OutlineSize = 6, OutlineModulate = new Color(.12f, .08f, .02f, .9f), Modulate = new Color(.95f, .78f, .32f), RenderPriority = 10, OutlineRenderPriority = 9 };
+            Game.Root?.AddChild(_ret);
+        }
+        _ret.Visible = e != null; if (e == null) return;
+        float pu = .5f + .5f * Mathf.Sin(Time.GetTicksMsec() * .006f);
+        _ret.GlobalPosition = e.GlobalPosition + Vector3.Up * Mathf.Max(.6f, e.HeightM() * .6f);
+        _ret.Scale = Vector3.One * (.9f + .2f * pu);
+        _ret.Modulate = new Color(.95f, .78f, .32f, .7f + .3f * pu);
+    }
     public static void Set(Enemy e)
     {
-        Current = e; Soft = null; Sfx.Play("click");
+        Current = e; Soft = null; _lostT = 0; Sfx.Play("click");
         Ring(); _ring!.Visible = true;
     }
     static void Ring()
@@ -89,8 +135,22 @@ public static class Targeting
     /// <summary>Called every frame by the player: drops dead or far targets, picks the auto target and moves the ring.</summary>
     public static void Tick(Player p)
     {
-        if (Current != null && (!GodotObject.IsInstanceValid(Current) || Current.Dead || !Current.Active || (Current.GlobalPosition - p.GlobalPosition).Length() > MaxRange * 1.3f))
-        { var old = Current; Clear(); if (old != null && GodotObject.IsInstanceValid(old) && old.Dead) Toggle(false); }
+        if (Current != null)
+        {
+            bool gone = !GodotObject.IsInstanceValid(Current) || Current.Dead || !Current.Active;
+            if (!gone)
+            {
+                // lost: beyond 30 m or no line of sight for 1.5 s
+                bool lost = (Current.GlobalPosition - p.GlobalPosition).Length() > 30f || !Sighted(p, Current);
+                _lostT = lost ? _lostT + (float)p.GetPhysicsProcessDeltaTime() : 0f;
+                gone = _lostT > 1.5f;
+            }
+            if (gone)
+            {
+                var old = Current; Clear();
+                if (old != null && GodotObject.IsInstanceValid(old) && old.Dead && Game.Set.AutoTarget > 0) { var nx = Nearest(p, 12f, old, 0); if (nx != null) Set(nx); }
+            }
+        }
         int mode = Game.Set.AutoTarget;
         if (Current != null || mode <= 0) Soft = null;
         else
@@ -100,9 +160,10 @@ public static class Targeting
             if (_pickT <= 0) { _pickT = mode == 3 ? .25f : .4f; Soft = PickAuto(p, mode); }
         }
         var t = Aim;
-        if (t == null) { if (_ring != null && GodotObject.IsInstanceValid(_ring)) _ring.Visible = false; return; }
+        if (t == null) { if (_ring != null && GodotObject.IsInstanceValid(_ring)) _ring.Visible = false; if (_ret != null && GodotObject.IsInstanceValid(_ret)) _ret.Visible = false; return; }
         Ring(); _ring!.Visible = true;
-        _ringMat!.AlbedoColor = Current != null ? new Color(1f, .35f, .25f, .85f) : new Color(1f, .8f, .35f, .5f);   // locked: red; auto: soft gold
+        _ringMat!.AlbedoColor = Current != null ? new Color(.9f, .72f, .3f, .8f) : new Color(1f, .8f, .35f, .5f);   // locked: gothic gold; auto: soft gold
+        Reticle(Current);
         float r = t.Def.R * t.ScaleF() * 1.6f + .4f; _ring.GlobalPosition = t.GlobalPosition + Vector3.Up * .08f; _ring.Scale = new Vector3(r, Current != null ? .4f : .25f, r); _ring.RotateY(.02f);
     }
 }

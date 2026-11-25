@@ -1,5 +1,13 @@
 # Dev loop log (newest first; max 20 detailed entries, older ones rolled into History)
 
+## #15 (2026-11-25) full sweep (50 views, 62.4 fps, 0 errors) + process review #3; feel, shaders, ui, mechanics, perf
+- BLOCKED + REVERTED: Ui.cs split (#15a): the agent's PowerShell helper `R` collided with the `r` alias and wrote empty files after cutting 342 lines; lead restored Ui.cs from HEAD (git checkout -- scripts/Ui.cs; it was fully committed in #14). Retry later with the Edit/Write tools only.
+- Lock-on (CameraRig/Targeting): frames hero+target (lerp .35), distance grows with separation, tall-target pitch; mouse flick > 90 px in .15 s switches side (Targeting.SwitchSide); lock breaks on death / > 30 m / 1.5 s out of sight, auto-reacquire within 12 m if AutoTarget; gold ring + pulsing gold diamond reticle.
+- Arena floor: rock_col has strong diagonal strata (looked like planks) -> tinted G_Plaster (ochre-grey, .45/m). Blocks: NormalScale .6 where normal maps exist.
+- Compass (Hud.DrawCompass/DrawInfoLine): framed 520 px bar, gold rules, ticks, cardinals; gold runes for discovered POIs, grey dots for undiscovered within 150 m, red diamonds for hunting foes / lock target; info line with realm glyph, time, place in gold, coin. No quest marker (quests have no positions). Lead fix: duplicate Parch in Hud.cs.
+- Gathering (Gather.cs, gather.json verbTimes): world prompt with gold key box + fill ring, timed Pick .4 / Chop .9 / Mine 1.1 s, cancel on move, chips/sparks/leaves + sounds, node shake/shrink. Lead: HUD prompt hidden for Gatherable (no double prompt).
+- Perf: Warmup.cs fires every effect once at load (0.34 s), lead: frees only what the calls made. head_look min fps 19 -> 44.5.
+
 ## #14 (2026-11-25) menus (directive), animation, graphics, vfx, combat, world
 - Map (MapView): parchment shader over World.MapTex (slate-teal hatched sea, sepia land by biome, ink coasts/roads, POI glyphs, red player arrow, vignette); lead: discovered POIs (Game.D.Disc) = gold wayshrine runes. Tree (TreeView): gold taken / pulsing available / iron locked, gold edges, keystone double ring. Banner: letter-spaced gold title + rules, fades; Notes: dark pills with coloured rule.
 - Macros fits 720p (scrolling options, buttons always visible). Sounds: UiConfirm/UiError in craft + smith; lead: UiError on not-enough-gold/valor/pack-full in shop + valor.

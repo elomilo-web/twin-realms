@@ -302,8 +302,8 @@
     },
     {
         "path":  "scripts/Blocks.cs",
-        "lines":  186,
-        "hash8":  "b49a8238",
+        "lines":  187,
+        "hash8":  "322e7b27",
         "system":  "blockworld",
         "summary":  "One block type from data/blocks.json. Id 0 is always air."
     },
@@ -338,14 +338,14 @@
     {
         "path":  "scripts/Builder.cs",
         "lines":  605,
-        "hash8":  "8d47e73c",
+        "hash8":  "03d1ddda",
         "system":  "world",
         "summary":  "Builds the hand-placed overworld: Oakhaven, the arena, dungeon mouths, the dragon lair, standing stones, obelisks,..."
     },
     {
         "path":  "scripts/CameraRig.cs",
-        "lines":  111,
-        "hash8":  "4c61d68e",
+        "lines":  139,
+        "hash8":  "885937f8",
         "system":  "camera",
         "summary":  "Free third-person camera. Mouse look, scroll to zoom, Esc frees the mouse, click recaptures it."
     },
@@ -484,8 +484,8 @@
     },
     {
         "path":  "scripts/Gather.cs",
-        "lines":  177,
-        "hash8":  "2d61f974",
+        "lines":  250,
+        "hash8":  "eed10afe",
         "system":  "world",
         "summary":  "Materials and gatherable node types from data/gather.json, and the scattering of nodes over the island."
     },
@@ -533,8 +533,8 @@
     },
     {
         "path":  "scripts/Hud.cs",
-        "lines":  432,
-        "hash8":  "c0ccda0f",
+        "lines":  504,
+        "hash8":  "ea6deafc",
         "system":  "ui",
         "summary":  "In-game HUD matching the prototype layout: top-left info, compass, quest tracker, target bar, bottom bars,..."
     },
@@ -617,8 +617,8 @@
     },
     {
         "path":  "scripts/Main.cs",
-        "lines":  150,
-        "hash8":  "220c45d8",
+        "lines":  151,
+        "hash8":  "206aa136",
         "system":  "core",
         "summary":  "Game root: shows the title screen, then builds the world, player, camera and HUD."
     },
@@ -716,7 +716,7 @@
     {
         "path":  "scripts/Player.cs",
         "lines":  836,
-        "hash8":  "ca7aae4c",
+        "hash8":  "4fc06867",
         "system":  "player",
         "summary":  "The hero: movement, roll, four weapon types (sword, bow, wand, staff), block/parry, four spells, potions,..."
     },
@@ -869,8 +869,8 @@
     },
     {
         "path":  "scripts/Targeting.cs",
-        "lines":  109,
-        "hash8":  "25436e9a",
+        "lines":  170,
+        "hash8":  "96d87143",
         "system":  "enemies",
         "summary":  "Lock-on targeting. Tab (or middle mouse) locks the enemy nearest the screen centre; Tab or..."
     },
@@ -912,7 +912,7 @@
     {
         "path":  "scripts/Ui.cs",
         "lines":  1081,
-        "hash8":  "e280e1b4",
+        "hash8":  "cee152d7",
         "system":  "ui",
         "summary":  "All menus and overlays, built in code: notes, banners, dialogue, shop, smith, pack, character, skill..."
     },
@@ -1027,6 +1027,13 @@
         "hash8":  "319637e7",
         "system":  "skills_vfx",
         "summary":  "Spell and combat visuals made in code: soft glowing particles, sword trails, fire explosions, frost..."
+    },
+    {
+        "path":  "scripts/Warmup.cs",
+        "lines":  52,
+        "hash8":  "5f93ca5e",
+        "system":  "core",
+        "summary":  "First-use cost removal: after the world is built, fire every lazily-built effect once in front..."
     },
     {
         "path":  "scripts/Wayshrine.cs",

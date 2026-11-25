@@ -1,3 +1,6 @@
+[3][M][code] Ui.cs split (BLOCKED #15: tool alias accident, reverted): move MapView, TreeView, shop/valor/totals into UiMap.cs, UiTree.cs, UiShop.cs using only Edit/Write tools (no PowerShell rewrites) -> Ui.cs
+[3][S][ui] Compass quest marker: quests have no target positions; add optional x/z to data/quests.json objectives and show a gold diamond -> Quests.cs, data/quests.json, Hud.cs
+[2][S][world] Arena floor still faintly stripy (plaster tint): add a real CC0 soil/sand scanned set (ambientCG Ground/Soil) to assets/textures/gothic -> tools/blender_gothic or foliage_tex.ps1-like fetch, ASSETS.md
 [4][S][menus] coverage (user directive): ALL listed menus have had a gothic pass (#12-#14). LEFT: inventory window sits right of centre; party/lobby panel (UiNet) check in a capture; keep re-checking every menu_* view each full sweep
 [3][S][world] Bushes don't sway yet (procedural Bush mesh path not hooked to Flora.Windy) -> Flora.cs
 [3][S][audio] Rain has no sound: synthesize a rain loop (filtered noise + droplet ticks) and fade with Weather.Rain -> tools/kit_gen/sfx_synth.py, Weather.cs
@@ -18,7 +21,6 @@ Categories: graphics shaders lighting animation feel combat mechanics ui menus w
 [3][M][ui] Target lock reticle and enemy nameplate restyle (gothic frame, HP bar with level badge) -> Targeting.cs, Hud.cs
 [3][L][world] Trees as block-aware (fire spreads to trees): convert nearby trees to burnable wood/leaves blocks on hit -> Flora.cs, BlockSim.cs
 [3][M][perf] Greedy meshing for block chunks (fewer verts, faster remesh) -> BlockMesher.cs
-[3][S][perf] Player close-up min 20 fps: find first-frame spikes (shader compile?) -> report.json, Main.cs warmup
 [2][S][code] Last compiler warning: EnemyScarletta.cs(164,29) CS8602 -> EnemyScarletta.cs
 [2][S][ui] Serif font for titles (CC0, e.g. a free-license blackletter/serif) -> data/ui_theme.json, UiTheme.cs
 [2][S][tools] DevCapture: add viewpoints for block build mode (N) and a crater after Meteor -> .devloop/viewpoints.json, DevCapture.cs actions
@@ -26,7 +28,6 @@ Categories: graphics shaders lighting animation feel combat mechanics ui menus w
 [3][S][vfx] Sword trail restyled (#3): judge in a swing close-up; tune spark threshold 8 m/s -> Vfx.cs SwordTrail, assets/shaders/sword_trail.gdshader
 [2][M][mechanics] Ladders and doors as placeable blocks -> data/blocks.json, BlockMesher.cs shapes
 [3][S][shaders] Frostmere lake shows white floe-like blotches (sea macro/foam on lakes): fine for frost, but check temperate lakes; gate by land biome -> WorldEnv.cs WaterShader
-[3][S][world] Arena floor reads like planks (G_Rock tint stretched?): check triplanar scale; add a real sand/soil set -> Builder.cs ArenaMats
 [3][S][feel] Dodge/head-look/stagger views exist now: judge perfect-dodge flash, lean sign, stagger lean next cycle
 [3][S][tools] stagger view: the wolf is not in frame; spawn foe at 3 m and frame both -> viewpoints.json, DevCapture.cs foes distance
 [2][S][audio] Listen pass needed: synthesized thud/splash levels vs step_* (user ears) -> Sfx.cs volumes

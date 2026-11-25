@@ -328,7 +328,7 @@ public static class Builder
     {
         if (_arSand != null) return;
         StandardMaterial3D Tint(string gname, Material fb, Color c) { var m = GothicMats.For(gname) is StandardMaterial3D s ? (StandardMaterial3D)s.Duplicate() : (StandardMaterial3D)fb.Duplicate(); m.AlbedoColor = c; return m; }
-        _arSand = Tint("G_Rock", Sand, new Color(.5f, .44f, .35f)); _arSand.Uv1Scale = new Vector3(.35f, .35f, .35f); _arSand.Uv1Triplanar = true; _arSand.Uv1WorldTriplanar = true;
+        _arSand = Tint("G_Plaster", Sand, new Color(.62f, .52f, .38f)); _arSand.Uv1Scale = new Vector3(.45f, .45f, .45f); _arSand.Roughness = .95f; _arSand.NormalScale = .8f; _arSand.Uv1TriplanarSharpness = 4f; _arSand.Uv1Triplanar = true; _arSand.Uv1WorldTriplanar = true;
         _arStone = Tint("G_Stone", Stone, new Color(.62f, .6f, .57f)); _arBase = Tint("G_Brick", Stone, new Color(.3f, .27f, .26f));
         _arBanner = Tint("G_Cloth", Cloth, new Color(.34f, .07f, .09f)); _arBanner.CullMode = BaseMaterial3D.CullModeEnum.Disabled;
         _arStain = new StandardMaterial3D { AlbedoColor = new Color(.06f, .045f, .035f, .38f), Transparency = BaseMaterial3D.TransparencyEnum.Alpha, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded };

@@ -1,6 +1,7 @@
 {
  "_comment": "Gatherable nodes and the materials they give. realm: 0 Light only, 1 Shadow only, -1 both. where: meadow, forest, rock, mountain, shore. respawn in seconds. Materials sell to the merchant for 'value' gold each.",
  "seed": 9137,
+ "verbTimes": { "Pick": 0.4, "Gather": 0.5, "Chop": 0.9, "Mine": 1.1, "Harvest": 0.9 },
  "materials": {
   "angelFeather": { "n": "White Angel Feather", "value": 40, "color": "#f4f2ea" },
   "sunleaf":   { "n": "Sunleaf",          "value": 6,  "color": "#e9e04a" },

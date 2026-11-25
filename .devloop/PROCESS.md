@@ -33,7 +33,19 @@
   for the user, updated each cycle with new mechanics.
 - Spell/action views must use distinct spots (block world remembers craters and ice between views).
 
+## Review #15 (2026-11-25)
+- Cycles 11-14: all shipped; user directive (all menus) handled in #12-#14 with a capture view per menu (50 views now,
+  full sweep ~10 min). Lead still fixes 1-3 compile errors per cycle (GPU-only particle props, name shadowing, missing usings,
+  duplicate colour fields across Ui partials).
+- Shared-file races: two agents editing Ui.cs in one cycle caused near-misses (whole-file writes). Rule: at most ONE agent per
+  shared big file per cycle (Ui.cs, Player.cs, Enemy.cs, WorldEnv.cs); others list line numbers for the lead.
+- FPS in captures depends on the preceding views (streamed chunks, tufts): compare a view's fps only against the same view set.
+- Order-dependent state leaks between views keep appearing (realm, rain, craters): DevCapture resets realm and rain per view;
+  new global states must get a reset there too.
+
 ## API GOTCHAS (paste into every brief)
+CpuParticles3D has no AmountRatio and no Turbulence*. A local variable named like a class (float Dmg) hides it: qualify
+TwinRealms.Dmg. Ui partials already define Parch, Muted, GoldC, Parchment, ErrRed, Amber, RuneGold: don't redeclare.
 New files: `namespace TwinRealms;` after the usings. Ui helpers like Lbl/Btn are instance methods (no `static` callers).
 CpuParticles3D has no Turbulence* (GPU only). Shader globals must be `const` (or uniforms). GeometryInstance3D.ShadowCastingSetting
 needs the class prefix outside GeometryInstance3D subclasses.

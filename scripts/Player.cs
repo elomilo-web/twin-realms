@@ -468,7 +468,7 @@ public partial class Player : CharacterBody3D, IDamageable
         }
         if (best != null)
         {
-            Prompt = "[" + Inputs.KeyOf(Inputs.Use) + "] " + best.Prompt;
+            Prompt = best is Gatherable ? "" : "[" + Inputs.KeyOf(Inputs.Use) + "] " + best.Prompt;   // gather nodes show their own world prompt (Gather.cs)
             if (Input.IsActionJustPressed(Inputs.Use)) best.Interact();
         }
     }

@@ -4,7 +4,7 @@ using Godot;
 namespace TwinRealms;
 
 public class MatDef { public string Id = "", Name = ""; public int Value; public Color Col = Colors.White; public bool Scrap; }   // Scrap: from disassembly, used in crafting
-public class NodeDef { public string Id = "", Shape = "herb", Verb = "Gather", Mat = ""; public int A0 = 1, A1 = 1, Count, Realm = -1; public string Where = "meadow"; public float MinH, MaxH = 99, Respawn = 180; }
+public class NodeDef { public string Id = "", Shape = "herb", Verb = "Gather", Mat = ""; public int A0 = 1, A1 = 1, Count, Realm = -1; public string Where = "meadow"; public float MinH, MaxH = 99, Respawn = 180, Time = .6f; }
 
 /// <summary>Materials and gatherable node types from data/gather.json, and the scattering of nodes over the island.</summary>
 public static class GatherDb
@@ -23,6 +23,7 @@ public static class GatherDb
         {
             var e = p.Value; var d = new NodeDef { Id = p.Name, Shape = JsonUtil.S(e, "shape", "herb"), Verb = JsonUtil.S(e, "verb", "Gather"), Mat = JsonUtil.S(e, "mat"), Count = (int)JsonUtil.F(e, "count"), Where = JsonUtil.S(e, "where", "meadow"),
                 MinH = JsonUtil.F(e, "minH"), MaxH = JsonUtil.F(e, "maxH", 99), Realm = (int)JsonUtil.F(e, "realm", -1), Respawn = JsonUtil.F(e, "respawn", 180) };
+            d.Time = JsonUtil.F(e, "time", r.TryGetProperty("verbTimes", out var vt) && vt.TryGetProperty(d.Verb, out var vv) ? vv.GetSingle() : .6f);
             if (e.TryGetProperty("amount", out var a)) { d.A0 = a[0].GetInt32(); d.A1 = a[1].GetInt32(); }
             Nodes.Add(d);
         }
@@ -67,7 +68,7 @@ public partial class Gatherable : Node3D, IInteractable
     public NodeDef Def = new();
     Node3D _yield = null!; float _regrow; bool _ready = true; OmniLight3D? _glow;
     public string Prompt => $"{Def.Verb} {GatherDb.Mat(Def.Mat).Name}";
-    public bool CanInteract => _ready && RealmOk;
+    public bool CanInteract => _ready && !_busy && RealmOk;
     bool RealmOk => Def.Realm < 0 || (Def.Realm == 1) == (World.RealmT > 0.5f);
 
     // shared materials, one set for all nodes (realm-aware through World.Mat)
@@ -157,20 +158,92 @@ public partial class Gatherable : Node3D, IInteractable
     public override void _Process(double delta)
     {
         UpdateRealm(false);
+        if (!Visible) return;
+        var pl = Player.Instance;
+        if (pl != null && _ready && RealmOk) { float dd = GlobalPosition.DistanceTo(pl.GlobalPosition); UpdateUi(dd < ShowDist, dd); }
+        else UpdateUi(false, 99f);
+        if (_busy)
+        {
+            if (pl == null || pl.GlobalPosition.DistanceTo(_from) > .35f) Cancel();
+            else
+            {
+                _t += (float)delta; _tick += (float)delta;
+                _yield.Position = new Vector3(Mathf.Sin(_t * 55f) * .025f, 0, 0);
+                if (_tick > .3f && _t < GatherTime - .1f && Def.Verb != "Pick") { _tick = 0; Tick(false); }
+                if (_t >= GatherTime) Finish();
+            }
+        }
         if (_ready) { if (_glow != null) _glow.LightEnergy = .8f + Mathf.Sin(World.Clock * 2.5f + Position.X) * .3f; return; }
         _regrow -= (float)delta;
         if (_regrow <= 0) { _ready = true; _yield.Visible = true; _yield.Scale = Vector3.One * 0.05f; _yield.CreateTween().TweenProperty(_yield, "scale", Vector3.One, 0.6f).SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out); }
     }
 
+    // ---- tactile gathering: world prompt + progress ring, timed action interrupted by moving
+    bool _busy; float _t, _tick; Vector3 _from;
+    Label3D? _keyLbl, _txtLbl; MeshInstance3D? _box, _ring; StandardMaterial3D? _boxMat; ShaderMaterial? _ringMat; Node3D? _ui;
+    float _uiA = -1; string _uiKey = "";
+    static Shader? _ringSh;
+    static readonly StringName PProg = "progress", PAlpha = "alpha";
+    static readonly Color Parch = new(.93f, .87f, .7f), Gold = new(.85f, .68f, .25f);
+    const float ShowDist = 6f;
+
+    void BuildUi()
+    {
+        _ringSh ??= new Shader { Code = "shader_type spatial; render_mode unshaded, depth_test_disabled, cull_disabled;\nuniform float progress = 0.0; uniform float alpha = 1.0; uniform vec4 col : source_color = vec4(0.85,0.68,0.25,1.0);\nvoid vertex(){ MODELVIEW_MATRIX = VIEW_MATRIX * mat4(INV_VIEW_MATRIX[0], INV_VIEW_MATRIX[1], INV_VIEW_MATRIX[2], MODEL_MATRIX[3]); }\nvoid fragment(){ vec2 p = UV - 0.5; float r = length(p) * 2.0; float a = atan(p.x, -p.y); if (a < 0.0) a += 6.28318; float ring = step(0.8, r) * step(r, 0.98); float on = step(a / 6.28318, progress); ALBEDO = col.rgb; ALPHA = ring * mix(0.28, 1.0, on) * alpha; }" };
+        _ui = new Node3D { Position = new Vector3(0, 1.25f, 0), Visible = false }; AddChild(_ui);
+        _boxMat = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, BillboardMode = BaseMaterial3D.BillboardModeEnum.Enabled, NoDepthTest = true, AlbedoColor = Gold, RenderPriority = 1 };
+        _box = new MeshInstance3D { Mesh = new QuadMesh { Size = new Vector2(.2f, .2f) }, MaterialOverride = _boxMat, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off }; _ui.AddChild(_box);
+        _ringMat = new ShaderMaterial { Shader = _ringSh, RenderPriority = 2 }; _ringMat.SetShaderParameter("col", Gold);
+        _ring = new MeshInstance3D { Mesh = new QuadMesh { Size = new Vector2(.42f, .42f) }, MaterialOverride = _ringMat, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off }; _ui.AddChild(_ring);
+        _keyLbl = new Label3D { FontSize = 56, PixelSize = .0034f, Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, NoDepthTest = true, Modulate = new Color(.1f, .07f, .04f), OutlineSize = 0, RenderPriority = 3, Shaded = false }; _ui.AddChild(_keyLbl);
+        _txtLbl = new Label3D { FontSize = 44, PixelSize = .0036f, Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, NoDepthTest = true, Modulate = Parch, OutlineModulate = new Color(.05f, .03f, .02f, .9f), OutlineSize = 10, RenderPriority = 3, Shaded = false, Position = new Vector3(0, -.3f, 0), Text = Prompt }; _ui.AddChild(_txtLbl);
+    }
+
+    void UpdateUi(bool show, float dist)
+    {
+        if (!show) { if (_ui != null && _ui.Visible) _ui.Visible = false; return; }
+        if (_ui == null) BuildUi();
+        float a = Mathf.Clamp((ShowDist - dist) / 2f, 0f, 1f);
+        if (a <= 0f) { if (_ui!.Visible) _ui.Visible = false; return; }
+        if (!_ui!.Visible) _ui.Visible = true;
+        if (_uiKey == "") { _uiKey = Inputs.KeyOf(Inputs.Use); _keyLbl!.Text = _uiKey; }
+        if (Mathf.Abs(a - _uiA) > .01f)
+        {
+            _uiA = a; _boxMat!.AlbedoColor = new Color(Gold, a); _keyLbl!.Modulate = new Color(.1f, .07f, .04f, a);
+            _txtLbl!.Modulate = new Color(Parch, a); _txtLbl.OutlineModulate = new Color(.05f, .03f, .02f, .9f * a); _ringMat!.SetShaderParameter(PAlpha, a);
+        }
+        _ringMat!.SetShaderParameter(PProg, _busy ? Mathf.Clamp(_t / GatherTime, 0f, 1f) : 0f);
+    }
+
+    float GatherTime => Def.Time;
+    void Cancel() { _busy = false; _yield.Position = Vector3.Zero; }
+
+    void Tick(bool big)
+    {
+        var m = GatherDb.Mat(Def.Mat); var at = GlobalPosition + Vector3.Up * 0.5f;
+        switch (Def.Verb)
+        {
+            case "Chop": Sfx.Play(big ? "hit" : "step_wood"); Fx.Burst(at, new Color(.72f, .52f, .3f), big ? 14 : 5, 3.5f, .55f, .05f, -10f); break;
+            case "Mine": Sfx.Play(big ? "hit" : "step_stone"); Fx.Burst(at, new Color(1f, .9f, .55f), big ? 14 : 5, 4.5f, .35f, .035f, -9f); break;
+            case "Pick": Sfx.Play("click"); Fx.Burst(at, m.Col.Lerp(new Color(.45f, .75f, .3f), .4f), big ? 12 : 4, 2.2f, .8f, .05f, -2.5f); break;
+            default: Sfx.Play(big ? "hit" : "click"); Fx.Burst(at, m.Col, big ? 12 : 4, 3f, .5f, .06f); break;
+        }
+    }
+
     public void Interact()
     {
         if (!CanInteract) return;
+        _busy = true; _t = 0; _tick = 0; _from = Player.Instance != null ? Player.Instance.GlobalPosition : GlobalPosition;
+        if (Def.Verb == "Chop" || Def.Verb == "Mine") Tick(false);
+    }
+
+    void Finish()
+    {
+        _busy = false; _yield.Position = Vector3.Zero;
         int n = Def.A0 + (int)(GD.Randi() % (uint)(Def.A1 - Def.A0 + 1));
-        var m = GatherDb.Mat(Def.Mat);
-        Sfx.Play(Def.Shape == "ore" || Def.Shape == "crystal" || Def.Shape == "log" ? "hit" : "click");
-        Fx.Burst(GlobalPosition + Vector3.Up * 0.5f, m.Col, 12, 3f, 0.5f, 0.06f);
+        Tick(true);
         _ready = false; _regrow = Def.Respawn;
-        var tw = _yield.CreateTween(); tw.TweenProperty(_yield, "scale", Vector3.One * 0.05f, 0.18f); tw.TweenCallback(Callable.From(() => _yield.Visible = false));
+        var tw = _yield.CreateTween(); tw.TweenProperty(_yield, "scale", Vector3.One * 0.05f, 0.25f).SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In); tw.TweenCallback(Callable.From(() => _yield.Visible = false));
         GatherDb.Give(Def.Mat, n, GlobalPosition);
     }
 }

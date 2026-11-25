@@ -11,6 +11,8 @@ Play a few minutes and tick what works; write problems into DIRECTIVES.md (or te
 - [ ] Enemy flinch + death fall (#9): enemies twist away from hits and tip over when they die.
 
 ## Movement and feel
+- [ ] Lock-on (#15): camera frames you and the target; flick the mouse sideways to switch targets; lock drops when the target dies or hides.
+- [ ] Gathering (#15): press E on herbs/logs/ore: short timed action with a ring, chips/sparks, node shrinks.
 - [ ] Camera (#11): leads slightly where you run, eases out after walls/trees (no jitter?), slight over-the-shoulder offset.
 - [ ] Chests (#11): lid swings open, golden light, loot pops out; rare items get a coloured light beam.
 - [ ] Sprint (#7): wider view, dust kick at start, short skid when stopping.
