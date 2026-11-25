@@ -86,6 +86,97 @@ public partial class Ambient : Node3D
     }
     CpuParticles3D _ash = null!, _soul = null!; DirectionalLight3D _rim = null!;
 
+    // ------------------------------------------------------------------ soundscape (data/ambient.json "soundscape")
+    sealed class Cond { public string Time = "", Realm = ""; public string[] Biome = System.Array.Empty<string>(), NotBiome = System.Array.Empty<string>(); public float Water = -1, Alt = -1; public bool Place; }
+    sealed class Entry { public string Id = ""; public float Vol; public float P0 = 1, P1 = 1; public Cond C = new(); }
+    readonly List<Entry> _layers = new(), _shots = new();
+    int _maxLayers = 3; float _every0 = 8, _every1 = 25, _d0 = 15, _d1 = 40, _altSea = .25f, _scan, _shotT = 6; bool _sndLoaded;
+    // surroundings, refreshed twice a second
+    string _biome = ""; bool _nearWater, _inPlace; float _alt;
+
+    static string[] Strs(System.Text.Json.JsonElement e, string k) { var l = new List<string>(); if (e.TryGetProperty(k, out var a) && a.ValueKind == System.Text.Json.JsonValueKind.Array) foreach (var s in a.EnumerateArray()) l.Add((s.GetString() ?? "").ToLowerInvariant()); return l.ToArray(); }
+    void LoadSoundscape(System.Text.Json.JsonElement root)
+    {
+        _sndLoaded = true; if (!root.TryGetProperty("soundscape", out var ss)) return;
+        Sfx.FadeSecs = JsonUtil.F(ss, "fade", 2.5f); _maxLayers = (int)JsonUtil.F(ss, "maxLayers", 3); _altSea = JsonUtil.F(ss, "altSea", .25f);
+        void Pair(string k, ref float a, ref float b) { if (ss.TryGetProperty(k, out var e) && e.ValueKind == System.Text.Json.JsonValueKind.Array && e.GetArrayLength() >= 2) { a = (float)e[0].GetDouble(); b = (float)e[1].GetDouble(); } }
+        Pair("every", ref _every0, ref _every1); Pair("dist", ref _d0, ref _d1);
+        void Read(string k, List<Entry> into, string idKey)
+        {
+            if (!ss.TryGetProperty(k, out var arr) || arr.ValueKind != System.Text.Json.JsonValueKind.Array) return;
+            foreach (var e in arr.EnumerateArray())
+            {
+                var en = new Entry { Id = e.TryGetProperty(idKey, out var i) ? i.GetString() ?? "" : "", Vol = JsonUtil.F(e, "vol", .5f) };
+                if (e.TryGetProperty("pitch", out var pa) && pa.ValueKind == System.Text.Json.JsonValueKind.Array && pa.GetArrayLength() >= 2) { en.P0 = (float)pa[0].GetDouble(); en.P1 = (float)pa[1].GetDouble(); }
+                if (e.TryGetProperty("when", out var w))
+                {
+                    en.C.Time = w.TryGetProperty("time", out var t) ? t.GetString() ?? "" : ""; en.C.Realm = w.TryGetProperty("realm", out var r) ? r.GetString() ?? "" : "";
+                    en.C.Biome = Strs(w, "biome"); en.C.NotBiome = Strs(w, "notBiome"); en.C.Water = JsonUtil.F(w, "water", -1); en.C.Alt = JsonUtil.F(w, "alt", -1);
+                    en.C.Place = w.TryGetProperty("place", out var pl) && pl.ValueKind == System.Text.Json.JsonValueKind.True;
+                }
+                if (en.Id != "") into.Add(en);
+            }
+        }
+        Read("layers", _layers, "file"); Read("oneshots", _shots, "id");
+    }
+
+    /// <summary>0..1 how strongly an entry applies right now (time and realm blend smoothly; the other conditions are on/off).</summary>
+    float Weight(Cond c, float night, float shadow)
+    {
+        float w = 1;
+        if (c.Time == "day") w *= 1 - night; else if (c.Time == "night") w *= night;
+        if (c.Realm == "light") w *= 1 - shadow; else if (c.Realm == "shadow") w *= shadow;
+        if (c.Biome.Length > 0 && !HasAny(c.Biome)) return 0;
+        if (c.NotBiome.Length > 0 && HasAny(c.NotBiome)) return 0;
+        if (c.Water >= 0 && !_nearWater) return 0;
+        if (c.Alt >= 0 && _alt < c.Alt) return 0;
+        if (c.Place && !_inPlace) return 0;
+        return w;
+    }
+    bool HasAny(string[] subs) { foreach (var s in subs) if (_biome.Contains(s)) return true; return false; }
+
+    void Survey(Vector3 pp)
+    {
+        _biome = (Lands.LandAt(pp.X, pp.Z)?.Default ?? "meadow").ToLowerInvariant(); _alt = pp.Y - _altSea;
+        _inPlace = false; foreach (var poi in World.Pois) if (new Vector2(poi.X - pp.X, poi.Z - pp.Z).Length() < poi.R) { _inPlace = true; break; }
+        _nearWater = false;
+        for (int ring = 0; ring < 4 && !_nearWater; ring++)
+        {
+            float d = ring * 8.5f; int n = ring == 0 ? 1 : 8;
+            for (int k = 0; k < n; k++) { float a = k * Mathf.Tau / n; float x = pp.X + Mathf.Cos(a) * d, z = pp.Z + Mathf.Sin(a) * d; if (World.GroundAt(x, z) < Lands.WaterAt(x, z) - .05f) { _nearWater = true; break; } }
+        }
+    }
+
+    void Soundscape(float dt, Vector3 pp)
+    {
+        if (!Sfx.AmbienceOn || Sfx.I == null) return;
+        if (!_sndLoaded) { using var doc = JsonUtil.Load("res://data/ambient.json"); LoadSoundscape(doc.RootElement); }
+        if (_layers.Count == 0) return;
+        float shadow = World.RealmT, night = Mathf.Clamp((World.Night - shadow * .7f) / Mathf.Max(.01f, 1f - shadow), 0, 1);
+        _scan -= dt; if (_scan <= 0) { _scan = .5f; Survey(pp); Mix(night, shadow); }
+        _shotT -= dt;
+        if (_shotT <= 0)
+        {
+            _shotT = _rg.RandfRange(_every0, _every1);
+            var ok = new List<Entry>(); foreach (var s in _shots) if (Weight(s.C, night, shadow) > .5f && Sfx.Has(s.Id)) ok.Add(s);
+            if (ok.Count > 0)
+            {
+                var e = ok[_rg.RandiRange(0, ok.Count - 1)]; float a = _rg.Randf() * Mathf.Tau, d = _rg.RandfRange(_d0, _d1);
+                var at = pp + new Vector3(Mathf.Cos(a) * d, 0, Mathf.Sin(a) * d); at.Y = Mathf.Max(World.GroundAt(at.X, at.Z), _altSea) + (e.Id is "bird_chirp" or "owl" ? 4f : 1f);
+                Sfx.PlayAt(this, e.Id, at, e.Vol, _rg.RandfRange(e.P0, e.P1));
+            }
+        }
+    }
+
+    /// <summary>Per file the loudest applicable entry; only the loudest maxLayers files get a target, the rest fade out.</summary>
+    void Mix(float night, float shadow)
+    {
+        var best = new Dictionary<string, float>();
+        foreach (var l in _layers) { float g = l.Vol * Weight(l.C, night, shadow); best[l.Id] = Mathf.Max(best.GetValueOrDefault(l.Id), g); }
+        var keys = new List<string>(best.Keys); keys.Sort((a, b) => best[b].CompareTo(best[a]));
+        for (int i = 0; i < keys.Count; i++) Sfx.SetLayer(keys[i], i < _maxLayers ? best[keys[i]] : 0f);
+    }
+
     void Reseat(Fly f, Vector3 around, bool snap)
     {
         float a = _rg.Randf() * Mathf.Tau, d = _rg.RandfRange(4, _r); var p = around + new Vector3(Mathf.Cos(a) * d, 0, Mathf.Sin(a) * d);
@@ -110,6 +201,7 @@ public partial class Ambient : Node3D
         float dt = (float)delta; var pl = Player.Instance; if (pl == null) return;
         bool over = !Dungeon.Active && World.I != null && World.I.Over.Visible; Visible = over; if (!over) { _fireflies.Emitting = _spores.Emitting = false; SetRealmFx(0); return; }
         SetRealmFx(World.RealmT);
+        Soundscape(dt, pl.GlobalPosition);
         var pp = pl.GlobalPosition; float t = (float)Time.GetTicksMsec() / 1000f;
         bool shadow = World.RealmT > .5f; float night = World.Night;
         // particles follow the player

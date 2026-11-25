@@ -77,9 +77,11 @@ uniform float night = 0.0;
 uniform float realm_t = 0.0;
 uniform float cover = 0.48;
 uniform vec2 wind = vec2(0.0);
+uniform float gold = 0.0;
 float h21(vec2 p){ vec3 q = fract(vec3(p.xyx) * 0.1031); q += dot(q, q.yzx + 33.33); return fract((q.x + q.y) * q.z); }
 float vn(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(h21(i), h21(i+vec2(1.0,0.0)), f.x), mix(h21(i+vec2(0.0,1.0)), h21(i+vec2(1.0,1.0)), f.x), f.y); }
 float fbm(vec2 p){ float s = 0.0; float a = 0.5; mat2 r = mat2(vec2(0.8, 0.6), vec2(-0.6, 0.8)); for (int i = 0; i < 5; i++){ s += a * vn(p); p = r * p * 2.03 + vec2(1.7, 9.2); a *= 0.5; } return s; }
+float fbm3(vec2 p){ float s = 0.0; float a = 0.5; mat2 r = mat2(vec2(0.8, 0.6), vec2(-0.6, 0.8)); for (int i = 0; i < 3; i++){ s += a * vn(p); p = r * p * 2.03 + vec2(1.7, 9.2); a *= 0.5; } return s / 0.875; }
 void sky(){
   vec3 d = EYEDIR; float y = d.y;
   vec3 col = mix(hor_col, top_col, pow(clamp(y, 0.0, 1.0), 0.45));
@@ -98,16 +100,27 @@ void sky(){
       float tw = 0.6 + 0.4 * sin(r * 600.0 + wind.x * 900.0);
       col += vec3(0.85, 0.9, 1.0) * step(0.9975, r) * night * tw * smoothstep(0.0, 0.25, y) * 1.6;
     }
-    vec2 uv = d.xz / (y + 0.12) * 0.55 + wind;
-    float n = fbm(uv * 1.3);
-    cl = smoothstep(1.0 - cover - 0.08, 1.0 - cover + 0.28, n) * smoothstep(0.0, 0.14, y);
-    float n2 = fbm(uv * 1.3 + sh * 0.12);
-    float lit = clamp(0.65 + (n - n2) * 5.0, 0.25, 1.25);
-    vec3 cday = mix(vec3(0.6, 0.65, 0.75), vec3(1.05), lit) + dusk_col * dusk * (0.3 + 0.7 * az) * 0.8;
+    vec2 uv = d.xz / (y + 0.15) * 0.5 + wind;
+    uv += (vec2(vn(uv * 0.9 + 4.0), vn(uv * 0.9 + 9.0)) - 0.5) * 0.9;   // domain warp
+    float n = fbm3(uv * 1.3);
+    float thr = 1.0 - cover;
+    float hfade = smoothstep(0.0, 0.22, y);
+    cl = smoothstep(thr - 0.06, thr + 0.2, n) * hfade;
+    float n2 = fbm3(uv * 1.3 + sh * 0.14);
+    float lit = clamp(0.5 + (n - n2) * 6.0 + (n - thr) * 0.8, 0.0, 1.0);
+    float thin = (1.0 - smoothstep(thr, thr + 0.28, n));
+    float sdc = max(dot(d, sd), 0.0);
+    vec3 cbase = vec3(0.36, 0.40, 0.50);
+    vec3 cday = mix(cbase, vec3(1.0, 0.98, 0.95), lit);
+    cday += sun_col * pow(sdc, 5.0) * thin * 1.2 + sun_col * pow(sdc, 24.0) * thin * 1.4;   // silver lining
+    cday += dusk_col * dusk * (0.3 + 0.7 * az) * 0.8;
+    cday = mix(cday, cday * vec3(1.15, 0.8, 0.55) + vec3(1.0, 0.5, 0.15) * (0.15 + 0.5 * az) * lit * thin, gold * 0.8);
     vec3 cnight = vec3(0.2, 0.25, 0.36) * (0.55 + lit * 0.5);   // dusty blue night clouds
     vec3 ccol = mix(cday, cnight, night);
-    ccol = mix(ccol, vec3(0.24, 0.23, 0.34) * (0.6 + lit * 0.6), realm_t);
-    col = mix(col, ccol, cl * 0.92);
+    vec3 cshadow = vec3(0.03, 0.025, 0.05) * (0.6 + lit) + vec3(0.5, 0.2, 0.75) * pow(thin, 2.0) * (0.25 + lit * 0.5);
+    ccol = mix(ccol, cshadow, realm_t);
+    ccol = mix(ccol, hor_col, (1.0 - smoothstep(0.0, 0.35, y)) * 0.7);   // fade into the haze
+    col = mix(col, ccol, cl * mix(0.95, 0.97, realm_t));
     float neb = fbm(d.xz / (y + 0.35) * 0.45 - wind * 0.4);
     col += mix(vec3(0.2, 0.12, 0.3), vec3(0.08, 0.2, 0.26), neb) * neb * realm_t * smoothstep(0.0, 0.45, y) * 0.5;
     float rift = 1.0 - smoothstep(0.0, 0.01, abs(fbm(d.xz / (y + 0.5) * 0.7 + 3.0) - 0.5));
@@ -226,7 +239,7 @@ void fragment(){
         float skyNight = Mathf.Clamp(1 - day, 0, 1) * (1 - RealmT);
         _sky.SetShaderParameter("top_col", top); _sky.SetShaderParameter("hor_col", hor); _sky.SetShaderParameter("ground_col", hor.Darkened(.55f));
         _sky.SetShaderParameter("dusk_col", LC("duskGlow", "ff6a3a")); _sky.SetShaderParameter("dusk", dusk * (1 - RealmT)); _sky.SetShaderParameter("night", skyNight);
-        _sky.SetShaderParameter("sun_col", dayCol);
+        _sky.SetShaderParameter("sun_col", dayCol); _sky.SetShaderParameter("gold", gold * day);
         _cloudT += dt * LF("cloudSpeed", .006f); _sky.SetShaderParameter("wind", new Vector2(_cloudT, _cloudT * .35f));
         _env.FogLightColor = hor.Lerp(top, .25f).Lerp(new Color(.52f, .6f, .72f), .4f * day * (1 - RealmT)).Lerp(LC("goldFog", "f0a070"), gold * day * .55f).Lerp(LC("fogShadowColor", "5f5c7e"), RealmT);
         _env.FogSunScatter = LF("goldFogScatter", .55f) * gold * day;

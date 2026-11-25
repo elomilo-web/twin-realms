@@ -16,6 +16,7 @@ namespace TwinRealms;
 /// </summary>
 public partial class BlockWorld : Node3D
 {
+    static int _tuftTotal, _tuftChunks;
     static ShaderMaterial? TuftMat;   // grass tufts on block tops (Flora.GrassMat copy with vox_cut = 0)
     public static BlockWorld? I;
     public static bool Enabled => I != null && !Net.Dedicated;
@@ -208,13 +209,16 @@ public partial class BlockWorld : Node3D
         if (md.Tufts.Count > 0 && Flora.GrassMesh != null && Flora.GrassMat != null && Game.Set.Grass > 0f)
         {
             float gs = Game.Set.Grass; var ts = new List<Transform3D>(); var tcs = new List<Color>();
-            for (int i = 0; i < md.Tufts.Count; i++) if (md.TuftKeep[i] < gs) { ts.Add(md.Tufts[i]); tcs.Add(md.TuftCols[i]); }
+            var cam = GetViewport().GetCamera3D();   // full density within ~2 chunks of the camera, half beyond, capped per chunk
+            if (cam != null) { var cc = c.Node.ToGlobal(new Vector3((c.Cx + .5f) * c.S, cam.GlobalPosition.Y, (c.Cz + .5f) * c.S)); if (cc.DistanceTo(cam.GlobalPosition) > c.S * 2.5f) gs *= .5f; }
+            for (int i = 0; i < md.Tufts.Count && ts.Count < 600; i++) if (md.TuftKeep[i] < gs) { ts.Add(md.Tufts[i]); tcs.Add(md.TuftCols[i]); }
+            _tuftTotal += ts.Count; if (++_tuftChunks % 40 == 0) GD.Print($"[tufts] {_tuftTotal} instances built over {_tuftChunks} chunk builds");
             if (ts.Count > 0)
             {
                 var mm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseColors = true, Mesh = Flora.GrassMesh, InstanceCount = ts.Count };
                 for (int i = 0; i < ts.Count; i++) { mm.SetInstanceTransform(i, ts[i]); mm.SetInstanceColor(i, tcs[i]); }
                 if (TuftMat == null) { TuftMat = (ShaderMaterial)Flora.GrassMat.Duplicate(); TuftMat.SetShaderParameter("vox_cut", 0f); }   // the field grass hides itself inside the block square; tufts must not
-                c.Node.AddChild(new MultiMeshInstance3D { Multimesh = mm, MaterialOverride = TuftMat, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off, VisibilityRangeEnd = 60f, VisibilityRangeEndMargin = 8f });
+                c.Node.AddChild(new MultiMeshInstance3D { Multimesh = mm, MaterialOverride = TuftMat, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off, VisibilityRangeEnd = 45f, VisibilityRangeEndMargin = 6f });
             }
         }
         c.Shape!.Shape = md.Faces.Length > 0 ? new ConcavePolygonShape3D { Data = md.Faces } : null;

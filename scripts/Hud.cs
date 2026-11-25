@@ -13,7 +13,7 @@ public partial class Hud : CanvasLayer
         var p = Player.Instance; if (p == null) return;
         if (Dungeon.Active) Dungeon.Reveal(p.GlobalPosition);   // the dungeon map fills in as you explore
         if (!Dungeon.Active) foreach (var poi in World.Pois)
-            if (!Game.D.Disc.Contains(poi.Id) && new Vector2(poi.X - p.GlobalPosition.X, poi.Z - p.GlobalPosition.Z).Length() < poi.R && (!poi.Sky || p.GlobalPosition.Y > poi.Y - 25f)) { Game.D.Disc.Add(poi.Id); Ui.Banner(poi.Name, "discovered"); Sfx.Play("level"); }
+            if (!Game.D.Disc.Contains(poi.Id) && new Vector2(poi.X - p.GlobalPosition.X, poi.Z - p.GlobalPosition.Z).Length() < poi.R && (!poi.Sky || p.GlobalPosition.Y > poi.Y - 25f)) { Game.D.Disc.Add(poi.Id); Wayshrine.Activate(poi.Id); Ui.Banner(poi.Name, "discovered"); Sfx.Play("level"); }
         // region banner when crossing into another land, the sky islands or the open sea
         if (!Dungeon.Active && !Arenas.Active)
         {

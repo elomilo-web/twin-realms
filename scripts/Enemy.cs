@@ -41,7 +41,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         if (Summoned) { hpMul *= .6f; dmgMul *= .8f; }
         float ratio = keepRatio && MaxHp > 0 ? Mathf.Clamp(Hp / MaxHp, 0, 1) : 1;
         MaxHp = Mathf.Max(1, hp * hpMul); Damage = dmg * dmgMul; Hp = MaxHp * ratio;
-        if (_label != null && IsInstanceValid(_label) && !Summoned) _label.Text = UpgradeLine() + Def.N + $"  Lv{Level}";
+        if (_label != null && IsInstanceValid(_label) && !Summoned) { _label.Text = (UpgradeLine() + Def.N).TrimEnd('\n'); RefreshBadge(); }
     }
     public float Hp, MaxHp, Damage;
     public bool Dead => _state == State.Dead;
@@ -140,7 +140,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         float labelY = _mdl != null ? HeightM() + .1f : quad ? r * 2.6f : dragon ? 6.2f : 2.2f * s;
         _label = new Label3D
         {
-            Text = Summoned ? "" : (UpgradeLine() + Def.N + (DefOverride != null ? "" : $"  Lv{Level}")), FontSize = 26, OutlineSize = 6, PixelSize = 0.006f, OutlineModulate = new Color(.04f, .03f, .03f, .95f),
+            Text = Summoned ? "" : (UpgradeLine() + Def.N).TrimEnd('\n'), FontSize = 26, OutlineSize = 6, PixelSize = 0.006f, OutlineModulate = new Color(.04f, .03f, .03f, .95f),
             // parchment names; elites/bosses gold; upgraded dungeon monsters blue (one upgrade) or gold (two or more)
             Modulate = Def.Boss ? new Color(1f, .8f, .3f) : UpgradeCount() >= 2 ? new Color(1f, .82f, .3f) : UpgradeCount() == 1 ? new Color(.55f, .75f, 1f) : new Color(.93f, .88f, .75f),
             // depth-tested (no names through walls or hills) and only within a fair distance, fading out
@@ -148,6 +148,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
             VisibilityRangeEnd = Def.Boss || dragon ? 90f : 26f, VisibilityRangeEndMargin = 5f, VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self,
         };
         AddChild(_label); if (Proxy) _label.Visible = false;
+        BuildPlate(labelY + 0.3f);
         // upgraded dungeon monsters glow in their rarity colour, so they read in dark halls and you can pick your fights
         if (FromDungeon && UpgradeCount() > 0 && !Def.Boss)
         {
@@ -161,6 +162,74 @@ public partial class Enemy : CharacterBody3D, IDamageable
         if (FromDungeon) AnyRealm = true;
         if (Ambusher) _state = State.Chase;
         _summonT = (float)GD.RandRange(5, 9);
+    }
+
+    // ---- nameplate: name + small level badge + thin hp bar; shown only for the target, hunters, bosses and anything close
+    Label3D? _badge; MeshInstance3D? _barBack, _barFill; QuadMesh? _fillMesh; StandardMaterial3D? _backMat, _fillMat;
+    float _plateA, _plateChk, _plateWant, _barRatio = 1f, _badgeLvl = -999; Color _nameCol, _nameOut;
+    const float BarW = 1.1f, BarH = 0.07f;
+
+    void BuildPlate(float y)
+    {
+        _nameCol = _label.Modulate; _nameOut = _label.OutlineModulate;
+        _label.Modulate = _nameCol with { A = 0 }; _label.OutlineModulate = _nameOut with { A = 0 }; _label.Visible = false;
+        _label.Position = new Vector3(0, y + 0.04f, 0);
+        if (Summoned || Proxy) return;
+        _badge = new Label3D { FontSize = 20, OutlineSize = 5, PixelSize = 0.006f, OutlineModulate = _nameOut with { A = 0 }, Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
+            Position = new Vector3(0, y + 0.04f, 0), NoDepthTest = false, HorizontalAlignment = HorizontalAlignment.Left, Visible = false };
+        AddChild(_badge); RefreshBadge();
+        _backMat = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, AlbedoColor = new Color(.05f, .03f, .03f, 0f), Transparency = BaseMaterial3D.TransparencyEnum.Alpha, BillboardMode = BaseMaterial3D.BillboardModeEnum.Enabled, NoDepthTest = false };
+        _fillMat = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, AlbedoColor = new Color(.72f, .12f, .1f, 0f), Transparency = BaseMaterial3D.TransparencyEnum.Alpha, BillboardMode = BaseMaterial3D.BillboardModeEnum.Enabled, NoDepthTest = false };
+        _fillMesh = new QuadMesh { Size = new Vector2(BarW, BarH * .7f) };
+        _barBack = new MeshInstance3D { Mesh = new QuadMesh { Size = new Vector2(BarW + .04f, BarH + .04f) }, MaterialOverride = _backMat, Position = new Vector3(0, y - 0.04f, 0), Visible = false, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
+        _barFill = new MeshInstance3D { Mesh = _fillMesh, MaterialOverride = _fillMat, Position = new Vector3(0, y - 0.04f, 0.002f), Visible = false, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
+        AddChild(_barBack); AddChild(_barFill);
+    }
+
+    void RefreshBadge()
+    {
+        if (_badge == null || DefOverride != null) { if (_badge != null) _badge.Text = ""; return; }
+        int hl = Game.D.Level, d = Level - hl;
+        _badge.Text = Level.ToString();
+        var c = d >= 6 ? new Color(.9f, .3f, .25f) : d >= 3 ? new Color(.95f, .68f, .25f) : d <= -6 ? new Color(.55f, .55f, .55f) : new Color(.88f, .83f, .7f);
+        _badge.Modulate = c with { A = _plateA }; _badgeLvl = hl;
+        _badge.Position = new Vector3(0, _label.Position.Y, 0);
+        // sit to the right of the name (billboard-local offset via the label's own width is not available, so estimate from the text length)
+        int ml = 0; foreach (var ln in _label.Text.Split('\n')) ml = Mathf.Max(ml, ln.Length);
+        _badge.Offset = new Vector2(ml * 6.6f + 12f, 0);
+    }
+
+    void PlateTick(float dt, float distP)
+    {
+        _plateChk -= dt;
+        if (_plateChk <= 0)
+        {
+            _plateChk = .2f + (float)GD.Randf() * .05f;
+            bool want = !Dead && !Proxy && (Targeting.Current == this || Hunting || (Def.Boss && distP < 90f) || distP < 12f);
+            _plateWant = want ? 1f : 0f;
+            if (_badge != null && Game.D.Level != _badgeLvl) RefreshBadge();
+            if (_plateWant > 0 && _fillMesh != null && MaxHp > 0)
+            {
+                float r = Mathf.Clamp(Hp / MaxHp, 0, 1);
+                if (Mathf.Abs(r - _barRatio) > .002f)
+                {
+                    _barRatio = r; float w = Mathf.Max(.001f, r * BarW);
+                    _fillMesh.Size = new Vector2(w, BarH * .7f); _fillMesh.CenterOffset = new Vector3(-(BarW - w) * .5f, 0, 0);
+                }
+            }
+        }
+        if (Mathf.Abs(_plateA - _plateWant) < .001f && (_plateA > 0 || !_label.Visible)) return;
+        _plateA = Mathf.MoveToward(_plateA, _plateWant, dt / .25f);
+        bool vis = _plateA > .003f && !Dead;
+        if (_label.Visible != vis && !Summoned) _label.Visible = vis;
+        _label.Modulate = _nameCol with { A = _plateA }; _label.OutlineModulate = _nameOut with { A = _nameOut.A * _plateA };
+        if (_badge != null)
+        {
+            _badge.Visible = vis; _badge.Modulate = _badge.Modulate with { A = _plateA }; _badge.OutlineModulate = _nameOut with { A = _nameOut.A * _plateA };
+            bool bar = vis && _barRatio < .999f && Hp > 0;
+            _barBack!.Visible = bar; _barFill!.Visible = bar;
+            _backMat!.AlbedoColor = _backMat.AlbedoColor with { A = .8f * _plateA }; _fillMat!.AlbedoColor = _fillMat.AlbedoColor with { A = _plateA };
+        }
     }
 
     // body parts are collected and merged per (parent, material) after building: one draw call per material instead of one per box.
@@ -609,6 +678,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         // far monsters are not drawn or run (small wildlife even sooner); Scarletta's chamber is a kilometre wide, so she never sleeps for distance
         if (distP > (Def.Look != "" ? 100f : 150f) && !Arena && !Dead && !Scarletta) { Visible = false; if (_mdlAp != null) _mdlAp.Active = false; return; }
         if (!Visible && Active) { Visible = true; if (_mdlAp != null) _mdlAp.Active = true; }
+        PlateTick(dt, distP);
 
         var v = Velocity;
         if (!IsOnFloor()) v.Y -= _gravity * dt; else v.Y = 0;

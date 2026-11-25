@@ -777,6 +777,17 @@ public partial class HeadLook : SkeletonModifier3D
             for (Node? n = Av; n != null; n = n.GetParent()) if (n is Player) { _local = true; break; }
         }
         if (_head < 0) return;
+        if (!_local)
+        {   // enemies / NPCs: no look-at, breathing or glance; lean into turns only, and nothing at all when far from the camera
+            var cam0 = GetViewport().GetCamera3D();
+            if (cam0 == null || cam0.GlobalPosition.DistanceSquaredTo(Av.GlobalPosition) > 625f) { _hasLast = false; return; }
+            float dt0 = Mathf.Clamp((float)delta, 0.0001f, .1f); var p0 = Av.GlobalPosition; float y0 = Av.GlobalRotation.Y; float l0 = 0;
+            if (_hasLast) { float dy = Mathf.Wrap(y0 - _lastY, -Mathf.Pi, Mathf.Pi) / dt0; float sp = new Vector2(p0.X - _lastPos.X, p0.Z - _lastPos.Z).Length() / dt0; if (sp < 14f) l0 = Mathf.Clamp(-dy * Mathf.Min(sp, 8f) * .008f, -.14f, .14f); }
+            _lastY = y0; _lastPos = p0; _hasLast = true;
+            _lean = Mathf.Lerp(_lean, l0, 1f - Mathf.Exp(-8f * dt0));
+            if (Mathf.Abs(_lean) > .002f) { Roll(sk, _sp1, _lean * .5f); Roll(sk, _sp2, _lean * .5f); }
+            return;
+        }
         float dt = Mathf.Clamp((float)delta, 0.0001f, .1f); float k = 1f - Mathf.Exp(-8f * dt);
         _w = Mathf.MoveToward(_w, Av.Busy ? 0f : 1f, dt * 4f);
 

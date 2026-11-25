@@ -239,8 +239,8 @@
     },
     {
         "path":  "scripts/Ambient.cs",
-        "lines":  144,
-        "hash8":  "4b2d3a50",
+        "lines":  236,
+        "hash8":  "a430e185",
         "system":  "world",
         "summary":  "Scenery life that follows the player (no gameplay): butterflies over meadows by day, fireflies at..."
     },
@@ -267,8 +267,8 @@
     },
     {
         "path":  "scripts/Avatar.cs",
-        "lines":  890,
-        "hash8":  "8b231ae3",
+        "lines":  901,
+        "hash8":  "93dd67cc",
         "system":  "animation",
         "summary":  "A character built from the Quaternius universal rig (data/avatar.json): a plain base body (male or..."
     },
@@ -296,7 +296,7 @@
     {
         "path":  "scripts/BlockMesher.cs",
         "lines":  194,
-        "hash8":  "0bc71dad",
+        "hash8":  "c00c9bed",
         "system":  "blockworld",
         "summary":  "A chunk\u0027s finished mesh: one surface per material, plus the faces for its collision shape...."
     },
@@ -316,8 +316,8 @@
     },
     {
         "path":  "scripts/BlockWorld.cs",
-        "lines":  317,
-        "hash8":  "5681df1e",
+        "lines":  321,
+        "hash8":  "22b0c6ea",
         "system":  "blockworld",
         "summary":  "The block world (data/blocks.json, docs/DESIGN.md \"Block world\"). Around the player the ground is made of..."
     },
@@ -337,8 +337,8 @@
     },
     {
         "path":  "scripts/Builder.cs",
-        "lines":  515,
-        "hash8":  "47725771",
+        "lines":  516,
+        "hash8":  "c4738749",
         "system":  "world",
         "summary":  "Builds the hand-placed overworld: Oakhaven, the arena, dungeon mouths, the dragon lair, standing stones, obelisks,..."
     },
@@ -386,8 +386,8 @@
     },
     {
         "path":  "scripts/Enemy.cs",
-        "lines":  921,
-        "hash8":  "52a77655",
+        "lines":  991,
+        "hash8":  "b562ef6b",
         "system":  "enemies",
         "summary":  "Data-driven enemy. Melee, ranged, summoning bosses and the dragon. Stats come from data/enemies.json."
     },
@@ -534,7 +534,7 @@
     {
         "path":  "scripts/Hud.cs",
         "lines":  374,
-        "hash8":  "4e647631",
+        "hash8":  "22a3e6fd",
         "system":  "ui",
         "summary":  "In-game HUD matching the prototype layout: top-left info, compass, quest tracker, target bar, bottom bars,..."
     },
@@ -813,8 +813,8 @@
     },
     {
         "path":  "scripts/Sfx.cs",
-        "lines":  262,
-        "hash8":  "868c3941",
+        "lines":  274,
+        "hash8":  "9d3754ad",
         "system":  "audio",
         "summary":  "Sound effects, ambience and music."
     },
@@ -1023,10 +1023,17 @@
     },
     {
         "path":  "scripts/Vfx.cs",
-        "lines":  363,
-        "hash8":  "61fd1ae6",
+        "lines":  490,
+        "hash8":  "f7f59e4f",
         "system":  "skills_vfx",
         "summary":  "Spell and combat visuals made in code: soft glowing particles, sword trails, fire explosions, frost..."
+    },
+    {
+        "path":  "scripts/Wayshrine.cs",
+        "lines":  64,
+        "hash8":  "8b5f5565",
+        "system":  "core",
+        "summary":  "A gothic wayshrine beside each fast-travel POI: plinth, obelisk with a rune band, hovering sigil."
     },
     {
         "path":  "scripts/Weapons.cs",
@@ -1058,8 +1065,8 @@
     },
     {
         "path":  "scripts/WorldEnv.cs",
-        "lines":  268,
-        "hash8":  "087aed0c",
+        "lines":  281,
+        "hash8":  "3dfb73f4",
         "system":  "world",
         "summary":  "World: environment, sky, fog, sun/moon light, day/night and realm-blend look, water."
     }

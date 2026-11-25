@@ -206,13 +206,25 @@ public partial class Sfx : Node
         bool inD = Dungeon.Active; float shadow = World.RealmT, out_ = inD ? 0f : 1f;
         float night = Mathf.Clamp((World.Night - shadow * .7f) / Mathf.Max(.01f, 1f - shadow), 0, 1);   // night without the realm's darkening
         void T(string k, float g) { if (_amb.TryGetValue(k, out var l)) l.Gain = g; }
-        T("day_birds", (1 - night) * (1 - shadow) * out_ * .8f);
-        T("night_crickets", night * (1 - shadow) * out_ * .6f);
-        T("breeze", (1 - shadow) * out_ * .3f);
-        T("shadow_wind", shadow * out_ * .45f);
+        if (_ext.Count == 0) { T("day_birds", (1 - night) * (1 - shadow) * out_ * .8f); T("night_crickets", night * (1 - shadow) * out_ * .6f); T("breeze", (1 - shadow) * out_ * .3f); T("shadow_wind", shadow * out_ * .45f); }   // fallback until Ambient.cs drives the layers
+        else foreach (var kv in _ext) T(kv.Key, inD ? 0f : kv.Value);
         T("dungeon", inD ? .55f : 0f);
         float a = Game.Set.Ambient;
-        foreach (var l in _amb.Values) { l.Level = Mathf.MoveToward(l.Level, l.Gain, dt * .5f); l.P.VolumeDb = Mathf.LinearToDb(Mathf.Max(l.Level * a, 0.0001f)); }
+        foreach (var l in _amb.Values) { l.Level = Mathf.MoveToward(l.Level, l.Gain, dt / Mathf.Max(.2f, FadeSecs)); l.P.VolumeDb = Mathf.LinearToDb(Mathf.Max(l.Level * a, 0.0001f)); }
+    }
+    readonly Dictionary<string, float> _ext = new();
+    /// <summary>Crossfade time of the ambience layers (data/ambient.json soundscape.fade).</summary>
+    public static float FadeSecs = 2.5f;
+    /// <summary>Target loudness (0..1, before the Ambient slider) of a looping layer from scripts/Ambient.cs; the mixer fades to it.</summary>
+    public static void SetLayer(string key, float gain) { if (I != null) I._ext[key] = gain; }
+    /// <summary>True when a one-shot sound file exists for this id (no synth fallback).</summary>
+    public static bool Has(string id) => Files.TryGetValue(id, out var l) && l.Count > 0;
+    /// <summary>A spatial one-shot at a world position, following the Ambient slider. Silently skipped when the id has no file.</summary>
+    public static void PlayAt(Node parent, string id, Vector3 pos, float vol, float pitch)
+    {
+        if (!Has(id) || !AmbienceOn) return; var l = Files[id];
+        var p = new AudioStreamPlayer3D { Stream = l[(int)(GD.Randi() % (uint)l.Count)], VolumeDb = Mathf.LinearToDb(Mathf.Max(vol * Game.Set.Ambient, 0.0001f)), PitchScale = pitch, UnitSize = 12f, MaxDistance = 90f, AttenuationModel = AudioStreamPlayer3D.AttenuationModelEnum.InverseDistance };
+        parent.AddChild(p); p.GlobalPosition = pos; p.Finished += p.QueueFree; p.Play();
     }
 
     // ------------------------------------------------------------------ music

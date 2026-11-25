@@ -1,8 +1,30 @@
 {
- "_help": "Ambient scenery life around the player (no gameplay). Read by scripts/Ambient.cs. sound: false = no ambience sound layers (birds, crickets, wind, dungeon air), only music (Sfx.cs).",
+ "_help": "Ambient scenery life around the player (no gameplay). Read by scripts/Ambient.cs. sound: false = no ambience sound layers (birds, crickets, wind, dungeon air, one-shots), only music (Sfx.cs).",
  "sound": false,
  "butterflies": { "count": 14, "radius": 22, "maxHeight": 14, "colors": ["ffb340", "ffffff", "8fd0ff", "ff7aa8", "fff07a"] },
  "fireflies": { "amount": 90, "box": 22, "night": 0.45 },
  "spores": { "amount": 70, "box": 24 },
- "birds": { "flocks": 3, "perFlock": 6, "height": 34, "radius": 45, "speed": 0.12 }
+ "birds": { "flocks": 3, "perFlock": 6, "height": 34, "radius": 45, "speed": 0.12 },
+ "soundscape": {
+  "_help": "layers = looping files in assets/audio/ambient (file = name without extension); each entry's loudness vol (0..1, times the Ambient slider) applies when ALL its 'when' conditions hold; the same file may appear twice (loudest wins). Only maxLayers loudest play, crossfaded over fade seconds. when: time day|night (blends with dusk), realm light|shadow, biome / notBiome = substrings of the land's default biome id, water = metres to a lake/river/sea, place = inside a POI, alt = hero metres above sea. oneshots = sfx ids from assets/audio/sfx played at a random point 'dist' metres around the hero, one every 'every' seconds (ids with no file are skipped); pitch = [min,max].",
+  "fade": 2.5, "maxLayers": 3, "every": [8, 25], "dist": [15, 40], "altSea": 0.25,
+  "layers": [
+   { "file": "day_birds", "vol": 0.7, "when": { "time": "day", "realm": "light" } },
+   { "file": "day_birds", "vol": 0.9, "when": { "time": "day", "realm": "light", "biome": ["forest", "pine", "wood", "jungle", "swamp", "marsh"] } },
+   { "file": "breeze", "vol": 0.3, "when": { "realm": "light" } },
+   { "file": "breeze", "vol": 0.6, "when": { "realm": "light", "alt": 40 } },
+   { "file": "shadow_wind", "vol": 0.3, "when": { "realm": "light", "alt": 40 } },
+   { "file": "night_crickets", "vol": 0.6, "when": { "time": "night", "realm": "light", "notBiome": ["snow", "frost", "ice", "tundra", "volc", "ash", "lava", "ember"] } },
+   { "file": "shadow_wind", "vol": 0.45, "when": { "realm": "shadow" } }
+  ],
+  "oneshots": [
+   { "id": "bird_chirp", "vol": 0.4, "pitch": [0.9, 1.15], "when": { "time": "day", "realm": "light", "biome": ["forest", "pine", "wood", "jungle", "meadow"] } },
+   { "id": "owl", "vol": 0.4, "pitch": [0.9, 1.05], "when": { "time": "night", "realm": "light", "biome": ["forest", "pine", "wood", "jungle", "swamp"] } },
+   { "id": "splash", "vol": 0.12, "pitch": [0.55, 0.8], "when": { "realm": "light", "water": 25 } },
+   { "id": "fire", "vol": 0.14, "pitch": [0.7, 0.9], "when": { "realm": "light", "place": true } },
+   { "id": "roar", "vol": 0.3, "pitch": [0.35, 0.5], "when": { "realm": "light", "biome": ["volc", "ash", "lava", "ember"] } },
+   { "id": "hurt", "vol": 0.1, "pitch": [1.7, 2.1], "when": { "realm": "shadow" } },
+   { "id": "ice", "vol": 0.15, "pitch": [0.6, 0.8], "when": { "realm": "light", "biome": ["snow", "frost", "ice", "tundra"] } }
+  ]
+ }
 }

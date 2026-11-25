@@ -30,6 +30,7 @@ public static class Builder
         Post = World.Mat(new Color(.2f, .15f, .1f), new Color(.1f, .07f, .14f)); Gfx.Tex(Post, "grain", 1.2f);
         Post.DistanceFadeMode = BaseMaterial3D.DistanceFadeModeEnum.PixelAlpha; Post.DistanceFadeMinDistance = 1.5f; Post.DistanceFadeMaxDistance = 4.5f;
         Village(over); Arena(over); foreach (var p in World.Pois) if (p.Dun != null) Entrance(over, p);
+        Wayshrine.BuildAll(over);
         Lair(over); Stones(over); Obelisks(over); Chests(over); Npcs(over); Spawns(over);
     }
 

@@ -1,4 +1,3 @@
-[5][M][perf] Near-hero views lost 10-13% in #7 (running 59->51, combat 54->49): profile tufts (instances per chunk, overdraw, range 60 -> 40, density), HeadLook/idle modifier cost per avatar, sprint camera; target back to >= 57 -> BlockMesher.cs tufts, BlockWorld.cs, Avatar.cs HeadLook
 # Backlog (prioritized; one item per line)
 Format: [impact 1-5][effort S/M/L][category] description -> target files. Top = next. Remove when done (log it in LOG.md).
 Categories: graphics shaders lighting animation feel combat mechanics ui menus world vfx audio perf code tools
@@ -12,7 +11,6 @@ Categories: graphics shaders lighting animation feel combat mechanics ui menus w
 [4][M][animation] Running pose stiff at distance: add lean into turns and upper-body counter-rotation -> HeroRig.cs / Avatar.cs
 [3][S][ui] HUD ghost/vignette colours are hard-coded in Hud.SlantBar/GhostStep: move to data/ui_theme.json; add a "low_hp" viewpoint (hero at 20% HP) to judge the pulse -> Hud.cs, viewpoints.json
 [4][M][world] Village plaza is sparse: add market stalls, banners, crates, lanterns on posts, scattered hay/leaves decals -> Builder.cs, data/env.json
-[4][L][graphics] Sky in water view shows a smeared, tiled cloud texture: rebuild sky clouds as a procedural sky shader with layered fbm, sun disk and gothic overcast -> World.cs sky, new shaders/sky_gothic.gdshader
 [3][M][shaders] Water: add depth-based color, shoreline foam and refraction to block-world water faces -> BlockMesher.cs, assets water shader
 [3][S][audio] Normalise SFX/music levels (GOTHIC.md: levels not normalised) -> tools script + Sfx.cs volume table
 [3][M][ui] Target lock reticle and enemy nameplate restyle (gothic frame, HP bar with level badge) -> Targeting.cs, Hud.cs
@@ -22,7 +20,6 @@ Categories: graphics shaders lighting animation feel combat mechanics ui menus w
 [2][S][code] Last compiler warning: EnemyScarletta.cs(164,29) CS8602 -> EnemyScarletta.cs
 [2][S][ui] Serif font for titles (CC0, e.g. a free-license blackletter/serif) -> data/ui_theme.json, UiTheme.cs
 [2][M][world] Weather: rain/storm cycle with wet darkening on blocks and puddle reflections -> World.cs, Ambient.cs
-[2][M][vfx] Ambient motes: fireflies at night near water, falling leaves in forests -> Ambient.cs
 [2][S][tools] DevCapture: add viewpoints for block build mode (N) and a crater after Meteor -> .devloop/viewpoints.json, DevCapture.cs actions
 [2][M][world] Roads on block terrain: path blocks with cart-rut variation and edge stones -> BlockGen.cs
 [3][S][ui] Inventory slots framed (#3); equipment paper-doll silhouette still missing; slot colours hard-coded in ItemSlot.Inset -> ItemSlot.cs, Ui.cs OpenPack
@@ -32,9 +29,11 @@ Categories: graphics shaders lighting animation feel combat mechanics ui menus w
 [3][S][world] Arena floor reads like planks (G_Rock tint stretched?): check triplanar scale; add a real sand/soil set -> Builder.cs ArenaMats
 [3][S][feel] Dodge/head-look/stagger views exist now: judge perfect-dodge flash, lean sign, stagger lean next cycle
 [3][S][tools] stagger view: the wolf is not in frame; spawn foe at 3 m and frame both -> viewpoints.json, DevCapture.cs foes distance
-[3][M][mechanics] Wayshrine visuals: discovered POIs get a glowing rune obelisk marker in the world -> Builder.cs/Lands.cs POI build, Hud.cs discovery
-[3][S][ui] Nameplate level badge colour (needs a 2nd Label3D or RichText) and show only when targeted or <15 m -> Enemy.cs nameplate
 [2][S][audio] Listen pass needed: synthesized thud/splash levels vs step_* (user ears) -> Sfx.cs volumes
 [3][S][combat] Riposte x2 only on the main melee path (Player.cs ~385); second damage site ~421 unknown: check (skills? heavy attack?) -> Player.cs
 [3][M][code] Enemy._PhysicsProcess 255 lines with inline state switch: extract per-state methods into EnemyAi.cs (logic-preserving refactor; needs a bot check if the user allows) -> Enemy.cs, EnemyAi.cs
 [3][S][menus] Pause menu dropped the stats grid (gold, valor, kills, played): consider a small stats strip at the bottom -> UiSystem.cs OpenPause
+[3][S][mechanics] Wayshrines at lake/peak POIs may stand in water or on cliffs; fixed offset ignores buildings: check each POI shrine in a capture sweep -> Wayshrine.cs
+[3][S][audio] Soundscape is dormant (ambient.json sound:false): needs day_birds, breeze, bird/owl/crow one-shots (CC0 or synthesized) before enabling; replace 'hurt' crow stand-in -> assets/audio, data/ambient.json
+[3][S][tools] Add viewpoints: frost/lightning spell casts (vfx parity check), wayshrine close-up -> viewpoints.json, DevCapture cast action with a chosen skill id
+[2][S][ui] Nameplate badge offset estimated from text length; check alignment in a close capture -> Enemy.cs

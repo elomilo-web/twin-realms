@@ -1,5 +1,14 @@
 # Dev loop log (newest first; max 20 detailed entries, older ones rolled into History)
 
+## #8 (2026-11-24) perf, shaders, vfx, mechanics, ui, audio
+- Perf: tufts 1-2 per block (the grass mesh is a 24-blade clump), full density within 2.5 chunks, half beyond, cap 600/chunk, range 45 (log: 78,947 instances / 480 chunk builds); HeadLook does nothing for non-local avatars beyond the turn lean and nothing beyond 25 m. FPS back: running 51 -> 56.5, combat 49.3 -> 55, terrace 45.7 -> 51.1, closeup 45.7 -> 47.7.
+- Sky (WorldEnv SkyShader): warped 3-octave fbm cloud plane, blue-grey bases, silver lining to the sun, warm at golden hour (gold uniform), near-black violet-edged in the shadow realm, horizon fade; cloudCover .72 -> .55.
+- VFX (Vfx.cs): FrostAftermath (ice shard ring, frost decal, mist); StormStrike (forked 12 m bolt, flash light, scorch, sparks) from Vfx.Lightning when time >= .2.
+- Mechanics: scripts/Wayshrine.cs: plinth + obelisk + rune band + sigil at every POI; lit (gold rune, light, motes) when discovered; Hud discovery hook flashes it. Lead fix: missing namespace TwinRealms + GeometryInstance3D.ShadowCastingSetting.
+- UI: Enemy nameplates only for target / hunting / bosses / within 12 m, fade 0.25 s; level badge coloured by level gap; health bar when damaged.
+- Audio: Ambient soundscape (biome/water/settlement/altitude layers, spatial one-shots) written but DORMANT: data/ambient.json "sound": false was already set (left as is); stand-in one-shots (hurt pitched as crow) need real sounds before enabling.
+- Scores: skills_vfx visuals 5->5.5, world visuals 6.5->7, enemies visuals 4->4.5, perf recovered.
+
 ## #7 (2026-11-24) combat, feel, lighting, graphics, code, menus
 - Guard (existed): block now sparks + "block" clang + 40 ms hit-stop + push-back; parry window 0.15 s -> enemy Stun 0.8, "Parry!", riposte x2 within 1.5 s (main melee path only); tuning game.guard.*.
 - Sprint: CameraRig +6 deg FOV, +0.4 m arm, footstep-synced bob (Player.Stepped -> Rig.StepBob), dust + "swing" whoosh at start, skid + dust on hard stop.

@@ -93,7 +93,7 @@ public static class BlockMesher
                     {
                         var tc = lip ?? new Color(.5f, .8f, .35f); uint th = h;
                         float Tf() { th = th * 1664525u + 1013904223u; return (th >> 8 & 0xffff) / 65535f; }
-                        int cnt = Mathf.RoundToInt(def.Tufts * (2 + (int)(r1 * 3.99f)));
+                        int cnt = Mathf.Max(1, Mathf.RoundToInt(def.Tufts * (1 + (int)(r1 * 1.99f))));   // GrassMesh is a multi-blade clump: 1-2 per block is plenty
                         for (int t = 0; t < cnt; t++)
                         {
                             float sc = .6f + Tf() * .5f;

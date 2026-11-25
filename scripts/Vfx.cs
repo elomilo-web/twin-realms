@@ -228,6 +228,132 @@ public static class Vfx
         Sparks(pos + Vector3.Up * .5f, Ramp((0, new Color(1, 1, 1, .7f)), (1, new Color(.5f, .85f, 1f, 0))), 30, 7f, .9f, .3f, -1f, true, 70f, Vector3.Up, radius * .4f, "star");
         Sparks(pos + Vector3.Up * .3f, Ramp((0, new Color(.8f, .95f, 1f, 0)), (.2f, new Color(.75f, .9f, 1f, .4f)), (1, new Color(.6f, .8f, 1f, 0))), 14, radius * 1.4f, 1.1f, 1.8f, 0f, false, 180f, Vector3.Right, .3f, "smoke").Flatness = 1f;   // cold mist rolling outward along the ground
         GroundMark(pos, "circle", radius * 2.1f, new Color(.6f, .9f, 1f, .7f), .6f, 1.2f, true);   // frost rime on the ground
+        FrostAftermath(pos, radius);
+    }
+
+    // ---- frost aftermath: lingering ice shard ring, frost decal, cold mist ----
+    static ImageTexture? _frostTex;
+    static StandardMaterial3D? _iceMat;
+    static CylinderMesh[]? _iceMeshes;
+    static readonly Queue<Decal> _frosts = new();
+    const int MaxFrosts = 8, MaxShardRings = 4;
+    static int _shardRings;
+
+    static ImageTexture FrostTex()
+    {
+        if (_frostTex != null) return _frostTex;
+        const int N = 128; var img = Image.CreateEmpty(N, N, false, Image.Format.Rgba8);
+        var noise = new FastNoiseLite { Frequency = .06f, Seed = 21 };
+        for (int y = 0; y < N; y++) for (int x = 0; x < N; x++)
+        {
+            float dx = (x + .5f) / N * 2 - 1, dy = (y + .5f) / N * 2 - 1, d = Mathf.Sqrt(dx * dx + dy * dy);
+            float n = noise.GetNoise2D(x * 2f, y * 2f), edge = .8f + n * .18f;
+            float ring = Mathf.Clamp(1f - Mathf.Abs(d - edge * .75f) / .28f, 0f, 1f) * .8f + Mathf.Clamp((edge - d) / .6f, 0f, 1f) * .3f;   // crusted rim over a thin rime disc
+            float a = Mathf.Clamp(ring * (.65f + .35f * noise.GetNoise2D(x * 6f + 30, y * 6f)), 0f, 1f); if (d > 1f) a = 0;
+            img.SetPixel(x, y, new Color(.8f, .93f, 1f, a));
+        }
+        return _frostTex = ImageTexture.CreateFromImage(img);
+    }
+
+    /// <summary>Pale frost rime on the ground, fading over ~6 s. At most 8 alive.</summary>
+    public static void FrostDecal(Vector3 pos, float radius)
+    {
+        while (_frosts.Count > 0 && (!GodotObject.IsInstanceValid(_frosts.Peek()) || _frosts.Count >= MaxFrosts))
+        { var old = _frosts.Dequeue(); if (GodotObject.IsInstanceValid(old)) old.QueueFree(); }
+        float gy = World.GroundAt(pos.X, pos.Z); if (!Dungeon.Active && gy > -50f) pos.Y = gy;
+        float d = Mathf.Max(2f, radius * 2.2f);
+        var dec = new Decal { TextureAlbedo = FrostTex(), Size = new Vector3(d, 3f, d), CullMask = 1, LowerFade = .3f, UpperFade = .3f };
+        Add(dec, pos); dec.Rotation = new Vector3(0, GD.Randf() * Mathf.Tau, 0); _frosts.Enqueue(dec);
+        dec.CreateTween().TweenProperty(dec, "modulate:a", 0f, 6f).SetDelay(.5f).SetEase(Tween.EaseType.In);
+        Later(dec, 6.8f);
+    }
+
+    /// <summary>6-10 jagged ice shards bursting up in a ring (0.15 s), standing 2 s, then shrinking away. At most 4 rings alive.</summary>
+    public static void IceShardRing(Vector3 pos, float radius)
+    {
+        if (_shardRings >= MaxShardRings) return;
+        _shardRings++;
+        _iceMat ??= new StandardMaterial3D { AlbedoColor = new Color(.78f, .94f, 1f), Roughness = .75f, EmissionEnabled = true, Emission = new Color(.45f, .8f, 1f), EmissionEnergyMultiplier = .6f };
+        _iceMeshes ??= new[] { new CylinderMesh { TopRadius = .01f, BottomRadius = .16f, Height = 1f, RadialSegments = 4, Rings = 1 }, new CylinderMesh { TopRadius = .03f, BottomRadius = .1f, Height = 1f, RadialSegments = 3, Rings = 1 } };
+        var rg = new RandomNumberGenerator(); int n = rg.RandiRange(6, 10);
+        var holder = Add(new Node3D(), pos);
+        for (int i = 0; i < n; i++)
+        {
+            float a = i / (float)n * Mathf.Tau + rg.RandfRange(-.2f, .2f), r = radius * rg.RandfRange(.55f, .95f), h = rg.RandfRange(.9f, 2.0f);
+            var p = new Vector3(Mathf.Cos(a) * r, 0, Mathf.Sin(a) * r);
+            float gy = World.GroundAt(pos.X + p.X, pos.Z + p.Z); if (!Dungeon.Active && gy > -50f) p.Y = gy - pos.Y;
+            var m = new MeshInstance3D { Mesh = _iceMeshes[i % 2], MaterialOverride = _iceMat, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off, Position = p + Vector3.Up * h * .5f };
+            holder.AddChild(m);
+            float tilt = rg.RandfRange(.25f, .6f); m.Rotation = new Vector3(Mathf.Sin(a) * tilt, rg.Randf() * Mathf.Tau, -Mathf.Cos(a) * tilt);
+            var full = new Vector3(rg.RandfRange(.7f, 1.3f), h, rg.RandfRange(.7f, 1.3f)); m.Scale = new Vector3(full.X, .01f, full.Z);
+            var tw = m.CreateTween(); tw.TweenProperty(m, "scale", full, .15f).SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
+            tw.TweenInterval(2f); tw.TweenProperty(m, "scale", new Vector3(full.X * .3f, .01f, full.Z * .3f), .5f).SetEase(Tween.EaseType.In);
+        }
+        Root3Release(holder, 2.8f);
+    }
+    static void Root3Release(Node3D n, float t)
+    {
+        var root = Game.Root; if (root == null) { _shardRings--; return; }
+        root.GetTree().CreateTimer(t, false).Timeout += () => { _shardRings = Mathf.Max(0, _shardRings - 1); if (GodotObject.IsInstanceValid(n)) n.QueueFree(); };
+    }
+
+    /// <summary>Everything that lingers after a frost blast: ice shard ring, frost decal, slow cold mist.</summary>
+    public static void FrostAftermath(Vector3 pos, float radius)
+    {
+        IceShardRing(pos, radius);
+        FrostDecal(pos, radius);
+        Sparks(pos + Vector3.Up * .3f, Ramp((0, new Color(.85f, .95f, 1f, 0)), (.25f, new Color(.8f, .93f, 1f, .35f)), (1, new Color(.7f, .85f, 1f, 0))), 8, .8f, 2.4f, radius * .8f + .6f, .1f, false, 60f, null, radius * .4f, "smoke");
+    }
+
+    // ---- lightning strike impact: sky bolt, flash, small scorch ----
+    static StandardMaterial3D? _boltMat;
+    static int _strikes; static ulong _lastStrikeMs;
+    const int MaxStrikes = 3;
+
+    /// <summary>Forked bolt falling from ~12 m with a bright flash, small scorch and sparks. Lives 0.12 s, flickers twice. Capped at 3 alive.</summary>
+    public static void StormStrike(Vector3 pos, float radius = 1.5f)
+    {
+        ulong now = Time.GetTicksMsec(); if (_strikes >= MaxStrikes || now - _lastStrikeMs < 60) return;
+        _lastStrikeMs = now; _strikes++;
+        _boltMat ??= new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, BlendMode = BaseMaterial3D.BlendModeEnum.Add, VertexColorUseAsAlbedo = true, CullMode = BaseMaterial3D.CullModeEnum.Disabled };
+        var rg = new RandomNumberGenerator(); var im = new ImmediateMesh();
+        var top = new Vector3(0, 12f, 0); var main = new List<Vector3> { Vector3.Zero };
+        for (int i = 1; i < 9; i++) { float t = i / 9f; main.Add(Vector3.Zero.Lerp(top, t) + (i < 8 ? new Vector3(rg.RandfRange(-.8f, .8f), 0, rg.RandfRange(-.8f, .8f)) * (1f - t * .3f) : Vector3.Zero)); }
+        main.Add(top);
+        Bolt(im, main, .22f, new Color(.85f, .75f, 1f, 1f), new Color(1f, 1f, 1f, 1f));
+        for (int b = 0; b < 2; b++)
+        {
+            int s = rg.RandiRange(3, 6); var start = main[s]; var br = new List<Vector3> { start }; var dir = new Vector3(rg.RandfRange(-1, 1), -.6f, rg.RandfRange(-1, 1)).Normalized();
+            for (int k = 1; k <= 3; k++) br.Add(start + dir * k * 1.3f + new Vector3(rg.RandfRange(-.4f, .4f), 0, rg.RandfRange(-.4f, .4f)));
+            Bolt(im, br, .1f, new Color(.6f, .45f, 1f, .8f), new Color(.9f, .85f, 1f, .8f));
+        }
+        var m = Add(new MeshInstance3D { Mesh = im, MaterialOverride = _boltMat, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off, ExtraCullMargin = 14f }, pos);
+        var tw = m.CreateTween();
+        tw.TweenInterval(.04f); tw.TweenCallback(Callable.From(() => m.Visible = false));
+        tw.TweenInterval(.015f); tw.TweenCallback(Callable.From(() => m.Visible = true));
+        tw.TweenInterval(.03f); tw.TweenCallback(Callable.From(() => m.Visible = false));
+        tw.TweenInterval(.01f); tw.TweenCallback(Callable.From(() => m.Visible = true));
+        tw.TweenInterval(.025f); tw.TweenCallback(Callable.From(() => { if (GodotObject.IsInstanceValid(m)) m.QueueFree(); _strikes = Mathf.Max(0, _strikes - 1); }));
+        Flash(pos + Vector3.Up * .8f, new Color(.75f, .65f, 1f), 6f, 12f, .1f);
+        ScorchDecal(pos, radius * .6f);
+        Sparks(pos + Vector3.Up * .1f, Ramp((0, Colors.White), (.4f, new Color(.7f, .6f, 1f)), (1, new Color(.4f, .3f, 1f, 0))), 16, 8f, .4f, .3f, -8f, true, 90f, Vector3.Up, .1f, "spark");
+    }
+    static void Bolt(ImmediateMesh im, List<Vector3> pts, float w, Color outer, Color core)
+    {
+        // crossed pair of ribbons per segment so the bolt reads from any side; wide violet halo plus a thin white core
+        for (int pass = 0; pass < 2; pass++)
+        {
+            float hw = pass == 0 ? w : w * .35f; var col = pass == 0 ? new Color(outer, outer.A * .55f) : core;
+            im.SurfaceBegin(Mesh.PrimitiveType.Triangles);
+            for (int i = 0; i + 1 < pts.Count; i++)
+                foreach (var off in new[] { Vector3.Right * hw, Vector3.Back * hw })
+                {
+                    Vector3 a = pts[i], b = pts[i + 1];
+                    im.SurfaceSetColor(col); im.SurfaceAddVertex(a - off); im.SurfaceSetColor(col); im.SurfaceAddVertex(a + off); im.SurfaceSetColor(col); im.SurfaceAddVertex(b + off);
+                    im.SurfaceSetColor(col); im.SurfaceAddVertex(a - off); im.SurfaceSetColor(col); im.SurfaceAddVertex(b + off); im.SurfaceSetColor(col); im.SurfaceAddVertex(b - off);
+                }
+            im.SurfaceEnd();
+        }
     }
 
     /// <summary>Healing: a rising pillar of green-gold light with motes spiralling up.</summary>
@@ -262,6 +388,7 @@ public static class Vfx
     {
         var bolt = new LightningBolt { A = a, B = b, Col = c, Life = time }; Game.Root?.AddChild(bolt);
         Flash(b, c, 3f, 6f, time); Sparks(b, Ramp((0, Colors.White), (1, new Color(c, 0))), 12, 6f, .3f, .45f, -3f, true, 180f, null, .1f, "spark");
+        if (time >= .2f) StormStrike(b);   // sky bolt + scorch at the impact point (beams/short zaps skip it)
     }
 }
 
