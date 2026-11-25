@@ -27,11 +27,19 @@
   "clothUvScale": 6,
   "default": { "armor": ["TR_{s}_Tunic.glb", "TR_{s}_Trousers.glb"], "feet": ["TR_{s}_Boots.glb"], "hands": [] },
   "_stylizedDefault": { "armor": ["{s}_Peasant_Body", "{s}_Peasant_Legs"], "feet": ["{s}_Peasant_Feet"], "hands": [] },
+  "_armorLayersHelp": "Garments are layered shells (tools/blender_gothic/humans.py, built with outfits_from_glb.py); each sits further out than the ones it is worn over: Trousers < Tunic < Robe < Gambeson < Coat < Chainmail/Jerkin < Surcoat < Cuirass < Gorget/Pauldrons. Tassets and the skirts hang free. 'Coat' must stay after 'Surcoat' (first match wins).",
   "armor": [
-    { "match": ["Robe"], "parts": ["TR_{s}_Robe.glb", "TR_{s}_Trousers.glb"], "tint": "class" },
+    { "match": ["Vestments", "Robe"], "parts": ["TR_{s}_Robe.glb", "TR_{s}_Trousers.glb", "TR_{s}_Mantle.glb"], "tint": "class" },
     { "match": ["Scarletta"], "parts": ["TR_{s}_Robe.glb", "TR_{s}_Cuirass.glb", "TR_{s}_Pauldrons.glb"] },
-    { "match": ["Plate", "Cuirass"], "parts": ["TR_{s}_Gambeson.glb", "TR_{s}_Trousers.glb", "TR_{s}_Cuirass.glb", "TR_{s}_Pauldrons.glb"] },
-    { "match": ["Hauberk"], "parts": ["TR_{s}_Gambeson.glb", "TR_{s}_Trousers.glb", "TR_{s}_Cuirass.glb"] },
+    { "match": ["Plate"], "parts": ["TR_{s}_Gambeson.glb", "TR_{s}_Trousers.glb", "TR_{s}_Chainmail.glb", "TR_{s}_Cuirass.glb", "TR_{s}_Pauldrons.glb", "TR_{s}_Tassets.glb", "TR_{s}_Gorget.glb"],
+      "kit": [{ "model": "armor/pauldron_plate", "bone": "upperarm_l", "pos": [0.06, 0.07, 0], "rot": [0, 0, -30], "scale": 0.9 },
+              { "model": "armor/pauldron_plate", "bone": "upperarm_r", "pos": [-0.06, 0.07, 0], "rot": [0, 0, 30], "scale": 0.9 }] },
+    { "match": ["Brigandine"], "parts": ["TR_{s}_Gambeson.glb", "TR_{s}_Trousers.glb", "TR_{s}_Jerkin.glb", "TR_{s}_Cuirass.glb"], "tint": "8c6c4c" },
+    { "match": ["Cuirass"], "parts": ["TR_{s}_Gambeson.glb", "TR_{s}_Trousers.glb", "TR_{s}_Cuirass.glb", "TR_{s}_Pauldrons.glb"] },
+    { "match": ["Chainmail", "Hauberk"], "parts": ["TR_{s}_Gambeson.glb", "TR_{s}_Trousers.glb", "TR_{s}_Chainmail.glb"] },
+    { "match": ["Surcoat", "Tabard"], "parts": ["TR_{s}_Chainmail.glb", "TR_{s}_Trousers.glb", "TR_{s}_Surcoat.glb"] },
+    { "match": ["Longcoat", "Coat"], "parts": ["TR_{s}_Coat.glb", "TR_{s}_Trousers.glb"] },
+    { "match": ["Jerkin", "Leather"], "parts": ["TR_{s}_Tunic.glb", "TR_{s}_Trousers.glb", "TR_{s}_Jerkin.glb"] },
     { "match": [""], "parts": ["TR_{s}_Gambeson.glb", "TR_{s}_Trousers.glb"] }
   ],
   "_stylizedArmor": [
@@ -44,16 +52,19 @@
     { "match": ["Hood"], "parts": ["TR_{s}_Hood.glb"], "hideHair": true },
     { "match": ["Greathelm"], "proc": "greathelm", "hideHair": true, "kit": [{ "model": "armor/helm_knight", "bone": "Head", "pos": [0, 0.135, 0.02], "scale": 0.88 }] },
     { "match": ["Helm"], "proc": "helm", "hideHair": true, "kit": [{ "model": "armor/helm_knight", "bone": "Head", "pos": [0, 0.13, -0.03], "scale": 0.95 }] },
+    { "match": ["Crown"], "kit": [{ "model": "armor/crown", "bone": "Head", "pos": [0, 0.115, 0.01], "scale": 0.75 }] },
+    { "match": ["Hat", "Mage"], "proc": "cap", "hideHair": true, "kit": [{ "model": "armor/hat_mage", "bone": "Head", "pos": [0, 0.1, 0], "scale": 0.72 }] },
     { "match": ["Cap"], "proc": "cap", "hideHair": true },
     { "match": [""], "proc": "circlet", "kit": [{ "model": "armor/circlet_winged", "bone": "Head", "pos": [0, 0.12, 0.01], "scale": 0.8 }] }
   ],
   "hands": [
     { "match": ["Wraps"], "parts": ["TR_{s}_Gloves.glb"], "tint": "b8a890" },
-    { "match": ["Gauntlets"], "parts": ["TR_{s}_Gloves.glb"], "tint": "6a6a70" },
+    { "match": ["Gauntlets"], "parts": ["TR_{s}_Gauntlets.glb"], "material": "iron" },
+    { "match": ["Bracers", "Vambraces"], "parts": ["TR_{s}_Gloves.glb", "TR_{s}_Vambraces.glb"] },
     { "match": [""], "parts": ["TR_{s}_Gloves.glb"] }
   ],
   "feet": [
-    { "match": ["Greaves", "Sabatons"], "parts": ["TR_{s}_Boots.glb"], "tint": "7a7a80" },
+    { "match": ["Greaves", "Sabatons"], "parts": ["TR_{s}_Boots.glb", "TR_{s}_Greaves.glb"], "material": "iron" },
     { "match": [""], "parts": ["TR_{s}_Boots.glb"] }
   ],
   "cape": [

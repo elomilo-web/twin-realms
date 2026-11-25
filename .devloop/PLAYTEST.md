@@ -39,3 +39,11 @@ Play a few minutes and tick what works; write problems into DIRECTIVES.md (or te
 - [ ] Fast travel (#6): blocked while foes hunt you and for 30 s after travelling.
 - [ ] Wayshrines (#8): obelisks at each place light up when discovered.
 - [ ] Pause menu (#7) and character sheet (#9): every button still works.
+
+## #19
+- Wand and staff: every attack fires a bolt/orb (comet streak, muzzle flash). Sword hits deal damage on every swing of a chain.
+- Roll: the hero faces the roll direction.
+- Controller (Xbox and PlayStation): move/camera/attack/heavy/guard/roll/lock-on; Settings > Controller rebind, sensitivity, rumble; menus with D-pad + A/B; prompts show pad buttons.
+- Inventory: fill the pack and gather many materials: the window keeps its size; Materials tab scrolls.
+- Dungeons: rooms readable, torches bright.
+- New armor names (Chainmail, Surcoat, Longcoat, Jerkin, Vestments, Crown, Mage Hat, Vambraces) and 18 new weapons drop.

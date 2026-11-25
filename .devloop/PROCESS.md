@@ -43,6 +43,12 @@
 - Order-dependent state leaks between views keep appearing (realm, rain, craters): DevCapture resets realm and rain per view;
   new global states must get a reset there too.
 
+## Rule added #19 (user: "more scrutiny, don't re-fix the same thing")
+- Before fixing: build a capture view that SHOWS the problem (gear/pack_fill/mats_fill/probe options), find the root cause,
+  grep LOG for earlier attempts, then brief one fix. After: same view, compare.
+- Grep every cycle's diff for code swallowed into `//` comments (#18 attacks, 217a461 roll):
+  `git diff | Select-String '^\+.*//[^/]*[a-z]\w* (=|\+=) [^;]+;\s*\w'`.
+
 ## API GOTCHAS (paste into every brief)
 EDIT FILES ONLY WITH THE Edit/Write TOOLS: no PowerShell file rewrites (Set-Content/Add-Content/[IO.File] or helper
 functions): #15's Ui.cs split lost 342 lines to a PowerShell alias collision (`R` -> Invoke-History) and was reverted.

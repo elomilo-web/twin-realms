@@ -1,5 +1,17 @@
 # Dev loop log (newest first; max 20 detailed entries, older ones rolled into History)
 
+## #19 (2026-11-25) user directives: player models/armor/weapons, wand+staff shots, dungeon light, inventory, gamepad
+- BUG (root cause): devloop #18 swallowed `_hitDone = false; _atkSerial++;` into a comment (Player.TryAttack): every basic attack after the first never landed (no wand/staff shots, no melee damage, no fresh anim). Restored; capture logs "swing: 1 player shots" for wand + staff, 0 for sword. Same bug class since 217a461: roll never faced its direction (restored).
+- Observe first: capture options gear {slot:name}, pack_fill, mats_fill, probe; views gear_knight/_back/ranger/mage/surcoat/coat/chain/face, wand_attack, staff_attack, inventory_full, menu_*_full, character_full, dungeon_room.
+- Armor look (GearFx/Avatar/G_Metal_Iron): rarity was wide additive fresnel + whole-material emission + 1.8 m coloured light (flat neon helms/blades, purple legs) -> thin capped rim, .7 m light; G_Metal_Iron had a near-black albedo on a metal -> steel grey, metallic .85; metal skips cloth tints; Gauntlet/Greave/Sabaton/Plated -> iron; skin SSS/roughness; cloth normals.
+- New garments (humans.py + outfits_from_glb.py, headless from TR_*_Body.glb, fit by construction, render-checked): Chainmail, Surcoat, Vambraces, Greaves, Gauntlets, Tassets, Gorget, Jerkin, Coat, Mantle (m+f); avatar.json rules (Plate = 7 layers + kit pauldrons, Surcoat, Longcoat, Jerkin, Chainmail, Brigandine, Vestments, Crown, Mage Hat, Vambraces); items.json names.
+- 18 new weapon models mapped (Bastard Sword, Estoc, Great Cleaver, wavy Flamberge, Runed Axe, Flail, Spiked Club, Parrying Dagger, Seax, Bardiche, Winged Spear, War Scythe, Horn Bow, Bone Wand, Rune Rod, Gnarled Staff, Crozier, Skull Staff). Items.cs only rolled the first 5 base names: now all.
+- Wand bolt comet streak + muzzle flash + impact sparks; Projectile.Spawn sets tint before _Ready.
+- Dungeons (root cause: ambient .8 x 2-7% albedo stone, overridden in Dungeon.Go; SSAO 1.8; near-black fog): ambient 3.2, lighter thinner fog, SSAO .5 (restored on leave), all sconces lit (cap 34, range 10, energy 2.6), soft fill per room (data/dungeons.json "light"). data/look.json edit was denied by permissions: defaults in code.
+- Inventory: fixed 820x560 (doll + stats | Items/Materials tabs in one scroll box | toolbar), tab + scroll kept on reopen; stash scrolls in a fixed window.
+- Gamepad (user request): Inputs.cs rewrite (pad defaults, separate pad binds, Xbox/PS names, UsingPad, Rumble), PadInput.cs autoload, UiPad.cs Settings > Controller tab, right-stick camera, menu focus + B back + LB/RB tabs, rumble. Untested with a real pad (PLAYTEST).
+- Scores: animation visuals 3 -> 5, loot visuals 4 -> 6, dungeons visuals 6 -> 7.
+
 ## #18 (2026-11-25) menus (directive), feel/combat, shaders, ui, perf, tools
 - Menus: Frame gets a deferred Recentre() for windows whose content outgrows the requested size (pack still sits left of centre in capture: follow-up); pause menu 2x3 stats strip (gold, valor, kills, played, deepest, best wave).
 - Combo: trail grows per step, finisher gold trail + ring + dust + heavy Feel.Impact + low "hit"; perfect presses (last 25% of recovery) speed the next step 10% + blade glint; "Rhythm" on an all-perfect finisher (feel.json combo).

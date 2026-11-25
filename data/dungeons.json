@@ -1,4 +1,5 @@
 {
+    "light":  { "_help": "Dungeon lighting (Dungeon.cs). torchRange/torchEnergy = wall sconce lights; litTorches = max sconces that cast light per floor; roomFill/roomFillRange = soft shadowless warm light at each room centre (0 = off). The ambient fill, fog and SSAO values live in data/look.json env (dungeonAmbient, dungeonAmbientColor, dungeonFogDensity, dungeonFogColor, dungeonVolDensity, dungeonSsao).", "torchRange": 10, "torchEnergy": 2.6, "litTorches": 34, "roomFill": 1.1, "roomFillRange": 11 },
     "themes":  {
                    "scarletta":  {
                                   "_help":  "Raid lair (scripts/DungeonLair.cs): Scarletta's Rotting Hollow, entered from the shrine on Lumen Aerie. No monster rooms: one great chamber of giant mushrooms and oozing slime, and the boss.",

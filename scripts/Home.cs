@@ -52,9 +52,16 @@ public partial class Ui
         top.AddChild(Btn("Store all", () => { while (d.Inv.Count > 0 && d.Stash.Count < StashChest.Capacity) { d.Stash.Add(d.Inv[0]); d.Inv.RemoveAt(0); } Sfx.Play("click"); Game.Notify(); OpenStash(); }, true));
         top.AddChild(Btn("Sort storage", () => { d.Stash.Sort((a, b) => b.Rar != a.Rar ? b.Rar.CompareTo(a.Rar) : string.Compare(a.Slot, b.Slot, System.StringComparison.Ordinal)); Sfx.Play("click"); OpenStash(); }, true));
         var cols = new HBoxContainer(); cols.AddThemeConstantOverride("separation", 24); v.AddChild(cols);
-        GridContainer Grid(Node parent, string title, int columns) { var b = new VBoxContainer(); parent.AddChild(b); Header(title, b); var g = new GridContainer { Columns = columns }; g.AddThemeConstantOverride("h_separation", 5); g.AddThemeConstantOverride("v_separation", 5); b.AddChild(g); return g; }
+        // both grids sit in fixed-size scroll boxes, so an over-full pack scrolls instead of hiding items or resizing the window
+        const float StashCell = 58, StashGap = 5, BoxH = 7 * StashCell + 6 * StashGap + 4;   // 7 rows: the 56-slot storage fits exactly, the 28-slot pack scrolls only when over-full
+        GridContainer Grid(Node parent, string title, int columns)
+        {
+            var b = new VBoxContainer(); parent.AddChild(b); Header(title, b);
+            var s = new ScrollContainer { CustomMinimumSize = new Vector2(columns * StashCell + (columns - 1) * StashGap + 14, BoxH), HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; b.AddChild(s);
+            var g = new GridContainer { Columns = columns }; g.AddThemeConstantOverride("h_separation", (int)StashGap); g.AddThemeConstantOverride("v_separation", (int)StashGap); s.AddChild(g); return g;
+        }
         var pg = Grid(cols, "PACK", 4); var sg = Grid(cols, "STORAGE", 8);
-        for (int i = 0; i < 28; i++)
+        for (int i = 0; i < System.Math.Max(28, (d.Inv.Count + 3) / 4 * 4); i++)
         {
             int k = i; var it = i < d.Inv.Count ? d.Inv[i] : null; var cell = new ItemSlot { Item = it, CustomMinimumSize = new Vector2(58, 58) }; pg.AddChild(cell); if (it == null) continue;
             cell.Hover += on => ShowTip(on ? it : null, cell, d.Eq.GetValueOrDefault(it.Slot));

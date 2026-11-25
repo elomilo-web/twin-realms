@@ -602,7 +602,7 @@ def _landmarks(arm):
                 shoulder=z("upperarm_l"), elbow=z("lowerarm_l"), wrist=z("hand_l"), chest=z("spine_03"))
 
 
-def _shell(body, keep, offset, thick, mat, name, extra=None, smooth=None):
+def _shell(body, keep, offset, thick, mat, name, extra=None, smooth=None, hem=4, fill=None):
     """Copy of the body's faces whose vertices all pass keep(i), pushed out along the normals, made solid.
     The copy keeps the body's skin weights and UVs, so it deforms and maps exactly like the skin under it.
     smooth = (predicate on world position, iterations): rounds that part off first (boots lose the toes).
@@ -624,8 +624,36 @@ def _shell(body, keep, offset, thick, mat, name, extra=None, smooth=None):
         for _ in range(its):
             bmesh.ops.smooth_vert(bm, verts=sv, factor=0.6, use_axis_x=True, use_axis_y=True, use_axis_z=True)
         bm.normal_update()
+    if fill:   # bridge over small bumps (nipples under stiff layers): never sinks under the skin, moves along normals only
+        from mathutils.kdtree import KDTree
+        tips, R0, rad = fill
+        vs = list(bm.verts); kd = KDTree(len(vs))
+        for k, v in enumerate(vs):
+            kd.insert(v.co, k)
+        kd.balance()
+        zone = []
+        for v in vs:
+            w = max((1 - ((mw @ v.co) - t).length / R0 for t in tips), default=0.0)
+            if w > 0:
+                near = kd.find_range(v.co, rad)
+                avg = sum((c for c, _, _ in near), Vector()) / len(near)
+                an = sum((vs[k].normal for _, k, _ in near), Vector()).normalized()
+                zone.append((v, w, avg, an, (v.co - avg).dot(an)))
+        if zone:   # each vertex goes to the local average surface, lifted by the deepest bump, so all of it stays covered
+            c = max(h for *_, h in zone)
+            floor = []
+            for v, w, avg, an, h in zone:
+                v.co = v.co.lerp(avg + an * c, min(1.0, 2 * w)); floor.append((v, v.co.copy(), an))
+            zv = [v for v, *_ in floor if not v.is_boundary]
+            for _ in range(12):   # relax the crowded nipple triangles, never below that surface
+                bmesh.ops.smooth_vert(bm, verts=zv, factor=0.5, use_axis_x=True, use_axis_y=True, use_axis_z=True)
+                for v, p0, an in floor:
+                    d = (p0 - v.co).dot(an)
+                    if d > 0:
+                        v.co = v.co + an * d
+        bm.normal_update()
     edge = [v for v in bm.verts if v.is_boundary]
-    for _ in range(4):
+    for _ in range(hem):   # hem = relax passes on the cut edges (more = a cleaner hem line)
         bmesh.ops.smooth_vert(bm, verts=edge, factor=0.5, use_axis_x=True, use_axis_y=True, use_axis_z=True)
     bm.normal_update()
     for v in bm.verts:
@@ -660,7 +688,7 @@ def Tunic(body, R, lm, sex):
                   or (R[i][0] == "thigh" and R[i][1].z > lm["pelvis"] - 0.2), 0.008, 0.004, G_LINEN, "Tunic")
 
 
-def _skirt(body, lm, mat, top_z, bottom_z, flare=0.55, folds=14, name="Skirt"):
+def _skirt(body, lm, mat, top_z, bottom_z, flare=0.55, folds=14, name="Skirt", thick=0.005, panel=None):
     """A free-hanging skirt: a flared, folded cone from top_z to bottom_z around the hips, weighted from the pelvis at the
     waist to the thighs lower down (so the legs swing it). Cylindrical UVs."""
     import numpy as np
@@ -702,10 +730,14 @@ def _skirt(body, lm, mat, top_z, bottom_z, flare=0.55, folds=14, name="Skirt"):
             for loop, uv in zip(f.loops, ((i / N, 1 - j / rows), ((i + 1) / N, 1 - j / rows), ((i + 1) / N, 1 - (j + 1) / rows), (i / N, 1 - (j + 1) / rows))):
                 loop[uvl].uv = (uv[0] * 3, uv[1])
     bmesh.ops.recalc_face_normals(P, faces=P.faces)
+    if panel:   # panel = half width (m): keep only a front and a back panel (tabard), cut away the sides
+        side = [f for f in P.faces if abs((mw @ f.calc_center_median()).x - cx) > panel]
+        bmesh.ops.delete(P, geom=side, context="FACES")
+        bmesh.ops.delete(P, geom=[v for v in P.verts if not v.link_faces], context="VERTS")
     P.to_mesh(o.data); P.free()
     o.data.uv_layers[0].name = "UVMap"
     o.matrix_world = mw.copy()
-    sol = o.modifiers.new("Solid", "SOLIDIFY"); sol.thickness = 0.005; sol.offset = 1.0
+    sol = o.modifiers.new("Solid", "SOLIDIFY"); sol.thickness = thick; sol.offset = 1.0; sol.use_rim = True
     bpy.ops.object.select_all(action="DESELECT"); o.select_set(True); bpy.context.view_layer.objects.active = o
     bpy.ops.object.modifier_apply(modifier="Solid")
     am = o.modifiers.new("Armature", "ARMATURE"); am.object = body.parent
@@ -778,6 +810,116 @@ def Hood(body, R, lm, sex):
                   or (R[i][0] in ("torso", "uarm") and R[i][1].z > lm["shoulder"] - 0.05), 0.022, 0.004, G_WOOL, "Hood")
 
 
+# --- more armour (2026-11-25). Layer order, as the distance of the outer face from the skin (offset + thickness):
+#   Gloves .007 < Trousers .010 < Tunic .012 < Robe .016 < Gambeson .020 < Coat .023 < Jerkin .029 / Chainmail .027
+#   < Surcoat .035 < Cuirass .038 (belt .044) < Gorget chest .05 / Pauldrons .046; Boots .021 < Greaves .032;
+#   sleeves (Gambeson .020, Coat .023) < Vambraces .035 / Gauntlet cuffs .036; Hood shoulders .026 < Mantle .033.
+# Everything worn over something else starts at least 3 mm outside the layer under it (the game grows gear another 6 mm,
+# the same for every layer, so the order holds).
+G_IRON, G_STEEL, G_LEATHER = "G_Metal_Iron", "G_Metal_Steel", "G_Leather"
+
+
+def _sx(lm):
+    return lm.get("shoulder_x", 0.18)
+
+
+def _bust(R, lm, sex):
+    """fill= for _shell on the female chest: outermost layers bridge over the nipples instead of copying them (the
+    chest rises up to ~1 cm there, so only for layers nothing else is worn over)
+    (tips, fade radius, averaging radius)."""
+    if sex != "female":
+        return None
+    tips = []
+    for s in (1, -1):
+        pts = [p for r, p, n in R if r == "torso" and lm["chest"] - 0.06 < p.z < lm["chest"] + 0.06 and p.x * s > 0.05]
+        tips.append(min(pts, key=lambda p: p.y))   # the front is -y
+    return (tips, 0.07, 0.05)
+
+
+@garment
+def Chainmail(body, R, lm, sex):
+    """Mail hauberk: body, upper arms and a skirt of mail to mid-thigh (over the Gambeson, under plate and surcoat)."""
+    return _shell(body, lambda i: R[i][0] in ("torso", "uarm") and R[i][1].z < lm["neck"] - 0.005
+                  or (R[i][0] == "thigh" and R[i][1].z > lm["pelvis"] - 0.28), 0.023, 0.004, G_STEEL, "Chainmail", hem=10)
+
+
+@garment
+def Surcoat(body, R, lm, sex):
+    """Sleeveless wool tabard over mail: a body piece and a front and a back panel hanging to the knee."""
+    top = _shell(body, lambda i: R[i][0] == "torso" and lm["pelvis"] - 0.06 < R[i][1].z < lm["neck"] - 0.02
+                 and abs(R[i][1].x) < _sx(lm) - 0.03, 0.031, 0.004, G_WOOL, "SurcoatTop", hem=12, fill=_bust(R, lm, sex))
+    skirt = _skirt(body, lm, G_WOOL, lm["pelvis"] + 0.0, lm["knee"] + 0.02, flare=0.18, folds=7, name="SurcoatSkirt",
+                   thick=0.004, panel=0.12)
+    return _join([top, skirt], "Surcoat")
+
+
+@garment
+def Vambraces(body, R, lm, sex):
+    """Iron forearm plates from below the elbow to the wrist (over sleeves and the glove cuff)."""
+    ex, wx = lm.get("elbow_x", 0.45), lm.get("wrist_x", 0.7)
+    return _shell(body, lambda i: R[i][0] == "farm" and ex + 0.012 < abs(R[i][1].x) < wx - 0.015,
+                  0.028, 0.007, G_IRON, "Vambraces")
+
+
+@garment
+def Greaves(body, R, lm, sex):
+    """Iron shin and calf plates from below the knee over the boot tops to the ankle."""
+    return _shell(body, lambda i: R[i][0] == "calf" and lm["ankle"] + 0.04 < R[i][1].z < lm["knee"] - 0.03,
+                  0.026, 0.006, G_IRON, "Greaves")
+
+
+@garment
+def Gauntlets(body, R, lm, sex):
+    """Iron gauntlets: a thicker shell over the hand and a flared cuff over the forearm."""
+    wx = lm.get("wrist_x", 0.7); mw = body.matrix_world
+    hand = _shell(body, lambda i: R[i][0] == "hand" or (R[i][0] == "farm" and abs(R[i][1].x) > wx - 0.02),
+                  0.006, 0.005, G_IRON, "GauntletHand")
+    cuff = _shell(body, lambda i: R[i][0] in ("farm", "hand") and wx - 0.12 < abs(R[i][1].x) < wx + 0.01,
+                  0.03, 0.006, G_IRON, "GauntletCuff", extra=lambda v: 0.012 * max(0.0, min(1.0, (wx - 0.02 - abs((mw @ v.co).x)) / 0.1)))   # flares towards the elbow
+    return _join([hand, cuff], "Gauntlets")
+
+
+@garment
+def Tassets(body, R, lm, sex):
+    """Plate skirt from the waist to mid-thigh (few, stiff folds), over the mail skirt, under the cuirass belt."""
+    return _skirt(body, lm, G_IRON, lm["pelvis"] + 0.03, lm["pelvis"] - 0.25, flare=0.22, folds=5, name="Tassets", thick=0.006)
+
+
+@garment
+def Gorget(body, R, lm, sex):
+    """Iron neck guard: a collar round the neck flaring over the top of the chest and back, outside the cuirass."""
+    half = (lm["neck"] + lm["head"]) / 2
+    mw = body.matrix_world
+    ramp = lambda v: 0.026 * max(0.0, min(1.0, (lm["neck"] + 0.03 - (mw @ v.co).z) / 0.05))
+    return _shell(body, lambda i: (R[i][0] == "neck" and R[i][1].z < half)
+                  or (R[i][0] == "torso" and R[i][1].z > lm["shoulder"] - 0.07 and abs(R[i][1].x) < 0.125),
+                  0.02, 0.006, G_IRON, "Gorget", extra=ramp, hem=12)
+
+
+@garment
+def Jerkin(body, R, lm, sex):
+    """Sleeveless leather vest over a tunic or gambeson."""
+    return _shell(body, lambda i: R[i][0] == "torso" and lm["pelvis"] - 0.07 < R[i][1].z < lm["neck"] - 0.02
+                  and abs(R[i][1].x) < _sx(lm) - 0.01, 0.024, 0.005, G_LEATHER, "Jerkin", hem=12)   # no bust fill: it sits under the Cuirass (Brigandine), a lifted chest would poke through
+
+
+@garment
+def Coat(body, R, lm, sex):
+    """Long leather coat: body and full sleeves, skirts to the knee."""
+    wx = lm.get("wrist_x", 0.7)
+    top = _shell(body, lambda i: (R[i][0] in ("torso", "uarm", "farm") and R[i][1].z < lm["neck"] + 0.005 and abs(R[i][1].x) < wx - 0.03)
+                 or (R[i][0] == "thigh" and R[i][1].z > lm["pelvis"] - 0.1), 0.018, 0.005, G_LEATHER, "CoatTop", fill=_bust(R, lm, sex))
+    skirt = _skirt(body, lm, G_LEATHER, lm["pelvis"] + 0.02, lm["knee"] - 0.03, flare=0.32, folds=9, name="CoatSkirt")
+    return _join([top, skirt], "Coat")
+
+
+@garment
+def Mantle(body, R, lm, sex):
+    """Cloth shoulder cape over the shoulders and the top of the chest and back (over robe and hood)."""
+    return _shell(body, lambda i: R[i][0] in ("torso", "uarm") and lm["shoulder"] - 0.13 < R[i][1].z < lm["neck"] + 0.01
+                  and abs(R[i][1].x) < _sx(lm) + 0.1, 0.028, 0.005, G_WOOL, "Mantle", hem=12, fill=_bust(R, lm, sex))
+
+
 def _join(objs, name):
     bpy.ops.object.select_all(action="DESELECT")
     for o in objs:
@@ -796,6 +938,8 @@ def build_outfits(sex, names=None):
     _brow_attr(body, eyes, sex)
     R = _regions(body); lm = _landmarks(arm)
     lm["wrist_x"] = abs((arm.matrix_world @ arm.data.bones["hand_l"].head_local).x)
+    lm["elbow_x"] = abs((arm.matrix_world @ arm.data.bones["lowerarm_l"].head_local).x)
+    lm["shoulder_x"] = abs((arm.matrix_world @ arm.data.bones["upperarm_l"].head_local).x)
     out = []
     for n in names or list(GARMENTS):
         o = GARMENTS[n](body, R, lm, sex)

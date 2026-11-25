@@ -85,8 +85,8 @@
     },
     {
         "path":  "assets/materials/gothic/G_Metal_Iron.tres",
-        "lines":  21,
-        "hash8":  "450e21fa",
+        "lines":  22,
+        "hash8":  "4352f849",
         "system":  "world",
         "summary":  ""
     },
@@ -267,8 +267,8 @@
     },
     {
         "path":  "scripts/Avatar.cs",
-        "lines":  955,
-        "hash8":  "998ee937",
+        "lines":  992,
+        "hash8":  "7ada68fe",
         "system":  "animation",
         "summary":  "A character built from the Quaternius universal rig (data/avatar.json): a plain base body (male or..."
     },
@@ -344,8 +344,8 @@
     },
     {
         "path":  "scripts/CameraRig.cs",
-        "lines":  139,
-        "hash8":  "885937f8",
+        "lines":  163,
+        "hash8":  "a415fe25",
         "system":  "camera",
         "summary":  "Free third-person camera. Mouse look, scroll to zoom, Esc frees the mouse, click recaptures it."
     },
@@ -365,15 +365,15 @@
     },
     {
         "path":  "scripts/dev/DevCapture.cs",
-        "lines":  365,
-        "hash8":  "da602fe2",
+        "lines":  427,
+        "hash8":  "cf7cf220",
         "system":  "devtools",
         "summary":  "Dev loop eyes (autoload). Does nothing unless the game is started with the user arg..."
     },
     {
         "path":  "scripts/Dungeon.cs",
-        "lines":  495,
-        "hash8":  "88098ab7",
+        "lines":  501,
+        "hash8":  "cfeae250",
         "system":  "dungeons",
         "summary":  "Procedural dungeons: three themes, descending depth, boss in the farthest room. Raid lairs (DungeonLair.cs) reuse..."
     },
@@ -435,8 +435,8 @@
     },
     {
         "path":  "scripts/Feel.cs",
-        "lines":  114,
-        "hash8":  "95b3559a",
+        "lines":  117,
+        "hash8":  "f1fb64b4",
         "system":  "combat",
         "summary":  "Game feel: hit-stop (a tiny freeze on impact) and enemy recoil settings. Tuning lives in..."
     },
@@ -477,22 +477,22 @@
     },
     {
         "path":  "scripts/Game.cs",
-        "lines":  215,
-        "hash8":  "93916540",
+        "lines":  220,
+        "hash8":  "e705df86",
         "system":  "core",
         "summary":  "Global game state, saving and cross-system helpers."
     },
     {
         "path":  "scripts/Gather.cs",
         "lines":  250,
-        "hash8":  "eed10afe",
+        "hash8":  "865915f0",
         "system":  "world",
         "summary":  "Materials and gatherable node types from data/gather.json, and the scattering of nodes over the island."
     },
     {
         "path":  "scripts/GearFx.cs",
-        "lines":  136,
-        "hash8":  "262d35a7",
+        "lines":  145,
+        "hash8":  "fb5a9e4a",
         "system":  "skills_vfx",
         "summary":  "Elemental and rarity glow on worn gear and held weapons, so one model can read..."
     },
@@ -526,8 +526,8 @@
     },
     {
         "path":  "scripts/Home.cs",
-        "lines":  71,
-        "hash8":  "67c3234f",
+        "lines":  78,
+        "hash8":  "dd4d3f39",
         "system":  "loot",
         "summary":  "Storage chest at the hero\u0027s home in Oakhaven. Opens the Home Storage window (pack on..."
     },
@@ -547,8 +547,8 @@
     },
     {
         "path":  "scripts/Inputs.cs",
-        "lines":  139,
-        "hash8":  "c93820a4",
+        "lines":  286,
+        "hash8":  "bf93d091",
         "system":  "player",
         "summary":  "Registers all input actions in code so project.godot stays clean. Every action in can be..."
     },
@@ -562,7 +562,7 @@
     {
         "path":  "scripts/Items.cs",
         "lines":  131,
-        "hash8":  "43f88155",
+        "hash8":  "22521679",
         "system":  "loot",
         "summary":  ""
     },
@@ -707,6 +707,13 @@
         "summary":  "Online server self-test (tools/online_test.sh starts a local server, then runs this):"
     },
     {
+        "path":  "scripts/PadInput.cs",
+        "lines":  153,
+        "hash8":  "552ac84e",
+        "system":  "core",
+        "summary":  "Autoload: turns Xbox / PlayStation / generic controller state into the game\u0027s input actions every..."
+    },
+    {
         "path":  "scripts/Perf.cs",
         "lines":  44,
         "hash8":  "52cd970d",
@@ -715,8 +722,8 @@
     },
     {
         "path":  "scripts/Player.cs",
-        "lines":  878,
-        "hash8":  "7e97ea41",
+        "lines":  888,
+        "hash8":  "6b4850ff",
         "system":  "player",
         "summary":  "The hero: movement, roll, four weapon types (sword, bow, wand, staff), block/parry, four spells, potions,..."
     },
@@ -778,8 +785,8 @@
     },
     {
         "path":  "scripts/Projectile.cs",
-        "lines":  219,
-        "hash8":  "5591a031",
+        "lines":  266,
+        "hash8":  "2614a886",
         "system":  "skills_vfx",
         "summary":  "Arrows, magic bolts and fireballs. Owner \u0027p\u0027 hits enemies, \u0027e\u0027 hits the player."
     },
@@ -911,8 +918,8 @@
     },
     {
         "path":  "scripts/Ui.cs",
-        "lines":  767,
-        "hash8":  "61a18aab",
+        "lines":  796,
+        "hash8":  "406447e3",
         "system":  "ui",
         "summary":  "All menus and overlays, built in code: notes, banners, dialogue, shop, smith, pack, character, skill..."
     },
@@ -925,8 +932,8 @@
     },
     {
         "path":  "scripts/UiControls.cs",
-        "lines":  67,
-        "hash8":  "c1ed7e20",
+        "lines":  68,
+        "hash8":  "2432926b",
         "system":  "ui",
         "summary":  "Settings \u003e Controls: every action with its key; click one, then press the new key..."
     },
@@ -973,6 +980,13 @@
         "summary":  "Play Online: log in or create an account on the online server, then pick a..."
     },
     {
+        "path":  "scripts/UiPad.cs",
+        "lines":  169,
+        "hash8":  "8e580fb0",
+        "system":  "ui",
+        "summary":  "Controller support in the menus: Settings \u003e Controller (button bindings, stick, vibration, button names), focus..."
+    },
+    {
         "path":  "scripts/UiShop.cs",
         "lines":  95,
         "hash8":  "0e19b1d6",
@@ -1003,7 +1017,7 @@
     {
         "path":  "scripts/UiSystem.cs",
         "lines":  263,
-        "hash8":  "bb6ff233",
+        "hash8":  "c145b40d",
         "system":  "ui",
         "summary":  "System menus: the pause menu (hero summary, quick links, save, quit with a confirm step)"
     },
@@ -1100,8 +1114,8 @@
     },
     {
         "path":  "scripts/WorldEnv.cs",
-        "lines":  327,
-        "hash8":  "981f569a",
+        "lines":  331,
+        "hash8":  "7d17b63e",
         "system":  "world",
         "summary":  "World: environment, sky, fog, sun/moon light, day/night and realm-blend look, water."
     }

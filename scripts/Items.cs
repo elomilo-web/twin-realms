@@ -101,7 +101,7 @@ public static class Items
         else if (slot == "cape") { it.Def = Fl(St(slot, "def", 1, .35f) * m); it.Mp = Fl(St(slot, "mp", 0, 1.2f) * m); }
         else { it.Hp = Fl(St("trinket", "hp", 6, 3) * m); it.Mp = Fl(St("trinket", "mp", 4, 2) * m); it.Def = idx >= 2 ? Fl(St("trinket", "def", 0, .5f) * m) : 0; }
         string baseName;
-        if (slot == "weapon") { var names = _wn.GetValueOrDefault(it.Wt!, new[] { "Weapon" }); baseName = names[Math.Min(names.Length - 1, (int)(GD.Randf() * 5))]; }
+        if (slot == "weapon") { var names = _wn.GetValueOrDefault(it.Wt!, new[] { "Weapon" }); baseName = names[Math.Min(names.Length - 1, (int)(GD.Randf() * names.Length))]; }
         else { var names = _in.GetValueOrDefault(slot, new[] { "Item" }); baseName = names[GD.RandRange(0, names.Length - 1)]; }
         if (slot != "trinket") it.Elem = elem == null ? GearFx.Roll(idx) : elem == "" ? null : elem;
         it.Name = _pre[idx] + " " + (GearFx.Get(it.Elem) is { } el ? el.Word + " " : "") + baseName + (idx == 4 ? " of the Rift" : "");

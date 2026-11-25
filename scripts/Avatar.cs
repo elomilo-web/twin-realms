@@ -78,9 +78,13 @@ public partial class Avatar : Node3D
         {
             if (mi.Mesh.SurfaceGetMaterial(s) is not StandardMaterial3D b || b.AlbedoTexture == null || !(b.ResourceName ?? "").StartsWith("TR_Skin")) continue;
             var d = (StandardMaterial3D)b.Duplicate();
-            d.AlbedoColor = skin.Lightened(.08f);
-            d.SubsurfScatterEnabled = true; d.SubsurfScatterStrength = JsonUtil.F(Cfg, "skinScatter", .35f); d.SubsurfScatterSkinMode = true;
-            d.Roughness = JsonUtil.F(Cfg, "skinRoughness", .55f);
+            // the race colour MULTIPLIES the baked skin texture (never replaces it); no lightening, which read pale and pink
+            d.AlbedoColor = new Color(skin.R, skin.G, skin.B, 1f);
+            // less scatter and a rougher surface than the json values: strong SSS + low roughness read as wax
+            d.SubsurfScatterEnabled = true; d.SubsurfScatterStrength = Mathf.Min(JsonUtil.F(Cfg, "skinScatter", .35f) * .7f, .28f); d.SubsurfScatterSkinMode = true;
+            d.Roughness = Mathf.Clamp(JsonUtil.F(Cfg, "skinRoughness", .55f) + .08f, .6f, .72f);
+            d.MetallicSpecular = .35f;   // skin F0 is low (~0.028): a softer sheen than the 0.5 default
+            d.RimEnabled = true; d.Rim = .22f; d.RimTint = .55f;   // faint skin-tinted rim so the face is not flat against the light
             mi.SetSurfaceOverrideMaterial(s, d); any = true;
         }
         return any;
@@ -118,9 +122,17 @@ public partial class Avatar : Node3D
                 d.Uv1Triplanar = false; float k = JsonUtil.F(Cfg, "clothUvScale", 6f); d.Uv1Scale = new Vector3(k, k, 1);
             }
             if (vertexColor) d.VertexColorUseAsAlbedo = true;   // kit pieces are coloured per vertex only
+            else if (d.VertexColorUseAsAlbedo && mi.Mesh is ArrayMesh am && (am.SurfaceGetFormat(s) & Mesh.ArrayFormat.FormatColor) == 0)
+                d.VertexColorUseAsAlbedo = false;   // garments without vertex colours: never let a missing colour stream darken the material
+            bool metal = d.Metallic >= .5f;
             if (flat && set != null) { d.AlbedoTexture = null; d.AlbedoColor = set.Value; }
             else if (set != null) d.AlbedoColor = set.Value;
-            if (mul != null) d.AlbedoColor = d.AlbedoColor * mul.Value;
+            // cloth tints recolour fabric and leather only: metal keeps its steel grey (a multiply turned plate into black rubber)
+            if (mul != null && !metal) d.AlbedoColor = d.AlbedoColor * mul.Value;
+            if (src != null && mi.Skin != null && !metal && d.NormalTexture != null)
+            {   // worn cloth/leather: keep the weave readable up close (normal map on, a touch stronger; slight sheen instead of dead-flat)
+                d.NormalEnabled = true; d.NormalScale = Mathf.Max(d.NormalScale, 1.25f); d.Roughness = Mathf.Min(d.Roughness, .92f);
+            }
             if (glow > 0) { d.EmissionEnabled = true; d.Emission = set ?? d.AlbedoColor; d.EmissionEnergyMultiplier = glow; }
             if (src == null) d.NormalEnabled = false;   // the toon look does not use normal maps (the gothic materials keep theirs)
             if (grow > 0) { d.Grow = true; d.GrowAmount = grow; }
@@ -444,7 +456,13 @@ public partial class Avatar : Node3D
             }
             // tints multiply textured cloth, so they are softened toward white to recolour without going muddy or black
             Color? soft = tint?.Lerp(Colors.White, .35f);
+            // metal hands/feet (Gauntlets, Greaves, Sabatons): the rule's optional "material" ("iron", "steel", "brass" or a G_ name)
+            // replaces the glove/boot shell's leather with real metal; without the key, metal item names still get iron
+            string metalMat = rule != null ? S(rule.Value, "material") : "";
+            if (metalMat == "" && it != null && (slot == "hands" || slot == "feet") && MetalWords.Any(w => it.Name.Contains(w))) metalMat = "iron";
+            if (metalMat != "") soft = null;   // no cloth tint on metal
             var made = new List<Node>(); foreach (var p in parts) made.AddRange(AddPart(Part(p), slot, soft));
+            if (metalMat != "") foreach (var n in made) if (n is MeshInstance3D pm) Metalize(pm, metalMat);
             var kit = rule != null ? KitPieces(rule.Value, slot) : new List<Node>(); made.AddRange(kit);
             if (proc != "" && kit.Count == 0) made.Add(Helmet(proc, it!));   // the procedural shape only when no kit piece loaded
             if (it != null) foreach (var n in made) if (n is Node3D n3) GearFx.Apply(n3, it, false);
@@ -457,6 +475,25 @@ public partial class Avatar : Node3D
         if (wcfg.TryGetProperty(wt, out var wc)) HoldWeapon(wt, wc, w);
         var sh = eq("shield"); if (sh != null && !twoHanded) HoldShield(sh);
         CharRim.Apply(this);
+    }
+
+    static readonly string[] MetalWords = { "Gauntlet", "Greave", "Sabaton", "Plated" };   // not Vambrace: Bracers/Vambraces = leather gloves + the iron Vambraces garment
+
+    /// <summary>Puts a shared gothic metal (avatar.json gear rule "material") on every surface of a worn, skinned part.</summary>
+    static void Metalize(MeshInstance3D mi, string material)
+    {
+        string g = material.StartsWith("G_") ? material : "G_Metal_" + char.ToUpperInvariant(material[0]) + material[1..].ToLowerInvariant();
+        var src = GothicMats.For(g) ?? GothicMats.For("G_Metal_Iron");
+        if (src == null || mi.Mesh == null) return;
+        float k = JsonUtil.F(Cfg, "clothUvScale", 6f) * .5f;   // plates: broader texture than the cloth weave
+        for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
+        {
+            var d = (BaseMaterial3D)src.Duplicate();
+            d.Uv1Triplanar = false; d.Uv1Scale = new Vector3(k, k, 1);   // body UVs: triplanar would slide over the animated mesh
+            d.VertexColorUseAsAlbedo = false;   // glove/boot shells carry no vertex colours
+            d.Grow = true; d.GrowAmount = .006f;
+            Toon.Apply(d); mi.SetSurfaceOverrideMaterial(s, Genshin.From(d, Genshin.Kind.Cloth));
+        }
     }
 
     void HoldWeapon(string wt, JsonElement wc, Item? it)

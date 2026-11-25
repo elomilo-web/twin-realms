@@ -206,7 +206,7 @@ public partial class Gatherable : Node3D, IInteractable
         float a = Mathf.Clamp((ShowDist - dist) / 2f, 0f, 1f);
         if (a <= 0f) { if (_ui!.Visible) _ui.Visible = false; return; }
         if (!_ui!.Visible) _ui.Visible = true;
-        if (_uiKey == "") { _uiKey = Inputs.KeyOf(Inputs.Use); _keyLbl!.Text = _uiKey; }
+        if (_uiKey != Inputs.KeyOf(Inputs.Use)) { _uiKey = Inputs.KeyOf(Inputs.Use); _keyLbl!.Text = _uiKey; }
         if (Mathf.Abs(a - _uiA) > .01f)
         {
             _uiA = a; _boxMat!.AlbedoColor = new Color(Gold, a); _keyLbl!.Modulate = new Color(.1f, .07f, .04f, a);

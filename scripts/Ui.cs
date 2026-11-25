@@ -24,7 +24,7 @@ public partial class Ui : CanvasLayer
         if (_theme != null) return _theme; var t = new Theme();
         var B = UiTheme.Box;
         t.SetStylebox("normal", "Button", B(UiTheme.Button, UiTheme.AccentSoft, 1, 14, 5, 0)); t.SetStylebox("hover", "Button", B(UiTheme.ButtonHover, UiTheme.Accent, 1, 14, 5, 6));
-        t.SetStylebox("pressed", "Button", B(UiTheme.ButtonPressed, UiTheme.ButtonPressed, 1, 14, 5, 8)); t.SetStylebox("focus", "Button", new StyleBoxEmpty());
+        t.SetStylebox("pressed", "Button", B(UiTheme.ButtonPressed, UiTheme.ButtonPressed, 1, 14, 5, 8)); t.SetStylebox("focus", "Button", PadFocusBox()); t.SetStylebox("focus", "CheckButton", PadFocusBox()); t.SetStylebox("focus", "HSlider", PadFocusBox());   // gold outline: only controller navigation gives buttons focus (UiPad.cs)
         t.SetStylebox("disabled", "Button", B(UiTheme.Button with { A = .4f }, UiTheme.AccentSoft with { A = .2f }, 1, 14, 5, 0));
         t.SetColor("font_color", "Button", UiTheme.Text); t.SetColor("font_hover_color", "Button", Colors.White); t.SetColor("font_pressed_color", "Button", new Color("04111f")); t.SetColor("font_color", "Label", UiTheme.Text);
         t.SetStylebox("normal", "LineEdit", B(new Color(0.01f, 0.05f, 0.1f, 0.85f), UiTheme.AccentSoft, 1, 10, 4, 0)); t.SetStylebox("focus", "LineEdit", B(new Color(0.01f, 0.05f, 0.1f, 0.85f), UiTheme.Accent, 1, 10, 4, 6)); t.SetColor("font_color", "LineEdit", UiTheme.Text);
@@ -95,6 +95,7 @@ public partial class Ui : CanvasLayer
     // ---------------------------------------------------------------- input
     public override void _UnhandledInput(InputEvent e)
     {
+        if (PadMenuInput(e)) { GetViewport().SetInputAsHandled(); return; }   // B backs out, LB / RB switch settings tabs (UiPad.cs)
         if (!InGame) return;
         if (e.IsActionPressed(Inputs.Pause)) { if (_panel != null) Close(); else OpenPause(); GetViewport().SetInputAsHandled(); return; }
         if (e.IsActionPressed(Inputs.Pack)) { Toggle("pack", OpenPack); } else if (e.IsActionPressed(Inputs.Journal)) Toggle("journal", OpenJournal);
@@ -110,7 +111,7 @@ public partial class Ui : CanvasLayer
     /// <summary>Slim left column over a darkened, desaturated live world (pause menu). Returns the column's content box.</summary>
     VBoxContainer FrameSlim(string name, Action rebuild)
     {
-        _scrapMode = false; CloseNoUnpause(); _panelName = name; _rebuild = rebuild; Sfx.UiPanel(name);
+        _scrapMode = false; RememberFocus(); CloseNoUnpause(); _panelName = name; _rebuild = rebuild; Sfx.UiPanel(name); Callable.From(PadFocus).CallDeferred();
         var root = new Control { MouseFilter = Control.MouseFilterEnum.Stop, Theme = MakeTheme() }; root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         var sh = new Shader { Code = "shader_type canvas_item;\nuniform sampler2D screen_tex : hint_screen_texture, filter_linear_mipmap;\nvoid fragment() {\n vec3 c = textureLod(screen_tex, SCREEN_UV, 0.0).rgb;\n float g = dot(c, vec3(0.299, 0.587, 0.114));\n c = mix(c, vec3(g), 0.6) * 0.65;\n COLOR = vec4(c, 1.0);\n}\n" };
         var dim = new ColorRect { Color = Colors.White, Material = new ShaderMaterial { Shader = sh }, MouseFilter = Control.MouseFilterEnum.Ignore }; dim.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); root.AddChild(dim);
@@ -132,7 +133,7 @@ public partial class Ui : CanvasLayer
     VBoxContainer Frame(string name, string title, Vector2 size, Action rebuild)
     {
         if (name != "pack") _scrapMode = false;   // Disassemble stays on only while you stay in the pack
-        CloseNoUnpause(); _panelName = name; _rebuild = rebuild; Sfx.UiPanel(name);
+        RememberFocus(); CloseNoUnpause(); _panelName = name; _rebuild = rebuild; Sfx.UiPanel(name); Callable.From(PadFocus).CallDeferred();   // controller: focus the first button (or the one focused before a rebuild)
         var root = new Control { MouseFilter = Control.MouseFilterEnum.Stop, Theme = MakeTheme() }; root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         bool create = name == "title" && title.StartsWith("NEW HERO"), cine = name == "dialog";
         bool left = name == "title" && (title == "TWIN REALMS" || create);   // title screen: narrow translucent panel on the left, 3D backdrop visible on the right
@@ -307,52 +308,59 @@ public partial class Ui : CanvasLayer
     ItemTip? _tip;
     public void OpenPack()
     {
-        var d = Game.D; var v = Frame("pack", "Pack and Equipment", new Vector2(900, 620), OpenPack);
-        var top = new HBoxContainer(); v.AddChild(top); top.AddThemeConstantOverride("separation", 22);
-        Lbl($"{d.Gold} G", 18, Gold, top); Lbl($"Health potions {d.HpPot} (H)", 16, new Color("ff8f86"), top); Lbl($"Mana potions {d.MpPot} (G)", 16, new Color("8fb8ff"), top);
-        var cap = Lbl($"Pack {d.Inv.Count}/28", 16, d.Inv.Count >= 26 ? new Color(1, .6f, .5f) : Dim, top); cap.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; cap.HorizontalAlignment = HorizontalAlignment.Right;
-        var cols = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; cols.AddThemeConstantOverride("separation", 22); v.AddChild(cols);
-        // ---- left: equipment slots around a silhouette, stats, materials
-        var left = new VBoxContainer { CustomMinimumSize = new Vector2(320, 0) }; left.AddThemeConstantOverride("separation", 6); cols.AddChild(left);
-        Lbl("EQUIPPED", 15, UiTheme.Accent, left);
-        var doll = new PaperDoll { CustomMinimumSize = new Vector2(320, 344) }; left.AddChild(doll);
-        var dollPos = new Dictionary<string, Vector2> { ["head"] = new(132, 0), ["armor"] = new(132, 108), ["hands"] = new(22, 178), ["feet"] = new(132, 286), ["weapon"] = new(242, 150), ["shield"] = new(22, 106), ["trinket"] = new(242, 78), ["cape"] = new(22, 34) };
+        // Fixed-size window: every zone has a fixed footprint and the grids scroll, so item / material counts never resize or shift it.
+        var d = Game.D; var v = Frame("pack", "Pack and Equipment", new Vector2(PackW, PackH), OpenPack);
+        const int Cell = 56, Gap = 6; const float GridW = 7 * Cell + 6 * Gap, GridH = 4 * Cell + 3 * Gap, CentreW = GridW + 20;
+        // ---- slim header line: gold, potions, pack count
+        var top = new HBoxContainer(); v.AddChild(top); top.AddThemeConstantOverride("separation", 20);
+        Lbl($"{d.Gold} G", 16, Gold, top); Lbl($"Health potions {d.HpPot} (H)", 14, new Color("ff8f86"), top); Lbl($"Mana potions {d.MpPot} (G)", 14, new Color("8fb8ff"), top);
+        var cap = Lbl($"Pack {d.Inv.Count}/28", 14, d.Inv.Count >= 26 ? new Color(1, .6f, .5f) : Dim, top); cap.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; cap.HorizontalAlignment = HorizontalAlignment.Right;
+        var cols = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; cols.AddThemeConstantOverride("separation", 24); v.AddChild(cols);
+        // ---- left: equipment slots around a silhouette, compact stats
+        var left = new VBoxContainer { CustomMinimumSize = new Vector2(DollW, 0) }; left.AddThemeConstantOverride("separation", 4); cols.AddChild(left);
+        Lbl("EQUIPPED", 14, UiTheme.Accent, left);
+        var doll = new PaperDoll { CustomMinimumSize = new Vector2(DollW, DollH) }; left.AddChild(doll);
+        // slot centres on the 320 x 344 reference layout, scaled to the doll's size
+        var dollPos = new Dictionary<string, Vector2> { ["head"] = new(160, 28), ["armor"] = new(160, 136), ["hands"] = new(50, 206), ["feet"] = new(160, 314), ["weapon"] = new(270, 178), ["shield"] = new(50, 134), ["trinket"] = new(270, 106), ["cape"] = new(50, 62) };
+        const float Ds = 52;
         foreach (var slot in PlayerStats.Slots)
         {
             var it = d.Eq.GetValueOrDefault(slot); string sl = slot;
-            var cell = new ItemSlot { Item = it, Empty = slot, CustomMinimumSize = new Vector2(56, 56), Size = new Vector2(56, 56), Position = dollPos.GetValueOrDefault(slot, Vector2.Zero), TooltipText = it == null ? Cap(slot) : "" }; doll.AddChild(cell);
+            var c0 = dollPos.GetValueOrDefault(slot, new Vector2(Ds / 2, Ds / 2)) * new Vector2(DollW / PaperDoll.RefW, DollH / PaperDoll.RefH);
+            var pos = new Vector2(Mathf.Clamp(c0.X - Ds / 2, 0, DollW - Ds), Mathf.Clamp(c0.Y - Ds / 2, 0, DollH - Ds));
+            var cell = new ItemSlot { Item = it, Empty = slot, CustomMinimumSize = new Vector2(Ds, Ds), Size = new Vector2(Ds, Ds), Position = pos, TooltipText = it == null ? Cap(slot) : "" }; doll.AddChild(cell);
             cell.Hover += on => ShowTip(on ? it : null, cell, null);
             cell.Clicked += right => { if (it == null) return; if (d.Inv.Count >= 28) { Note("Pack is full", new Color(1, .5f, .5f)); return; } d.Eq[sl] = null; d.Inv.Add(it); Sfx.Play("click"); Game.Notify(); OpenPack(); };
         }
-        var stats = new GridContainer { Columns = 2 }; stats.AddThemeConstantOverride("h_separation", 18); stats.AddThemeConstantOverride("v_separation", 0); left.AddChild(stats);
+        var stats = new GridContainer { Columns = 2 }; stats.AddThemeConstantOverride("h_separation", 16); stats.AddThemeConstantOverride("v_separation", 0); left.AddChild(stats);
         foreach (var (k, val) in new[] { ("Damage", $"{d.WpnDmg():0}"), ("Defense", $"{d.Defense()}"), ("Crit", $"{d.CritChance() * 100:0}%"), ("Spell power", $"x{d.SpellPow():0.00}"), ("Health", $"{d.MaxHp()}"), ("Mana", $"{d.MaxMp()}") })
-        { var row = new HBoxContainer { CustomMinimumSize = new Vector2(150, 0) }; stats.AddChild(row); var a = Lbl(k, 14, GoldC, row); a.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; Lbl(val, 14, Colors.White, row); }
-        Lbl("MATERIALS", 15, UiTheme.Accent, left);
-        var mg = new GridContainer { Columns = 5 }; mg.AddThemeConstantOverride("h_separation", 6); mg.AddThemeConstantOverride("v_separation", 6); left.AddChild(mg); int kinds = 0;
-        foreach (var kv in d.Mats) if (kv.Value > 0)
+        { var row = new HBoxContainer { CustomMinimumSize = new Vector2((DollW - 16) / 2, 0) }; stats.AddChild(row); var a = Lbl(k, 13, GoldC, row); a.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; Lbl(val, 13, Colors.White, row); }
+        // ---- centre: Items | Materials tabs over one fixed-size scrolling grid, toolbar under it
+        var right = new VBoxContainer { CustomMinimumSize = new Vector2(CentreW, 0), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; right.AddThemeConstantOverride("separation", 6); cols.AddChild(right);
+        int kinds = 0; foreach (var kv in d.Mats) if (kv.Value > 0) kinds++;
+        var tabs = new HBoxContainer(); tabs.AddThemeConstantOverride("separation", 4); right.AddChild(tabs);
+        tabs.AddChild(GoldTab("Items", () => { if (_packTab == 0) return; _packTab = 0; OpenPack(); }, _packTab == 0));
+        tabs.AddChild(GoldTab($"Materials ({kinds})", () => { if (_packTab == 1) return; _packTab = 1; OpenPack(); }, _packTab == 1));
+        int tab = _packTab;
+        var sc = new ScrollContainer { CustomMinimumSize = new Vector2(CentreW, GridH + 2), HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; right.AddChild(sc);
+        var grid = new GridContainer { Columns = 7 }; grid.AddThemeConstantOverride("h_separation", Gap); grid.AddThemeConstantOverride("v_separation", Gap); sc.AddChild(grid);
+        // keep the scroll position across the rebuild that follows every click
+        int want = _packScroll[tab]; var vbar = sc.GetVScrollBar();
+        void Restore() { if (GodotObject.IsInstanceValid(sc) && want > 0) sc.ScrollVertical = want; }
+        vbar.Changed += Restore; vbar.ValueChanged += val => { _packScroll[tab] = (int)val; if (Mathf.Abs((float)val - want) > 1 && vbar.MaxValue - vbar.Page >= want) want = -1; };
+        Callable.From(Restore).CallDeferred();
+        if (tab == 1)
         {
-            var m = GatherDb.Mat(kv.Key); var cell = new ItemSlot { IconId = m.Name, Count = kv.Value, Tint = m.Col, CustomMinimumSize = new Vector2(52, 52), TooltipText = $"{m.Name} x{kv.Value}  ({m.Value}g each)" }; mg.AddChild(cell); kinds++;
+            foreach (var kv in d.Mats) if (kv.Value > 0)
+            {
+                var m = GatherDb.Mat(kv.Key); var cell = new ItemSlot { IconId = m.Name, Count = kv.Value, Tint = m.Col, CustomMinimumSize = new Vector2(Cell, Cell), TooltipText = $"{m.Name} x{kv.Value}  ({m.Value}g each)" }; grid.AddChild(cell);
+            }
+            if (kinds == 0) { grid.Columns = 1; var l = Row(grid, "Nothing gathered yet. Press E near herbs, mushrooms, berries, ore, crystals and fallen logs.", Dim, 13); l.CustomMinimumSize = new Vector2(GridW, 0); }
         }
-        if (kinds == 0) { var l = Row(left, "Nothing gathered yet. Press E near herbs, mushrooms, berries, ore, crystals and fallen logs.", Dim, 13); l.CustomMinimumSize = new Vector2(310, 0); }
-        // ---- right: 7 x 4 item grid
-        var right = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; right.AddThemeConstantOverride("separation", 6); cols.AddChild(right);
-        var hdr = new HBoxContainer(); hdr.AddThemeConstantOverride("separation", 4); right.AddChild(hdr); var il = Lbl("ITEMS", 15, UiTheme.Accent, hdr); il.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        hdr.AddChild(GoldTab("Sort", () => { d.Inv.Sort((a, b) => b.Rar != a.Rar ? b.Rar.CompareTo(a.Rar) : string.Compare(a.Slot, b.Slot, StringComparison.Ordinal)); Sfx.Play("click"); OpenPack(); }));
-        hdr.AddChild(GoldTab(_scrapMode ? "Disassemble: ON" : "Disassemble", () => { _scrapMode = !_scrapMode; OpenPack(); }, _scrapMode));
-        hdr.AddChild(GoldTab("Scrap commons", () =>
-        {
-            int n = 0; var parts = new Dictionary<string, int>();
-            foreach (var it in d.Inv.FindAll(x => x.Rar == 0 && x.Set == null && !x.Unique)) { foreach (var (id, c) in LootTables.Scraps(it)) { d.Mats[id] = d.Mats.GetValueOrDefault(id) + c; parts[id] = parts.GetValueOrDefault(id) + c; } d.Inv.Remove(it); n++; }
-            if (n > 0) { Note($"Scrapped {n} common items: " + string.Join(", ", parts.Select(kv => $"+{kv.Value} {GatherDb.Mat(kv.Key).Name}")), Dim); Sfx.Play("hit"); }
-            Game.Notify(); OpenPack();
-        }));
-        hdr.AddChild(GoldTab("Pickup filter", OpenPickFilter));
-        hdr.AddChild(GoldTab("Crafting", () => OpenCraft("gear")));
-        var grid = new GridContainer { Columns = 7 }; grid.AddThemeConstantOverride("h_separation", 6); grid.AddThemeConstantOverride("v_separation", 6); right.AddChild(grid);
-        for (int i = 0; i < 28; i++)
+        else for (int i = 0; i < Math.Max(28, (d.Inv.Count + 6) / 7 * 7); i++)
         {
             int k = i; var it = i < d.Inv.Count ? d.Inv[i] : null;
-            var cell = new ItemSlot { Item = it, CustomMinimumSize = new Vector2(60, 60) }; grid.AddChild(cell);
+            var cell = new ItemSlot { Item = it, CustomMinimumSize = new Vector2(Cell, Cell) }; grid.AddChild(cell);
             if (it == null) continue;
             cell.Hover += on => ShowTip(on ? it : null, cell, d.Eq.GetValueOrDefault(it.Slot));
             cell.Clicked += rightBtn =>
@@ -364,10 +372,27 @@ public partial class Ui : CanvasLayer
                 else Equip(k);
             };
         }
-        Lbl(_scrapMode ? "Disassemble is ON: click an item to break it into scraps for crafting.     Right-click: drop on the ground" : "Click: equip     Right-click: drop on the ground     Hover: compare with what you wear", 13, _scrapMode ? new Color(1, .7f, .45f) : Dim, right);
+        var hdr = new HBoxContainer(); hdr.AddThemeConstantOverride("separation", 4); right.AddChild(hdr);
+        hdr.AddChild(GoldTab("Sort", () => { d.Inv.Sort((a, b) => b.Rar != a.Rar ? b.Rar.CompareTo(a.Rar) : string.Compare(a.Slot, b.Slot, StringComparison.Ordinal)); Sfx.Play("click"); OpenPack(); }));
+        hdr.AddChild(GoldTab("Disassemble", () => { _scrapMode = !_scrapMode; OpenPack(); }, _scrapMode));
+        hdr.AddChild(GoldTab("Scrap commons", () =>
+        {
+            int n = 0; var parts = new Dictionary<string, int>();
+            foreach (var it in d.Inv.FindAll(x => x.Rar == 0 && x.Set == null && !x.Unique)) { foreach (var (id, c) in LootTables.Scraps(it)) { d.Mats[id] = d.Mats.GetValueOrDefault(id) + c; parts[id] = parts.GetValueOrDefault(id) + c; } d.Inv.Remove(it); n++; }
+            if (n > 0) { Note($"Scrapped {n} common items: " + string.Join(", ", parts.Select(kv => $"+{kv.Value} {GatherDb.Mat(kv.Key).Name}")), Dim); Sfx.Play("hit"); }
+            Game.Notify(); OpenPack();
+        }));
+        hdr.AddChild(GoldTab("Pickup filter", OpenPickFilter));
+        hdr.AddChild(GoldTab("Crafting", () => OpenCraft("gear")));
         string filt = d.PickRar > 0 || d.PickSkip.Count > 0 ? $"Pickup filter: {Items.RarityName(d.PickRar)} and better" + (d.PickSkip.Count > 0 ? $", skipping {string.Join(", ", d.PickSkip)}" : "") + (d.PickScrap ? " (the rest is scrapped)" : " (the rest stays on the ground)") : "Pickup filter: everything";
-        Lbl(filt, 12, Dim, right);
+        var fl = Lbl(filt, 12, Dim, right); fl.ClipText = true; fl.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis; fl.TooltipText = filt; fl.MouseFilter = Control.MouseFilterEnum.Pass;
+        // ---- one short help line at the bottom (clipped, so it can never widen the window)
+        var help = Lbl(_scrapMode ? "Disassemble ON: click an item to scrap it     Right-click: drop" : "Click: equip     Right-click: drop     Hover: compare     Click a worn slot: take off", 12, _scrapMode ? new Color(1, .7f, .45f) : Dim, v);
+        help.ClipText = true; help.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
     }
+    const float PackW = 820, PackH = 560, DollW = 260, DollH = 300;
+    static int _packTab;                         // 0 = Items, 1 = Materials; kept across the reopen after every click
+    static readonly int[] _packScroll = new int[2];
     static bool _scrapMode;
     /// <summary>Flat gold text tab with an underline (brighter when active or hovered).</summary>
     static Button GoldTab(string t, Action a, bool active = false)
@@ -382,18 +407,22 @@ public partial class Ui : CanvasLayer
     /// <summary>Dim iron silhouette of a standing figure with a faint gold outline; equipment slots are placed over it.</summary>
     sealed partial class PaperDoll : Control
     {
+        /// <summary>Reference layout the silhouette is authored in; drawing scales to the real Size.</summary>
+        public const float RefW = 320, RefH = 344;
         public override void _Draw()
         {
             var iron = new Color(.16f, .16f, .18f, .85f); var edge = new Color(.72f, .6f, .3f, .28f);
-            void Shape(Vector2[] p) { DrawColoredPolygon(p, iron); var l = new Vector2[p.Length + 1]; p.CopyTo(l, 0); l[^1] = p[0]; DrawPolyline(l, edge, 1.5f, true); }
-            float cx = Size.X / 2;
-            DrawCircle(new Vector2(cx, 80), 17, iron); DrawArc(new Vector2(cx, 80), 17, 0, Mathf.Tau, 32, edge, 1.5f, true);
-            Shape(new[] { new Vector2(cx - 12, 94), new Vector2(cx + 12, 94), new Vector2(cx + 14, 106), new Vector2(cx - 14, 106) });   // neck
-            Shape(new[] { new Vector2(cx - 44, 106), new Vector2(cx + 44, 106), new Vector2(cx + 34, 200), new Vector2(cx - 34, 200) });   // torso
-            Shape(new[] { new Vector2(cx - 46, 108), new Vector2(cx - 66, 112), new Vector2(cx - 80, 210), new Vector2(cx - 66, 214), new Vector2(cx - 50, 140) });   // arms
-            Shape(new[] { new Vector2(cx + 46, 108), new Vector2(cx + 66, 112), new Vector2(cx + 80, 210), new Vector2(cx + 66, 214), new Vector2(cx + 50, 140) });
-            Shape(new[] { new Vector2(cx - 34, 200), new Vector2(cx - 2, 200), new Vector2(cx - 6, 290), new Vector2(cx - 26, 290) });   // legs
-            Shape(new[] { new Vector2(cx + 2, 200), new Vector2(cx + 34, 200), new Vector2(cx + 26, 290), new Vector2(cx + 6, 290) });
+            float sx = Size.X / RefW, sy = Size.Y / RefH, cx = Size.X / 2;
+            Vector2 P(float dx, float y) => new(cx + dx * sx, y * sy);   // dx: offset from the centre line, y: reference height
+            void Shape(params Vector2[] p) { DrawColoredPolygon(p, iron); var l = new Vector2[p.Length + 1]; p.CopyTo(l, 0); l[^1] = p[0]; DrawPolyline(l, edge, 1.5f, true); }
+            float r = 17 * Mathf.Min(sx, sy);
+            DrawCircle(P(0, 80), r, iron); DrawArc(P(0, 80), r, 0, Mathf.Tau, 32, edge, 1.5f, true);
+            Shape(P(-12, 94), P(12, 94), P(14, 106), P(-14, 106));   // neck
+            Shape(P(-44, 106), P(44, 106), P(34, 200), P(-34, 200));   // torso
+            Shape(P(-46, 108), P(-66, 112), P(-80, 210), P(-66, 214), P(-50, 140));   // arms
+            Shape(P(46, 108), P(66, 112), P(80, 210), P(66, 214), P(50, 140));
+            Shape(P(-34, 200), P(-2, 200), P(-6, 290), P(-26, 290));   // legs
+            Shape(P(2, 200), P(34, 200), P(26, 290), P(6, 290));
         }
     }
     void ShowTip(Item? it, Control anchor, Item? worn)

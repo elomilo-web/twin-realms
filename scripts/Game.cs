@@ -29,6 +29,11 @@ public class Settings
     // auto potions (Settings > Game): drink when health / mana falls below this share (0 = off), at most once per AutoPotDelay seconds each
     public float AutoHp = 0f, AutoMp = 0f, AutoPotDelay = 4f;
     public Dictionary<string, string> Binds = new();   // rebound controls: action -> "k:keycode" / "m:button" (older settings files: empty = defaults)
+    // controller (Settings > Controller): its own bindings, action -> "b:button" / "a:trigger axis", "L+" = with the left trigger held
+    public Dictionary<string, string> PadBinds = new();
+    public float PadSens = 1f, PadDeadzone = .18f, VibStrength = .8f;
+    public bool Vibration = true;
+    public int PadGlyphs = 0;              // button names: 0 auto (from the connected pad), 1 Xbox, 2 PlayStation
 }
 
 /// <summary>Global game state, saving and cross-system helpers.</summary>
@@ -173,7 +178,7 @@ public static class Game
             if (f != null) Set = JsonSerializer.Deserialize<Settings>(f.GetAsText(), Opt) ?? new Settings();
         }
         catch { Set = new Settings(); }
-        Set.Binds ??= new();
+        Set.Binds ??= new(); Set.PadBinds ??= new();
         if (Set.SetVer < 1) { Set.Outlines = false; Set.SetVer = 1; }   // the outline look was retired (too cartoony)
         if (Set.SetVer < 2) { if (Set.MaxFps == 0) Set.MaxFps = 144; Set.SetVer = 2; }   // older files: the old "no limit" default becomes a cap once
         Sfx.ApplyVolumes(); Inputs.ApplyBinds(); ApplyDisplay();

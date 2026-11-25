@@ -1,5 +1,11 @@
-[3][S][menus] Inventory window now sits left of centre (was right): find why Frame centring differs for the pack (custom panel offsets?) -> Ui.cs OpenPack, Frame
-[3][S][feel] Roll facing: Player.cs ~L657 has _modelYaw = Util.YawTo(_rollDir...) inside a comment; check in play whether the hero should face the roll direction -> Player.cs (PLAYTEST)
+[5][M][ui] Loading screens (user request): world boot, dungeon enter/leave, arena, lair, realm travel/teleport; gothic art + tips + progress -> Main.cs, Dungeon.cs, Arenas.cs, new LoadScreen.cs
+[4][S][graphics] Default linen tunic reads as bare skin at distance (wand_attack/staff_attack): darker default outfit tint or wool tunic -> data/avatar.json default
+[4][M][graphics] Hero legs under plate still near-black trousers; Crown kit shows an orange flame-like glow -> GearFx.cs, kit crown.glb
+[3][S][models] Kit armor glbs carry a stray circlet_winged mesh ~4 m aside (armor.py export): verify with probe, fix armor.py, rebuild -> tools/blender_gothic/armor.py
+[3][S][models] Female Gambeson/Cuirass/Tunic show nipples: rebuild with fill on outer layers -> humans.py
+[3][S][ui] Gamepad: pack slots/custom controls not focusable; hotbar shows "LT+Up"; hard-coded "Esc"/"L" hints -> ItemSlot.cs, Hud.cs
+[3][S][lighting] Dungeon ceilings/far end still black; look.json dungeon keys need user OK (edit denied) -> WorldEnv.cs
+[3][S][menus] Stash scroll resets each click -> Home.cs
 [2][S][perf] CritFx re-reads feel.json each crit via Cf(): cache the crit block -> Player.cs
 [3][S][ui] Compass quest marker: quests have no target positions; add optional x/z to data/quests.json objectives and show a gold diamond -> Quests.cs, data/quests.json, Hud.cs
 [2][S][world] Arena floor still faintly stripy (plaster tint): add a real CC0 soil/sand scanned set (ambientCG Ground/Soil) to assets/textures/gothic -> tools/blender_gothic or foliage_tex.ps1-like fetch, ASSETS.md

@@ -115,7 +115,7 @@ public partial class Ui
     public void OpenSettings()
     {
         _confirmQuit = false;
-        if (_setTab == "controls") _setTab = "audio";
+        if (_setTab is "controls" or "pad") _setTab = "audio";
         var v = Frame("settings", "Settings", new Vector2(940, 600), OpenSettings); var s = Game.Set;
         v = SettingsShell(v, _setTab);
         var sc = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled, CustomMinimumSize = new Vector2(0, 300) }; v.AddChild(sc);
@@ -188,15 +188,15 @@ public partial class Ui
     {
         var h = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; h.AddThemeConstantOverride("separation", 18); v.AddChild(h);
         var left = new VBoxContainer { CustomMinimumSize = new Vector2(170, 0) }; left.AddThemeConstantOverride("separation", 2); h.AddChild(left);
-        foreach (var (id, label) in new[] { ("audio", "Audio"), ("display", "Display"), ("game", "Game"), ("controls", "Controls") })
+        foreach (var (id, label) in new[] { ("audio", "Audio"), ("display", "Display"), ("game", "Game"), ("controls", "Controls"), ("pad", "Controller") })
         {
             string t = id; bool on = id == cur;
-            var b = Btn(label, () => { if (t == cur) return; if (t == "controls") OpenControls(); else { _setTab = t; OpenSettings(); } });
+            var b = Btn(label, () => { if (t == cur) return; OpenSetTab(t); });
             b.Alignment = HorizontalAlignment.Left; b.CustomMinimumSize = new Vector2(0, 34); b.AddThemeFontSizeOverride("font_size", 18);
             b.AddThemeColorOverride("font_color", on ? GoldC : Parch); b.AddThemeColorOverride("font_hover_color", GoldC); b.AddThemeColorOverride("font_pressed_color", UiTheme.Highlight);
             StyleBoxFlat Sb(Color mark, Color bg) => new() { BgColor = bg, BorderColor = mark, BorderWidthLeft = 2, ContentMarginLeft = 14, ContentMarginRight = 8, ContentMarginTop = 2, ContentMarginBottom = 2 };
             var act = Sb(GoldC, new Color(GoldC, .10f)); var none = Sb(Colors.Transparent, Colors.Transparent);
-            b.AddThemeStyleboxOverride("normal", on ? act : none); b.AddThemeStyleboxOverride("focus", none); b.AddThemeStyleboxOverride("hover", act); b.AddThemeStyleboxOverride("pressed", act);
+            b.AddThemeStyleboxOverride("normal", on ? act : none); b.AddThemeStyleboxOverride("hover", act); b.AddThemeStyleboxOverride("pressed", act);
             left.AddChild(b);
         }
         h.AddChild(new ColorRect { Color = UiTheme.AccentSoft, CustomMinimumSize = new Vector2(1, 0), MouseFilter = Control.MouseFilterEnum.Ignore });

@@ -14,7 +14,7 @@ def weapon(fn):
 
 # ------------------------------------------------------------------ parts
 def blade(y0, length, w0, w1, t, tip=0.16, fuller=0.0, fuller_end=0.65, mat=STEEL, single=False, curve=0.0,
-          n=36, name="blade", glow_fuller=None, clip=0.0):
+          n=36, name="blade", glow_fuller=None, clip=0.0, wave=0.0, waves=8):
     """A forged blade from y0 up. Double-edged: lenticular section with sharpened bevels and an optional fuller
     (groove) down both faces. single=True: one edge on -X, thick spine on +X (katana, saber); curve bends the
     tip towards the spine. clip: single-edged clipped point (cutlass)."""
@@ -30,6 +30,8 @@ def blade(y0, length, w0, w1, t, tip=0.16, fuller=0.0, fuller_end=0.65, mat=STEE
             u = (s - tipS) / (1 - tipS)
             f = max(0.0, math.cos(u * math.pi / 2)) ** 0.75
         xo = curve * s * s
+        if wave:   # flamberge: the whole blade snakes, fading out towards the point
+            xo += wave * math.sin(2 * math.pi * waves * s) * min(1.0, s * 8) * (1 - s)
         if single:
             pts = [(-w / 2, 0), (w * 0.05, th / 2), (w / 2 - th * 0.3, th * 0.38), (w / 2, 0), (w / 2 - th * 0.3, -th * 0.38), (w * 0.05, -th / 2)]
             a = w * (0.5 - clip) * 0.6
@@ -903,4 +905,300 @@ def shield_tower():
         p += rivets([(s * W * 0.9, yy, -0.06 * (s * 0.9) ** 2 + 0.024) for s in rows[1:-1:2]], r=0.007)
     p.append(ball("gem", (0, 0.15, 0.022), 0.022, glow("ff5a6e"), sz=0.5))
     p.append(ring("gem_ring", (0, 0.15, 0.018), 0.03, 0.006, IRON, axis="z", seg=20, sides=6))
+    return p
+
+
+# ------------------------------------------------------------------ more gothic arms (second wave)
+def ricasso(y0, y1, w, t, mat=IRON, hooks=0.0):
+    """The blunt square shoulder of a blade above the guard, with optional parrying hooks (parierhaken) at its top."""
+    p = [slab("ricasso", [(-w / 2, y0), (w / 2, y0), (w / 2, y1), (-w / 2, y1)], mat, t, t, bevel=0.0012)]
+    if hooks:
+        for sx in (-1, 1):
+            p.append(spike("hook", (sx * w * 0.4, y1 - 0.01, 0), (sx * (w / 2 + hooks), y1 + 0.012, 0), t * 0.45, mat, sides=4))
+    return p
+
+
+@weapon
+def bastard_sword():
+    p = blade(0.1, 1.0, 0.05, 0.036, 0.009, tip=0.18, fuller=0.014)
+    p += ricasso(0.02, 0.11, 0.046, 0.011, hooks=0.018)
+    p += crossguard(0.02, 0.13, h=0.02, t=0.026, droop=0.012, flare=0.3, ends="ball")
+    p += grip(-0.23, -0.005, 0.015, LEATHER, sz=0.75)
+    p += ferrule(-0.012, 0.012, 0.0165, IRON, sz=0.75)
+    p += ferrule(-0.125, 0.01, 0.0158, IRON, sz=0.75, name="grip_band")   # the hand-and-a-half split
+    p += pommel(-0.23, "scent", r=0.024)
+    return p
+
+
+@weapon
+def estoc():
+    p = blade(0.03, 1.16, 0.021, 0.011, 0.012, tip=0.32)   # stiff diamond-section thrusting blade
+    p += crossguard(0.03, 0.105, h=0.014, t=0.018, droop=-0.012, ends="ball")
+    p.append(ring("pas", (0, 0.045, 0), 0.026, 0.0035, IRON, axis="z", seg=20, sides=6))
+    p += grip(-0.22, -0.005, 0.0135, LEATHER, sz=0.85)
+    p += ferrule(-0.012, 0.012, 0.015, IRON, sz=0.85)
+    p += pommel(-0.22, "pear", r=0.022)
+    return p
+
+
+@weapon
+def great_cleaver():
+    # a raw slab of iron: too big to be called a sword
+    out = [(-0.082, 0.05), (0.082, 0.05), (0.086, 0.6), (0.074, 0.635), (0.086, 0.67), (0.088, 1.15), (0.08, 1.19),
+           (0.088, 1.22), (0.088, 1.43), (0.03, 1.6), (-0.06, 1.56), (-0.084, 1.5), (-0.084, 0.9), (-0.076, 0.87),
+           (-0.084, 0.84)]
+    p = [slab("slab", out, IRON, 0.008, 0.03, inset=0.03, bevel=0.002, edge_mat=STEEL)]
+    p.append(slab("block", [(-0.1, -0.03), (0.1, -0.03), (0.1, 0.05), (-0.1, 0.05)], RUST, 0.05, 0.05, bevel=0.004))
+    p += rivets([(sx * 0.06, 0.18 + k * 0.08, sz * 0.016) for sx in (-1, 1) for k in range(2) for sz in (-1, 1)], r=0.009, mat=RUST)
+    p += grip(-0.32, -0.03, 0.019, LEATHER, sz=0.8)
+    p += ferrule(-0.335, 0.02, 0.021, RUST, sz=0.8)
+    p += pommel(-0.335, "ball", r=0.03, mat=RUST)
+    return p
+
+
+@weapon
+def flamberge_wavy():
+    p = blade(0.15, 1.48, 0.07, 0.048, 0.011, tip=0.2, fuller=0.016, fuller_end=0.55, wave=0.011, waves=9, n=96)
+    p += ricasso(0.04, 0.16, 0.05, 0.013, hooks=0.03)
+    p += crossguard(0.04, 0.23, h=0.024, t=0.03, droop=0.03, flare=0.5, ends="curl")
+    p += grip(-0.27, -0.005, 0.0175, LEATHER, sz=0.78)
+    p += ferrule(-0.012, 0.016, 0.019, IRON, sz=0.78)
+    p += pommel(-0.27, "scent", r=0.03, gem="ff5a3a")
+    return p
+
+
+@weapon
+def bearded_axe_runed():
+    p = haft(-0.2, 0.9, 0.017, WOOD, bands=(0.6,), grip_at=(-0.17, 0.1))
+    p.append(axe_bit(1, sx=1.12, sy=1.3, base=0.54))
+    p.append(lathe("socket", [(0.026, 0.0), (0.03, 0.02), (0.03, 0.24), (0.026, 0.26)], IRON, seg=8, y0=0.64, sz=1.4))
+    p.append(spike("top", (0, 0.9, 0), (0, 0.95, 0), 0.016, IRON, sides=6))
+    for s in (1, -1):   # a runic line along the beard
+        pts = [(0.07 + 0.17 * t, 0.75 - 0.02 * t + 0.012 * math.sin(t * 14), s * 0.0145) for t in [k / 10 for k in range(11)]]
+        p.append(tube("rune", pts, 0.0026, glow("9fc8ff"), sides=5))
+    p += grip(0.42, 0.6, 0.0185, CLOTH_B, sz=1.0, cord=0.0035, name="wrap")
+    return p
+
+
+@weapon
+def bardiche():
+    p = haft(-0.95, 1.12, 0.018, WOOD, bands=(-0.45, 0.45), grip_at=(-0.2, 0.16))
+    out = [(0.016, 0.58), (0.05, 0.56), (0.09, 0.64), (0.13, 0.8), (0.155, 1.0), (0.15, 1.2), (0.12, 1.36),
+           (0.07, 1.46), (0.05, 1.38), (0.055, 1.2), (0.045, 1.0), (0.016, 0.92)]
+    p.append(slab("bardiche", out, IRON, 0.004, 0.02, inset=0.024, bevel=0.0012, edge_mat=STEEL))
+    for y in (0.6, 0.9):
+        p += ferrule(y - 0.02, 0.04, 0.022, IRON, name="lash")
+    p.append(spike("top", (0, 1.12, 0), (0, 1.2, 0), 0.016, IRON, sides=4))
+    return p
+
+
+@weapon
+def spiked_club():
+    prof = [(0.0, -0.215), (0.016, -0.2), (0.018, -0.17), (0.017, 0.05), (0.025, 0.2), (0.038, 0.38), (0.048, 0.52),
+            (0.046, 0.6), (0.03, 0.645), (0.0, 0.655)]
+    p = [lathe("club", prof, WOOD, seg=14)]
+    p += grip(-0.18, 0.06, 0.019, LEATHER, sz=1.0)
+    p += ferrule(0.29, 0.024, 0.034, IRON, name="band")
+    p += ferrule(0.555, 0.022, 0.05, IRON, name="band")
+
+    def rad(y):
+        for (r0, y0), (r1, y1) in zip(prof, prof[1:]):
+            if y0 <= y <= y1:
+                return r0 + (r1 - r0) * (y - y0) / (y1 - y0)
+        return 0.02
+    for i, y in enumerate((0.36, 0.42, 0.48, 0.53, 0.6)):
+        for k in range(6):
+            a = 2 * math.pi * (k + 0.5 * (i % 2)) / 6
+            r = rad(y); c, s = math.cos(a), math.sin(a)
+            p.append(spike("nail", (c * r * 0.85, y, s * r * 0.85), (c * (r + 0.038), y + 0.012, s * (r + 0.038)), 0.0055, RUST, sides=4))
+    return p
+
+
+@weapon
+def flail_spiked():
+    p = haft(-0.18, 0.4, 0.016, WOOD, bands=(0.1,), grip_at=(-0.16, 0.08))
+    p += ferrule(0.37, 0.05, 0.02, IRON, name="cap")
+    p.append(ring("eye", (0, 0.43, 0), 0.012, 0.0035, IRON, axis="x", seg=12, sides=5))
+    for k in range(7):   # the chain, drawn taut as if mid-swing
+        p.append(ring("link", (0, 0.45 + k * 0.0235, 0), 0.012, 0.003, IRON, axis="z" if k % 2 == 0 else "x", seg=12, sides=5))
+    c = Vector((0, 0.66, 0))
+    p.append(ring("eye2", (0, 0.61, 0), 0.011, 0.0035, IRON, axis="x", seg=12, sides=5))
+    p.append(ball("head", tuple(c), 0.05, IRON, seg=16, rings_=10))
+    n = 14
+    for k in range(n):
+        yv = 1 - 2 * (k + 0.5) / n; rr = math.sqrt(1 - yv * yv); a = k * 2.39996
+        d = Vector((rr * math.cos(a), yv, rr * math.sin(a)))
+        if d.y < -0.75:
+            continue
+        p.append(spike("spike", tuple(c + d * 0.044), tuple(c + d * 0.1), 0.012, IRON, sides=5))
+    return p
+
+
+@weapon
+def parrying_dagger():
+    p = sword(dict(y0=0.02, length=0.4, w0=0.05, w1=0.022, t=0.009, tip=0.12, fuller=0.008),
+              dict(y=0.02, half=0.11, h=0.014, t=0.018, droop=-0.035, ends="ball"), grip_y=-0.12, grip_r=0.013,
+              pommel_kind="scent", pommel_r=0.018)
+    p.append(ring("side_ring", (0, 0.01, 0.034), 0.028, 0.0038, IRON, axis="x", seg=20, sides=6))
+    return p
+
+
+@weapon
+def seax():
+    p = blade(0.02, 0.44, 0.04, 0.05, 0.009, tip=0.17, single=True, clip=0.35)
+    p += ferrule(-0.012, 0.016, 0.017, BRASS, sz=0.75)
+    p += grip(-0.13, -0.012, 0.0145, WOOD, wrap=False, sz=0.75)
+    for y in (-0.1, -0.06):
+        p += ferrule(y, 0.006, 0.0152, BRASS, sz=0.75, name="band")
+    p += ferrule(-0.142, 0.014, 0.016, BRASS, sz=0.75, name="cap")
+    return p
+
+
+@weapon
+def winged_spear():
+    p = haft(-0.95, 1.1, 0.017, WOOD, bands=(-0.5, 0.4), grip_at=(-0.15, 0.15))
+    p += ferrule(1.04, 0.1, 0.021, IRON)
+    p += blade(1.15, 0.38, 0.072, 0.03, 0.012, tip=0.2, fuller=0.01)
+    for sx in (-1, 1):   # the lugs that stop a boar on the shaft
+        p.append(spike("wing", (sx * 0.012, 1.1, 0), (sx * 0.095, 1.15, 0), 0.012, IRON, sides=4))
+    p += rivets([(0, 1.07, 0.021), (0, 1.07, -0.021)], r=0.005)
+    return p
+
+
+@weapon
+def war_scythe():
+    p = haft(-0.95, 0.98, 0.018, WOOD, bands=(-0.45, 0.4), grip_at=(-0.2, 0.15))
+    p += ferrule(0.88, 0.12, 0.023, IRON, name="collar")
+    p += rivets([(0, 0.92, 0.023), (0, 0.96, 0.023), (0, 0.92, -0.023), (0, 0.96, -0.023)], r=0.005)
+    p += blade(0.98, 0.6, 0.06, 0.055, 0.009, tip=0.2, single=True, curve=0.11, n=40)
+    return p
+
+
+@weapon
+def recurve_horn():
+    pts, radii = [], []
+    L, back = 0.56, 0.17
+    for i in range(29):
+        s = -1 + 2 * i / 28
+        a = abs(s)
+        x = -back * a ** 1.5 + 0.16 * max(0.0, a - 0.72) ** 1.6   # siyahs flick hard forward
+        pts.append((x, s * L, 0)); radii.append(0.02 - 0.012 * a)
+    p = [tube("limbs", pts, 0.01, BARK, sides=8, radii=radii)]
+    p += grip(-0.07, 0.07, 0.022, LEATHER, sz=0.8)
+    for s in (1, -1):
+        p += ferrule(s * 0.1 - 0.01, 0.02, 0.0195, BRASS)
+        yb = s * 0.42; ab = 0.42 / L
+        xb = -back * ab ** 1.5 + 0.16 * max(0.0, ab - 0.72) ** 1.6
+        p.append(lathe("horn_band", [(0.0118, -0.008), (0.0128, -0.005), (0.0128, 0.005), (0.0118, 0.008)], BRASS, seg=12, y0=yb, x=xb))
+    tips = (pts[0], pts[-1])
+    for t in tips:
+        p.append(spike("horn_tip", (t[0] - 0.01, t[1] * 0.96, 0), (t[0] + 0.012, t[1] * 1.03, 0), 0.008, PARCH, sides=6))
+    p.append(tube("string", [(tips[0][0], tips[0][1] * 0.985, 0), (tips[1][0], tips[1][1] * 0.985, 0)], 0.0018, CLOTH_B, sides=4))
+    return p
+
+
+@weapon
+def bone_wand():
+    prof = [(0.0, -0.1), (0.011, -0.096), (0.017, -0.085), (0.012, -0.07), (0.0105, 0.0), (0.0085, 0.2), (0.008, 0.3),
+            (0.012, 0.325), (0.017, 0.34), (0.012, 0.355), (0.0, 0.362)]
+    p = [lathe("bone", prof, PARCH, seg=12)]
+    p += grip(-0.06, 0.07, 0.0125, CLOTH_B, sz=1.0, cord=0.0025)
+    for y in (0.13, 0.2, 0.26):   # knuckle-like knobs
+        p.append(ring("knob", (0, y, 0), 0.0092, 0.0028, PARCH, axis="y", seg=12, sides=5))
+    for k in range(3):   # finger-bone claws round the mote
+        a = 2 * math.pi * k / 3
+        pts = [((0.008 + 0.02 * math.sin(math.pi * t * 0.8)) * math.cos(a), 0.35 + t * 0.07, (0.008 + 0.02 * math.sin(math.pi * t * 0.8)) * math.sin(a)) for t in [i / 6 for i in range(7)]]
+        p.append(tube("claw", pts, 0.004, PARCH, sides=5, radii=[0.0045 - 0.003 * i / 6 for i in range(7)]))
+    p.append(ball("mote", (0, 0.39, 0), 0.016, glow("c8ffd8"), seg=10, rings_=6))
+    return p
+
+
+@weapon
+def rune_rod():
+    p = [lathe("rod", [(0.0, -0.1), (0.013, -0.09), (0.012, 0.0), (0.0105, 0.36), (0.014, 0.37), (0.02, 0.39), (0.017, 0.4), (0.0, 0.405)], IRON, seg=10)]
+    p += grip(-0.07, 0.07, 0.0135, LEATHER, sz=1.0, cord=0.0025)
+    for y in (0.07, 0.2, 0.33):
+        p += ferrule(y, 0.016, 0.0145, BRASS, name="band")
+    pts = []
+    for i in range(61):   # a spiral of glowing runes up the rod
+        t = i / 60; a = t * 5 * 2 * math.pi; y = 0.09 + t * 0.24
+        pts.append((0.0118 * math.cos(a), y, 0.0118 * math.sin(a)))
+    p.append(tube("runes", pts, 0.0018, glow("ffb04a"), sides=4))
+    p.append(spike("crystal", (0, 0.39, 0), (0, 0.49, 0), 0.012, glow("ffb04a"), sides=5))
+    for k in range(4):
+        a = 2 * math.pi * k / 4
+        p.append(spike("prong", (0.012 * math.cos(a), 0.39, 0.012 * math.sin(a)), (0.022 * math.cos(a), 0.43, 0.022 * math.sin(a)), 0.003, IRON, sides=4))
+    return p
+
+
+@weapon
+def gnarled_staff():
+    pts, radii = [], []
+    for i in range(31):   # a crooked root-wood shaft
+        t = i / 30; y = -0.86 + t * 1.68
+        pts.append((0.012 * math.sin(t * 9.0) + 0.006 * math.sin(t * 23), y, 0.01 * math.cos(t * 7.0)))
+        radii.append(0.019 + 0.004 * math.sin(t * 17) ** 2 + 0.006 * max(0.0, t - 0.85) / 0.15)
+    p = [tube("shaft", pts, 0.02, BARK, sides=9, radii=radii)]
+    for t in (0.2, 0.47, 0.71):   # knots
+        x, y, z = pts[int(t * 30)]
+        p.append(ball("knot", (x + 0.015, y, z), 0.014, BARK, sx=1.0, sy=1.4, seg=8, rings_=6))
+    p += grip(-0.12, 0.14, 0.024, LEATHER, sz=1.0)
+    top = pts[-1]
+    cy = top[1] + 0.17
+    for k in range(5):   # roots twisting up into a cage round the crystal
+        a0 = 2 * math.pi * k / 5
+        rp, rr = [], []
+        for i in range(14):
+            t = i / 13
+            r = 0.018 + 0.06 * math.sin(math.pi * t) ** 0.8
+            a = a0 + t * 1.6
+            rp.append((top[0] * (1 - t) + r * math.cos(a), top[1] - 0.02 + t * 0.34, top[2] * (1 - t) + r * math.sin(a)))
+            rr.append(0.011 - 0.007 * t)
+        p.append(tube("root", rp, 0.01, BARK, sides=6, radii=rr))
+    p.append(lathe("crystal", [(0.0, 0.0), (0.03, 0.05), (0.038, 0.11), (0.024, 0.18), (0.0, 0.23)], glow("9af0ff"), seg=6, y0=cy - 0.11, x=top[0] * 0.3, z=top[2] * 0.3))
+    return p
+
+
+@weapon
+def bishop_crozier():
+    p = haft(-0.86, 0.82, 0.018, WOOD, bands=(-0.4, 0.3), band_mat=BRASS, grip_at=(-0.12, 0.14))
+    p.append(ball("knop", (0, 0.86, 0), 0.036, BRASS, sy=0.75, seg=16, rings_=10))
+    p += ferrule(0.8, 0.04, 0.022, BRASS)
+    pts, radii = [(0.0, 0.88, 0.0), (0.0, 0.96, 0.0)], [0.014, 0.014]
+    c = (0.068, 1.03)
+    N = 30
+    for i in range(N + 1):   # the volute: up over the top, round and inwards
+        t = i / N; a = math.pi - t * 2 * math.pi * 1.1
+        R = 0.068 - 0.04 * t
+        pts.append((c[0] + R * math.cos(a), c[1] + R * math.sin(a), 0.0)); radii.append(0.014 - 0.007 * t)
+    p.append(tube("crook", pts, 0.012, BRASS, sides=8, radii=radii))
+    for i in range(2, N - 6, 4):   # crockets: little leaf spurs on the outside of the curl
+        t = i / N; a = math.pi - t * 2 * math.pi * 1.1; R = 0.068 - 0.04 * t
+        b = (c[0] + R * math.cos(a), c[1] + R * math.sin(a), 0.0)
+        e = (c[0] + (R + 0.03) * math.cos(a + 0.25), c[1] + (R + 0.03) * math.sin(a + 0.25), 0.0)
+        p.append(spike("crocket", b, e, 0.006, BRASS, sides=4))
+    p.append(ball("gem", (c[0] + 0.004, c[1] - 0.002, 0), 0.017, glow("ffd25a"), seg=10, rings_=6))
+    return p
+
+
+@weapon
+def skull_staff():
+    p = haft(-0.86, 0.86, 0.019, WOOD, bands=(-0.4, 0.3), grip_at=(-0.12, 0.14))
+    p += ferrule(0.84, 0.05, 0.024, IRON)
+    cy = 0.97   # the skull faces +Z
+    p.append(lathe("neck", [(0.022, 0.0), (0.026, 0.03), (0.018, 0.07), (0.024, 0.09), (0.0, 0.1)], IRON, seg=12, y0=0.84))
+    p.append(ball("cranium", (0, cy + 0.012, -0.004), 0.054, PARCH, sx=0.9, sy=1.0, sz=1.08, seg=18, rings_=12))
+    p.append(ball("jaw", (0, cy - 0.04, 0.018), 0.036, PARCH, sx=0.8, sy=0.55, sz=0.95, seg=14, rings_=8))
+    for sx in (-1, 1):
+        p.append(ball("socket", (sx * 0.02, cy, 0.043), 0.014, CLOTH_B, sz=0.55, seg=10, rings_=6))
+        p.append(ball("eye", (sx * 0.02, cy, 0.047), 0.0065, glow("7dff9a"), seg=8, rings_=5))
+    p.append(spike("nose", (0, cy - 0.022, 0.05), (0, cy - 0.008, 0.052), 0.007, CLOTH_B, sides=3))
+    for k in range(6):   # teeth
+        x = -0.0125 + 0.005 * k
+        p.append(ball("tooth", (x, cy - 0.036, 0.046), 0.0032, PARCH, sy=1.5, seg=6, rings_=4))
+    for k in range(5):   # an iron crown of thorns round the skull
+        a = 2 * math.pi * k / 5 + 0.3
+        b = (0.04 * math.cos(a), cy + 0.03, 0.044 * math.sin(a))
+        p.append(spike("thorn", b, (0.07 * math.cos(a), cy + 0.1, 0.075 * math.sin(a)), 0.006, IRON, sides=4))
+    p.append(ring("crown", (0, cy + 0.03, -0.002), 0.048, 0.004, IRON, axis="y", seg=20, sides=5))
     return p

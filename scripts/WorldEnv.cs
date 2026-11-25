@@ -301,10 +301,13 @@ void fragment(){
                 _dungSaved = true;
                 _sv = (_env.VolumetricFogEnabled, _env.VolumetricFogDensity, _env.VolumetricFogAlbedo, _env.VolumetricFogEmission, _env.VolumetricFogLength, _env.VolumetricFogDetailSpread, _env.VolumetricFogGIInject, _env.FogHeight, _env.FogHeightDensity);
             }
-            _env.BackgroundMode = Godot.Environment.BGMode.Color; _env.BackgroundColor = new Color(.02f, .015f, .03f); _env.AmbientLightColor = ambient ?? new Color(.25f, .25f, .35f); _env.AmbientLightEnergy = LF("dungeonAmbient", 1.3f); _env.FogDensity = 0.01f; _env.FogLightColor = new Color(.04f, .035f, .06f); _suspend = true;
+            _env.BackgroundMode = Godot.Environment.BGMode.Color; _env.BackgroundColor = new Color(.02f, .015f, .03f); _env.AmbientLightSource = Godot.Environment.AmbientSource.Color; _env.AmbientLightColor = LC("dungeonAmbientColor", "8fa0d0").Lerp((ambient ?? new Color(.5f, .5f, .6f)).Lightened(.5f), .2f); _env.AmbientLightEnergy = LF("dungeonAmbient", 3.2f);
+            _env.FogDensity = LF("dungeonFogDensity", .004f); _env.FogLightColor = LC("dungeonFogColor", "3a3a52"); _suspend = true;
+            if (!_ssaoSaved) { _ssaoSaved = true; _ssaoSv = _env.SsaoIntensity; }
+            _env.SsaoIntensity = LF("dungeonSsao", .5f);
             if (Game.Set.Quality >= 2)   // volumetric fog is costly: only on medium+ quality
             {
-                _env.VolumetricFogEnabled = true; _env.VolumetricFogDensity = .025f; _env.VolumetricFogAlbedo = new Color(.6f, .6f, .6f); _env.VolumetricFogEmission = new Color(0, 0, 0);
+                _env.VolumetricFogEnabled = true; _env.VolumetricFogDensity = LF("dungeonVolDensity", .008f); _env.VolumetricFogAlbedo = new Color(.75f, .75f, .85f); _env.VolumetricFogEmission = new Color(0, 0, 0);
                 _env.VolumetricFogLength = 40f; _env.VolumetricFogDetailSpread = .8f; _env.VolumetricFogGIInject = 0f;
             }
             _env.FogHeight = 1.2f; _env.FogHeightDensity = .08f;   // ground-hugging mist
@@ -312,6 +315,7 @@ void fragment(){
         else
         {
             _env.BackgroundMode = Godot.Environment.BGMode.Sky; _suspend = false;
+            if (_ssaoSaved) { _ssaoSaved = false; _env.SsaoIntensity = _ssaoSv; }
             if (_dungSaved)
             {
                 _dungSaved = false;
@@ -320,7 +324,7 @@ void fragment(){
             }
         }
     }
-    bool _dungSaved;
+    bool _dungSaved, _ssaoSaved; float _ssaoSv;
     (bool en, float dens, Color alb, Color emi, float len, float det, float gi, float fh, float fhd) _sv;
     bool _suspend;
 }

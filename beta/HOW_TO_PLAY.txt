@@ -19,6 +19,17 @@ CONTROLS (change any of them in Settings > Controls)
   I pack, J journal, M map, K skill tree, L skills, U modifier tree, Esc menu
   F8 flag a moment for review (screenshot + report in %APPDATA%\Godot\app_userdata\TwinRealms\playtest\)
 
+GAMEPAD (Xbox / PlayStation / most pads; change it in Settings > Controller)
+  Left stick move, right stick camera (flick it sideways while locked on to switch target)
+  A / Cross jump, B / Circle roll (hold it to keep sprinting), L3 toggle sprint, R3 lock on / off
+  RB / R1 attack, RT / R2 heavy attack, LB / L1 guard, X / Square interact, Y / Triangle health potion
+  D-pad up / right / down / left: skills 1-4
+  LT / L2 is the combo button. Hold it with: D-pad up / right = skills 5 / 6, D-pad down / left = macros 1 / 2,
+    Y mana potion, X shift realm, A horse, B skills menu, R3 release lock-on, View / Share map, Menu / Options journal
+  Menu / Options pause menu, View / Share pack
+  In menus: D-pad or left stick move, A / Cross choose, B / Circle back, LB / RB switch settings tabs
+  Prompts and the hotbar show controller buttons while you play on the pad. Vibration and stick deadzone are in Settings > Controller.
+
 PACK (I)
   Click an item to equip it. Right-click to drop it on the ground (you or a friend can pick it up again).
   Disassemble: break items into scraps.  Crafting: make gear, elemental gear, set pieces and potions from scraps.

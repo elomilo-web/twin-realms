@@ -82,6 +82,9 @@ public static class Feel
         float rel = Mathf.Clamp(dmg / Mathf.Max(1f, maxHp), 0f, 1f), sc = Mathf.Lerp(.8f, 1.4f, Mathf.Clamp(rel * 5f, 0f, 1f));
         float t = (heavy ? ImpHeavy : ImpLight) * sc * (crit ? ImpCrit : 1f) * (kill ? ImpKill : 1f);
         HitStop(Mathf.Min(t, ImpMax));
+        // controller rumble: a tick on light hits, a thump on heavy / power hits, crits and kills
+        if (heavy || crit || kill) Inputs.Rumble(heavy ? .5f : .35f, Mathf.Clamp((crit ? .8f : .55f) * sc, 0f, 1f), kill ? .22f : .14f);
+        else Inputs.Rumble(.18f, 0f, .06f);
         rig?.Kick(dir, (heavy ? 1.5f : 1f) * sc * (crit ? 1.3f : 1f) * KickDist, heavy || crit);
     }
 

@@ -118,6 +118,66 @@ public partial class DevCapture : Node
         if (Player.Instance is not { } p) return;
         p.Buffs.Clear(); p.Statuses.Clear(); Engine.TimeScale = 1.0; Heal(); TwinRealms.Hud.ResetFx();
     }
+    // ---- per-view kit: "gear" {slot: name} (weapon: a weapon type, or "type:Name"; others: an item name matched like
+    // data/avatar.json, e.g. "Plate", "Greathelm"), "pack_fill": n rolled items, "mats_fill": n material kinds. Restored after the view.
+    Dictionary<string, Item?>? _savedEq; List<Item>? _savedInv; Dictionary<string, int>? _savedMats;
+    void SetupKit(JsonElement v)
+    {
+        var d = Game.D; bool changed = false;
+        if (v.TryGetProperty("gear", out var g) && g.ValueKind == JsonValueKind.Object)
+        {
+            _savedEq ??= new Dictionary<string, Item?>(d.Eq);
+            foreach (var p in g.EnumerateObject())
+            {
+                string slot = p.Name, val = p.Value.GetString() ?? "";
+                if (val == "") { d.Eq[slot] = null; continue; }
+                if (slot == "weapon")
+                {
+                    var parts = val.Split(':'); var it = Items.Roll(20, 0, "weapon", 3, null, parts[0]);
+                    if (parts.Length > 1) it.Name = parts[1];
+                    d.Eq["weapon"] = it;
+                }
+                else { var it = Items.Roll(20, 0, slot, 3); it.Name = val; d.Eq[slot] = it; }
+            }
+            changed = true;
+        }
+        if (v.TryGetProperty("pack_fill", out _))
+        {
+            _savedInv ??= new List<Item>(d.Inv);
+            int n = (int)Num(v, "pack_fill", 0); var slots = new[] { "weapon", "armor", "shield", "head", "hands", "feet", "cape", "trinket" };
+            d.Inv.Clear(); for (int i = 0; i < n; i++) d.Inv.Add(Items.Roll(5 + i % 30, 0, slots[i % slots.Length], i % 5));
+            changed = true;
+        }
+        if (v.TryGetProperty("mats_fill", out _))
+        {
+            _savedMats ??= new Dictionary<string, int>(d.Mats);
+            int n = (int)Num(v, "mats_fill", 0), i = 0; GatherDb.Mat("");   // loads the table
+            foreach (var k in GatherDb.Mats.Keys) { if (i++ >= n) break; d.Mats[k] = 3 + i * 7 % 60; }
+            changed = true;
+        }
+        if (changed) Game.Notify();
+        // "probe": radius in metres; logs every visible mesh near the hero (what is that object in the picture?)
+        if (v.TryGetProperty("probe", out _) && Player.Instance != null)
+        {
+            float r = Num(v, "probe", 4f); var at = P.GlobalPosition;
+            void Walk(Node n)
+            {
+                if (n is MeshInstance3D mi && mi.IsVisibleInTree() && mi.GlobalPosition.DistanceTo(at) < r && !mi.IsAncestorOf(P) && !P.IsAncestorOf(mi))
+                    Say($"probe {mi.GetPath()} at {mi.GlobalPosition - at} mesh {mi.Mesh?.GetType().Name} {mi.Mesh?.ResourcePath}");
+                foreach (var c in n.GetChildren()) Walk(c);
+            }
+            Walk(Game.Root!);
+        }
+    }
+    void RestoreKit()
+    {
+        var d = Game.D; bool changed = false;
+        if (_savedEq != null) { d.Eq.Clear(); foreach (var kv in _savedEq) d.Eq[kv.Key] = kv.Value; _savedEq = null; changed = true; }
+        if (_savedInv != null) { d.Inv.Clear(); d.Inv.AddRange(_savedInv); _savedInv = null; changed = true; }
+        if (_savedMats != null) { d.Mats.Clear(); foreach (var kv in _savedMats) d.Mats[kv.Key] = kv.Value; _savedMats = null; changed = true; }
+        if (changed) Game.Notify();
+    }
+
     void Heal() { if (Player.Instance is { } p) { p.Hp = Game.D.MaxHp(); p.Mp = Game.D.MaxMp(); p.St = Game.D.MaxSt(); } }
     void ClearFoes() { foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Node nn) nn.QueueFree(); Targeting.Clear(); }
     void Hud(bool on) { if (Game.Root?.GetNodeOrNull<CanvasLayer>("Hud") is { } h) h.Visible = on; }
@@ -206,6 +266,7 @@ public partial class DevCapture : Node
                 foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Enemy we && we.GlobalPosition.DistanceTo(P.GlobalPosition) < 60f) we.QueueFree();
                 if (scene.StartsWith("dungeon:") || scene == "arena") { foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Enemy e && e.GlobalPosition.DistanceTo(P.GlobalPosition) < 10f) e.QueueFree(); }
                 ResetHero(); Hud(Flag(v, "hud", false));
+                SetupKit(v);
                 // "buffs": skill ids with a buff (warcry) go on the hero's buff list, status ids (burn, poison) on its statuses; "quest": accepted + "quest_progress" kills
                 if (_quest != null) { Game.Q(_quest).S = 0; Game.Q(_quest).N = 0; _quest = null; }
                 if (v.TryGetProperty("buffs", out var bf) && bf.ValueKind == JsonValueKind.Array)
@@ -283,6 +344,7 @@ public partial class DevCapture : Node
         {
             foreach (var k in new[] { Inputs.Forward, Inputs.Sprint, Inputs.Attack, Inputs.Roll, "spell1" }) Input.ActionRelease(k);
             if (scene != "title") { Ui.I?.Close(); if (Ui.I != null) Ui.I.Visible = false; }
+            RestoreKit();
         }
         _report.Add(entry);
     }
@@ -303,7 +365,7 @@ public partial class DevCapture : Node
             case "dodge": Input.ActionPress(Inputs.Roll); await Secs(.05f); Input.ActionRelease(Inputs.Roll); await Secs(.12f); break;
             case "run": Input.ActionPress(Inputs.Forward); await Secs(.8f); break;
             case "sprint": Input.ActionPress(Inputs.Forward); Input.ActionPress(Inputs.Sprint); await Secs(1f); break;
-            case "swing": Input.ActionPress(Inputs.Attack); await Secs(.05f); Input.ActionRelease(Inputs.Attack); await Secs(.2f); break;
+            case "swing": { int shots0 = Projectile.SpawnedByPlayer; Input.ActionPress(Inputs.Attack); await Secs(.05f); Input.ActionRelease(Inputs.Attack); await Secs(castWait); Say($"swing: {Projectile.SpawnedByPlayer - shots0} player shots"); } break;
             case "swing3": for (int s = 0; s < 3; s++) { Input.ActionPress(Inputs.Attack); await Secs(.05f); Input.ActionRelease(Inputs.Attack); await Secs(.3f); } break;
             case "combo3":   // three presses, then .2 s after the last one: the finisher is in full swing
                 for (int s = 0; s < 3; s++) { Input.ActionPress(Inputs.Attack); await Secs(.05f); Input.ActionRelease(Inputs.Attack); await Secs(s < 2 ? .3f : .15f); }

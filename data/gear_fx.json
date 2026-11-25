@@ -1,13 +1,13 @@
 {
-  "_help": "Glow on worn gear and weapons (scripts/GearFx.cs). Colour = the item's element if it has one, else its rarity colour. Per rarity (Common..Legendary): edge = fresnel edge glow strength (armor uses armorScale of it), emit = body emission, pulse = how much the glow breathes, light = small light on weapons, sparks = particles per second on weapons. Elements: name word used in item names, colour, and the status a weapon of that element can inflict ('proc' chance per hit). elementChance = chance a weapon/armor of that rarity rolls an element.",
+  "_help": "Glow on worn gear and weapons (scripts/GearFx.cs). Colour = the item's element if it has one, else its rarity colour. Per rarity (Common..Legendary): edge = thin fresnel rim strength over the real material (armor uses armorScale of it; capped in code at 0.75 weapons / 0.35 armour), emit = extra brightness on parts that already glow (gems, runes; never the metal), pulse = how much the glow breathes, light = small light on weapons, sparks = particles per second on weapons. Elements: name word used in item names, colour, and the status a weapon of that element can inflict ('proc' chance per hit). elementChance = chance a weapon/armor of that rarity rolls an element.",
   "rarity": [
     { "edge": 0.0, "emit": 0.0, "pulse": 0.0, "light": 0.0, "sparks": 0 },
-    { "edge": 0.35, "emit": 0.0, "pulse": 0.0, "light": 0.0, "sparks": 0 },
-    { "edge": 0.8, "emit": 0.05, "pulse": 0.15, "light": 0.0, "sparks": 0 },
-    { "edge": 1.4, "emit": 0.12, "pulse": 0.3, "light": 0.6, "sparks": 6 },
-    { "edge": 2.2, "emit": 0.25, "pulse": 0.45, "light": 1.1, "sparks": 16 }
+    { "edge": 0.15, "emit": 0.0, "pulse": 0.0, "light": 0.0, "sparks": 0 },
+    { "edge": 0.3, "emit": 0.1, "pulse": 0.1, "light": 0.0, "sparks": 0 },
+    { "edge": 0.45, "emit": 0.25, "pulse": 0.2, "light": 0.25, "sparks": 6 },
+    { "edge": 0.65, "emit": 0.4, "pulse": 0.3, "light": 0.45, "sparks": 16 }
   ],
-  "armorScale": 0.45,
+  "armorScale": 0.5,
   "elementChance": [0.0, 0.12, 0.35, 0.65, 1.0],
   "elements": {
     "fire": { "word": "Ember", "color": "ff7a2e", "status": "burn", "proc": 0.12 },
@@ -17,5 +17,5 @@
     "holy": { "word": "Dawn", "color": "ffe7a0", "status": "judged", "proc": 0.1 },
     "shadow": { "word": "Umbral", "color": "b45cff", "status": "weaken", "proc": 0.12 }
   },
-  "upgrade": { "_help": "Smith upgrades (Item.Up): added per level to the edge glow and weapon emission; at pulseAt the glow breathes, at sparksAt weapons spark.", "edge": 0.12, "emit": 0.1, "pulseAt": 2, "sparksAt": 4 }
+  "upgrade": { "_help": "Smith upgrades (Item.Up): added per level to the edge glow and weapon emission; at pulseAt the glow breathes, at sparksAt weapons spark.", "edge": 0.05, "emit": 0.1, "pulseAt": 2, "sparksAt": 4 }
 }

@@ -50,6 +50,11 @@ public static partial class Dungeon
         for (int dz = -2; dz <= 2; dz++) for (int dx = -2; dx <= 2; dx++) if (dx * dx + dz * dz <= 5) See(cx + dx, cz + dz);
     }
 
+    static float DL(string k, float d)
+    {
+        _doc ??= JsonUtil.Load("res://data/dungeons.json");
+        return _doc.RootElement.TryGetProperty("light", out var l) && l.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetSingle() : d;
+    }
     static JsonElement Theme(string key)
     {
         _doc ??= JsonUtil.Load("res://data/dungeons.json");
@@ -114,7 +119,6 @@ public static partial class Dungeon
         w.SetOverworldActive(false);
         var th = Theme(key);
         w.SetDungeonLook(true, JsonUtil.Hex(th.GetProperty("torch").GetInt32()).Darkened(0.55f).Lerp(new Color(.35f, .38f, .45f), .35f));
-        if (w.Env?.Environment is Godot.Environment denv) { denv.AmbientLightSource = Godot.Environment.AmbientSource.Color; denv.AmbientLightColor = new Color(.45f, .55f, .8f); denv.AmbientLightEnergy = .8f; }   // cold fill so walls/floor read
         var start = Origin + new Vector3((_rooms[0].Cx + .5f) * Tile, 1f, (_rooms[0].Cz + .5f) * Tile + 3f);
         Player.Instance.Teleport(start, 0f);
         int tier = Progression.Tier(depth);
@@ -250,6 +254,8 @@ public static partial class Dungeon
                 g.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(.9f, 1.1f, .9f) }, Position = new Vector3(0, .55f, 0) });
                 g.AddChild(new Torch { Position = new Vector3(0, 1.5f, 0), Size = 2f, Range = 24f, Col = flame, Light = ((k + ri_) % 4 == 0) });
             }
+            if (DL("roomFill", 0f) > 0f)   // soft shadowless warm fill at the room centre so floors and far walls read
+                Root.AddChild(new OmniLight3D { LightColor = new Color(1f, .78f, .55f), OmniRange = DL("roomFillRange", 11f), LightEnergy = DL("roomFill", 1.1f), ShadowEnabled = false, Position = new Vector3((r.X + r.W / 2f) * Tile, 3f, (r.Z + r.H / 2f) * Tile) });
             var rr = new Random(ri_ * 77 + depth * 13 + 5);
             if (r.W >= 6 && r.H >= 6) foreach (var c in new[] { (.28, .28), (.72, .28), (.28, .72), (.72, .72) })
             {
@@ -340,8 +346,8 @@ public static partial class Dungeon
                 Put(new BoxMesh { Size = new Vector3(.22f, .4f, .05f) }, iron, f.p + f.n * .03f + Vector3.Up * 2.55f, rot);
                 Put(new BoxMesh { Size = new Vector3(.06f, .06f, .5f) }, iron, f.p + f.n * .28f + Vector3.Up * 2.5f, rot);
                 Put(new CylinderMesh { TopRadius = .14f, BottomRadius = .06f, Height = .16f, RadialSegments = 8 }, iron, at - Vector3.Up * .12f);
-                bool on = forced || (torches % 2 == 0 && lit < 20); if (on) lit++;
-                Root.AddChild(new Torch { Position = at, Size = 1.1f, Range = 9f, Col = new Color(1f, .55f, .25f), Energy = 2f, Light = on });
+                bool on = forced || lit < DL("litTorches", 34); if (on) lit++;
+                Root.AddChild(new Torch { Position = at, Size = 1.1f, Range = DL("torchRange", 10f), Col = new Color(1f, .55f, .25f), Energy = DL("torchEnergy", 2.6f), Light = on });
             }
             else if (S("banner") != "" && f.h % 7 == 2)
             {

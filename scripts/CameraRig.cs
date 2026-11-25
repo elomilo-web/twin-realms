@@ -81,8 +81,32 @@ public partial class CameraRig : Node3D
         }
     }
 
+    // controller look: right stick, radial deadzone (Settings > Controller), quadratic response, smoothed, with a turn boost when held at full tilt
+    Vector2 _padV; float _padAcc; bool _padFlick = true;
+    void PadLook(float dt)
+    {
+        if (!Inputs.HasPad || Ui.AnyOpen || Input.MouseMode != Input.MouseModeEnum.Captured) { _padV = Vector2.Zero; _padAcc = 0; return; }
+        var rs = Inputs.Stick(JoyAxis.RightX, JoyAxis.RightY);
+        if (Targeting.Current != null)
+        {
+            // locked on: a sideways flick of the stick switches to the next target on that side; yaw follows the lock
+            if (Mathf.Abs(rs.X) > .7f && _padFlick) { if (Targeting.SwitchSide(rs.X > 0 ? 1 : -1)) _switchT = .35f; _padFlick = false; }
+            else if (Mathf.Abs(rs.X) < .3f) _padFlick = true;
+            rs.X = 0;
+        }
+        float len = rs.Length(); var goal = rs * len;   // fine aim near the centre, full speed at the edge
+        _padAcc = len > .92f ? Mathf.MoveToward(_padAcc, 1f, dt / .45f) : Mathf.MoveToward(_padAcc, 0f, dt / .12f);
+        _padV = _padV.Lerp(goal, 1f - Mathf.Exp(-16f * dt));
+        if (_padV.LengthSquared() < 1e-6f) return;
+        float sp = Mathf.Max(.05f, Game.Set.PadSens) * (1f + .7f * _padAcc);
+        RotateY(-_padV.X * 2.8f * sp * dt);
+        _pitch = Mathf.Clamp(_pitch - _padV.Y * 1.8f * sp * dt * (Game.Set.InvertY ? -1f : 1f), MinPitch, MaxPitch);
+        _pivot.Rotation = new Vector3(_pitch, 0, 0);
+    }
+
     public override void _Process(double delta)
     {
+        PadLook((float)delta);
         if (Target != null)
         {
             // follow the head height, smoothed

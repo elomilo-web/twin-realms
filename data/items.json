@@ -27,63 +27,79 @@
                                       "Blade",
                                       "Saber",
                                       "Longsword",
-                                      "Falchion"
+                                      "Falchion",
+                                      "Bastard Sword",
+                                      "Estoc"
                                   ],
                         "bow":  [
                                     "Shortbow",
                                     "Hunting Bow",
                                     "Recurve Bow",
                                     "Longbow",
-                                    "Warbow"
+                                    "Warbow",
+                                    "Horn Bow"
                                 ],
                         "wand":  [
                                      "Wand",
                                      "Rod",
                                      "Orb",
                                      "Scepter",
-                                     "Tome"
+                                     "Tome",
+                                     "Bone Wand",
+                                     "Rune Rod"
                                  ],
                         "staff":  [
                                       "Staff",
                                       "Crook",
                                       "Quarterstaff",
                                       "Stave",
-                                      "Staff"
+                                      "Gnarled Staff",
+                                      "Crozier",
+                                      "Skull Staff"
                                   ],
                         "greatsword":  [
                                            "Greatsword",
                                            "Claymore",
                                            "Zweihander",
                                            "Flamberge",
-                                           "Executioner"
+                                           "Executioner",
+                                           "Great Cleaver"
                                        ],
                         "axe":  [
                                     "Hatchet",
                                     "Axe",
                                     "Bearded Axe",
                                     "War Axe",
-                                    "Cleaver"
+                                    "Cleaver",
+                                    "Runed Axe"
                                 ],
                         "mace":  [
                                      "Club",
                                      "Mace",
                                      "Flanged Mace",
                                      "Morningstar",
-                                     "Warhammer"
+                                     "Warhammer",
+                                     "Flail",
+                                     "Spiked Club"
                                  ],
                         "dagger":  [
                                        "Knife",
                                        "Dagger",
                                        "Dirk",
                                        "Stiletto",
-                                       "Kris"
+                                       "Kris",
+                                       "Parrying Dagger",
+                                       "Seax"
                                    ],
                         "spear":  [
                                       "Spear",
                                       "Pike",
                                       "Partisan",
                                       "Glaive",
-                                      "Lance"
+                                      "Lance",
+                                      "Bardiche",
+                                      "Winged Spear",
+                                      "War Scythe"
                                   ]
                     },
     "itemNames":  {
@@ -99,7 +115,12 @@
                                     "Hauberk",
                                     "Brigandine",
                                     "Plate",
-                                    "Robe"
+                                    "Robe",
+                                    "Chainmail",
+                                    "Surcoat",
+                                    "Longcoat",
+                                    "Jerkin",
+                                    "Vestments"
                                 ],
                       "shield":  [
                                      "Buckler",
@@ -120,13 +141,16 @@
                                    "Cap",
                                    "Helm",
                                    "Greathelm",
-                                   "Circlet"
+                                   "Circlet",
+                                   "Crown",
+                                   "Mage Hat"
                                ],
                       "hands":  [
                                     "Wraps",
                                     "Gloves",
                                     "Bracers",
-                                    "Gauntlets"
+                                    "Gauntlets",
+                                    "Vambraces"
                                 ],
                       "feet":  [
                                    "Treads",

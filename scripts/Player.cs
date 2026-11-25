@@ -198,14 +198,14 @@ public partial class Player : CharacterBody3D, IDamageable
             var shieldPos = GlobalPosition + new Vector3(0, 1.3f, 0) + new Vector3(-Mathf.Sin(_modelYaw), 0, -Mathf.Cos(_modelYaw)) * 0.7f;
             if (_blockT < Tune.F("guard.parryWindow", .15f) && h.Attacker is Enemy en && !h.IsProjectile)
             {
-                en.Stun(Tune.F("guard.parryStun", .8f)); _inv = 0.3f; Sfx.Play("block"); _riposteT = Tune.F("guard.riposteTime", 1.5f);
+                en.Stun(Tune.F("guard.parryStun", .8f)); _inv = 0.3f; Sfx.Play("block"); Inputs.Rumble(.6f, .8f, .2f); _riposteT = Tune.F("guard.riposteTime", 1.5f);
                 FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.3f, 0), "Parry!", new Color(1, 0.88f, 0.5f), 1.3f);
                 Fx.Burst(shieldPos, new Color(1, .97f, .8f), (int)Tune.F("guard.parrySparks", 22f), 6f, 0.4f, 0.08f);
                 Feel.HitStop(Tune.F("guard.hitStop", .04f) * 1.5f);
                 return;
             }
             float red = Mathf.Clamp(0.55f + D.ShieldDef * 0.012f + TS["block"] / 100f, 0.5f, 0.92f);
-            dmg = baseDmg * (1f - red); UseStamina(h.Damage * Tune.F("stamina.blockPerDamage", .3f)); Sfx.Play("block");
+            dmg = baseDmg * (1f - red); UseStamina(h.Damage * Tune.F("stamina.blockPerDamage", .3f)); Sfx.Play("block"); Inputs.Rumble(.3f, .15f, .1f);
             Fx.Burst(shieldPos, new Color(1, .95f, .8f), (int)Tune.F("guard.sparks", 10f), 4f, 0.25f, 0.05f);
             Feel.HitStop(Tune.F("guard.hitStop", .04f));
             if (away.LengthSquared() > 0.001f) _hitKb += away.Normalized() * Tune.F("guard.pushBack", .3f) * 1.4f;
@@ -213,7 +213,7 @@ public partial class Player : CharacterBody3D, IDamageable
         }
         else
         {
-            Sfx.Play("hurt");
+            Sfx.Play("hurt"); Inputs.Rumble(.35f, h.Stagger || h.Stun > 0 ? .9f : .45f, h.Stagger || h.Stun > 0 ? .3f : .16f);
             // the blow lands on the body: a real shove, a stagger long enough for the hit clip, a spark where it struck
             var hitDir = toSrc.LengthSquared() > .001f ? toSrc.Normalized() : Vector3.Forward;
             // only abilities (slams, blasts, skills that stun or knock back) stagger: a shove, the flinch clip, and whatever the hero was doing is interrupted.
@@ -340,7 +340,8 @@ public partial class Player : CharacterBody3D, IDamageable
         _stepPerfect = !power && _combo > 0 && _pressPerfect; _pressPerfect = false;
         if (_combo == 0 || power) _allPerfect = true; else _allPerfect &= _stepPerfect;
         Fought(); _atkPower = power; _atkDur = _atk.Dur / (Game.D.AtkSpeed() * w.Speed * (_step?.Speed ?? 1f) * (_stepPerfect ? Feel.ComboF("perfectSpeed", 1.1f) : 1f)); _atkT = _atkDur;
-        if (_stepPerfect) SpellFx.Play("hit_spark", _trail.Tip?.GlobalPosition ?? GlobalPosition + Vector3.Up, .5f);   // faint gold glint at the blade _hitDone = false; _atkSerial++;
+        if (_stepPerfect) SpellFx.Play("hit_spark", _trail.Tip?.GlobalPosition ?? GlobalPosition + Vector3.Up, .5f);   // faint gold glint at the blade
+        _hitDone = false; _atkSerial++;   // (devloop #18 swallowed this line into the comment above: every attack after the first never landed)
         _recPending = (_step?.Recover ?? (power ? .5f : .05f)) / Game.D.AtkSpeed(); _stepTotal = _atkDur + _recPending; _comboT = _stepTotal + Tune.F("player.chainWindow", 1.3f);   // recovery counts toward keeping the chain going; then this long to press again before it starts over
         NetAtkAnim = _step != null && _step.Anim != "" ? Avatar.AttackIndex(_step.Anim) : 0; NetAtkHit = _atk.Hit * _atkDur;
         float camYaw = Rig?.Yaw ?? _modelYaw; float face = camYaw;
@@ -463,11 +464,20 @@ public partial class Player : CharacterBody3D, IDamageable
         var dir = (target - origin).Normalized();
         bool crit = GD.Randf() < D.CritChance() + (_atk?.CritBonus ?? 0) / 100f; float dmg = D.WpnDmg() * (float)GD.RandRange(0.9, 1.1) * (crit ? D.CritMult() : 1f) * RiposteMul();   // a riposte after a parry also works for bows and wands
         // the chain step (data/attacks.json): damage, shots in a fan, piercing, blast radius, statuses
+        // magic shots take the weapon's element colour, else its type's trail colour; Muzzle() flashes at the casting hand
+        Color tint = GearFx.Get(D.Weapon?.Elem)?.Col ?? Weapons.Get(wt).Trail;
         var st = _step; float sm = st != null && st.Id != "power" ? st.Def.Dmg : 1f; int shots = st?.Shots ?? 1; float spreadR = Mathf.DegToRad(st?.Spread ?? 0); bool sPierce = st?.Pierce ?? false;
         void Shoot(string kind, Vector3 d, float speed, float pdmg, float life, bool pierce, float aoe = 0, bool big = false)
         {
-            var p = Projectile.Spawn(kind, 'p', origin, d * speed + (kind == "arrow" ? Vector3.Up * 0.6f : Vector3.Zero), pdmg, life, crit, pierce, aoe, big);
+            var p = Projectile.Spawn(kind, 'p', origin, d * speed + (kind == "arrow" ? Vector3.Up * 0.6f : Vector3.Zero), pdmg, life, crit, pierce, aoe, big, kind == "bolt" && !big ? tint : null);
             if (st != null && st.Status.Count > 0) p.Statuses = st.Status;
+        }
+        void Muzzle(bool big)
+        {
+            var mc = big ? new Color(1f, .6f, .2f) : tint;
+            Vfx.Sparks(origin, Vfx.Ramp((0, new Color(mc.Lerp(Colors.White, .75f), 1)), (.35f, new Color(mc, .85f)), (1, new Color(mc, 0))), big ? 14 : 9, big ? 3.5f : 2.6f, big ? .26f : .18f, big ? .38f : .24f, 0f, true, 35f, dir, .05f);
+            Vfx.Sparks(origin, Vfx.Ramp((0, new Color(1, 1, 1, .9f)), (1, new Color(mc, 0))), 1, .01f, big ? .16f : .1f, big ? .9f : .55f, 0f, true, 0f, dir, 0f);   // the bright pop itself
+            Vfx.Flash(origin, mc, big ? 2.2f : 1.4f, big ? 4.5f : 3f, .12f);   // unshadowed, gone in 0.12 s
         }
         Vector3 Fan(int k, int n) => n <= 1 ? dir : dir.Rotated(Vector3.Up, (k / (float)(n - 1) - .5f) * Mathf.Max(spreadR, .11f * (n - 1)));
         if (wt == "bow")
@@ -480,14 +490,14 @@ public partial class Player : CharacterBody3D, IDamageable
         {
             float cost = (_atkPower ? 8f : 3f) * Mathf.Max(1, shots * .6f); bool ok = Mp >= cost; Mp = Mathf.Max(0, Mp - cost); if (!ok) dmg *= 0.5f;
             for (int k = 0; k < shots; k++) Shoot("bolt", Fan(k, shots), 44f, dmg * sm * (_atkPower ? 1.9f : 1f), 1.6f, sPierce || TS.Has("pierce"), st?.Aoe ?? 0);
-            Sfx.Play("zap");
+            Muzzle(false); Sfx.Play("zap");
         }
         else
         {
             float cost = (_atkPower ? 16f : 8f) * Mathf.Max(1, shots * .6f); bool ok = Mp >= cost; Mp = Mathf.Max(0, Mp - cost); if (!ok) dmg *= 0.5f;
             float aoe = st != null && st.Aoe > 0 ? st.Aoe : _atkPower ? 3.4f : 2.2f;
             for (int k = 0; k < shots; k++) Shoot("bolt", Fan(k, shots), 28f, dmg * sm * (_atkPower ? 2.6f : 1.35f), 2.2f, false, aoe, true);
-            Sfx.Play("fire");
+            Muzzle(true); Sfx.Play("fire");
         }
     }
 
@@ -585,7 +595,7 @@ public partial class Player : CharacterBody3D, IDamageable
         if (captured && Input.IsActionJustPressed(Inputs.Mount)) ToggleMount();
         if (captured && Input.IsActionJustPressed(Inputs.Realm)) World.TryShiftRealm();
         if (captured) ScanInteract(); else Prompt = "";
-        if (captured && Input.IsActionJustPressed(Inputs.Lock)) Targeting.Toggle(Targeting.Current != null);
+        if (captured && Input.IsActionJustPressed(Inputs.Lock)) { if (Inputs.UsingPad && Targeting.Current != null) Targeting.Clear(); else Targeting.Toggle(Targeting.Current != null); }   // pad: R3 toggles, a right-stick flick switches
         if (captured && Input.IsActionJustPressed(Inputs.Unlock)) Targeting.Clear();
         Targeting.Tick(this);
         // in combat: recently fought, locked on, or a monster nearby is hunting us (checked twice a second)
@@ -666,7 +676,7 @@ public partial class Player : CharacterBody3D, IDamageable
                 _rollT = RollTime; _rollCd = 0.6f; _recT = 0; _recPending = 0; UseStamina(Tune.F("stamina.roll", 14));
                 _rollPd = false; _rollFrom = GlobalPosition; _rollTrailT = RollTime * .3f;   // roll start: dust kick behind, cloth whoosh, first smoke puff
                 Fx.Dust(GlobalPosition - _rollDir * .6f, .4f); Sfx.Play("swing", .8f); Fx.RollPuff(GlobalPosition, false);
-                // a roll cancels the recovery _modelYaw = Util.YawTo(_rollDir.X, _rollDir.Z);
+                _modelYaw = Util.YawTo(_rollDir.X, _rollDir.Z);   // face the roll (a roll also cancels the recovery, above); this line was lost in a comment since 217a461
             }
             if (captured && Input.IsActionJustPressed(Inputs.Jump) && IsOnFloor() && _atkT <= 0 && _stagger <= 0) v.Y = JumpVelocity;
 

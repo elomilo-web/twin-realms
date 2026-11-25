@@ -23,9 +23,9 @@ public partial class Projectile : Node3D
         return h;
     }
 
-    public static Projectile Spawn(string kind, char own, Vector3 pos, Vector3 vel, float dmg, float life, bool crit = false, bool pierce = false, float aoe = 0f, bool big = false)
+    public static Projectile Spawn(string kind, char own, Vector3 pos, Vector3 vel, float dmg, float life, bool crit = false, bool pierce = false, float aoe = 0f, bool big = false, Color? tint = null)
     {
-        var p = new Projectile { Kind = kind, Own = own, Vel = vel, Dmg = dmg, Life = life, Crit = crit, Pierce = pierce, Aoe = aoe, Big = big };
+        var p = new Projectile { Kind = kind, Own = own, Vel = vel, Dmg = dmg, Life = life, Crit = crit, Pierce = pierce, Aoe = aoe, Big = big, Tint = tint };   // tint before _Ready: it colours the visuals
         if (own == 'p') SpawnedByPlayer++;
         Game.Root!.AddChild(p); p.GlobalPosition = pos;
         // everyone in the zone sees it fly: the overworld (host's foes) or our party dungeon (the owner's foes)
@@ -60,9 +60,26 @@ public partial class Projectile : Node3D
         {
             // hot core, soft glow shell and a particle trail that stays in the world
             float r = Big ? 0.32f : Kind == "fire" ? 0.28f : 0.16f; bool fire = Kind == "fire" || Big;
-            var core = new StandardMaterial3D { AlbedoColor = c.Lerp(Colors.White, .55f), ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded };
-            AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = r * .6f, Height = r * 1.2f, RadialSegments = 10, Rings = 5 }, MaterialOverride = core, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
-            AddChild(new MeshInstance3D { Mesh = new QuadMesh { Size = new Vector2(r * 4.5f, r * 4.5f) }, MaterialOverride = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, BlendMode = BaseMaterial3D.BlendModeEnum.Add, BillboardMode = BaseMaterial3D.BillboardModeEnum.Enabled, AlbedoTexture = Vfx.Soft, AlbedoColor = new Color(c, .9f) }, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
+            var bm = BoltMats(c);
+            if (!_sphereMeshes.TryGetValue(r, out var sph)) _sphereMeshes[r] = sph = new SphereMesh { Radius = r * .6f, Height = r * 1.2f, RadialSegments = 10, Rings = 5 };
+            float gs = fire ? 4.5f : 5.5f;   // small bolts get a larger halo so they read at range
+            if (!_glowMeshes.TryGetValue(r * gs, out var glq)) _glowMeshes[r * gs] = glq = new QuadMesh { Size = new Vector2(r * gs, r * gs) };
+            AddChild(new MeshInstance3D { Mesh = sph, MaterialOverride = fire ? bm[0] : bm[1], CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
+            AddChild(new MeshInstance3D { Mesh = glq, MaterialOverride = bm[2], CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
+            if (!fire)
+            {
+                // a comet streak along the flight path: two crossed additive quads (vertical + horizontal) trailing ~0.8 m behind the head,
+                // with a thinner white-hot inner streak; aimed along Vel (forward = -Z) in _PhysicsProcess
+                _streakMesh ??= new QuadMesh { Size = new Vector2(.85f, .2f) };
+                _streakCoreMesh ??= new QuadMesh { Size = new Vector2(.55f, .07f) };
+                _streak = new Node3D(); AddChild(_streak);
+                foreach (var rot in new[] { new Vector3(0, Mathf.Pi / 2, 0), new Vector3(Mathf.Pi / 2, Mathf.Pi / 2, 0) })
+                {
+                    _streak.AddChild(new MeshInstance3D { Mesh = _streakMesh, MaterialOverride = bm[3], Position = new Vector3(0, 0, .34f), Rotation = rot, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
+                    _streak.AddChild(new MeshInstance3D { Mesh = _streakCoreMesh, MaterialOverride = bm[4], Position = new Vector3(0, 0, .22f), Rotation = rot, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
+                }
+                AimStreak();
+            }
             var g = new Gradient(); g.SetColor(0, fire ? new Color(1, .9f, .5f, .9f) : new Color(c.Lerp(Colors.White, .4f), .8f)); g.SetColor(1, fire ? new Color(.5f, .08f, .02f, 0) : new Color(c, 0)); g.AddPoint(.4f, fire ? new Color(1, .45f, .1f, .7f) : new Color(c, .5f));
             var sc = new Curve(); sc.AddPoint(new Vector2(0, 1)); sc.AddPoint(new Vector2(1, .1f));
             string look = fire ? "fire" : "magic";   // Kenney flame sprites behind fire, swirling magic wisps behind everything else
@@ -76,6 +93,34 @@ public partial class Projectile : Node3D
     }
 
     static CylinderMesh? _shaftMesh, _headMesh; static BoxMesh? _fletchMesh; static StandardMaterial3D? _shaftMat, _headMat, _fletchMat;
+    // bolt visuals, cached per colour: [fire core, bright core, halo, streak, white-hot streak]
+    static readonly Dictionary<Color, StandardMaterial3D[]> _boltMats = new();
+    static readonly Dictionary<float, SphereMesh> _sphereMeshes = new();
+    static readonly Dictionary<float, QuadMesh> _glowMeshes = new();
+    static QuadMesh? _streakMesh, _streakCoreMesh;
+    Node3D? _streak;
+    static StandardMaterial3D[] BoltMats(Color c)
+    {
+        if (_boltMats.TryGetValue(c, out var m)) return m;
+        StandardMaterial3D Add(Color col, bool bill) => new() { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, BlendMode = BaseMaterial3D.BlendModeEnum.Add,
+            BillboardMode = bill ? BaseMaterial3D.BillboardModeEnum.Enabled : BaseMaterial3D.BillboardModeEnum.Disabled, CullMode = BaseMaterial3D.CullModeEnum.Disabled, AlbedoTexture = Vfx.Soft, AlbedoColor = col };
+        m = new[]
+        {
+            new StandardMaterial3D { AlbedoColor = c.Lerp(Colors.White, .55f), ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded },
+            new StandardMaterial3D { AlbedoColor = c.Lerp(Colors.White, .8f), ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded },
+            Add(new Color(c, .9f), true),
+            Add(new Color(c.Lerp(Colors.White, .2f), 1f), false),
+            Add(new Color(c.Lerp(Colors.White, .75f), 1f), false),
+        };
+        if (_boltMats.Count > 64) _boltMats.Clear();
+        return _boltMats[c] = m;
+    }
+    void AimStreak()
+    {
+        if (_streak == null || Vel.LengthSquared() < .01f || !IsInsideTree()) return;
+        var d = Vel.Normalized();
+        _streak.LookAt(_streak.GlobalPosition + d, Mathf.Abs(d.Y) > .98f ? Vector3.Right : Vector3.Up);
+    }
     static int _lights; bool _hasLight; float _age; bool _worldHit; CpuParticles3D? _trail;
     static readonly List<Projectile> Stuck = new();
     public override void _ExitTree() { if (_hasLight) { _hasLight = false; _lights--; } }
@@ -120,6 +165,7 @@ public partial class Projectile : Node3D
         var hit = GetWorld3D().DirectSpaceState.IntersectRay(q);
         if (hit.Count > 0) { to = (Vector3)hit["position"]; end = true; _worldHit = true; }
         GlobalPosition = to;
+        if (_streak != null && (Homing || _age < dt * 1.5f || BlockWorld.FluidAt(to) == "water")) AimStreak();   // straight shots keep their first aim
         if (Kind == "arrow" && Vel.LengthSquared() > 0.01f)
         {
             LookAt(to + Vel, Vector3.Up);
@@ -198,6 +244,7 @@ public partial class Projectile : Node3D
                 var ec = Tint ?? (Calc != null ? TwinRealms.Dmg.TypeColor(Calc.Type) : Kind == "fire" ? new Color(1f, .55f, .15f) : new Color(.55f, .75f, 1f));
                 if (Calc == null) Fx.Ring(to + Vector3.Up * .05f, .9f, ec, .3f);
                 Fx.Burst(to, ec, 5, 3f, .3f, .05f);
+                if (Kind == "bolt" && !Big) Vfx.Sparks(to, Vfx.Ramp((0, new Color(ec.Lerp(Colors.White, .7f), 1)), (.4f, new Color(ec, .8f)), (1, new Color(ec, 0))), 12, 4.5f, .3f, .22f, -1f, true, 180f, null, .08f);   // short bright impact pop
             }
         }
         else if (Aoe > 0)

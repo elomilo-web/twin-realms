@@ -7,8 +7,9 @@ namespace TwinRealms;
 /// <summary>
 /// Elemental and rarity glow on worn gear and held weapons, so one model can read as many different items.
 /// Colour: the item's element (fire, frost, storm, venom, holy, shadow) or, without one, its rarity colour.
-/// Strength grows with rarity: a fresnel edge glow (breathing on higher tiers), a little emission, and on epic/legendary
-/// weapons a small light and drifting sparks. All numbers in data/gear_fx.json.
+/// Strength grows with rarity: a thin fresnel rim (breathing on higher tiers) over the item's real material, brighter gems
+/// (only surfaces that already glow), and on epic/legendary weapons a small light and drifting sparks. All numbers in
+/// data/gear_fx.json; the rim is capped (EdgeCap*) so metal, leather and cloth always read as themselves.
 /// </summary>
 public static class GearFx
 {
@@ -56,13 +57,16 @@ public static class GearFx
         int slots = it.Mods?.Count ?? 0;
         if (slots > 0)
         {
-            t.Edge += .07f * slots; if (weapon) t.Emit += .05f * slots;
-            if (slots >= 3) t.Pulse = Mathf.Max(t.Pulse, .2f + .05f * slots);
+            t.Edge += .04f * slots; if (weapon) t.Emit += .05f * slots;
+            if (slots >= 3) t.Pulse = Mathf.Max(t.Pulse, .15f + .03f * slots);
             if (weapon && slots >= 2) t.Sparks = Mathf.Max(t.Sparks, 2 * slots);
-            if (weapon && it.Rar >= 4) t.Light = Mathf.Max(t.Light, .35f + .1f * slots);
+            if (weapon && it.Rar >= 4) t.Light = Mathf.Max(t.Light, .25f + .05f * slots);
         }
-        bool custom = !string.IsNullOrEmpty(it.Glow); if (custom) t.Edge = Mathf.Max(t.Edge, .3f);   // a chosen colour always shows a little
-        float edge = t.Edge * (weapon ? 1f : _armorScale); if (elem) edge = Mathf.Max(edge, weapon ? .5f : .25f);
+        bool custom = !string.IsNullOrEmpty(it.Glow); if (custom) t.Edge = Mathf.Max(t.Edge, .25f);   // a chosen colour always shows a little
+        float edge = t.Edge * (weapon ? 1f : _armorScale); if (elem) edge = Mathf.Max(edge, weapon ? .35f : .15f);
+        // the accent is a thin rim on top of the real material, never a coat of paint: capped so the steel, leather and cloth stay visible
+        edge = Mathf.Min(edge, weapon ? EdgeCapWeapon : EdgeCapArmor);
+        t.Pulse = Mathf.Min(t.Pulse, .35f);
         if (edge <= 0.001f && t.Emit <= 0) return;
         var edgeMat = EdgeMat(col, edge, t.Pulse);
         foreach (var mi in Meshes(root))
@@ -71,13 +75,14 @@ public static class GearFx
             {
                 if (mi.GetActiveMaterial(s) is ShaderMaterial gm && Genshin.Is(gm))
                 {   // character parts already use the Genshin shader: keep it, add the glow on top
-                    var g = Genshin.WithPass(gm, edgeMat, t.Emit > 0 && weapon ? col : null, t.Emit);
+                    var g = Genshin.WithPass(gm, edgeMat);
                     if (mi.MaterialOverride != null) { mi.MaterialOverride = g; break; }
                     mi.SetSurfaceOverrideMaterial(s, g); continue;
                 }
                 if (mi.GetActiveMaterial(s) is not BaseMaterial3D b) continue;
                 var d = (BaseMaterial3D)b.Duplicate(); Toon.Apply(d);
-                if (t.Emit > 0 && weapon) { d.EmissionEnabled = true; d.Emission = col; d.EmissionEnergyMultiplier = t.Emit; }   // armor only gets the edge glow, so it keeps its colours
+                // only parts that already glow (gems, runes: TR_Glow_* / emissive) get brighter; metal, wood and cloth keep their own colour
+                if (weapon && t.Emit > 0 && b.EmissionEnabled) d.EmissionEnergyMultiplier = b.EmissionEnergyMultiplier * (1f + t.Emit * 2f);
                 d.NextPass = edgeMat;
                 if (mi.MaterialOverride != null) { mi.MaterialOverride = d; break; } else mi.SetSurfaceOverrideMaterial(s, d);
             }
@@ -86,7 +91,8 @@ public static class GearFx
         if (!weapon && it.Rar >= 3 && slots >= 4) root.AddChild(Sparks(col, slots + (it.Rar >= 4 ? 3 : 0) + it.Up / 2, -.15f, .3f));
         if (!weapon || length <= 0) return;
         var mid = new Vector3(0, 0, from + length * .6f);
-        if (t.Light > 0) root.AddChild(new OmniLight3D { LightColor = col, LightEnergy = t.Light, OmniRange = 1.8f, ShadowEnabled = false, Position = mid, LightSpecular = 0 });
+        // a small, short-range glow: it must not wash the wielder's legs and armour in the rarity colour
+        if (t.Light > 0) root.AddChild(new OmniLight3D { LightColor = col, LightEnergy = Mathf.Min(t.Light, .6f), OmniRange = .7f, OmniAttenuation = 2f, ShadowEnabled = false, Position = mid, LightSpecular = 0 });
         if (t.Sparks > 0) root.AddChild(Sparks(col, t.Sparks, from, length));
     }
 
@@ -108,10 +114,13 @@ uniform vec4 col : source_color;
 uniform float strength = 1.0;
 uniform float pulse = 0.0;
 void fragment() {
-    float f = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 2.2);
+    // thin silhouette rim only: steep fresnel, faded in so faces toward the camera get nothing
+    float f = pow(1.0 - clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0), 4.0);
+    f *= smoothstep(0.08, 0.5, f);
     float p = 1.0 + pulse * sin(TIME * 2.4);
     ALBEDO = col.rgb * f * strength * p;
 }" };
+    const float EdgeCapWeapon = .75f, EdgeCapArmor = .35f;
 
     static GpuParticles3D Sparks(Color c, int rate, float from, float length)
     {

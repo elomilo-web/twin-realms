@@ -19,6 +19,7 @@ config/icon="res://icon.svg"
 [autoload]
 
 DevCapture="*res://scripts/dev/DevCapture.cs"
+PadInput="*res://scripts/PadInput.cs"
 
 [display]
 

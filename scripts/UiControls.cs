@@ -33,7 +33,7 @@ public partial class Ui
             Color font = waiting ? GoldC : clash ? new Color(1f, .7f, .65f) : Game.Set.Binds.ContainsKey(a) ? new Color(.75f, 1f, .8f) : Parch;
             StyleBoxFlat Cap(Color bg, Color bd) => new() { BgColor = bg, BorderColor = bd, BorderWidthLeft = 1, BorderWidthRight = 1, BorderWidthTop = 1, BorderWidthBottom = 3, CornerRadiusTopLeft = 3, CornerRadiusTopRight = 3, CornerRadiusBottomLeft = 3, CornerRadiusBottomRight = 3, ContentMarginLeft = 8, ContentMarginRight = 8, ContentMarginTop = 3, ContentMarginBottom = 3 };
             var norm = waiting ? Cap(new Color(.20f, .15f, .06f), GoldC) : clash ? Cap(new Color(.28f, .06f, .06f), new Color(.65f, .18f, .16f)) : Cap(new Color(.10f, .09f, .08f), UiTheme.AccentSoft);
-            b.AddThemeStyleboxOverride("normal", norm); b.AddThemeStyleboxOverride("pressed", norm); b.AddThemeStyleboxOverride("focus", norm);
+            b.AddThemeStyleboxOverride("normal", norm); b.AddThemeStyleboxOverride("pressed", norm);
             b.AddThemeStyleboxOverride("hover", Cap(waiting ? new Color(.24f, .18f, .07f) : clash ? new Color(.34f, .08f, .08f) : new Color(.16f, .14f, .10f), waiting || !clash ? GoldC : new Color(.8f, .25f, .2f)));
             foreach (var cn in new[] { "font_color", "font_hover_color", "font_pressed_color" }) b.AddThemeColorOverride(cn, font);
             b.AddThemeFontOverride("font", new FontVariation { BaseFont = ThemeDB.FallbackFont, SpacingGlyph = 1 });
@@ -48,6 +48,7 @@ public partial class Ui
     /// <summary>While waiting for a key, the next key or mouse button press becomes the binding (before anything else sees it).</summary>
     public override void _Input(InputEvent e)
     {
+        if (PadCaptureInput(e)) return;   // Settings > Controller is waiting for a pad button (UiPad.cs)
         if (_capture == null || _panelName != "controls") { _capture = null; return; }
         InputEvent? got = null;
         if (e is InputEventKey k && k.Pressed && !k.Echo)
