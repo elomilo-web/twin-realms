@@ -101,6 +101,7 @@ public partial class ItemTip : PanelContainer
         AddThemeStyleboxOverride("panel", UiTheme.Box(UiTheme.Panel with { A = .96f }, UiTheme.Accent, 1, 12, 10, 10));
         _v = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore }; _v.AddThemeConstantOverride("separation", 2); AddChild(_v);
     }
+    void Rule() { _v.AddChild(new ColorRect { Color = UiTheme.Accent with { A = .45f }, CustomMinimumSize = new Vector2(0, 1), MouseFilter = MouseFilterEnum.Ignore }); }
     Label L(string t, int size, Color c) { var l = new Label { Text = t, MouseFilter = MouseFilterEnum.Ignore }; l.AddThemeFontSizeOverride("font_size", size); l.AddThemeColorOverride("font_color", c); _v.AddChild(l); return l; }
 
     public void Show(Item it, Item? worn, Rect2 anchor, Vector2 screen)
@@ -108,7 +109,8 @@ public partial class ItemTip : PanelContainer
         foreach (var c in _v.GetChildren()) { _v.RemoveChild(c); c.QueueFree(); }
         L(it.Name, 17, it.Color.Lightened(.15f));
         string kind = it.Slot == "weapon" ? char.ToUpper((it.Wt ?? "weapon")[0]) + (it.Wt ?? "weapon")[1..] + (it.Two ? ", two-handed" : "") : char.ToUpper(it.Slot[0]) + it.Slot[1..];
-        L($"{Items.RarityName(it.Rar)} {kind}   Lv {it.Lvl}" + (it.Up > 0 ? $"   +{it.Up}" : ""), 13, UiTheme.Dim);
+        L($"{Items.RarityName(it.Rar)} {kind}   Lv {it.Lvl}" + (it.Up > 0 ? $"   +{it.Up}" : ""), 13, it.Color.Lerp(UiTheme.Dim, .45f));
+        Rule();
         var rows = new List<(string n, float a, float b, string fmt)>
         {
             ("Damage", it.Dmg, worn?.Dmg ?? 0, "0"), ("Defense", it.Def, worn?.Def ?? 0, "0"), ("Health", it.Hp, worn?.Hp ?? 0, "0"),
@@ -119,13 +121,15 @@ public partial class ItemTip : PanelContainer
             if (a == 0 && b == 0) continue;
             var h = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore }; _v.AddChild(h);
             var nl = new Label { Text = n, CustomMinimumSize = new Vector2(110, 0), MouseFilter = MouseFilterEnum.Ignore }; nl.AddThemeFontSizeOverride("font_size", 14); nl.AddThemeColorOverride("font_color", UiTheme.Text); h.AddChild(nl);
-            var vl = new Label { Text = a.ToString(fmt), CustomMinimumSize = new Vector2(50, 0), MouseFilter = MouseFilterEnum.Ignore }; vl.AddThemeFontSizeOverride("font_size", 14); vl.AddThemeColorOverride("font_color", Colors.White); h.AddChild(vl);
+            var vl = new Label { Text = a.ToString(fmt), CustomMinimumSize = new Vector2(50, 0), MouseFilter = MouseFilterEnum.Ignore }; vl.AddThemeFontSizeOverride("font_size", 14); vl.AddThemeColorOverride("font_color", UiTheme.Title); h.AddChild(vl);
+            h.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, MouseFilter = MouseFilterEnum.Ignore });
             if (worn != null && worn != it && Mathf.Abs(a - b) > .001f)
             {
-                bool up = a > b; var dl = new Label { Text = (up ? "▲ +" : "▼ ") + (a - b).ToString(fmt), MouseFilter = MouseFilterEnum.Ignore };
+                bool up = a > b; var dl = new Label { Text = (up ? "▲ +" : "▼ ") + (a - b).ToString(fmt), HorizontalAlignment = HorizontalAlignment.Right, MouseFilter = MouseFilterEnum.Ignore };
                 dl.AddThemeFontSizeOverride("font_size", 13); dl.AddThemeColorOverride("font_color", up ? new Color("5be37d") : new Color("ff6a5f")); h.AddChild(dl);
             }
         }
+        if (it.Mods != null || it.Wings || it.Unique || LootTables.SetOf(it.Set) != null) Rule();
         if (it.Mods != null) foreach (var kv in it.Mods) L(TreeDb.StatText(kv.Key, kv.Value), 13, new Color(.75f, .92f, 1f));
         if (it.Wings) L($"Flight: press {Inputs.KeyOf(Inputs.Jump)} in the air to fly. Hold it to climb, {Inputs.KeyOf(Inputs.Roll)} to dive. Drains stamina; 3x running speed.", 12, new Color("ffd27a"));
         if (it.Unique) L("Unique", 13, new Color("ffd27a"));
@@ -137,6 +141,7 @@ public partial class ItemTip : PanelContainer
             foreach (var (need, mods) in set.Bonuses)
                 L($"  {need}: " + string.Join(", ", System.Linq.Enumerable.Select(mods, kv => TreeDb.StatText(kv.Key, kv.Value))), 12, n >= need ? set.Col.Lightened(.3f) : UiTheme.Dim);
         }
+        Rule();
         if (worn == null && it.Slot != "") L("Nothing worn in this slot", 12, UiTheme.Dim);
         else if (worn != null && worn != it) L($"vs worn: {worn.Name}", 12, UiTheme.Dim);
         L($"Sells for {it.Value} G", 12, new Color("e3b04b"));

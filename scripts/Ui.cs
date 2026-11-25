@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
@@ -99,7 +99,7 @@ public partial class Ui : CanvasLayer
     /// <summary>Slim left column over a darkened, desaturated live world (pause menu). Returns the column's content box.</summary>
     VBoxContainer FrameSlim(string name, Action rebuild)
     {
-        _scrapMode = false; CloseNoUnpause(); _panelName = name; _rebuild = rebuild;
+        _scrapMode = false; CloseNoUnpause(); _panelName = name; _rebuild = rebuild; Sfx.UiPanel(name);
         var root = new Control { MouseFilter = Control.MouseFilterEnum.Stop, Theme = MakeTheme() }; root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         var sh = new Shader { Code = "shader_type canvas_item;\nuniform sampler2D screen_tex : hint_screen_texture, filter_linear_mipmap;\nvoid fragment() {\n vec3 c = textureLod(screen_tex, SCREEN_UV, 0.0).rgb;\n float g = dot(c, vec3(0.299, 0.587, 0.114));\n c = mix(c, vec3(g), 0.6) * 0.65;\n COLOR = vec4(c, 1.0);\n}\n" };
         var dim = new ColorRect { Color = Colors.White, Material = new ShaderMaterial { Shader = sh }, MouseFilter = Control.MouseFilterEnum.Ignore }; dim.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); root.AddChild(dim);
@@ -121,23 +121,36 @@ public partial class Ui : CanvasLayer
     VBoxContainer Frame(string name, string title, Vector2 size, Action rebuild)
     {
         if (name != "pack") _scrapMode = false;   // Disassemble stays on only while you stay in the pack
-        CloseNoUnpause(); _panelName = name; _rebuild = rebuild;
+        CloseNoUnpause(); _panelName = name; _rebuild = rebuild; Sfx.UiPanel(name);
         var root = new Control { MouseFilter = Control.MouseFilterEnum.Stop, Theme = MakeTheme() }; root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        bool left = name == "title" && title == "TWIN REALMS";   // title screen: narrow translucent panel on the left, 3D backdrop visible on the right
+        bool create = name == "title" && title.StartsWith("NEW HERO"), cine = name == "dialog";
+        bool left = name == "title" && (title == "TWIN REALMS" || create);   // title screen: narrow translucent panel on the left, 3D backdrop visible on the right
         if (name == "title" && !left) root.AddChild(new ColorRect { Color = new Color(.005f, .02f, .05f, 0.85f), MouseFilter = Control.MouseFilterEnum.Ignore, AnchorRight = 1, AnchorBottom = 1 });
-        if (!left) { var bd = new TechBackdrop(); bd.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); root.AddChild(bd); }
+        if (!left && !cine) { var bd = new TechBackdrop(); bd.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); root.AddChild(bd); }
         var pc = new TechPanel(); var ps = UiTheme.Box(left ? UiTheme.Panel with { A = 0.72f } : UiTheme.Panel, UiTheme.AccentSoft, 1, 22, 14, UiTheme.GlowSize); pc.AddThemeStyleboxOverride("panel", ps);
         var vp = GetViewport().GetVisibleRect().Size; // never ask for more than the window has
         if (left)
         {
-            pc.CustomMinimumSize = new Vector2(Mathf.Min(620, vp.X - 80), 0);
+            pc.CustomMinimumSize = new Vector2(Mathf.Min(create ? 460 : 620, vp.X - 80), 0);
             pc.AnchorLeft = 0; pc.AnchorRight = 0; pc.AnchorTop = 0; pc.AnchorBottom = 1;
             pc.OffsetLeft = 40; pc.OffsetRight = 40 + pc.CustomMinimumSize.X; pc.OffsetTop = 24; pc.OffsetBottom = -24;
             root.AddChild(pc);
         }
+        else if (cine)
+        {
+            // cinematic dialogue: dark parchment box bottom-centre, world visible above
+            ps.BgColor = new Color(.04f, .035f, .03f, .82f);
+            Vector2 CineSize() { var s = GetViewport().GetVisibleRect().Size; return new Vector2(Mathf.Min(900, s.X - 48), Mathf.Min(220, s.Y - 48)); }
+            void Place() { var cs = CineSize(); pc.CustomMinimumSize = cs; pc.AnchorLeft = .5f; pc.AnchorRight = .5f; pc.AnchorTop = 1; pc.AnchorBottom = 1; pc.OffsetLeft = -cs.X / 2; pc.OffsetRight = cs.X / 2; pc.OffsetTop = -cs.Y - 36; pc.OffsetBottom = -36; pc.GrowVertical = Control.GrowDirection.Begin; }
+            Place(); root.AddChild(pc);
+            Action onSz = Place; GetViewport().SizeChanged += onSz; root.TreeExiting += () => GetViewport().SizeChanged -= onSz;
+        }
         else
         {
-        pc.CustomMinimumSize = new Vector2(Mathf.Min(size.X, vp.X - 24), Mathf.Min(size.Y, vp.Y - 24)); pc.SetAnchorsPreset(Control.LayoutPreset.Center); pc.GrowHorizontal = Control.GrowDirection.Both; pc.GrowVertical = Control.GrowDirection.Both; root.AddChild(pc);
+            // clamp to the visible viewport minus a 24 px margin each side, centred; re-clamp on resize
+            void Clamp() { var s = GetViewport().GetVisibleRect().Size; var m = new Vector2(Mathf.Min(size.X, s.X - 48), Mathf.Min(size.Y, s.Y - 48)); pc.CustomMinimumSize = m; pc.AnchorLeft = .5f; pc.AnchorRight = .5f; pc.AnchorTop = .5f; pc.AnchorBottom = .5f; pc.OffsetLeft = -m.X / 2; pc.OffsetRight = m.X / 2; pc.OffsetTop = -m.Y / 2; pc.OffsetBottom = m.Y / 2; }   // centred: offsets are half the size each way
+            Clamp(); pc.GrowHorizontal = Control.GrowDirection.Both; pc.GrowVertical = Control.GrowDirection.Both; root.AddChild(pc);
+            Action onSz = Clamp; GetViewport().SizeChanged += onSz; root.TreeExiting += () => GetViewport().SizeChanged -= onSz;
         }
         var v = new VBoxContainer(); v.AddThemeConstantOverride("separation", 8); pc.AddChild(v);
         var hb = new HBoxContainer(); v.AddChild(hb); var t = Lbl(title.ToUpper(), 24, UiTheme.Title, hb); t.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
@@ -147,6 +160,8 @@ public partial class Ui : CanvasLayer
             t.AddThemeFontSizeOverride("font_size", 44); t.AddThemeColorOverride("font_color", new Color(.78f, .62f, .30f)); t.AddThemeColorOverride("font_outline_color", new Color(.08f, .04f, .02f));
             t.AddThemeFontOverride("font", new FontVariation { BaseFont = ThemeDB.FallbackFont, SpacingGlyph = 6 });
         }
+        if (create) t.AddThemeFontSizeOverride("font_size", 26);
+        if (cine) { t.AddThemeFontSizeOverride("font_size", 20); t.AddThemeColorOverride("font_color", Gold); t.AddThemeColorOverride("font_outline_color", new Color(.08f, .04f, .02f)); t.AddThemeFontOverride("font", new FontVariation { BaseFont = ThemeDB.FallbackFont, SpacingGlyph = 3 }); }
         if (name != "title") { var cb = Btn("X", Close); cb.CustomMinimumSize = new Vector2(38, 34); hb.AddChild(cb); }
         // decoration overlay sized to the panel; the header rule sits just under the title row
         pc.Resized += () => { pc.HeaderY = 14 + hb.Size.Y + 5; pc.PivotOffset = pc.Size / 2; pc.QueueRedraw(); };
@@ -157,13 +172,13 @@ public partial class Ui : CanvasLayer
         return v;
     }
     // leaving the menus turns Disassemble back off
-    public void Close() { _confirmQuit = false; _confirmUnstuck = false; _scrapMode = false; CloseNoUnpause(); if (InGame) { GetTree().Paused = false; Input.MouseMode = Input.MouseModeEnum.Captured; } }
+    public void Close() { Sfx.UiClosed(); _confirmQuit = false; _confirmUnstuck = false; _scrapMode = false; CloseNoUnpause(); if (InGame) { GetTree().Paused = false; Input.MouseMode = Input.MouseModeEnum.Captured; } }
     void CloseNoUnpause() { HideTip(); if (_panel != null) { _panel.QueueFree(); _panel = null; _panelName = ""; _rebuild = null; } }
 
     static Button Btn(string t, Action a, bool small = false)
     {
         var b = new Button { Text = t, FocusMode = Control.FocusModeEnum.None }; if (small) b.AddThemeFontSizeOverride("font_size", 14);
-        b.Pressed += () => { Sfx.Play("click"); a(); }; return b;
+        b.MouseEntered += Sfx.UiHover; b.Pressed += () => { Sfx.Play("click"); a(); }; return b;
     }
     Label Row(Node parent, string t, Color? c = null, int size = 16) { var l = Lbl(t, size, c ?? Colors.White, parent); l.AutowrapMode = TextServer.AutowrapMode.WordSmart; return l; }
     ScrollContainer Scroll(Node parent, float h) { var s = new ScrollContainer { CustomMinimumSize = new Vector2(0, h), SizeFlagsVertical = Control.SizeFlags.ExpandFill }; parent.AddChild(s); var v = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; s.AddChild(v); return s; }
@@ -176,27 +191,51 @@ public partial class Ui : CanvasLayer
         if (n.Role == "shop") { OpenShop("buy"); return; }
         if (n.Role == "smith") { OpenSmith(); return; }
         if (n.Role == "valor") { OpenValor("gacha"); return; }
-        var v = Frame("dialog", n.NpcName, new Vector2(620, 220), () => { });
-        var d = Game.D;
-        Row(v, n.Role == "arena" ? $"Welcome to the Crimson Arena. Best wave: {d.BestWave}. Best duel streak: {d.BestDuel}. Waves pay valor (first at wave {Valor.NextMilestone(0)}), spent with Sera in Oakhaven; leave by the gate whenever you like." : n.NextLine(), Colors.White, 18);
+        var v = Frame("dialog", n.NpcName, new Vector2(900, 220), () => { });
+        var d = Game.D; int k = 0;
+        Row(v, n.Role == "arena" ? $"Welcome to the Crimson Arena. Best wave: {d.BestWave}. Best duel streak: {d.BestDuel}. Waves pay valor (first at wave {Valor.NextMilestone(0)}), spent with Sera in Oakhaven; leave by the gate whenever you like." : n.NextLine(), Parch, 18);
         foreach (var id in n.QuestIds)
         {
             var q = Quests.ById(id); if (q == null) continue; var s = Game.Q(id);
-            if (s.S == 2) v.AddChild(Btn("Report: " + q.Name, () => Say(n, q.Done, ("Claim reward", () => { Quests.Reward(q); Talk(n); }))));
-            else if (s.S == 1) v.AddChild(Btn(q.Name + " (in progress)", () => Say(n, q.Goal + (q.Need > 1 ? $" ({s.N}/{q.Need})" : "") + ".", ("Back", () => Talk(n)))));
-            else if (Quests.Available(q)) v.AddChild(Btn("Quest: " + q.Name + (q.Lvl > 0 ? $" (lvl {q.Lvl}+)" : ""), () => Say(n, q.Offer, ("Accept", () => { Quests.Accept(q); Close(); }), ("Not now", () => Talk(n)))));
+            if (s.S == 2) DlgOpt(v, ++k, "Report: " + q.Name, () => Say(n, q.Done, ("Claim reward", () => { Quests.Reward(q); Talk(n); })));
+            else if (s.S == 1) DlgOpt(v, ++k, q.Name + " (in progress)", () => Say(n, q.Goal + (q.Need > 1 ? $" ({s.N}/{q.Need})" : "") + ".", ("Back", () => Talk(n))));
+            else if (Quests.Available(q)) DlgOpt(v, ++k, "Quest: " + q.Name + (q.Lvl > 0 ? $" (lvl {q.Lvl}+)" : ""), () => Say(n, q.Offer, ("Accept", () => { Quests.Accept(q); Close(); }), ("Not now", () => Talk(n))));
         }
         if (n.Role == "arena")
         {
-            v.AddChild(Btn("Wave Survival", () => { Close(); Arenas.Start("waves"); }));
-            v.AddChild(Btn("Shadow Duel (fight your own double)", () => { Close(); Arenas.Start("duel"); }));
+            DlgOpt(v, ++k, "Wave Survival", () => { Close(); Arenas.Start("waves"); });
+            DlgOpt(v, ++k, "Shadow Duel (fight your own double)", () => { Close(); Arenas.Start("duel"); });
         }
-        v.AddChild(Btn("Farewell", Close));
+        DlgOpt(v, ++k, "Farewell", Close);
     }
     void Say(Npc n, string text, params (string, Action)[] opts)
     {
-        var v = Frame("dialog", n.NpcName, new Vector2(620, 220), () => { }); Row(v, text, Colors.White, 18);
-        foreach (var (l, a) in opts) v.AddChild(Btn(l, a));
+        var v = Frame("dialog", n.NpcName, new Vector2(900, 220), () => { }); Row(v, text, Parch, 18); int k = 0;
+        foreach (var (l, a) in opts) DlgOpt(v, ++k, l, a);
+    }
+    /// <summary>Numbered dialogue response: text row that gets a gold marker and gold text on hover.</summary>
+    void DlgOpt(Node parent, int num, string text, Action a)
+    {
+        var b = new Button { Text = $"{num}.  {text}", Flat = true, Alignment = HorizontalAlignment.Left, FocusMode = Control.FocusModeEnum.None, MouseDefaultCursorShape = Control.CursorShape.PointingHand };
+        b.AddThemeFontSizeOverride("font_size", 17);
+        foreach (var s in new[] { "normal", "hover", "pressed", "focus", "disabled" }) b.AddThemeStyleboxOverride(s, new StyleBoxEmpty());
+        b.AddThemeColorOverride("font_color", Parch with { A = .85f }); b.AddThemeColorOverride("font_hover_color", Gold); b.AddThemeColorOverride("font_pressed_color", Gold);
+        string plain = b.Text;
+        b.MouseEntered += () => b.Text = "▸ " + plain; b.MouseExited += () => b.Text = plain;
+        b.Pressed += () => { Sfx.Play("click"); a(); };
+        parent.AddChild(b);
+    }
+    /// <summary>Flat text row with a gold marker when selected (character creation lists).</summary>
+    Button PickRow(Node parent, string text, bool sel, Action a, int size = 18)
+    {
+        var b = new Button { Text = (sel ? "◆  " : "     ") + text, Flat = true, Alignment = HorizontalAlignment.Left, FocusMode = Control.FocusModeEnum.None, MouseDefaultCursorShape = Control.CursorShape.PointingHand };
+        b.AddThemeFontSizeOverride("font_size", size);
+        foreach (var s in new[] { "normal", "hover", "pressed", "focus", "disabled" }) b.AddThemeStyleboxOverride(s, new StyleBoxEmpty());
+        var c = sel ? new Color(1f, .96f, .82f) : Parch with { A = .6f };
+        b.AddThemeColorOverride("font_color", c); b.AddThemeColorOverride("font_hover_color", sel ? c : Gold); b.AddThemeColorOverride("font_pressed_color", Gold);
+        if (sel) b.AddThemeColorOverride("icon_normal_color", Gold);
+        b.Pressed += () => { Sfx.Play("click"); a(); };
+        parent.AddChild(b); return b;
     }
 
     // ---------------------------------------------------------------- shop and smith
@@ -707,39 +746,65 @@ public partial class Ui : CanvasLayer
     {
         InGame = false; Input.MouseMode = Input.MouseModeEnum.Visible;
         var v = Frame("title", $"NEW HERO - SLOT {Game.Slot + 1}", new Vector2(1060, 640), ShowCreate);
-        var top = new HBoxContainer(); v.AddChild(top); top.AddThemeConstantOverride("separation", 12);
-        Lbl("Pick a race and a class, name your hero, and begin.", 16, Dim, top).SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        top.AddChild(Btn("Back to heroes", ShowTitle));
-        var cols = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; cols.AddThemeConstantOverride("separation", 16); v.AddChild(cols);
-        // ---- races
-        var rc = new VBoxContainer { CustomMinimumSize = new Vector2(190, 0) }; cols.AddChild(rc); Lbl("RACE", 15, UiTheme.Accent, rc);
-        foreach (var r in Races.All) { string id = r.Id; var b = Btn(r.Name, () => { _pickRace = id; ShowCreate(); }); if (id == _pickRace) b.AddThemeColorOverride("font_color", UiTheme.Highlight); rc.AddChild(b); }
-        Lbl("BODY", 15, UiTheme.Accent, rc);
-        var bodies = new HBoxContainer(); rc.AddChild(bodies);
-        foreach (var (id, label) in new[] { ("male", "Male"), ("female", "Female") }) { var b = Btn(label, () => { _pickBody = id; ShowCreate(); }); b.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; if (id == _pickBody) b.AddThemeColorOverride("font_color", UiTheme.Highlight); bodies.AddChild(b); }
-        // ---- classes
-        var cc = new VBoxContainer { CustomMinimumSize = new Vector2(330, 0) }; cols.AddChild(cc); Lbl("CLASS", 15, UiTheme.Accent, cc);
-        var grid = new GridContainer { Columns = 2 }; grid.AddThemeConstantOverride("h_separation", 6); grid.AddThemeConstantOverride("v_separation", 4); cc.AddChild(grid);
-        foreach (var c in Classes.All)
+        var back = Btn("Back to heroes", ShowTitle, true); back.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin; v.AddChild(back);
+        Row(v, "Choose your race and class, then name your hero.", Dim, 14);
+        var sc = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; v.AddChild(sc);
+        var cols = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; cols.AddThemeConstantOverride("separation", 14); sc.AddChild(cols);
+        void Cap(Node p, string t) { var l = Lbl(t, 13, Gold, p); l.AddThemeFontOverride("font", new FontVariation { BaseFont = ThemeDB.FallbackFont, SpacingGlyph = 3 }); var ln = new ColorRect { Color = Line with { A = .6f }, CustomMinimumSize = new Vector2(0, 1) }; p.AddChild(ln); }
+        var rc = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; rc.AddThemeConstantOverride("separation", 0); cols.AddChild(rc); Cap(rc, "RACE");
+        foreach (var r in Races.All) { string id = r.Id; PickRow(rc, r.Name, id == _pickRace, () => { _pickRace = id; ShowCreate(); }); }
+        var cc = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; cc.AddThemeConstantOverride("separation", 0); cols.AddChild(cc); Cap(cc, "CLASS");
+        foreach (var c in Classes.All) { string id = c.Id; PickRow(cc, c.Name, id == _pickClass, () => { _pickClass = id; ShowCreate(); }); }
+        // ---- body, name, begin
+        var foot = new VBoxContainer(); foot.AddThemeConstantOverride("separation", 8); v.AddChild(foot); Cap(foot, "BODY");
+        var bodies = new HBoxContainer(); bodies.AddThemeConstantOverride("separation", 8); foot.AddChild(bodies);
+        foreach (var (id, label) in new[] { ("male", "Male"), ("female", "Female") })
         {
-            string id = c.Id; var b = Btn(c.Name, () => { _pickClass = id; ShowCreate(); }); b.CustomMinimumSize = new Vector2(160, 34);
-            if (id == _pickClass) b.AddThemeColorOverride("font_color", UiTheme.Highlight); grid.AddChild(b);
+            bool on = id == _pickBody; var b = Btn(label, () => { _pickBody = id; ShowCreate(); }); b.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; b.CustomMinimumSize = new Vector2(0, 34);
+            var sbn = UiTheme.Box(on ? new Color(.20f, .15f, .06f, .9f) : new Color(.05f, .045f, .04f, .7f), on ? Gold : Line with { A = .5f }, 1, 10, 4, 0);
+            b.AddThemeStyleboxOverride("normal", sbn); b.AddThemeStyleboxOverride("hover", UiTheme.Box(new Color(.14f, .11f, .06f, .9f), Gold, 1, 10, 4, 0)); b.AddThemeStyleboxOverride("pressed", sbn);
+            b.AddThemeColorOverride("font_color", on ? Gold : Parch with { A = .7f }); bodies.AddChild(b);
         }
-        // ---- details and start
-        var dc = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; dc.AddThemeConstantOverride("separation", 5); cols.AddChild(dc);
+        Cap(foot, "NAME");
+        var name = new LineEdit { Text = _pickName, PlaceholderText = "Name your hero", CustomMinimumSize = new Vector2(0, 36) }; foot.AddChild(name); name.TextChanged += s => _pickName = s;
+        name.AddThemeStyleboxOverride("normal", UiTheme.Box(new Color(.02f, .018f, .015f, .95f), Line with { A = .5f }, 1, 10, 4, 0));
+        name.AddThemeStyleboxOverride("focus", UiTheme.Box(new Color(.03f, .025f, .02f, .98f), Gold, 2, 10, 4, 0));
+        name.AddThemeColorOverride("font_color", Parch);
+        var go = Btn("Begin the journey", () => { CloseNoUnpause(); OnNew?.Invoke(_pickClass, name.Text, _pickRace); }); go.CustomMinimumSize = new Vector2(0, 50); go.AddThemeFontSizeOverride("font_size", 20); foot.AddChild(go);
+        var gn = UiTheme.Box(new Color(.62f, .48f, .20f, .95f), Gold, 1, 12, 6, 6); var gh = UiTheme.Box(new Color(.80f, .64f, .28f, 1f), new Color(1f, .9f, .6f), 1, 12, 6, 10);
+        go.AddThemeStyleboxOverride("normal", gn); go.AddThemeStyleboxOverride("hover", gh); go.AddThemeStyleboxOverride("pressed", gn);
+        foreach (var cn in new[] { "font_color", "font_hover_color", "font_pressed_color" }) go.AddThemeColorOverride(cn, new Color(.08f, .05f, .02f));
+        // ---- right-hand info card over the backdrop
         var rd = Races.Get(_pickRace); var cd = Classes.Get(_pickClass);
-        Lbl($"{rd.Name.ToUpper()} {cd.Name.ToUpper()}", 22, UiTheme.Title, dc);
-        Row(dc, rd.Desc, Colors.White, 14).CustomMinimumSize = new Vector2(420, 0);
-        string Attr(Dictionary<string, int> a) { var l = new List<string>(); foreach (var kv in a) l.Add($"{(kv.Value > 0 ? "+" : "")}{kv.Value} {kv.Key}"); return string.Join(", ", l); }
-        string Mods(Dictionary<string, float> m) { var l = new List<string>(); foreach (var kv in m) l.Add(TreeDb.StatText(kv.Key, kv.Value)); return string.Join("; ", l); }
-        Row(dc, "Race: " + Attr(rd.Attr) + (rd.Pts > 0 ? $", +{rd.Pts} skill point" : "") + ". " + Mods(rd.Mods), new Color(.75f, .9f, 1f), 13).CustomMinimumSize = new Vector2(420, 0);
-        Row(dc, cd.Desc, Colors.White, 14).CustomMinimumSize = new Vector2(420, 0);
-        var skills = new List<string>(); foreach (var s in cd.Skills) skills.Add(Skills.Get(s)?.Name ?? s);
-        Row(dc, $"Class: {Attr(cd.Attr)}. Weapon: {cd.WName} ({Weapons.Get(cd.Wt).Name}{(cd.Shield ? " and shield" : "")}). {Mods(cd.Mods)}", new Color(.75f, .9f, 1f), 13).CustomMinimumSize = new Vector2(420, 0);
-        Row(dc, "Starting skills: " + string.Join(", ", skills), UiTheme.Highlight, 13).CustomMinimumSize = new Vector2(420, 0);
-        Row(dc, "Every class starts on its own part of the skill tree, between its two neighbours; bridges lead into their paths for hybrid builds.", Dim, 13).CustomMinimumSize = new Vector2(420, 0);
-        var name = new LineEdit { Text = _pickName, PlaceholderText = "Name", CustomMinimumSize = new Vector2(0, 34) }; dc.AddChild(name); name.TextChanged += s => _pickName = s;
-        var go = Btn("Begin the journey", () => { CloseNoUnpause(); OnNew?.Invoke(_pickClass, name.Text, _pickRace); }); go.CustomMinimumSize = new Vector2(0, 44); dc.AddChild(go);
+        var vp = GetViewport().GetVisibleRect().Size; float cw = Mathf.Clamp(vp.X - 40 - 460 - 60, 280, 520);
+        var card = new PanelContainer { MouseFilter = Control.MouseFilterEnum.Stop }; card.AddThemeStyleboxOverride("panel", UiTheme.Box(new Color(.04f, .035f, .03f, .78f), Line with { A = .7f }, 1, 20, 16, 0));
+        card.AnchorLeft = 1; card.AnchorRight = 1; card.AnchorTop = 0; card.AnchorBottom = 0; card.OffsetRight = -40; card.OffsetLeft = -40 - cw; card.OffsetTop = 40; card.GrowVertical = Control.GrowDirection.End; card.GrowHorizontal = Control.GrowDirection.Begin;
+        _panel?.AddChild(card);
+        var dc = new VBoxContainer(); dc.AddThemeConstantOverride("separation", 8); card.AddChild(dc);
+        var tt = Lbl($"{rd.Name.ToUpper()}  {cd.Name.ToUpper()}", 26, Gold, dc); tt.AddThemeFontOverride("font", new FontVariation { BaseFont = ThemeDB.FallbackFont, SpacingGlyph = 4 }); tt.AddThemeColorOverride("font_outline_color", new Color(.08f, .04f, .02f)); tt.AddThemeConstantOverride("outline_size", 5);
+        dc.AddChild(new ColorRect { Color = Line with { A = .7f }, CustomMinimumSize = new Vector2(0, 1) });
+        Row(dc, rd.Desc, Parch, 15); Row(dc, cd.Desc, Parch, 15);
+        void Stats(string head, Dictionary<string, int> attr, Dictionary<string, float> mods, string extra)
+        {
+            Cap(dc, head);
+            var fl = new HFlowContainer(); fl.AddThemeConstantOverride("h_separation", 14); fl.AddThemeConstantOverride("v_separation", 2); dc.AddChild(fl);
+            foreach (var kv in attr) { var h = new HBoxContainer(); h.AddThemeConstantOverride("separation", 5); fl.AddChild(h); Lbl((kv.Value > 0 ? "+" : "") + kv.Value, 13, Gold, h); Lbl(kv.Key, 14, Parch, h); }
+            if (extra != "") { var l = Lbl(extra, 14, Parch, fl); }
+            foreach (var kv in mods) Lbl(TreeDb.StatText(kv.Key, kv.Value), 13, Dim, fl);
+        }
+        Stats("RACE BONUSES", rd.Attr, rd.Mods, rd.Pts > 0 ? $"+{rd.Pts} skill point" : "");
+        Stats("CLASS BONUSES", cd.Attr, cd.Mods, "");
+        Row(dc, $"Weapon: {cd.WName} ({Weapons.Get(cd.Wt).Name}{(cd.Shield ? " and shield" : "")})", Parch, 14);
+        Cap(dc, "STARTING SKILLS");
+        var chips = new HFlowContainer(); chips.AddThemeConstantOverride("h_separation", 8); chips.AddThemeConstantOverride("v_separation", 8); dc.AddChild(chips);
+        foreach (var sid in cd.Skills)
+        {
+            var sk = Skills.Get(sid); var chip = new PanelContainer { TooltipText = sk?.Name ?? sid }; chip.AddThemeStyleboxOverride("panel", UiTheme.Box(new Color(.05f, .045f, .04f, .85f), Gold with { A = .8f }, 1, 6, 5, 0)); chips.AddChild(chip);
+            var ch = new HBoxContainer(); ch.AddThemeConstantOverride("separation", 6); chip.AddChild(ch);
+            if (sk != null) { string ic = Icons.ForSkill(sk); var ctl = new Control { CustomMinimumSize = new Vector2(30, 30), MouseFilter = Control.MouseFilterEnum.Ignore }; ctl.Draw += () => Icons.Draw(ctl, ic, new Vector2(15, 15), 28); ch.AddChild(ctl); }
+            Lbl(sk?.Name ?? sid, 13, Parch, ch).VerticalAlignment = VerticalAlignment.Center;
+        }
+        Row(dc, "Every class starts on its own part of the skill tree; bridges lead into neighbouring paths for hybrid builds.", Dim, 13);
     }
 }
 

@@ -136,7 +136,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         }
         else if (Avatar.Available && Avatar.Foe(Type) is { } fc) BuildAvatar(fc, s);
         else BuildHumanoid(r, s, col, main, dark, glow);
-        BakeParts();
+        BakeParts(); if (_mdl == null) CharRim.Apply(_body);
         float labelY = _mdl != null ? HeightM() + .1f : quad ? r * 2.6f : dragon ? 6.2f : 2.2f * s;
         _label = new Label3D
         {
@@ -630,7 +630,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
     void KillFlash(bool on)
     {
         _killMat ??= new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, AlbedoColor = new Color(1f, .97f, .85f, .85f), Transparency = BaseMaterial3D.TransparencyEnum.Alpha };
-        void Walk(Node n) { foreach (var c in n.GetChildren()) { if (c is GeometryInstance3D g) g.MaterialOverlay = on ? _killMat : null; Walk(c); } }
+        void Walk(Node n) { foreach (var c in n.GetChildren()) { if (c is GeometryInstance3D g) g.MaterialOverlay = on ? _killMat : CharRim.Mat; Walk(c); } }
         Walk(_body);
     }
 

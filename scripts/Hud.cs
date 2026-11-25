@@ -40,7 +40,8 @@ public partial class HudCanvas : Control
     }
     Image? _img;
     Font F => ThemeDB.FallbackFont;
-    public override void _Process(double delta) { QueueRedraw(); }
+    float _deathFade;
+    public override void _Process(double delta) { QueueRedraw(); float tgt = Player.Instance is { Dead: true, Downed: false } ? 1f : 0f; _deathFade = Mathf.MoveToward(_deathFade, tgt, (float)delta / (tgt > 0 ? 2.2f : .8f)); }
 
     void Txt(Vector2 pos, string s, int size, Color c, HorizontalAlignment al = HorizontalAlignment.Left, float width = -1)
     {
@@ -215,7 +216,15 @@ public partial class HudCanvas : Control
             Txt(new Vector2(0, sz.Y / 2), "DOWNED", fs(5f), new Color("ff9a6f"), HorizontalAlignment.Center, sz.X);
             Txt(new Vector2(0, sz.Y / 2 + fs(2.4f)), $"A party member can revive you.  [{Inputs.KeyOf(Inputs.Use)}] give up and wake outside", fs(1.3f), Colors.White, HorizontalAlignment.Center, sz.X);
         }
-        else if (p.Dead) Txt(new Vector2(sz.X / 2, sz.Y / 2), "YOU DIED", fs(5f), new Color("ff7b6f"), HorizontalAlignment.Center, sz.X);
+        if (_deathFade > .01f)
+        {
+            float k = Mathf.SmoothStep(0, 1, _deathFade), bh = fs(9f), by = sz.Y / 2 - bh / 2;
+            DrawRect(new Rect2(0, 0, sz.X, sz.Y), new Color(.02f, 0, 0, .35f * k));
+            DrawRect(new Rect2(0, by, sz.X, bh), new Color(0, 0, 0, .78f * k));
+            var gold = new Color(.72f, .58f, .3f, .5f * k);
+            DrawRect(new Rect2(sz.X * .2f, by, sz.X * .6f, 1), gold); DrawRect(new Rect2(sz.X * .2f, by + bh, sz.X * .6f, 1), gold);
+            Txt(new Vector2(0, sz.Y / 2 - fs(4.2f)), "F  A  L  L  E  N", fs(6f), new Color(.55f, .06f, .07f, k), HorizontalAlignment.Center, sz.X);
+        }
         // channelling (Resurrection, reviving a friend): a bar under the crosshair
         if (p.ChannelFrac >= 0)
         {

@@ -63,7 +63,7 @@ public partial class Ui
         var v = Frame("skills", "Skills", new Vector2(1100, 640), OpenSkills); HideInfo();
 
         // ---- top bar: points, filters, search, the other skill menus
-        var top = new HBoxContainer(); v.AddChild(top); top.AddThemeConstantOverride("separation", 8);
+        var top = new HFlowContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; v.AddChild(top); top.AddThemeConstantOverride("h_separation", 8); top.AddThemeConstantOverride("v_separation", 6);
         Chip(top, $"Skill points  {d.RankPts}", d.RankPts > 0);
         top.AddChild(new Control { CustomMinimumSize = new Vector2(8, 0) });
         foreach (var (id, label) in new[] { ("all", "All"), ("spell", "Spells"), ("attack", "Weapon skills"), ("learned", "Learned"), ("learn", "Can learn") })
@@ -72,7 +72,7 @@ public partial class Ui
             if (_skillFilter == id) { b.AddThemeColorOverride("font_color", UiTheme.Highlight); b.AddThemeStyleboxOverride("normal", UiTheme.Box(UiTheme.ButtonHover, UiTheme.Highlight, 1, 10, 4, 0)); }
             top.AddChild(b);
         }
-        var search = new LineEdit { Text = _skillSearch, PlaceholderText = "Search skills...", CustomMinimumSize = new Vector2(170, 30), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; top.AddChild(search);
+        var search = new LineEdit { Text = _skillSearch, PlaceholderText = "Search skills...", CustomMinimumSize = new Vector2(150, 30) }; top.AddChild(search);
         top.AddChild(Btn($"Macros ({Inputs.KeyOf(Inputs.Macro1)} / {Inputs.KeyOf(Inputs.Macro2)})", OpenMacros, true));
         top.AddChild(Btn($"Modifier tree ({Inputs.KeyOf(Inputs.ModsUi)})", OpenMods, true));
         top.AddChild(Btn($"Spellcraft ({Inputs.KeyOf(Inputs.SpellcraftUi)})", () => OpenSpellcraft(Spellcraft.IsCrafted(_selSkill) ? _selSkill : null), true));
@@ -81,9 +81,9 @@ public partial class Ui
         var cols = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; cols.AddThemeConstantOverride("separation", 16); v.AddChild(cols);
 
         // ---- left: the skill grid and the hotbar
-        var left = new VBoxContainer { CustomMinimumSize = new Vector2(468, 0) }; left.AddThemeConstantOverride("separation", 6); cols.AddChild(left);
-        var gs = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, CustomMinimumSize = new Vector2(468, 200), HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; left.AddChild(gs);
-        var grid = new GridContainer { Columns = 7 }; grid.AddThemeConstantOverride("h_separation", 6); grid.AddThemeConstantOverride("v_separation", 6); gs.AddChild(grid);
+        var left = new VBoxContainer { CustomMinimumSize = new Vector2(280, 0), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsStretchRatio = 1f }; left.AddThemeConstantOverride("separation", 6); cols.AddChild(left);
+        var gs = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, CustomMinimumSize = new Vector2(0, 200), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; left.AddChild(gs);
+        var grid = new HFlowContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; grid.AddThemeConstantOverride("h_separation", 6); grid.AddThemeConstantOverride("v_separation", 6); gs.AddChild(grid);
         var tiles = new List<(SkillTile t, SkillDef k)>();
         foreach (var k in Skills.All)
         {
@@ -104,12 +104,12 @@ public partial class Ui
 
         Header("Hotbar", left);
         Lbl("Click a key to put the selected skill on it. Right-click a learned skill to remove a rank.", 14, Dim, left).AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        var bar = new HBoxContainer(); bar.AddThemeConstantOverride("separation", 6); left.AddChild(bar);
+        var bar = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; bar.AddThemeConstantOverride("separation", 6); left.AddChild(bar);
         bool selKnown = d.Skills.ContainsKey(_selSkill);
         for (int i = 0; i < 6; i++)
         {
             int slot = i; var bk = Skills.Get(d.Bar[i] ?? "");
-            var t = new SkillTile { Icon = bk != null ? Icons.ForSkill(bk) : "", Known = bk != null, Rank = bk != null && d.Skills.TryGetValue(bk.Id, out var bs) ? bs.Rank : 0, MaxRank = Skills.MaxRank, Key = i, Selected = d.Bar[i] == _selSkill && selKnown, CustomMinimumSize = new Vector2(70, 58), Tint = bk != null ? Dmg.TypeColor(bk.Type) : UiTheme.Accent };
+            var t = new SkillTile { Icon = bk != null ? Icons.ForSkill(bk) : "", Known = bk != null, Rank = bk != null && d.Skills.TryGetValue(bk.Id, out var bs) ? bs.Rank : 0, MaxRank = Skills.MaxRank, Key = i, Selected = d.Bar[i] == _selSkill && selKnown, CustomMinimumSize = new Vector2(46, 58), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, Tint = bk != null ? Dmg.TypeColor(bk.Type) : UiTheme.Accent };
             t.Click = () =>
             {
                 if (!d.Skills.ContainsKey(_selSkill)) { Note("Learn the skill first", new Color(1, .6f, .5f)); return; }
@@ -121,7 +121,7 @@ public partial class Ui
         }
 
         // ---- right: the selected skill
-        var right = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; right.AddThemeConstantOverride("separation", 6); cols.AddChild(right);
+        var right = new VBoxContainer { CustomMinimumSize = new Vector2(300, 0), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsStretchRatio = 1.25f }; right.AddThemeConstantOverride("separation", 6); cols.AddChild(right);
         SkillCard(right);
     }
 
@@ -163,20 +163,20 @@ public partial class Ui
         var act = new VBoxContainer(); act.AddThemeConstantOverride("separation", 2); head.AddChild(act);
         if (!learned)
         {
-            var lb = Btn(d.Level < sk.Req ? $"Unlocks at level {sk.Req}" : $"Learn  ({sk.Cost} pt)", () => Do(Skills.Unlock(sk.Id), "Learned " + sk.Name)); lb.Disabled = d.Level < sk.Req || d.RankPts < sk.Cost; lb.CustomMinimumSize = new Vector2(170, 36); act.AddChild(lb);
+            var lb = Btn(d.Level < sk.Req ? $"Unlocks at level {sk.Req}" : $"Learn  ({sk.Cost} pt)", () => Do(Skills.Unlock(sk.Id), "Learned " + sk.Name)); lb.Disabled = d.Level < sk.Req || d.RankPts < sk.Cost; lb.CustomMinimumSize = new Vector2(140, 36); act.AddChild(lb);
         }
         else
         {
-            var rb = Btn(ss!.Rank >= Skills.MaxRank ? "Max rank" : $"Rank up  (1 pt)", () => Do(Skills.RankUp(sk.Id), sk.Name + " ranked up")); rb.Disabled = ss.Rank >= Skills.MaxRank || d.RankPts < 1; rb.CustomMinimumSize = new Vector2(170, 36); act.AddChild(rb);
+            var rb = Btn(ss!.Rank >= Skills.MaxRank ? "Max rank" : $"Rank up  (1 pt)", () => Do(Skills.RankUp(sk.Id), sk.Name + " ranked up")); rb.Disabled = ss.Rank >= Skills.MaxRank || d.RankPts < 1; rb.CustomMinimumSize = new Vector2(140, 36); act.AddChild(rb);
             Lbl(Pips(ss.Rank, Skills.MaxRank) + $"  {ss.Rank}/{Skills.MaxRank}", 16, UiTheme.Accent, act);
             Lbl($"+{Skills.RankP:0}% damage per rank", 14, UiTheme.Highlight, act);
         }
-        var desc = Row(v, sk.Desc, Colors.White, 15); desc.CustomMinimumSize = new Vector2(400, 0);
+        var desc = Row(v, sk.Desc, Colors.White, 15); desc.CustomMinimumSize = new Vector2(200, 0);
 
         // numbers: three label/value pairs per row
         var c = Skills.Compute(sk.Id);
-        var grid = new GridContainer { Columns = 6 }; grid.AddThemeConstantOverride("h_separation", 12); grid.AddThemeConstantOverride("v_separation", 2); v.AddChild(grid);
-        void Stat(string n, string val) { Lbl(n, 14, Dim, grid); Lbl(val, 14, Colors.White, grid).CustomMinimumSize = new Vector2(78, 0); }
+        var grid = new GridContainer { Columns = 4, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; grid.AddThemeConstantOverride("h_separation", 12); grid.AddThemeConstantOverride("v_separation", 2); v.AddChild(grid);
+        void Stat(string n, string val) { Lbl(n, 14, Dim, grid); Lbl(val, 14, Colors.White, grid).CustomMinimumSize = new Vector2(56, 0); }
         if (sk.Kind is not ("heal" or "buff" or "enchant" or "ward" or "resurrect")) Stat("Damage", $"{c.Dmg:0}" + (sk.Kind == "zone" ? "/tick" : c.Count > 1 ? $" x{c.Count}" : ""));
         if (sk.Kind == "heal") Stat("Heals", $"{c.Heal * 100:0}% hp");
         if (c.Mp > 0) Stat("Mana", $"{c.Mp:0}"); if (c.St > 0) Stat("Stamina", $"{c.St:0}");

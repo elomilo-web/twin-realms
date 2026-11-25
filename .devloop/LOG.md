@@ -1,5 +1,15 @@
 # Dev loop log (newest first; max 20 detailed entries, older ones rolled into History)
 
+## #13 (2026-11-25) menus (directive), audio, lighting
+- Ui.Frame clamps non-title windows to the viewport (24 px margins), re-clamps on resize. Lead fix: centring used SetAnchorsPreset(Center) without offsets (windows sat in the bottom-right quarter) -> explicit centred offsets.
+- Character creation: slim left panel over the title skyline, gold-marker race/class lists, body toggles, styled name field, info card (bonuses in gold, starting skill chips), gold "Begin the journey". Looks great in capture.
+- Dialogue: bottom-centre cinematic box (900x220), gold NPC name, numbered option rows (DlgOpt).
+- Skills/attacks/macros: HFlowContainer header rows, stretch-ratio columns, scrolling lists: skills + attacks now fit 1280x720; macros still clipped top/bottom.
+- Tooltips (UiWidgets InfoTip, ItemSlot ItemTip): gold divider, rarity type line, right-aligned green/red deltas, clamped on screen. Death screen: dark band + gold rules + "F A L L E N" fade (Hud.cs). Banner/Note (Ui.cs L65-81) not done.
+- Audio: synthesized ui_hover/click/open/close/confirm/error (sfx_synth.py, ASSETS.md); Btn hover/click, Frame open, Close sounds at UiVol; confirm/error not wired yet.
+- Lighting: CharRim fresnel overlay on hero/humanoids/creatures (global char_rim/char_rim_col; stronger at night/dungeon, violet in shadow, warm in dungeons); kill flash restores it; Duelist/Scarletta/Shade overlay guards accept it. Lead: stripped a BOM Add-Content left in Avatar.cs.
+- Note: one capture logged Jolt RID leaks at exit (teardown, not gameplay); watch.
+
 ## #12 (2026-11-25) MENUS (user directive: improve all menus)
 - Capture: generic ui:<name>[:arg] action + 18 menu_* views (settings, controls, journal, map, tree, skills, attacks, macros, mods, shop, smith, craft, craft_blocks, valor, totals, multiplayer, stash, create); UiSmith.OpenSmith made public.
 - Ui.cs: CardBox/Empty/PriceStyle helpers, gold-underlined Tabs (shared by all menus), shop/valor price cards (muted red when unaffordable), journal records + quest cards, totals rows, tree side panel, map parchment frame + legend.

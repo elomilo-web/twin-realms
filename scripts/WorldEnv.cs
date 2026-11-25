@@ -231,6 +231,7 @@ void fragment(){
         // day fades out over a long twilight (sun from +0.25 to -0.12 elevation); dusk peaks as the sun touches the horizon
         float day = Smooth(-0.12f, 0.25f, elev), dusk = 1f - Smooth(0f, 0.3f, Mathf.Abs(elev - 0.02f));
         Night = (1 - day) * (1 - RealmT) + RealmT * 0.7f;
+        CharRim.Set(Night, RealmT);
         Genshin.SetNight(Night);   // characters switch to their cooler night shadow colours
         // golden hour: bell over low-sun elevations (dawn/dusk bands only; zero at midday, night and in the shadow realm)
         float gold = (1f - Smooth(0f, .42f, Mathf.Abs(elev - .1f))) * (1f - RealmT);
@@ -279,6 +280,7 @@ void fragment(){
 
     public void SetDungeonLook(bool on, Color? ambient = null)
     {
+        CharRim.Set(1f, 0f, on);
         if (on)
         {
             if (!_dungSaved)

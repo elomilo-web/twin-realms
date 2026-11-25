@@ -63,7 +63,7 @@ void fragment() {
 	float f = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 2.5);
 	ALBEDO = mix(rim.rgb * (.015 + .3 * f), rot.rgb * (.3 + .9 * f), glow);
 }" } };
-        void Over(Node n) { foreach (var c in n.GetChildren()) { if (c is GeometryInstance3D g && g.MaterialOverlay == null) g.MaterialOverlay = _goldMat; Over(c); } }
+        void Over(Node n) { foreach (var c in n.GetChildren()) { if (c is GeometryInstance3D g && (g.MaterialOverlay == null || g.MaterialOverlay == CharRim.Mat)) g.MaterialOverlay = _goldMat; Over(c); } }
         Over(_av);
         _av.SetHair("TR_Hair_Female_flowing.glb", ap.Hair);   // after the gold overlay: the hair stays red
         // the blade: an enormous katana with a slight curve and a rot-green edge

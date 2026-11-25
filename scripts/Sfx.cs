@@ -117,12 +117,22 @@ public partial class Sfx : Node
     public static void Play(string id, float vol = 1f) => Play(id, vol, 1f);
     /// <summary>Which volume slider a sound follows: Footsteps (step_*), Interface (menu clicks, level-ups, coins, pickups, portals) or Combat and spells (everything else).</summary>
     static readonly HashSet<string> UiSounds = new() { "click", "level", "coin", "pickup", "portal", "shift" };
-    static float Channel(string id) => id.StartsWith("step_") ? Game.Set.Steps : UiSounds.Contains(id) ? Game.Set.UiVol : Game.Set.Sfx;
+    static float Channel(string id) => id.StartsWith("step_") ? Game.Set.Steps : id.StartsWith("ui_") || UiSounds.Contains(id) ? Game.Set.UiVol : Game.Set.Sfx;
+    // Gothic menu sounds (tools/kit_gen/sfx_synth.py): every "click" uses the heavier ui_click clack when the files exist.
+    static ulong _hoverAt; static string _openName = "";
+    /// <summary>Soft tick when the mouse enters a button; at most one per 60 ms.</summary>
+    public static void UiHover() { ulong n = Time.GetTicksMsec(); if (n - _hoverAt < 60) return; _hoverAt = n; Play("ui_hover"); }
+    /// <summary>A menu panel was (re)built: the open sound plays only when a different panel replaces the previous one.</summary>
+    public static void UiPanel(string name) { if (name == _openName) return; _openName = name; Play("ui_open"); }
+    public static void UiClosed() { if (_openName == "") return; _openName = ""; Play("ui_close"); }
+    public static void UiConfirm() => Play("ui_confirm");
+    public static void UiError() => Play("ui_error");
     /// <summary>Plays a sound at a pitch (1 = as recorded, a little random spread is added).</summary>
     public static void Play(string id, float vol, float pitch)
     {
         if (I == null) return;
         vol *= Gain.GetValueOrDefault(id, 1f);
+        if (id == "click" && Files.ContainsKey("ui_click")) id = "ui_click";
         bool file = Files.TryGetValue(id, out var l) && l.Count > 0;
         var stream = file ? l![(int)(GD.Randi() % (uint)l.Count)] : Gen(id);
         foreach (var p in I._pool)

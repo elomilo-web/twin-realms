@@ -63,7 +63,7 @@ public partial class Avatar : Node3D
         if (Cfg.TryGetProperty("raceFeatures", out var rf) && rf.ValueKind == JsonValueKind.True) RaceFeatures(ap);   // off: no cones for ears, tusks or horns
         _ap = new AnimationPlayer { Name = "Anim" }; Body.AddChild(_ap); _ap.RootNode = new NodePath("..");
         _ap.AddAnimationLibrary("", Library(_sex, _sk));
-        HasModel = true; Play("idle");
+        HasModel = true; Play("idle"); CharRim.Apply(this);
     }
 
     /// <summary>
@@ -456,6 +456,7 @@ public partial class Avatar : Node3D
         bool twoHanded = Weapons.Get(wt).Hands > 1 || Weapons.Get(wt).LeftHand;
         if (wcfg.TryGetProperty(wt, out var wc)) HoldWeapon(wt, wc, w);
         var sh = eq("shield"); if (sh != null && !twoHanded) HoldShield(sh);
+        CharRim.Apply(this);
     }
 
     void HoldWeapon(string wt, JsonElement wc, Item? it)
@@ -896,5 +897,41 @@ public partial class HeadLook : SkeletonModifier3D
         int par = sk.GetBoneParent(b); var pg = par >= 0 ? sk.GetBoneGlobalPose(par).Basis.Orthonormalized() : Basis.Identity;
         var g = sk.GetBoneGlobalPose(b).Basis.Orthonormalized();
         sk.SetBonePoseRotation(b, (pg.Inverse() * (new Basis(q) * g)).GetRotationQuaternion().Normalized());
+    }
+}
+
+/// <summary>Subtle fresnel rim on characters so they read against dark scenes: one shared unshaded additive overlay, driven by global uniforms.</summary>
+public static class CharRim
+{
+    static bool _g; static ShaderMaterial? _mat;
+    public static Material Mat => _mat ??= Make();
+    static ShaderMaterial Make()
+    {
+        Init();
+        return new ShaderMaterial { Shader = new Shader { Code = "shader_type spatial;\nrender_mode unshaded, blend_add, cull_back, depth_draw_never;\nglobal uniform float char_rim;\nglobal uniform vec4 char_rim_col;\nvoid fragment(){ float f = pow(1.0 - clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0), 2.2); ALBEDO = char_rim_col.rgb * f * char_rim; }\n" } };
+    }
+    public static void Init()
+    {
+        if (_g) return; _g = true;
+        RenderingServer.GlobalShaderParameterAdd("char_rim", RenderingServer.GlobalShaderParameterType.Float, 0.18f);
+        RenderingServer.GlobalShaderParameterAdd("char_rim_col", RenderingServer.GlobalShaderParameterType.Vec4, new Vector4(.6f, .7f, .9f, 1));
+    }
+    /// <summary>night 0..1, realmT 0..1 (shadow realm), dungeon: torch-lit interiors (dark, warm rim).</summary>
+    public static void Set(float night, float realmT, bool dungeon = false)
+    {
+        Init();
+        float dark = dungeon ? 1f : Mathf.Clamp(night, 0, 1);
+        float str = Mathf.Lerp(.15f, .25f, dark);
+        var c = new Color(.62f, .74f, .95f).Lerp(new Color(.62f, .38f, 1f), realmT);
+        if (dungeon) c = new Color(.95f, .72f, .5f);
+        RenderingServer.GlobalShaderParameterSet("char_rim", str);
+        RenderingServer.GlobalShaderParameterSet("char_rim_col", new Vector4(c.R, c.G, c.B, 1));
+    }
+    /// <summary>Put the rim overlay on every mesh under root that has no overlay yet.</summary>
+    public static void Apply(Node root)
+    {
+        var m = Mat;
+        void Walk(Node n) { foreach (var c in n.GetChildren()) { if (c is GeometryInstance3D g && g.MaterialOverlay == null) g.MaterialOverlay = m; Walk(c); } }
+        Walk(root);
     }
 }

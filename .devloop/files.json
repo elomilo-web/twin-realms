@@ -267,8 +267,8 @@
     },
     {
         "path":  "scripts/Avatar.cs",
-        "lines":  901,
-        "hash8":  "93dd67cc",
+        "lines":  938,
+        "hash8":  "059de2dc",
         "system":  "animation",
         "summary":  "A character built from the Quaternius universal rig (data/avatar.json): a plain base body (male or..."
     },
@@ -387,7 +387,7 @@
     {
         "path":  "scripts/Enemy.cs",
         "lines":  1033,
-        "hash8":  "1957ca1d",
+        "hash8":  "29693dc7",
         "system":  "enemies",
         "summary":  "Data-driven enemy. Melee, ranged, summoning bosses and the dragon. Stats come from data/enemies.json."
     },
@@ -415,21 +415,21 @@
     {
         "path":  "scripts/EnemyDuelist.cs",
         "lines":  453,
-        "hash8":  "c776045f",
+        "hash8":  "520052a7",
         "system":  "enemies",
         "summary":  "The Shadow Duel boss (Crimson Arena): a dark mirror of the hero. It wears the..."
     },
     {
         "path":  "scripts/EnemyScarletta.cs",
         "lines":  674,
-        "hash8":  "380e254d",
+        "hash8":  "59bc8803",
         "system":  "enemies",
         "summary":  "Scarletta, The Rotting Blade: the raid boss of the Rotting Hollow (DungeonLair.cs), fought solo or..."
     },
     {
         "path":  "scripts/EnemyShade.cs",
         "lines":  77,
-        "hash8":  "3e7beea4",
+        "hash8":  "93c26e40",
         "system":  "enemies",
         "summary":  "Shades (Scarletta\u0027s Rotting Hollow, before the boss room): black mirror images of the party. Each..."
     },
@@ -533,8 +533,8 @@
     },
     {
         "path":  "scripts/Hud.cs",
-        "lines":  423,
-        "hash8":  "49df0a50",
+        "lines":  432,
+        "hash8":  "c0ccda0f",
         "system":  "ui",
         "summary":  "In-game HUD matching the prototype layout: top-left info, compass, quest tracker, target bar, bottom bars,..."
     },
@@ -568,8 +568,8 @@
     },
     {
         "path":  "scripts/ItemSlot.cs",
-        "lines":  149,
-        "hash8":  "e44f67e4",
+        "lines":  154,
+        "hash8":  "a3d377e1",
         "system":  "loot",
         "summary":  "One inventory cell: rarity frame, vector icon, level or count, hover glow. Raises Hover(on) and..."
     },
@@ -813,8 +813,8 @@
     },
     {
         "path":  "scripts/Sfx.cs",
-        "lines":  274,
-        "hash8":  "9d3754ad",
+        "lines":  284,
+        "hash8":  "95021888",
         "system":  "audio",
         "summary":  "Sound effects, ambience and music."
     },
@@ -911,15 +911,15 @@
     },
     {
         "path":  "scripts/Ui.cs",
-        "lines":  944,
-        "hash8":  "02d8d10b",
+        "lines":  1009,
+        "hash8":  "49b1ddbb",
         "system":  "ui",
         "summary":  "All menus and overlays, built in code: notes, banners, dialogue, shop, smith, pack, character, skill..."
     },
     {
         "path":  "scripts/UiAttacks.cs",
-        "lines":  97,
-        "hash8":  "204665d1",
+        "lines":  98,
+        "hash8":  "2cd9d1e8",
         "system":  "combat",
         "summary":  "Basic attacks menu (O, or Skills \u003e Basic attacks): build the chain of swings each..."
     },
@@ -939,8 +939,8 @@
     },
     {
         "path":  "scripts/UiMacros.cs",
-        "lines":  99,
-        "hash8":  "8c57597a",
+        "lines":  98,
+        "hash8":  "a860dd23",
         "system":  "ui",
         "summary":  "Skills \u003e Macros: build the two skill chains for the Macro 1 / Macro 2..."
     },
@@ -968,7 +968,7 @@
     {
         "path":  "scripts/UiSkills.cs",
         "lines":  266,
-        "hash8":  "5f45d317",
+        "hash8":  "ae07c73f",
         "system":  "ui",
         "summary":  "Skills menu (L). Left: every skill as an icon tile (rank pips, hotbar key, lock),..."
     },
@@ -1002,8 +1002,8 @@
     },
     {
         "path":  "scripts/UiWidgets.cs",
-        "lines":  144,
-        "hash8":  "6c905a43",
+        "lines":  145,
+        "hash8":  "90792033",
         "system":  "ui",
         "summary":  "A floating card next to the mouse: a title and a few coloured lines. Used..."
     },
@@ -1065,8 +1065,8 @@
     },
     {
         "path":  "scripts/WorldEnv.cs",
-        "lines":  312,
-        "hash8":  "2da85d35",
+        "lines":  314,
+        "hash8":  "47e5b0d0",
         "system":  "world",
         "summary":  "World: environment, sky, fog, sun/moon light, day/night and realm-blend look, water."
     }

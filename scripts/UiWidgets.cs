@@ -19,11 +19,12 @@ public partial class InfoTip : PanelContainer
         foreach (var c in _v.GetChildren()) { _v.RemoveChild(c); c.QueueFree(); }
         Label L(string t, int size, Color c) { var l = new Label { Text = t, MouseFilter = MouseFilterEnum.Ignore, AutowrapMode = TextServer.AutowrapMode.WordSmart, CustomMinimumSize = new Vector2(width, 0) }; l.AddThemeFontSizeOverride("font_size", size); l.AddThemeColorOverride("font_color", c); _v.AddChild(l); return l; }
         L(title, 17, tc);
+        var rule = new ColorRect { Color = UiTheme.Accent with { A = .55f }, CustomMinimumSize = new Vector2(width, 1), MouseFilter = MouseFilterEnum.Ignore }; _v.AddChild(rule);
         foreach (var (t, c, s) in lines) if (t != "") L(t, s, c);
         Size = Vector2.Zero; Visible = true; ResetSize();
         var scr = GetViewport().GetVisibleRect().Size; var sz = GetCombinedMinimumSize();
         var p = at + new Vector2(20, 18); if (p.X + sz.X > scr.X - 8) p.X = at.X - sz.X - 16; if (p.Y + sz.Y > scr.Y - 8) p.Y = scr.Y - sz.Y - 8;
-        GlobalPosition = new Vector2(Mathf.Max(8, p.X), Mathf.Max(8, p.Y));
+        GlobalPosition = new Vector2(Mathf.Clamp(p.X, 8, Mathf.Max(8, scr.X - sz.X - 8)), Mathf.Clamp(p.Y, 8, Mathf.Max(8, scr.Y - sz.Y - 8)));
     }
 }
 

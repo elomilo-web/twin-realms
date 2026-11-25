@@ -94,7 +94,7 @@ void fragment() {
         if (_av.BladeTip != null) { _dTrail.Base = _av.BladeBase; _dTrail.Tip = _av.BladeTip; }
         AddChild(new OmniLight3D { LightColor = new Color(.6f, .3f, 1f), OmniRange = 5f * _scale, LightEnergy = 1.2f, Position = new Vector3(0, 1.4f * _scale, 0), ShadowEnabled = false });
     }
-    void ShadowOver(Node n) { foreach (var c in n.GetChildren()) { if (c is GeometryInstance3D g && g.MaterialOverlay == null) g.MaterialOverlay = _shadowMat; ShadowOver(c); } }
+    void ShadowOver(Node n) { foreach (var c in n.GetChildren()) { if (c is GeometryInstance3D g && (g.MaterialOverlay == null || g.MaterialOverlay == CharRim.Mat)) g.MaterialOverlay = _shadowMat; ShadowOver(c); } }
     void Tell(float k) => _shadowMat?.SetShaderParameter("glow", Mathf.Clamp(k, 0, 1));
 
     // ------------------------------------------------------------------ hits on the Shadow

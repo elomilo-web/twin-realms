@@ -59,7 +59,7 @@ void fragment() {
     void ShadeTick(float dt)
     {
         if (_shadeMat == null || _av == null || _shadeT > 3f) return; _shadeT += dt;
-        void Over(Node n) { foreach (var c in n.GetChildren()) { if (c is GeometryInstance3D g && g.MaterialOverlay == null) g.MaterialOverlay = _shadeMat; Over(c); } }
+        void Over(Node n) { foreach (var c in n.GetChildren()) { if (c is GeometryInstance3D g && (g.MaterialOverlay == null || g.MaterialOverlay == CharRim.Mat)) g.MaterialOverlay = _shadeMat; Over(c); } }
         Over(_av);
     }
 

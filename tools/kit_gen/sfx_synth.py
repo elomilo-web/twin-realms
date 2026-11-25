@@ -76,9 +76,56 @@ def wade(rng, i):
     return x
 
 
+def hover(rng, i):   # 25 ms soft tick: filtered noise + faint metallic ping
+    t = t_arr(0.025)
+    n = bandpass(rng.standard_normal(t.size), 1200 + 300 * i, 5000) * np.exp(-t * 150)
+    ping = np.sin(2 * np.pi * (2400 + 90 * i) * t) * np.exp(-t * 110)
+    return n * 0.6 + ping * 0.35
+
+
+def click(rng, i):   # 60 ms heavier wood/metal clack
+    t = t_arr(0.06)
+    wood = np.sin(2 * np.pi * (180 + 40 * i) * t * (1 + 0.8 * np.exp(-t * 60))) * np.exp(-t * 55)
+    tick = bandpass(rng.standard_normal(t.size), 600, 4000) * np.exp(-t * 120)
+    metal = (np.sin(2 * np.pi * (1650 + 200 * i) * t) + 0.5 * np.sin(2 * np.pi * 2750 * t)) * np.exp(-t * 90) * 0.25
+    return wood * 0.9 + tick * 0.7 + metal
+
+
+def ui_open(rng):   # low whoosh + page/cloth rustle, 300 ms
+    t = t_arr(0.3)
+    env = np.sin(np.pi * np.clip(t / 0.3, 0, 1) ** 0.7) ** 2
+    whoosh = lowpass(rng.standard_normal(t.size), 420) * env * 3
+    rustle = bandpass(rng.standard_normal(t.size), 1500, 6000) * env * (0.4 + 0.6 * (rng.random(t.size) > 0.6)) * 0.35
+    return whoosh + rustle * (t > 0.04)
+
+
+def ui_close(rng):   # soft thump with a short reversed-swell lead-in, 200 ms
+    t = t_arr(0.2)
+    swell = lowpass(rng.standard_normal(t.size), 500) * (t < 0.08) * (t / 0.08) ** 2 * 1.5
+    k = np.clip(t - 0.08, 0, None)
+    thump = np.sin(2 * np.pi * 85 * (1 + 0.5 * np.exp(-k * 40)) * k) * np.exp(-k * 28) * (t >= 0.08)
+    return swell * 0.5 + thump
+
+
+def ui_confirm():   # warm bell, two partials, 600 ms
+    t = t_arr(0.6)
+    return (np.sin(2 * np.pi * 392 * t) * np.exp(-t * 6) + 0.55 * np.sin(2 * np.pi * 587.3 * t) * np.exp(-t * 7.5)
+            + 0.12 * np.sin(2 * np.pi * 784 * t) * np.exp(-t * 12)) * (1 - np.exp(-t * 900))
+
+
+def ui_error(rng):   # dull low thud, 150 ms
+    t = t_arr(0.15)
+    return np.sin(2 * np.pi * 70 * (1 + 0.4 * np.exp(-t * 50)) * t) * np.exp(-t * 26) + lowpass(rng.standard_normal(t.size), 300) * np.exp(-t * 60) * 0.5
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(1234)
+    ur = np.random.default_rng(777)   # separate stream so the older sounds stay byte-identical
+    for i in range(3): save(f"ui_hover_{i + 1}", hover(ur, i), 0.25)
+    for i in range(2): save(f"ui_click_{i + 1}", click(ur, i), 0.55)
+    save("ui_open", ui_open(ur), 0.45); save("ui_close", ui_close(ur), 0.45)
+    save("ui_confirm", ui_confirm(), 0.5); save("ui_error", ui_error(ur), 0.5)
     for i in range(3): save(f"land_thud_{i + 1}", thud(rng, i), 0.9)
     for i in range(4): save(f"splash_{i + 1}", splash(rng, i), 0.75)
     for i in range(4): save(f"step_water_{i + 1}", wade(rng, i), 0.5)

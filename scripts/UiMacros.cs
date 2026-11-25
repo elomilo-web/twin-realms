@@ -16,23 +16,22 @@ public partial class Ui
         var v = Frame("macros", "Macros", new Vector2(1000, 640), OpenMacros);
 
         // ---- which macro, its key, its name
-        var top = new HBoxContainer(); top.AddThemeConstantOverride("separation", 8); v.AddChild(top);
+        var top = new HFlowContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; top.AddThemeConstantOverride("h_separation", 8); top.AddThemeConstantOverride("v_separation", 6); v.AddChild(top);
         for (int i = 0; i < 2; i++)
         {
             int m = i; var mm = d.MacroAt(i);
             var b = Btn($"Macro {i + 1}  [{Inputs.KeyOf(i == 0 ? Inputs.Macro1 : Inputs.Macro2)}]" + (mm.Name != "" ? $"  {mm.Name}" : ""), () => { _macroTab = m; OpenMacros(); }, true);
-            b.CustomMinimumSize = new Vector2(190, 32); Mark(b, i == _macroTab); top.AddChild(b);
+            b.CustomMinimumSize = new Vector2(0, 32); Mark(b, i == _macroTab); top.AddChild(b);
         }
-        var name = new LineEdit { Text = mac.Name, PlaceholderText = "Name (optional)", MaxLength = 24, CustomMinimumSize = new Vector2(200, 32) }; top.AddChild(name);
+        var name = new LineEdit { Text = mac.Name, PlaceholderText = "Name (optional)", MaxLength = 24, CustomMinimumSize = new Vector2(170, 32) }; top.AddChild(name);
         name.TextChanged += s => { mac.Name = s.Trim(); Game.Save(); };
-        top.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Ignore });
         top.AddChild(Btn("Change keys", () => OpenControls(), true));
         top.AddChild(Btn($"Back to skills ({Inputs.KeyOf(Inputs.SkillsUi)})", OpenSkills, true));
 
         var cols = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; cols.AddThemeConstantOverride("separation", 18); v.AddChild(cols);
 
         // ---- left: settings and the chain
-        var left = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; left.AddThemeConstantOverride("separation", 8); cols.AddChild(left);
+        var left = new VBoxContainer { CustomMinimumSize = new Vector2(280, 0), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsStretchRatio = 1.4f }; left.AddThemeConstantOverride("separation", 8); cols.AddChild(left);
         Choice(left, "Looping", "Hold: tap plays the chain once, holding the key keeps it looping and skips skills on cooldown. Toggle: tap starts looping, tap again stops. Once: always plays the chain one time.",
             new[] { "Hold to loop", "Tap to toggle", "Once" }, Math.Clamp(mac.Loop, 0, 2), i => { mac.Loop = i; Game.Save(); });
         SliderRow(left, "Time between skills", "A pause after each skill finishes, before the next one starts.", mac.Gap, 0f, 2f, .05f, x => $"{x:0.00} s", x => { mac.Gap = x; Game.Save(); });
@@ -75,11 +74,11 @@ public partial class Ui
         }, true));
 
         // ---- right: learned skills to add (hotbar or not)
-        var right = new VBoxContainer { CustomMinimumSize = new Vector2(400, 0) }; right.AddThemeConstantOverride("separation", 6); cols.AddChild(right);
+        var right = new VBoxContainer { CustomMinimumSize = new Vector2(240, 0), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsStretchRatio = 1f }; right.AddThemeConstantOverride("separation", 6); cols.AddChild(right);
         Header("Learned skills", right);
         Lbl("Click to add to the end of the chain.", 14, Dim, right);
-        var gs = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; right.AddChild(gs);
-        var grid = new GridContainer { Columns = 6 }; grid.AddThemeConstantOverride("h_separation", 6); grid.AddThemeConstantOverride("v_separation", 6); gs.AddChild(grid);
+        var gs = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; right.AddChild(gs);
+        var grid = new HFlowContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; grid.AddThemeConstantOverride("h_separation", 6); grid.AddThemeConstantOverride("v_separation", 6); gs.AddChild(grid);
         var learned = Skills.All.Where(k => d.Skills.ContainsKey(k.Id)).ToList();
         if (learned.Count == 0) Lbl("No skills learned yet.", 14, UiTheme.Dim, right);
         foreach (var k in learned)
