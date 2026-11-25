@@ -716,7 +716,7 @@
     {
         "path":  "scripts/Player.cs",
         "lines":  836,
-        "hash8":  "be4c888f",
+        "hash8":  "ca7aae4c",
         "system":  "player",
         "summary":  "The hero: movement, roll, four weapon types (sword, bow, wand, staff), block/parry, four spells, potions,..."
     },
@@ -848,8 +848,8 @@
     },
     {
         "path":  "scripts/SpellFx.cs",
-        "lines":  212,
-        "hash8":  "ed7939e9",
+        "lines":  213,
+        "hash8":  "45f5dc4c",
         "system":  "skills_vfx",
         "summary":  "Plays the hand-drawn-style spell and skill animations in assets/vfx/flipbooks (4x4 sprite sheets made by tools/kit_gen/fx_gen.py)."
     },
@@ -988,8 +988,8 @@
     },
     {
         "path":  "scripts/UiSystem.cs",
-        "lines":  237,
-        "hash8":  "f346de3b",
+        "lines":  226,
+        "hash8":  "39c50701",
         "system":  "ui",
         "summary":  "System menus: the pause menu (hero summary, quick links, save, quit with a confirm step)"
     },
@@ -1023,15 +1023,15 @@
     },
     {
         "path":  "scripts/Vfx.cs",
-        "lines":  490,
-        "hash8":  "f7f59e4f",
+        "lines":  608,
+        "hash8":  "319637e7",
         "system":  "skills_vfx",
         "summary":  "Spell and combat visuals made in code: soft glowing particles, sword trails, fire explosions, frost..."
     },
     {
         "path":  "scripts/Wayshrine.cs",
-        "lines":  64,
-        "hash8":  "8b5f5565",
+        "lines":  68,
+        "hash8":  "e2c53362",
         "system":  "core",
         "summary":  "A gothic wayshrine beside each fast-travel POI: plinth, obelisk with a rune band, hovering sigil."
     },

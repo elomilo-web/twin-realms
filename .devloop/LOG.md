@@ -1,5 +1,14 @@
 # Dev loop log (newest first; max 20 detailed entries, older ones rolled into History)
 
+## #10 (2026-11-24) full sweep + process review #2; vfx, combat, world, code, tools
+- Full sweep: 28 views, 61.9 fps avg, 0 engine errors. Process review #2 in PROCESS.md; PLAYTEST.md checklist for the user.
+- INFRA: 4 of 6 subagents could not edit (auto-mode safety classifier unavailable, "no verdict"); lead applied the small ones from their plans. Camera look-ahead (#10c) and the auto-spot capture helper were NOT done.
+- VFX (Vfx.ElementImpact via SpellFx.Skill): holy light column + gold motes + sigil decal; shadow collapsing sphere + inward wisps + crack decal; poison bubbling puddle + bubbles + mist. Lead fix: System.Func.
+- Combat (lead): riposte also on ranged/wand shots (FireWeapon); connecting heavy blows kick dust + stronger shake (tuning heavy.shake/dust).
+- World (lead): Oakhaven wayshrine at the plaza's south edge (3,-12); shrines walk outward off lakes/shores.
+- Code (lead): removed unused UiSystem.Meter. water_stylized.gdshader proven unused but kept for now (docs/kit README lists it).
+- Capture (lead): spell views on separate spots; meteor wait 1.75 s (fire impact explosion now visible); lightning view still lands in a tree.
+
 ## #9 (2026-11-24) tools, animation, world, graphics, lighting, menus
 - Capture: cast:<skill> action (nova, zap, meteor), freeze_foes, views frost_cast, lightning_cast, fire_impact, wayshrine, character (29 views total).
 - Enemies: directional flinch (0.18 s, 4-14 deg), HitReact clip unless winding up; death tip-over ~80 deg with bounce + dust for big bodies; white kill-flash overlay (cached material).

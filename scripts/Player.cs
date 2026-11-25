@@ -401,7 +401,7 @@ public partial class Player : CharacterBody3D, IDamageable
             SpellFx.Play("hit_spark", e.GlobalPosition + new Vector3(0, e.HeightM() * .55f, 0) + toMe * e.Def.R * e.ScaleF() * .8f, big);
             hits++;
         }
-        if (hits > 0) { Rig?.Shake(_atkPower ? 0.25f : fin ? 0.15f : 0.08f); Sfx.Play("hit"); }
+        if (hits > 0) { Rig?.Shake(_atkPower ? Tune.F("heavy.shake", .32f) : fin ? 0.15f : 0.08f); Sfx.Play("hit"); if (_atkPower) Fx.Dust(GlobalPosition + GlobalTransform.Basis.Z * -1.2f, Tune.F("heavy.dust", 1.4f)); }   // a connecting heavy blow kicks up dust
         if ((_atkPower || fin) && (a.Up > 0 || a.Arc >= 180 || stun > .5f)) { Vfx.Ring(GlobalPosition + Vector3.Up * .08f, range * .9f, w.Trail, .35f); }
         // the block world: the blade meets whatever block is in front at chest height (axes cut wood and leaves, weak swings do nothing to stone)
         var fwd = new Vector3(-Mathf.Sin(_modelYaw), 0, -Mathf.Cos(_modelYaw));
@@ -426,7 +426,7 @@ public partial class Player : CharacterBody3D, IDamageable
         var D = Game.D; var TS = Game.TS; string wt = D.WType();
         var origin = MuzzlePos(); var (target, _) = AimPoint(80f);
         var dir = (target - origin).Normalized();
-        bool crit = GD.Randf() < D.CritChance() + (_atk?.CritBonus ?? 0) / 100f; float dmg = D.WpnDmg() * (float)GD.RandRange(0.9, 1.1) * (crit ? D.CritMult() : 1f);
+        bool crit = GD.Randf() < D.CritChance() + (_atk?.CritBonus ?? 0) / 100f; float dmg = D.WpnDmg() * (float)GD.RandRange(0.9, 1.1) * (crit ? D.CritMult() : 1f) * RiposteMul();   // a riposte after a parry also works for bows and wands
         // the chain step (data/attacks.json): damage, shots in a fan, piercing, blast radius, statuses
         var st = _step; float sm = st != null && st.Id != "power" ? st.Def.Dmg : 1f; int shots = st?.Shots ?? 1; float spreadR = Mathf.DegToRad(st?.Spread ?? 0); bool sPierce = st?.Pierce ?? false;
         void Shoot(string kind, Vector3 d, float speed, float pdmg, float life, bool pierce, float aoe = 0, bool big = false)

@@ -1,0 +1,26 @@
+# Playtest checklist (things the dev loop built but could only check by screenshots)
+
+Play a few minutes and tick what works; write problems into DIRECTIVES.md (or tell Claude). Newest first.
+
+## Combat
+- [ ] Perfect dodge (#2): roll just as an enemy blow lands -> brief slow motion, pale flash, "Perfect dodge!", next hit x1.5.
+- [ ] Guard (F) (#7): blocked hits spark + clang + small push back; guard breaks at 0 stamina ("Guard broken").
+- [ ] Parry (#7): press guard ~0.15 s before a blow -> "Parry!", enemy stunned, next hit within 1.5 s is a x2 "Riposte!".
+- [ ] Hit weight (#4): heavy weapons stop longer on hit; camera punches along the swing; crits/kills feel bigger.
+- [ ] Enemy telegraphs (#4): glint before attacks; red ring before slams/boss blows; big hits stagger enemies.
+- [ ] Enemy flinch + death fall (#9): enemies twist away from hits and tip over when they die.
+
+## Movement and feel
+- [ ] Sprint (#7): wider view, dust kick at start, short skid when stopping.
+- [ ] Landing (#4): falls over ~1.2 m puff dust, thud, small camera shake.
+- [ ] Hero idle (#6): breathing, weight shift, glances around; head turns toward nearby foes (#2).
+
+## Sound (levels are untested by ear)
+- [ ] Footsteps change with the block under your feet (#2): grass, dirt, stone, wood, sand, snow, gravel, ice, water (#6).
+- [ ] Landing thud and water splash/wading (#6) are synthesized: are they too loud/soft?
+
+## World and systems
+- [ ] Torch block (#3): craft 4 torches from 1 planks + 1 coal in the Blocks tab, place with N (build mode), they light up.
+- [ ] Fast travel (#6): blocked while foes hunt you and for 30 s after travelling.
+- [ ] Wayshrines (#8): obelisks at each place light up when discovered.
+- [ ] Pause menu (#7) and character sheet (#9): every button still works.

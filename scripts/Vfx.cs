@@ -305,6 +305,124 @@ public static class Vfx
         Sparks(pos + Vector3.Up * .3f, Ramp((0, new Color(.85f, .95f, 1f, 0)), (.25f, new Color(.8f, .93f, 1f, .35f)), (1, new Color(.7f, .85f, 1f, 0))), 8, .8f, 2.4f, radius * .8f + .6f, .1f, false, 60f, null, radius * .4f, "smoke");
     }
 
+    // ---- holy / shadow / poison impacts: shared meshes + materials, capped decals and live effects ----
+    static ImageTexture? _sigilTex, _crackTex, _puddleTex;
+    static StandardMaterial3D? _holyMat, _voidMat, _wispMat, _bubbleMat;
+    static CylinderMesh? _columnMesh; static SphereMesh? _ballMesh, _bubbleMesh;
+    static readonly Queue<Decal> _sigils = new(), _cracks = new(), _puddles = new();
+    const int MaxGroundMarks = 6, MaxColumns = 4, MaxVoids = 4;
+    static int _columns, _voids;
+
+    static ImageTexture MarkTex(ref ImageTexture? slot, System.Func<int, int, float, float, FastNoiseLite, Color> px, int seed, float freq)
+    {
+        if (slot != null) return slot;
+        const int N = 128; var img = Image.CreateEmpty(N, N, false, Image.Format.Rgba8); var noise = new FastNoiseLite { Frequency = freq, Seed = seed };
+        for (int y = 0; y < N; y++) for (int x = 0; x < N; x++) img.SetPixel(x, y, px(x, y, (x + .5f) / N * 2 - 1, (y + .5f) / N * 2 - 1, noise));
+        return slot = ImageTexture.CreateFromImage(img);
+    }
+    static void MarkDecal(Queue<Decal> q, ImageTexture tex, Vector3 pos, float d, float fade)
+    {
+        while (q.Count > 0 && (!GodotObject.IsInstanceValid(q.Peek()) || q.Count >= MaxGroundMarks)) { var old = q.Dequeue(); if (GodotObject.IsInstanceValid(old)) old.QueueFree(); }
+        float gy = World.GroundAt(pos.X, pos.Z); if (!Dungeon.Active && gy > -50f) pos.Y = gy;
+        var dec = new Decal { TextureAlbedo = tex, Size = new Vector3(d, 3f, d), CullMask = 1, LowerFade = .3f, UpperFade = .3f };
+        Add(dec, pos); dec.Rotation = new Vector3(0, GD.Randf() * Mathf.Tau, 0); q.Enqueue(dec);
+        dec.CreateTween().TweenProperty(dec, "modulate:a", 0f, fade).SetDelay(.4f).SetEase(Tween.EaseType.In); Later(dec, fade + .6f);
+    }
+
+    /// <summary>Holy impact: tall pale-gold light column (0.6 s), rising gold motes, a warm flash and a faint sigil on the ground (4 s). Max 4 columns alive.</summary>
+    public static void HolyImpact(Vector3 pos, float radius)
+    {
+        radius = Mathf.Clamp(radius, 1f, 5f);
+        Flash(pos + Vector3.Up * 1.2f, new Color(1f, .88f, .55f), 3f, radius * 3f, .3f);
+        MarkDecal(_sigils, MarkTex(ref _sigilTex, (x, y, dx, dy, n) =>
+        {
+            float d = Mathf.Sqrt(dx * dx + dy * dy), ring = Mathf.Clamp(1f - Mathf.Abs(d - .78f) / .05f, 0f, 1f), ring2 = Mathf.Clamp(1f - Mathf.Abs(d - .55f) / .03f, 0f, 1f);
+            float cross = Mathf.Max(Mathf.Clamp(1f - Mathf.Abs(dx) / .035f, 0f, 1f) * (Mathf.Abs(dy) < .78f ? 1f : 0f), Mathf.Clamp(1f - Mathf.Abs(dy) / .035f, 0f, 1f) * (Mathf.Abs(dx) < .78f ? 1f : 0f));
+            float a = Mathf.Clamp(Mathf.Max(ring, Mathf.Max(ring2 * .7f, cross)) * (.75f + .25f * n.GetNoise2D(x * 4f, y * 4f)), 0f, 1f) * .55f;
+            return new Color(1f, .88f, .5f, a);
+        }, 5, .05f), pos, radius * 2f, 4f);
+        if (_columns >= MaxColumns) return;
+        _columns++;
+        _columnMesh ??= new CylinderMesh { TopRadius = .55f, BottomRadius = .75f, Height = 1f, RadialSegments = 14, Rings = 1, CapTop = false, CapBottom = false };
+        _holyMat ??= new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, BlendMode = BaseMaterial3D.BlendModeEnum.Add, AlbedoColor = new Color(1f, .9f, .6f, .45f), CullMode = BaseMaterial3D.CullModeEnum.Disabled };
+        float h = 7f, w = Mathf.Max(.8f, radius * .45f);
+        var col = Add(new MeshInstance3D { Mesh = _columnMesh, MaterialOverride = _holyMat, Scale = new Vector3(w * .4f, h, w * .4f), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off }, pos + Vector3.Up * h * .5f);
+        var tw = col.CreateTween().SetParallel();
+        tw.TweenProperty(col, "scale", new Vector3(w, h, w), .15f).SetEase(Tween.EaseType.Out);
+        tw.TweenProperty(col, "transparency", 1f, .45f).SetDelay(.15f);
+        tw.Chain().TweenCallback(Callable.From(() => { _columns = Mathf.Max(0, _columns - 1); if (GodotObject.IsInstanceValid(col)) col.QueueFree(); }));
+        Sparks(pos + Vector3.Up * .2f, Ramp((0, new Color(1f, .95f, .7f, 0)), (.2f, new Color(1f, .9f, .55f, .9f)), (1, new Color(1f, .8f, .35f, 0))), 18, 2.6f, 1.3f, .16f, 1.2f, true, 12f, Vector3.Up, radius * .6f, "spark");
+    }
+
+    /// <summary>Shadow impact: a violet-black sphere collapsing 1.4 -> .2 (0.4 s), wisps spiralling in, a dark crack on the ground (5 s), a dim violet pulse. Max 4 alive.</summary>
+    public static void ShadowImpact(Vector3 pos, float radius)
+    {
+        radius = Mathf.Clamp(radius, 1f, 5f);
+        Flash(pos + Vector3.Up * .8f, new Color(.4f, .15f, .65f), .6f, radius * 2.5f, .4f);
+        MarkDecal(_cracks, MarkTex(ref _crackTex, (x, y, dx, dy, n) =>
+        {
+            float d = Mathf.Sqrt(dx * dx + dy * dy), ang = Mathf.Atan2(dy, dx), arms = Mathf.Abs(Mathf.Sin(ang * 3.5f + n.GetNoise2D(x * 2f, y * 2f) * 3f));
+            float a = Mathf.Clamp(1f - arms * 7f * (.4f + d), 0f, 1f) * Mathf.Clamp((.95f - d) / .5f, 0f, 1f) + Mathf.Clamp((.22f - d) / .12f, 0f, 1f);
+            return new Color(.02f, 0f, .04f, Mathf.Clamp(a * (.7f + .3f * n.GetNoise2D(x * 5f, y * 5f)), 0f, 1f) * .9f);
+        }, 33, .06f), pos, radius * 2.2f, 5f);
+        if (_voids >= MaxVoids) return;
+        _voids++;
+        _ballMesh ??= new SphereMesh { Radius = 1, Height = 2, RadialSegments = 14, Rings = 7 };
+        _voidMat ??= new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, AlbedoColor = new Color(.1f, .03f, .17f, .8f), CullMode = BaseMaterial3D.CullModeEnum.Disabled };
+        float r0 = Mathf.Max(.7f, radius * .5f);
+        var ball = Add(new MeshInstance3D { Mesh = _ballMesh, MaterialOverride = _voidMat, Scale = Vector3.One * r0 * 1.4f, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off }, pos + Vector3.Up * .8f);
+        var tw = ball.CreateTween().SetParallel();
+        tw.TweenProperty(ball, "scale", Vector3.One * r0 * .2f, .4f).SetEase(Tween.EaseType.In).SetTrans(Tween.TransitionType.Cubic);
+        tw.TweenProperty(ball, "transparency", 1f, .4f).SetDelay(.15f);
+        tw.Chain().TweenCallback(Callable.From(() => { _voids = Mathf.Max(0, _voids - 1); if (GodotObject.IsInstanceValid(ball)) ball.QueueFree(); }));
+        _wispMat ??= new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, BlendMode = BaseMaterial3D.BlendModeEnum.Add, AlbedoColor = new Color(.45f, .2f, .8f, .8f) };
+        _bubbleMesh ??= new SphereMesh { Radius = .5f, Height = 1f, RadialSegments = 8, Rings = 4 };
+        for (int i = 0; i < 6; i++)
+        {
+            float a0 = i / 6f * Mathf.Tau + GD.Randf() * .5f, rr = radius * (1.1f + GD.Randf() * .4f), y0 = .3f + GD.Randf() * 1.2f, ay = .8f;
+            var wp = Add(new MeshInstance3D { Mesh = _bubbleMesh, MaterialOverride = _wispMat, Scale = Vector3.One * .22f, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off }, pos);
+            var c0 = pos;
+            wp.CreateTween().TweenMethod(Callable.From<float>(t =>
+            {
+                if (!GodotObject.IsInstanceValid(wp)) return;
+                float a = a0 + t * 3.2f, r = rr * (1f - t);
+                wp.GlobalPosition = c0 + new Vector3(Mathf.Cos(a) * r, Mathf.Lerp(y0, ay, t), Mathf.Sin(a) * r); wp.Transparency = t * t;
+            }), 0f, 1f, .4f);
+            Later(wp, .45f);
+        }
+    }
+
+    /// <summary>Poison impact: green bubbling puddle decal (5 s), a few rising bubbles that pop, and a low drifting green mist.</summary>
+    public static void PoisonImpact(Vector3 pos, float radius)
+    {
+        radius = Mathf.Clamp(radius, 1f, 5f);
+        MarkDecal(_puddles, MarkTex(ref _puddleTex, (x, y, dx, dy, n) =>
+        {
+            float d = Mathf.Sqrt(dx * dx + dy * dy), edge = .78f + n.GetNoise2D(x * 2.5f, y * 2.5f) * .22f, a = Mathf.Clamp((edge - d) / .2f, 0f, 1f);
+            float bub = Mathf.Clamp(n.GetNoise2D(x * 7f + 90, y * 7f) * 3f - 1.1f, 0f, 1f);   // lighter bubble blotches
+            return new Color(.35f + bub * .3f, .62f + bub * .25f, .12f + bub * .1f, a * (.7f + bub * .25f));
+        }, 61, .05f), pos, radius * 2f, 5f);
+        _bubbleMesh ??= new SphereMesh { Radius = .5f, Height = 1f, RadialSegments = 8, Rings = 4 };
+        _bubbleMat ??= new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, AlbedoColor = new Color(.5f, .85f, .2f, .65f) };
+        float gy = World.GroundAt(pos.X, pos.Z); if (!Dungeon.Active && gy > -50f) pos.Y = gy;
+        for (int i = 0; i < 5; i++)
+        {
+            float a = GD.Randf() * Mathf.Tau, r = radius * .7f * Mathf.Sqrt(GD.Randf()), s = .12f + GD.Randf() * .12f, rise = .5f + GD.Randf() * .6f, dl = i * .12f;
+            var b = Add(new MeshInstance3D { Mesh = _bubbleMesh, MaterialOverride = _bubbleMat, Scale = Vector3.One * .01f, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off }, pos + new Vector3(Mathf.Cos(a) * r, .05f, Mathf.Sin(a) * r));
+            var tw = b.CreateTween(); tw.TweenInterval(dl);
+            tw.SetParallel().TweenProperty(b, "scale", Vector3.One * s, .5f); tw.TweenProperty(b, "position:y", b.Position.Y + rise, .5f);
+            tw.Chain().TweenProperty(b, "scale", Vector3.One * s * 1.5f, .06f); tw.TweenProperty(b, "transparency", 1f, .06f);   // pop
+            Later(b, dl + .7f);
+        }
+        Sparks(pos + Vector3.Up * .25f, Ramp((0, new Color(.4f, .7f, .2f, 0)), (.25f, new Color(.4f, .7f, .15f, .4f)), (1, new Color(.3f, .5f, .1f, 0))), 8, .7f, 2.2f, radius * .8f + .5f, .05f, false, 70f, null, radius * .4f, "smoke");
+    }
+
+    /// <summary>One entry point for element impacts without a dedicated effect of their own (fire/frost/lightning have theirs).</summary>
+    public static void ElementImpact(string type, Vector3 pos, float radius)
+    {
+        switch (type) { case "holy": HolyImpact(pos, radius); break; case "shadow": ShadowImpact(pos, radius); break; case "poison": PoisonImpact(pos, radius); break; }
+    }
+
     // ---- lightning strike impact: sky bolt, flash, small scorch ----
     static StandardMaterial3D? _boltMat;
     static int _strikes; static ulong _lastStrikeMs;

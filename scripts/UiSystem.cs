@@ -107,17 +107,6 @@ public partial class Ui
         GD.Print("[UI] quit to title"); _confirmQuit = false; Game.Save(); Net.I?.Shutdown(); GetTree().Paused = false; InGame = false; GetTree().ReloadCurrentScene();
     }
 
-    /// <summary>Labelled bar with "value / max" on the right.</summary>
-    void Meter(Node parent, string name, float val, float max, Color col)
-    {
-        var h = new HBoxContainer(); h.AddThemeConstantOverride("separation", 8); parent.AddChild(h);
-        var n = Lbl(name, 13, Dim, h); n.CustomMinimumSize = new Vector2(26, 0);
-        var bar = new ProgressBar { MinValue = 0, MaxValue = Math.Max(1f, max), Value = Mathf.Clamp(val, 0, max), ShowPercentage = false, CustomMinimumSize = new Vector2(0, 8), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ShrinkCenter, MouseFilter = Control.MouseFilterEnum.Ignore };
-        bar.AddThemeStyleboxOverride("background", new StyleBoxFlat { BgColor = new Color(0, 0, 0, .45f) }); bar.AddThemeStyleboxOverride("fill", new StyleBoxFlat { BgColor = col });
-        h.AddChild(bar);
-        var t = Lbl($"{Mathf.CeilToInt(val)} / {Mathf.RoundToInt(max)}", 13, Colors.White, h); t.CustomMinimumSize = new Vector2(84, 0); t.HorizontalAlignment = HorizontalAlignment.Right;
-    }
-
     // ---------------------------------------------------------------- settings
     public void OpenSettings(string tab) { _setTab = tab; OpenSettings(); }
     public void OpenSettings()

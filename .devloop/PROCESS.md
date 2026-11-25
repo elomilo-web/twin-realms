@@ -25,7 +25,18 @@
   Compare partial runs against full/ when previous/ is a partial set.
 - Keep 6 items per cycle; lead fixes small look problems found in verify instead of deferring them (worked well in #4).
 
+## Review #10 (2026-11-24)
+- Cycles 6-9: 6 items each, every cycle shipped; 1-2 lead compile fixes per cycle (namespace, static vs instance, GPU-only
+  particle props, non-const shader globals) -> added to GOTCHAS. Visual verification catches real problems (tufts hidden by
+  the grass shader, opaque telegraph disc, pause overflow): keep "lead looks at every changed view".
+- Gameplay features pile up untested in play (no bot runs by user preference): keep .devloop/PLAYTEST.md, a short checklist
+  for the user, updated each cycle with new mechanics.
+- Spell/action views must use distinct spots (block world remembers craters and ice between views).
+
 ## API GOTCHAS (paste into every brief)
+New files: `namespace TwinRealms;` after the usings. Ui helpers like Lbl/Btn are instance methods (no `static` callers).
+CpuParticles3D has no Turbulence* (GPU only). Shader globals must be `const` (or uniforms). GeometryInstance3D.ShadowCastingSetting
+needs the class prefix outside GeometryInstance3D subclasses.
 Godot 4.7 C#: CpuParticles3D / GpuParticles3D (not CPUParticles3D); lights have no VisibilityRangeEnd (use
 DistanceFadeEnabled/Begin/Length); TorusMesh uses InnerRadius/OuterRadius/Rings/RingSegments; Engine.TimeScale must
 always be restored; no `?.` on the left of an assignment; Color.FromHtml for hex; StandardMaterial3D per-instance only if cached.

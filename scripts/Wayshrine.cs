@@ -26,7 +26,11 @@ public partial class Wayshrine : Node3D
         foreach (var p in World.Pois)
         {
             if (p.Icon == "peak" || p.Icon == "lake") { /* still travel targets */ }
-            float x = p.X + 4.5f, z = p.Z + 4f;
+            // Oakhaven's plaza centre holds the well and stalls: its shrine stands at the south edge (devloop #10)
+            var off = p.Id == "village" ? new Vector2(3f, -12f) : new Vector2(4.5f, 4f);
+            float x = p.X + off.X, z = p.Z + off.Y;
+            // lakes and shores: walk outward until the ground is above the water
+            for (int k = 0; k < 12 && !p.Sky && Lands.WaterAt(x, z) > World.GroundAt(x, z) - .2f; k++) { var dir = off.Normalized(); x += dir.X * 4f; z += dir.Y * 4f; }
             float y = p.Sky ? p.Y : World.GroundAt(x, z);
             var w = new Wayshrine { _id = p.Id, Position = new Vector3(x, y, z) };
             parent.AddChild(w); w.Setup(Game.D.Disc.Contains(p.Id)); All[p.Id] = w;

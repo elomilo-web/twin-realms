@@ -88,6 +88,7 @@ void fragment() {
     {
         string n = For(skillId, moment); if (n == "") return null;
         if (!Remote) Net.I?.Fx(Spellcraft.FxOf(skillId), moment, pos, scale, life, false);   // (friends do not know our crafted spells, only what they look like)   // multiplayer: friends nearby see our skills (Settings > Game)
+        if (moment is "hit" or "ground" && Skills.Get(Spellcraft.FxOf(skillId)) is { } sd) Vfx.ElementImpact(sd.Type, pos, scale * 1.5f);   // holy / shadow / poison impact extras (no-op for other elements)
         return Play(n, pos, scale, life);
     }
 

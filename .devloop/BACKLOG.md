@@ -1,4 +1,5 @@
-[4][S][tools] Spell capture views share one spot: spell_cast's meteor crater + frost ice ruin the later views; give each cast view its own player_at (>= 40 m apart); lightning_cast cast_wait .12 misses the bolt (try .05 after the cast lands / target a foe in range), fire_impact 1.2 s shows only the meteor targeting runes (meteor falls later: wait ~2.2 s) -> viewpoints.json
+[4][M][feel] Camera look-ahead + soft collision ease-out + shoulder offset (planned #10, blocked by infra): lead 0.8/1.2 m, ease-out .35 s, HOffset .35 blended off when sprinting/locked; note Feel.Shoulder already offsets HOffset -> CameraRig.cs
+[3][S][tools] lightning_cast view: camera inside a tree at [20,-70]; add the auto open-spot helper (flat, dry, >25 m from POIs, no trees within 6 m) -> DevCapture.cs, viewpoints.json
 # Backlog (prioritized; one item per line)
 Format: [impact 1-5][effort S/M/L][category] description -> target files. Top = next. Remove when done (log it in LOG.md).
 Categories: graphics shaders lighting animation feel combat mechanics ui menus world vfx audio perf code tools
@@ -28,12 +29,11 @@ Categories: graphics shaders lighting animation feel combat mechanics ui menus w
 [3][S][feel] Dodge/head-look/stagger views exist now: judge perfect-dodge flash, lean sign, stagger lean next cycle
 [3][S][tools] stagger view: the wolf is not in frame; spawn foe at 3 m and frame both -> viewpoints.json, DevCapture.cs foes distance
 [2][S][audio] Listen pass needed: synthesized thud/splash levels vs step_* (user ears) -> Sfx.cs volumes
-[3][S][combat] Riposte x2 only on the main melee path (Player.cs ~385); second damage site ~421 unknown: check (skills? heavy attack?) -> Player.cs
 [3][M][code] Enemy._PhysicsProcess 255 lines with inline state switch: extract per-state methods into EnemyAi.cs (logic-preserving refactor; needs a bot check if the user allows) -> Enemy.cs, EnemyAi.cs
 [3][S][menus] Pause menu dropped the stats grid (gold, valor, kills, played): consider a small stats strip at the bottom -> UiSystem.cs OpenPause
-[3][S][mechanics] Wayshrines at lake/peak POIs may stand in water or on cliffs; fixed offset ignores buildings: check each POI shrine in a capture sweep -> Wayshrine.cs
 [3][S][audio] Soundscape is dormant (ambient.json sound:false): needs day_birds, breeze, bird/owl/crow one-shots (CC0 or synthesized) before enabling; replace 'hurt' crow stand-in -> assets/audio, data/ambient.json
 [2][S][ui] Nameplate badge offset estimated from text length; check alignment in a close capture -> Enemy.cs
 [3][S][animation] Enemies with a Death clip get the clip AND the tip-over (double); skip tip for bodies with a Death clip or blend -> Enemy.cs Die
-[3][S][world] Wayshrine stands in the middle of Oakhaven plaza (POI centre + 4.5,4) next to the well: move village shrine to the plaza edge -> Wayshrine.cs offset per POI (data/world.json shrine offset)
 [2][S][animation] Puppets (multiplayer clients) get no flinch/death fall: drive visuals from replicated hit/death events -> Enemy.cs, NetAggro
+[2][S][code] water_stylized.gdshader unused (proof in LOG #10): delete together with its docs/kit/README.md row -> assets/shaders, docs/kit/README.md
+[3][S][vfx] Holy/shadow/poison impacts (#10) need capture views (cast a holy/shadow/poison skill) -> viewpoints.json
