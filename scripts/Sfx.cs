@@ -156,6 +156,7 @@ public partial class Sfx : Node
             "water" => ("step_water", 1f, .5f),
             "sand" => ("step_soft", .92f, .55f), "snow" => ("step_soft", .68f, .6f), _ => ("step_soft", 1.18f, .32f),   // grass: the soft steps, lighter
         };
+        if (who is Player) Fx.Footfall(p, kind, speed);
         vol *= Mathf.Lerp(.75f, 1.15f, Mathf.Clamp((speed - 1f) / 5f, 0, 1));
         Play(id, vol, pitch * (.94f + GD.Randf() * .12f));
     }

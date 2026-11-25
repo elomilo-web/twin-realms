@@ -281,8 +281,8 @@
     },
     {
         "path":  "scripts/BlockFx.cs",
-        "lines":  146,
-        "hash8":  "e32ced8c",
+        "lines":  157,
+        "hash8":  "b34b39ef",
         "system":  "blockworld",
         "summary":  "How hits change the block world, the same for every skill, basic attack, crafted spell..."
     },
@@ -295,8 +295,8 @@
     },
     {
         "path":  "scripts/BlockMesher.cs",
-        "lines":  195,
-        "hash8":  "68a14d81",
+        "lines":  240,
+        "hash8":  "f00db345",
         "system":  "blockworld",
         "summary":  "A chunk\u0027s finished mesh: one surface per material, plus the faces for its collision shape...."
     },
@@ -365,8 +365,8 @@
     },
     {
         "path":  "scripts/dev/DevCapture.cs",
-        "lines":  341,
-        "hash8":  "9be3cdf7",
+        "lines":  347,
+        "hash8":  "1bb9d1f6",
         "system":  "devtools",
         "summary":  "Dev loop eyes (autoload). Does nothing unless the game is started with the user arg..."
     },
@@ -470,8 +470,8 @@
     },
     {
         "path":  "scripts/Fx.cs",
-        "lines":  77,
-        "hash8":  "0721db09",
+        "lines":  111,
+        "hash8":  "bf3bafd5",
         "system":  "skills_vfx",
         "summary":  "Cheap visual effects: particle bursts and expanding rings."
     },
@@ -533,8 +533,8 @@
     },
     {
         "path":  "scripts/Hud.cs",
-        "lines":  504,
-        "hash8":  "ea6deafc",
+        "lines":  508,
+        "hash8":  "243025de",
         "system":  "ui",
         "summary":  "In-game HUD matching the prototype layout: top-left info, compass, quest tracker, target bar, bottom bars,..."
     },
@@ -715,15 +715,15 @@
     },
     {
         "path":  "scripts/Player.cs",
-        "lines":  857,
-        "hash8":  "a452a580",
+        "lines":  864,
+        "hash8":  "023a9106",
         "system":  "player",
         "summary":  "The hero: movement, roll, four weapon types (sword, bow, wand, staff), block/parry, four spells, potions,..."
     },
     {
         "path":  "scripts/PlayerBlocks.cs",
-        "lines":  187,
-        "hash8":  "271f93fd",
+        "lines":  237,
+        "hash8":  "ed29d7b2",
         "system":  "blockworld",
         "summary":  "The hero and the block world: build mode (Inputs.BuildMode, N) with a crosshair target, hold..."
     },
@@ -813,8 +813,8 @@
     },
     {
         "path":  "scripts/Sfx.cs",
-        "lines":  284,
-        "hash8":  "95021888",
+        "lines":  285,
+        "hash8":  "742bb8a7",
         "system":  "audio",
         "summary":  "Sound effects, ambience and music."
     },
@@ -911,8 +911,8 @@
     },
     {
         "path":  "scripts/Ui.cs",
-        "lines":  736,
-        "hash8":  "5cc2a441",
+        "lines":  764,
+        "hash8":  "60cabe26",
         "system":  "ui",
         "summary":  "All menus and overlays, built in code: notes, banners, dialogue, shop, smith, pack, character, skill..."
     },

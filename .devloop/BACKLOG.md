@@ -1,4 +1,5 @@
-[3][S][tools] Burn (hud view) leaves a red screen tint in the following menu views: clear Status effects + hurt vignette after each view -> DevCapture.cs
+[3][S][menus] Inventory window now sits left of centre (was right): find why Frame centring differs for the pack (custom panel offsets?) -> Ui.cs OpenPack, Frame
+[3][S][feel] Roll facing: Player.cs ~L657 has _modelYaw = Util.YawTo(_rollDir...) inside a comment; check in play whether the hero should face the roll direction -> Player.cs (PLAYTEST)
 [2][S][perf] CritFx re-reads feel.json each crit via Cf(): cache the crit block -> Player.cs
 [3][S][ui] Compass quest marker: quests have no target positions; add optional x/z to data/quests.json objectives and show a gold diamond -> Quests.cs, data/quests.json, Hud.cs
 [2][S][world] Arena floor still faintly stripy (plaster tint): add a real CC0 soil/sand scanned set (ambientCG Ground/Soil) to assets/textures/gothic -> tools/blender_gothic or foliage_tex.ps1-like fetch, ASSETS.md
@@ -24,7 +25,6 @@ Categories: graphics shaders lighting animation feel combat mechanics ui menus w
 [2][S][tools] DevCapture: add viewpoints for block build mode (N) and a crater after Meteor -> .devloop/viewpoints.json, DevCapture.cs actions
 [3][S][ui] Inventory slots framed (#3); equipment paper-doll silhouette still missing; slot colours hard-coded in ItemSlot.Inset -> ItemSlot.cs, Ui.cs OpenPack
 [3][S][vfx] Sword trail restyled (#3): judge in a swing close-up; tune spark threshold 8 m/s -> Vfx.cs SwordTrail, assets/shaders/sword_trail.gdshader
-[2][M][mechanics] Ladders and doors as placeable blocks -> data/blocks.json, BlockMesher.cs shapes
 [3][S][shaders] Frostmere lake shows white floe-like blotches (sea macro/foam on lakes): fine for frost, but check temperate lakes; gate by land biome -> WorldEnv.cs WaterShader
 [3][S][feel] Dodge/head-look/stagger views exist now: judge perfect-dodge flash, lean sign, stagger lean next cycle
 [3][S][tools] stagger view: the wolf is not in frame; spawn foe at 3 m and frame both -> viewpoints.json, DevCapture.cs foes distance

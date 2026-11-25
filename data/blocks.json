@@ -55,7 +55,7 @@
  },
  "build": {
   "_help": "blocks you can place in build mode cycle with the mouse wheel; the first owned one is chosen",
-  "order": ["dirt", "cobblestone", "stone", "planks", "log", "brick", "dark_stone", "glass", "sand", "gravel", "sandstone", "snow", "ice", "packed_ice", "leaves", "obsidian", "grass", "torch"]
+  "order": ["dirt", "cobblestone", "stone", "planks", "log", "brick", "dark_stone", "glass", "sand", "gravel", "sandstone", "snow", "ice", "packed_ice", "leaves", "obsidian", "grass", "torch", "ladder", "door"]
  },
  "recipes": {
   "_help": "crafting window, Blocks tab: what you get from what you pay (block ids from this file or materials from data/gather.json)",
@@ -66,7 +66,9 @@
   "sandstone":   { "out": 1, "cost": { "sand": 2 } },
   "packed_ice":  { "out": 1, "cost": { "ice": 4 } },
   "dark_stone":  { "out": 2, "cost": { "cobblestone": 2, "coal_ore": 1 } },
-  "torch":       { "out": 4, "cost": { "planks": 1, "coal_ore": 1 } }
+  "torch":       { "out": 4, "cost": { "planks": 1, "coal_ore": 1 } },
+  "ladder":      { "out": 4, "cost": { "planks": 3 } },
+  "door":        { "out": 1, "cost": { "planks": 4 } }
  },
  "blocks": {
   "bedrock":      { "n": "Bedrock",       "hardness": -1, "mat": { "gothic": "G_Rock", "color": "#3a3438" } },
@@ -98,6 +100,9 @@
   "iron_ore":     { "n": "Iron Ore",      "hardness": 3.0, "tool": "pickaxe", "drops": "ironore", "mat": { "gothic": "G_Rock", "color": "#b08a70", "tile": 1 } },
   "gold_ore":     { "n": "Gold Ore",      "hardness": 3.0, "tool": "pickaxe", "drops": "gold_ore", "mat": { "gothic": "G_Rock", "color": "#d8b860", "tile": 1 } },
   "crystal_ore":  { "n": "Crystal Ore",   "hardness": 4.0, "tool": "pickaxe", "drops": "crystal", "light": 0.3, "mat": { "gothic": "G_Rock", "color": "#9a80d8", "glow": 0.25, "tile": 1 } },
-  "path_rut":     { "n": "Cart Rut",      "hardness": 0.6, "tool": "shovel", "drops": "dirt", "mat": { "top": { "tex": "terrain/gravel", "color": "#7e705c", "tile": 2 }, "side": { "tex": "terrain/gravel", "color": "#6b5642", "tile": 2, "lip": "#5a4c3c" }, "bottom": { "tex": "terrain/gravel", "color": "#6b5642", "tile": 2 } } }
+  "path_rut":     { "n": "Cart Rut",      "hardness": 0.6, "tool": "shovel", "drops": "dirt", "mat": { "top": { "tex": "terrain/gravel", "color": "#7e705c", "tile": 2 }, "side": { "tex": "terrain/gravel", "color": "#6b5642", "tile": 2, "lip": "#5a4c3c" }, "bottom": { "tex": "terrain/gravel", "color": "#6b5642", "tile": 2 } } },
+  "ladder":       { "n": "Ladder", "step": "wood", "hardness": 0.4, "tool": "axe", "solid": false, "see": true, "shape": "ladder", "drops": "ladder", "burn": 6, "burnsTo": "", "mat": { "gothic": "G_Planks", "color": "#8a6c4a", "tile": 1 } },
+  "door":         { "n": "Door", "step": "wood", "hardness": 1.0, "tool": "axe", "see": true, "shape": "door", "drops": "door", "burn": 8, "burnsTo": "", "mat": { "gothic": "G_Planks", "color": "#8a6a48", "tile": 1 } },
+  "door_open":    { "n": "Open Door", "step": "wood", "hardness": 1.0, "tool": "axe", "solid": false, "see": true, "shape": "door", "drops": "door", "burn": 8, "burnsTo": "", "mat": { "gothic": "G_Planks", "color": "#8a6a48", "tile": 1 } }
  }
 }

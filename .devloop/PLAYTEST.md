@@ -26,6 +26,8 @@ Play a few minutes and tick what works; write problems into DIRECTIVES.md (or te
 - [ ] Landing thud and water splash/wading (#6) are synthesized: are they too loud/soft?
 
 ## World and systems
+- [ ] Ladders and doors (#17): craft in the Blocks tab, place with N; climb ladders (forward/jump up, back down); E opens/closes doors.
+- [ ] Dodge roll (#17): dust + smoke trail; does the hero face the roll direction? (code for that is commented out)
 - [ ] Rain (#14): every 6-15 min the weather may turn to rain (streaks, splashes, darker foggier sky); never in dungeons.
 - [ ] Wind (#14): grass gusts and tree leaves sway; trunks stay still.
 - [ ] Enemy heads (#14): hunting enemies turn their heads to you; idle ones look around (tell me if a creature looks the wrong way).

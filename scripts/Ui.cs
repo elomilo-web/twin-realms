@@ -310,45 +310,46 @@ public partial class Ui : CanvasLayer
         var cap = Lbl($"Pack {d.Inv.Count}/28", 16, d.Inv.Count >= 26 ? new Color(1, .6f, .5f) : Dim, top); cap.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; cap.HorizontalAlignment = HorizontalAlignment.Right;
         var cols = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; cols.AddThemeConstantOverride("separation", 22); v.AddChild(cols);
         // ---- left: equipment slots around a silhouette, stats, materials
-        var left = new VBoxContainer { CustomMinimumSize = new Vector2(300, 0) }; left.AddThemeConstantOverride("separation", 6); cols.AddChild(left);
+        var left = new VBoxContainer { CustomMinimumSize = new Vector2(320, 0) }; left.AddThemeConstantOverride("separation", 6); cols.AddChild(left);
         Lbl("EQUIPPED", 15, UiTheme.Accent, left);
-        var doll = new GridContainer { Columns = 2 }; doll.AddThemeConstantOverride("h_separation", 8); doll.AddThemeConstantOverride("v_separation", 6); left.AddChild(doll);
+        var doll = new PaperDoll { CustomMinimumSize = new Vector2(320, 344) }; left.AddChild(doll);
+        var dollPos = new Dictionary<string, Vector2> { ["head"] = new(132, 0), ["armor"] = new(132, 108), ["hands"] = new(22, 178), ["feet"] = new(132, 286), ["weapon"] = new(242, 150), ["shield"] = new(22, 106), ["trinket"] = new(242, 78), ["cape"] = new(22, 34) };
         foreach (var slot in PlayerStats.Slots)
         {
             var it = d.Eq.GetValueOrDefault(slot); string sl = slot;
-            var cell = new ItemSlot { Item = it, Empty = slot, Wide = true, CustomMinimumSize = new Vector2(144, 50) }; doll.AddChild(cell);
+            var cell = new ItemSlot { Item = it, Empty = slot, CustomMinimumSize = new Vector2(56, 56), Size = new Vector2(56, 56), Position = dollPos.GetValueOrDefault(slot, Vector2.Zero), TooltipText = it == null ? Cap(slot) : "" }; doll.AddChild(cell);
             cell.Hover += on => ShowTip(on ? it : null, cell, null);
             cell.Clicked += right => { if (it == null) return; if (d.Inv.Count >= 28) { Note("Pack is full", new Color(1, .5f, .5f)); return; } d.Eq[sl] = null; d.Inv.Add(it); Sfx.Play("click"); Game.Notify(); OpenPack(); };
         }
-        var stats = new GridContainer { Columns = 2 }; stats.AddThemeConstantOverride("h_separation", 18); left.AddChild(stats);
+        var stats = new GridContainer { Columns = 2 }; stats.AddThemeConstantOverride("h_separation", 18); stats.AddThemeConstantOverride("v_separation", 0); left.AddChild(stats);
         foreach (var (k, val) in new[] { ("Damage", $"{d.WpnDmg():0}"), ("Defense", $"{d.Defense()}"), ("Crit", $"{d.CritChance() * 100:0}%"), ("Spell power", $"x{d.SpellPow():0.00}"), ("Health", $"{d.MaxHp()}"), ("Mana", $"{d.MaxMp()}") })
-        { var row = new HBoxContainer { CustomMinimumSize = new Vector2(138, 0) }; stats.AddChild(row); var a = Lbl(k, 14, Dim, row); a.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; Lbl(val, 14, Colors.White, row); }
+        { var row = new HBoxContainer { CustomMinimumSize = new Vector2(150, 0) }; stats.AddChild(row); var a = Lbl(k, 14, GoldC, row); a.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; Lbl(val, 14, Colors.White, row); }
         Lbl("MATERIALS", 15, UiTheme.Accent, left);
         var mg = new GridContainer { Columns = 5 }; mg.AddThemeConstantOverride("h_separation", 6); mg.AddThemeConstantOverride("v_separation", 6); left.AddChild(mg); int kinds = 0;
         foreach (var kv in d.Mats) if (kv.Value > 0)
         {
             var m = GatherDb.Mat(kv.Key); var cell = new ItemSlot { IconId = m.Name, Count = kv.Value, Tint = m.Col, CustomMinimumSize = new Vector2(52, 52), TooltipText = $"{m.Name} x{kv.Value}  ({m.Value}g each)" }; mg.AddChild(cell); kinds++;
         }
-        if (kinds == 0) { var l = Row(left, "Nothing gathered yet. Press E near herbs, mushrooms, berries, ore, crystals and fallen logs.", Dim, 13); l.CustomMinimumSize = new Vector2(290, 0); }
+        if (kinds == 0) { var l = Row(left, "Nothing gathered yet. Press E near herbs, mushrooms, berries, ore, crystals and fallen logs.", Dim, 13); l.CustomMinimumSize = new Vector2(310, 0); }
         // ---- right: 7 x 4 item grid
         var right = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; right.AddThemeConstantOverride("separation", 6); cols.AddChild(right);
-        var hdr = new HBoxContainer(); right.AddChild(hdr); var il = Lbl("ITEMS", 15, UiTheme.Accent, hdr); il.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        hdr.AddChild(Btn("Sort", () => { d.Inv.Sort((a, b) => b.Rar != a.Rar ? b.Rar.CompareTo(a.Rar) : string.Compare(a.Slot, b.Slot, StringComparison.Ordinal)); Sfx.Play("click"); OpenPack(); }, true));
-        var sb = Btn(_scrapMode ? "Disassemble: ON" : "Disassemble", () => { _scrapMode = !_scrapMode; OpenPack(); }, true); Mark(sb, _scrapMode); hdr.AddChild(sb);
-        hdr.AddChild(Btn("Scrap commons", () =>
+        var hdr = new HBoxContainer(); hdr.AddThemeConstantOverride("separation", 4); right.AddChild(hdr); var il = Lbl("ITEMS", 15, UiTheme.Accent, hdr); il.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        hdr.AddChild(GoldTab("Sort", () => { d.Inv.Sort((a, b) => b.Rar != a.Rar ? b.Rar.CompareTo(a.Rar) : string.Compare(a.Slot, b.Slot, StringComparison.Ordinal)); Sfx.Play("click"); OpenPack(); }));
+        hdr.AddChild(GoldTab(_scrapMode ? "Disassemble: ON" : "Disassemble", () => { _scrapMode = !_scrapMode; OpenPack(); }, _scrapMode));
+        hdr.AddChild(GoldTab("Scrap commons", () =>
         {
             int n = 0; var parts = new Dictionary<string, int>();
             foreach (var it in d.Inv.FindAll(x => x.Rar == 0 && x.Set == null && !x.Unique)) { foreach (var (id, c) in LootTables.Scraps(it)) { d.Mats[id] = d.Mats.GetValueOrDefault(id) + c; parts[id] = parts.GetValueOrDefault(id) + c; } d.Inv.Remove(it); n++; }
             if (n > 0) { Note($"Scrapped {n} common items: " + string.Join(", ", parts.Select(kv => $"+{kv.Value} {GatherDb.Mat(kv.Key).Name}")), Dim); Sfx.Play("hit"); }
             Game.Notify(); OpenPack();
-        }, true));
-        hdr.AddChild(Btn("Pickup filter", OpenPickFilter, true));
-        hdr.AddChild(Btn("Crafting", () => OpenCraft("gear"), true));
+        }));
+        hdr.AddChild(GoldTab("Pickup filter", OpenPickFilter));
+        hdr.AddChild(GoldTab("Crafting", () => OpenCraft("gear")));
         var grid = new GridContainer { Columns = 7 }; grid.AddThemeConstantOverride("h_separation", 6); grid.AddThemeConstantOverride("v_separation", 6); right.AddChild(grid);
         for (int i = 0; i < 28; i++)
         {
             int k = i; var it = i < d.Inv.Count ? d.Inv[i] : null;
-            var cell = new ItemSlot { Item = it, CustomMinimumSize = new Vector2(66, 66) }; grid.AddChild(cell);
+            var cell = new ItemSlot { Item = it, CustomMinimumSize = new Vector2(60, 60) }; grid.AddChild(cell);
             if (it == null) continue;
             cell.Hover += on => ShowTip(on ? it : null, cell, d.Eq.GetValueOrDefault(it.Slot));
             cell.Clicked += rightBtn =>
@@ -365,6 +366,33 @@ public partial class Ui : CanvasLayer
         Lbl(filt, 12, Dim, right);
     }
     static bool _scrapMode;
+    /// <summary>Flat gold text tab with an underline (brighter when active or hovered).</summary>
+    static Button GoldTab(string t, Action a, bool active = false)
+    {
+        var b = Btn(t, a, true); b.Flat = true;
+        StyleBoxFlat Sb(Color ul) { var s = new StyleBoxFlat { BgColor = new Color(0, 0, 0, 0), BorderColor = ul, ContentMarginLeft = 6, ContentMarginRight = 6, ContentMarginTop = 2, ContentMarginBottom = 2 }; s.BorderWidthBottom = 2; return s; }
+        var dimU = new Color(GoldC, .35f); var hot = GoldC;
+        b.AddThemeStyleboxOverride("normal", Sb(active ? hot : dimU)); b.AddThemeStyleboxOverride("hover", Sb(hot)); b.AddThemeStyleboxOverride("pressed", Sb(hot)); b.AddThemeStyleboxOverride("focus", Sb(hot));
+        foreach (var n in new[] { "font_color", "font_hover_color", "font_pressed_color" }) b.AddThemeColorOverride(n, active ? GoldC.Lightened(.25f) : GoldC);
+        return b;
+    }
+    /// <summary>Dim iron silhouette of a standing figure with a faint gold outline; equipment slots are placed over it.</summary>
+    sealed partial class PaperDoll : Control
+    {
+        public override void _Draw()
+        {
+            var iron = new Color(.16f, .16f, .18f, .85f); var edge = new Color(.72f, .6f, .3f, .28f);
+            void Shape(Vector2[] p) { DrawColoredPolygon(p, iron); var l = new Vector2[p.Length + 1]; p.CopyTo(l, 0); l[^1] = p[0]; DrawPolyline(l, edge, 1.5f, true); }
+            float cx = Size.X / 2;
+            DrawCircle(new Vector2(cx, 80), 17, iron); DrawArc(new Vector2(cx, 80), 17, 0, Mathf.Tau, 32, edge, 1.5f, true);
+            Shape(new[] { new Vector2(cx - 12, 94), new Vector2(cx + 12, 94), new Vector2(cx + 14, 106), new Vector2(cx - 14, 106) });   // neck
+            Shape(new[] { new Vector2(cx - 44, 106), new Vector2(cx + 44, 106), new Vector2(cx + 34, 200), new Vector2(cx - 34, 200) });   // torso
+            Shape(new[] { new Vector2(cx - 46, 108), new Vector2(cx - 66, 112), new Vector2(cx - 80, 210), new Vector2(cx - 66, 214), new Vector2(cx - 50, 140) });   // arms
+            Shape(new[] { new Vector2(cx + 46, 108), new Vector2(cx + 66, 112), new Vector2(cx + 80, 210), new Vector2(cx + 66, 214), new Vector2(cx + 50, 140) });
+            Shape(new[] { new Vector2(cx - 34, 200), new Vector2(cx - 2, 200), new Vector2(cx - 6, 290), new Vector2(cx - 26, 290) });   // legs
+            Shape(new[] { new Vector2(cx + 2, 200), new Vector2(cx + 34, 200), new Vector2(cx + 26, 290), new Vector2(cx + 6, 290) });
+        }
+    }
     void ShowTip(Item? it, Control anchor, Item? worn)
     {
         if (it == null) { HideTip(); return; }

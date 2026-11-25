@@ -109,6 +109,12 @@ public partial class DevCapture : Node
         _free.GlobalPosition = from.Value; if (from.Value.DistanceTo(at) > .01f) _free.LookAt(at, Vector3.Up); _free.Current = true;
     }
 
+    /// <summary>Hero back to neutral: no statuses/buffs, full bars, no hurt vignette, normal time.</summary>
+    void ResetHero()
+    {
+        if (Player.Instance is not { } p) return;
+        p.Buffs.Clear(); p.Statuses.Clear(); Engine.TimeScale = 1.0; Heal(); TwinRealms.Hud.ResetFx();
+    }
     void Heal() { if (Player.Instance is { } p) { p.Hp = Game.D.MaxHp(); p.Mp = Game.D.MaxMp(); p.St = Game.D.MaxSt(); } }
     void ClearFoes() { foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Node nn) nn.QueueFree(); Targeting.Clear(); }
     void Hud(bool on) { if (Game.Root?.GetNodeOrNull<CanvasLayer>("Hud") is { } h) h.Visible = on; }
@@ -147,6 +153,7 @@ public partial class DevCapture : Node
             {
                 (Vector3 from, Vector3 at)? lakeCam = null;
                 if (Player.Instance != null) P.Visible = true;
+                ResetHero();
                 Ui.I?.Close(); if (Ui.I != null) Ui.I.Visible = action.StartsWith("ui:");
                 Input.MouseMode = Input.MouseModeEnum.Captured;
                 if (scene == "arena" && !Arenas.Active) { Arenas.Start("waves"); await Secs(1.5f); }
@@ -195,9 +202,8 @@ public partial class DevCapture : Node
                 // wild foes near the hero spoil the pictures (hit flash, damage numbers): clear them before spawning the view's own foes
                 foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Enemy we && we.GlobalPosition.DistanceTo(P.GlobalPosition) < 60f) we.QueueFree();
                 if (scene.StartsWith("dungeon:") || scene == "arena") { foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Enemy e && e.GlobalPosition.DistanceTo(P.GlobalPosition) < 10f) e.QueueFree(); }
-                Heal(); Hud(Flag(v, "hud", false));
+                ResetHero(); Hud(Flag(v, "hud", false));
                 // "buffs": skill ids with a buff (warcry) go on the hero's buff list, status ids (burn, poison) on its statuses; "quest": accepted + "quest_progress" kills
-                P.Buffs.Clear(); P.Statuses.Clear();
                 if (_quest != null) { Game.Q(_quest).S = 0; Game.Q(_quest).N = 0; _quest = null; }
                 if (v.TryGetProperty("buffs", out var bf) && bf.ValueKind == JsonValueKind.Array)
                     foreach (var b in bf.EnumerateArray())

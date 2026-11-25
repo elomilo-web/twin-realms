@@ -117,9 +117,20 @@ public static class BlockFx
         string item = Blocks.DropItem(def.Drops);
         if (item != "" && GD.Randf() < def.DropChance) GatherDb.Give(item, 1, new Vector3(x + .5f, y + .5f, z + .5f));
         var col = Blocks.Tint(def); var g = new Gradient(); g.SetColor(0, col); g.SetColor(1, new Color(col, 0));
-        Vfx.Sparks(new Vector3(x + .5f, y + .5f, z + .5f), g, 12, 3, .4f, .4f, -9f, false, 180f, null, .12f, "dirt");
+        var c = new Vector3(x + .5f, y + .5f, z + .5f);
+        Vfx.Sparks(c, g, 12, 3, .4f, .4f, -9f, false, 180f, null, .12f, "dirt");
+        var pg = new Gradient(); pg.SetColor(0, new Color(col.Lerp(new Color(.5f, .48f, .45f), .4f), .7f)); pg.SetColor(1, new Color(col, 0));
+        Vfx.Sparks(c, pg, 10, 1.4f, .5f, .5f, -1.5f, false, 180f, null, .3f, "dirt");   // quick soft puff
         Sfx.Play("hit", .5f);
         return true;
+    }
+    /// <summary>Small chips in the block's colour; call on each dig tick (the player's dig loop) with the block being dug.</summary>
+    public static void Chip(int x, int y, int z)
+    {
+        var a = BlockWorld.I?.Area; if (a == null) return;
+        byte id = a.Get(x, y, z); if (id == 0 || id == 255) return;
+        var col = Blocks.Tint(Blocks.Def(id)); var g = new Gradient(); g.SetColor(0, col); g.SetColor(1, new Color(col, 0));
+        Vfx.Sparks(new Vector3(x + .5f, y + .5f, z + .5f), g, 3, 2.2f, .35f, .35f, -10f, false, 180f, null, .07f, "dirt");
     }
     /// <summary>Why a block cannot go here (null = it can): something solid in the way, a player or monster inside it, or a kept-clear path.</summary>
     public static string? CanPlace(int x, int y, int z)

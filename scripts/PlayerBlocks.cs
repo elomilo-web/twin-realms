@@ -43,13 +43,46 @@ public partial class Player
             }
         }
         if (IsOnFloor() && BlockWorld.SlipperyAt(GlobalPosition)) _accelMul = .12f;
+        // ladders: inside a ladder cell, forward/jump climbs at 3 m/s, back descends, otherwise hold; no gravity while on it
+        byte lad = Blocks.Id("ladder");
+        if (lad != 0 && body == "" && (BlockWorld.At(GlobalPosition + Vector3.Up * .3f) == lad || BlockWorld.At(GlobalPosition + Vector3.Up * 1f) == lad))
+        {
+            bool cap = Input.MouseMode == Input.MouseModeEnum.Captured;
+            bool upK = cap && (Input.IsActionPressed(Inputs.Forward) || Input.IsActionPressed(Inputs.Jump)), dnK = cap && Input.IsActionPressed(Inputs.Back);
+            v.Y = upK ? 3f : dnK ? -3f : 0f;
+        }
+    }
+
+    /// <summary>Wall side (0 +X, 1 -X, 2 +Z, 3 -Z) for a ladder or door being placed: against the clicked wall, else the way the camera faces.</summary>
+    byte WallSide(Vector3I n)
+    {
+        if (n.X != 0) return (byte)(n.X > 0 ? 1 : 0);
+        if (n.Z != 0) return (byte)(n.Z > 0 ? 3 : 2);
+        var f = -(GetViewport().GetCamera3D()?.GlobalTransform.Basis.Z ?? Vector3.Forward);
+        return (byte)(Mathf.Abs(f.X) > Mathf.Abs(f.Z) ? (f.X > 0 ? 0 : 1) : (f.Z > 0 ? 2 : 3));
+    }
+
+    /// <summary>E on a door within reach toggles door / door_open (both halves, one block change each, so multiplayer sync is automatic).</summary>
+    void DoorUse(bool captured)
+    {
+        if (!captured || !BlockWorld.Enabled || BlockWorld.I?.Area is not { } a) return;
+        if (Aim() is not { } t || (new Vector3(t.b.X + .5f, t.b.Y + .5f, t.b.Z + .5f) - (GlobalPosition + Vector3.Up)).Length() > 3.6f) return;
+        byte did = Blocks.Id("door"), oid = Blocks.Id("door_open"); byte id = a.Get(t.b.X, t.b.Y, t.b.Z);
+        if (did == 0 || (id != did && id != oid)) return;
+        if (Prompt == "") Prompt = "[" + Inputs.KeyOf(Inputs.Use) + "] " + (id == did ? "Open door" : "Close door");
+        if (!Input.IsActionJustPressed(Inputs.Use)) return;
+        byte meta = a.GetMeta(t.b.X, t.b.Y, t.b.Z); int oy = (meta & 4) != 0 ? t.b.Y - 1 : t.b.Y + 1; byte nid = id == did ? oid : did;
+        BlockWorld.I.Change(t.b.X, t.b.Y, t.b.Z, nid, meta);
+        byte other = a.Get(t.b.X, oy, t.b.Z);
+        if (other == did || other == oid) BlockWorld.I.Change(t.b.X, oy, t.b.Z, nid, a.GetMeta(t.b.X, oy, t.b.Z));
+        Sfx.Play("click", .7f);
     }
 
     /// <summary>Build mode input (replaces attacking while it is on). Called every physics frame.</summary>
     void BlockInput(float dt, bool captured)
     {
         if (captured && Input.IsActionJustPressed(Inputs.BuildMode)) { BuildMode = !BuildMode; Ui.Note(BuildMode ? "Build mode: hold attack to dig, heavy attack to place, mouse wheel to choose" : "Build mode off", UiTheme.Highlight); }
-        BlockHud();
+        BlockHud(); DoorUse(captured);
         if (!BuildMode || !BlockWorld.Enabled || BlockWorld.I!.Area == null) { HideBlockFx(); _digT = 0; return; }
         if (captured && Input.IsActionJustPressed(Inputs.BlockRotate)) { _rot = (byte)((_rot + 1) % 3); Ui.Note("Placing along " + (_rot == 0 ? "up" : _rot == 1 ? "east-west" : "north-south"), Ui.Dim); }
         if (_sel == "" || Game.D.Mats.GetValueOrDefault(Blocks.Item(_sel)) <= 0) _sel = Owned().FirstOrDefault() ?? "";
@@ -68,19 +101,36 @@ public partial class Player
             else
             {
                 _digT += dt; _modelYaw = Rig?.Yaw ?? _modelYaw;
-                if (_digT >= need) { BlockFx.Dig(t.b.X, t.b.Y, t.b.Z); _digT = 0; }
+                if (Mathf.PosMod(_digT, .15f) < dt) BlockFx.Chip(t.b.X, t.b.Y, t.b.Z);   // chips fly off while digging
+                if (_digT >= need)
+                {
+                    byte dm = a.GetMeta(t.b.X, t.b.Y, t.b.Z);
+                    if (BlockFx.Dig(t.b.X, t.b.Y, t.b.Z) && def.Shape == "door")   // the other half goes too (no second drop)
+                    {
+                        int oy = (dm & 4) != 0 ? t.b.Y - 1 : t.b.Y + 1; byte ob = a.Get(t.b.X, oy, t.b.Z);
+                        if (Blocks.Def(ob).Shape == "door") BlockWorld.I.Change(t.b.X, oy, t.b.Z, 0);
+                    }
+                    _digT = 0;
+                }
                 ShowCrack(t.b, Mathf.Clamp(_digT / need, 0, 1));
             }
         }
         else { _digT = 0; if (_crack != null) _crack.Visible = false; }
         // place: heavy attack
         var at = t.b + t.n; string? why = _sel == "" ? "No blocks in your pack" : BlockFx.CanPlace(at.X, at.Y, at.Z);
+        string shape = _sel == "" ? "" : Blocks.Def(Blocks.Id(_sel)).Shape;
+        if (why == null && shape == "door") why = BlockFx.CanPlace(at.X, at.Y + 1, at.Z);   // a door is two blocks tall
         ShowGhost(at, why == null);
         if ((captured || ForcedTarget != null) && Input.IsActionJustPressed(Inputs.Heavy) && _placeCd <= 0)
         {
             _placeCd = Blocks.F("world.placeCooldown", .18f);
             if (why != null) Ui.Note(why, new Color(1, .6f, .5f));
-            else { var bid = Blocks.Id(_sel); if (BlockFx.Place(at.X, at.Y, at.Z, bid, _rot)) { var m = Game.D.Mats; string k = Blocks.Item(_sel); m[k] = m.GetValueOrDefault(k) - 1; if (m[k] <= 0) m.Remove(k); Game.Notify(); } }
+            else
+            {
+                var bid = Blocks.Id(_sel); byte pm = shape is "ladder" or "door" ? WallSide(t.n) : _rot;
+                bool placed = BlockFx.Place(at.X, at.Y, at.Z, bid, pm);
+                if (placed && shape == "door" && !BlockFx.Place(at.X, at.Y + 1, at.Z, bid, (byte)(pm | 4))) { BlockWorld.I.Change(at.X, at.Y, at.Z, 0); placed = false; }
+                if (placed) { var m = Game.D.Mats; string k = Blocks.Item(_sel); m[k] = m.GetValueOrDefault(k) - 1; if (m[k] <= 0) m.Remove(k); Game.Notify(); } }
         }
     }
     /// <summary>Mouse wheel in build mode picks the next block owned (Ui forwards wheel events here).</summary>

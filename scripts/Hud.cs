@@ -8,7 +8,10 @@ public partial class Hud : CanvasLayer
 {
     HudCanvas _c = null!;
     string? _region; float _regT;
-    public override void _Ready() { Layer = 5; _c = new HudCanvas { MouseFilter = Control.MouseFilterEnum.Ignore }; _c.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); AddChild(_c); }
+    static Hud? _inst;
+    /// <summary>Dev capture: zeroes the hurt flash, low-HP vignette and damage ghosts.</summary>
+    public static void ResetFx() { _inst?._c.ResetFx(); }
+    public override void _Ready() { _inst = this; Layer = 5; _c = new HudCanvas { MouseFilter = Control.MouseFilterEnum.Ignore }; _c.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); AddChild(_c); }
     public override void _Process(double delta)
     {
         var p = Player.Instance; if (p == null) return;
@@ -29,6 +32,7 @@ public partial class HudCanvas : Control
     static readonly Color Gold = new Color("e3b04b"), Mute = new Color("a095bd");
     float _hurt, _lastHp = -1, _ptsShowT; int _lastPts;
     float _gHp = 1, _gHpH, _gMp = 1, _gMpH, _gSt = 1, _gStH, _lowV;   // damage ghosts (value, hold) and smoothed low-HP vignette
+    public void ResetFx() { _hurt = 0; _lowV = 0; _lastHp = -1; _gHp = _gMp = _gSt = 1; _gHpH = _gMpH = _gStH = 0; }
     static GradientTexture2D? _vig;
     static GradientTexture2D Vignette
     {

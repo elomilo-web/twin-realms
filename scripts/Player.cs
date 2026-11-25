@@ -161,9 +161,11 @@ public partial class Player : CharacterBody3D, IDamageable
 
     // ------------------------------------------------------------------ damage in
     float _pdT, _pdCd;   // perfect dodge: counter window left, cooldown left (real seconds)
+    float _rollTrailT; bool _rollPd; Vector3 _rollFrom;   // roll smoke trail timer, perfect-dodge tint flag, roll start position
     void PerfectDodge()
     {
         double now = Time.GetTicksMsec() / 1000.0; if (now < _pdCd) return;
+        _rollPd = true; Fx.Ring(_rollFrom + Vector3.Up * .1f, 2.2f, new Color(.85f, .95f, 1f), .3f);
         _pdCd = (float)now + Tune.F("perfectDodge.cooldown", 2f); _pdT = Tune.F("perfectDodge.counterTime", 1.2f);
         Feel.SlowMo(Tune.F("perfectDodge.slowScale", .35f), Tune.F("perfectDodge.slowTime", .35f));
         Ui.Flash(new Color(.85f, .95f, 1f)); Sfx.Play("block");
@@ -635,6 +637,8 @@ public partial class Player : CharacterBody3D, IDamageable
         if (_rollT > 0)
         {
             _rollT -= dt; _inv = Mathf.Max(_inv, 0.05f); v.X = _rollDir.X * RollSpeed; v.Z = _rollDir.Z * RollSpeed;
+            _rollTrailT -= dt; if (_rollTrailT <= 0 && _rollT > 0) { _rollTrailT = RollTime * .35f; Fx.RollPuff(GlobalPosition, _rollPd); }   // smoke trail along the i-frame window
+            if (_rollT <= 0) { Fx.Dust(GlobalPosition, .4f); Rig?.Shake(.025f); }   // roll end: small puff + tiny camera settle
         }
         else
         {
@@ -647,7 +651,10 @@ public partial class Player : CharacterBody3D, IDamageable
             if (captured && Input.IsActionJustPressed(Inputs.Roll) && IsOnFloor() && _rollCd <= 0 && _atkT <= 0 && _stagger <= 0 && St >= Tune.F("stamina.roll", 14) * .85f && !Mounted)
             {
                 _rollDir = dir.LengthSquared() > 0.01f ? dir.Normalized() : new Vector3(-Mathf.Sin(_modelYaw), 0, -Mathf.Cos(_modelYaw));
-                _rollT = RollTime; _rollCd = 0.6f; _recT = 0; _recPending = 0; UseStamina(Tune.F("stamina.roll", 14));   // a roll cancels the recovery _modelYaw = Util.YawTo(_rollDir.X, _rollDir.Z);
+                _rollT = RollTime; _rollCd = 0.6f; _recT = 0; _recPending = 0; UseStamina(Tune.F("stamina.roll", 14));
+                _rollPd = false; _rollFrom = GlobalPosition; _rollTrailT = RollTime * .3f;   // roll start: dust kick behind, cloth whoosh, first smoke puff
+                Fx.Dust(GlobalPosition - _rollDir * .6f, .4f); Sfx.Play("swing", .8f); Fx.RollPuff(GlobalPosition, false);
+                // a roll cancels the recovery _modelYaw = Util.YawTo(_rollDir.X, _rollDir.Z);
             }
             if (captured && Input.IsActionJustPressed(Inputs.Jump) && IsOnFloor() && _atkT <= 0 && _stagger <= 0) v.Y = JumpVelocity;
 

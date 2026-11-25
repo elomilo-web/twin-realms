@@ -1,5 +1,14 @@
 # Dev loop log (newest first; max 20 detailed entries, older ones rolled into History)
 
+## #17 (2026-11-25) menus (directive), animation, graphics, vfx, mechanics, tools
+- Inventory (Ui.OpenPack): PaperDoll silhouette (iron body + faint gold outline) with 8 equipment slots placed around it, 2-column gold stats, GoldTab header buttons; window now left of centre (follow-up). Lead fix: RuneGold is MapView's -> GoldC.Lightened.
+- Dodge roll: dust kick + whoosh at start, violet smoke puffs along the roll (pale + ring on a perfect dodge), dust + tiny settle at the end (Player.cs, Fx.RollPuff).
+- Digging: crack overlay already existed (PlayerBlocks.ShowCrack); BlockFx adds a coloured break puff and Chip(); lead hooked chips every .15 s while digging.
+- Footfalls (Sfx.Step -> Fx.Footfall): dust/snow puffs when running on dirt/sand/gravel/snow, splash ring + droplets in water; within 25 m of the camera.
+- Blocks: ladder (rails + rungs, climb 3 m/s, no gravity on it), door (2 tall, E toggles door/door_open on both halves through BlockWorld.Change, so it syncs); orientation in block meta; recipes 3 planks -> 4 ladders, 4 planks -> door (appended ids).
+- Capture: ResetHero() per view (clears buffs/statuses, TimeScale 1, heal, Hud.ResetFx): the red burn tint no longer leaks into menu views.
+- Noted: Player.cs ~L657 has `_modelYaw = Util.YawTo(_rollDir...)` inside a comment (roll may not face its direction): left as is, added to PLAYTEST.
+
 ## #16 (2026-11-25) code, audio, lighting, tools, world, combat
 - Code: Ui.cs 1080 -> 736 lines; MapView -> UiMap.cs, TreeView -> UiTree.cs, shop/valor/totals -> UiShop.cs (Edit/Write only; builds; menus unchanged in capture).
 - Audio (sfx_synth.py): rain_loop, rain_light_loop, wind_loop (20 s seamless), thunder_1-2; Weather.cs plays rain loops by intensity (Ambient volume, muted in dungeons) and thunder in heavy rain after a Weather.Flash; lead wired the flash into WorldEnv (cold ambient wash).

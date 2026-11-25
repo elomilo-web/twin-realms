@@ -15,7 +15,24 @@ public static class Fx
 
     static QuadMesh? _dustMesh; static StandardMaterial3D? _dustMat;
     /// <summary>Ground dust puff at the feet after a hard landing; size 0..1+ scales with the fall. Shares one mesh and material.</summary>
-    public static void Dust(Vector3 pos, float size)
+    /// <summary>Visible footfall: a tiny dust/snow puff when running on dirt/sand/gravel/snow, a small splash in water. Heroes within 25 m of the camera only; called once per footfall.</summary>
+    public static void Footfall(Vector3 pos, string kind, float speed)
+    {
+        if (Game.Root == null) return;
+        var cam = Game.Root.GetViewport()?.GetCamera3D();
+        if (cam != null && cam.GlobalPosition.DistanceSquaredTo(pos) > 625f) return;
+        if (kind == "water")
+        {
+            Ring(pos + Vector3.Up * .03f, .45f, new Color(.8f, .92f, 1f), .4f);
+            Burst(pos + Vector3.Up * .05f, new Color(.8f, .92f, 1f), 5, 2.2f, .4f, .03f, -9f);
+            return;
+        }
+        if (speed < 3.8f) return;
+        if (kind != "dirt" && kind != "sand" && kind != "gravel" && kind != "snow") return;
+        Dust(pos, speed > 6.5f ? .25f : .15f, .1f);
+    }
+
+    public static void Dust(Vector3 pos, float size, float minSize = .4f)
     {
         if (Game.Root == null) return;
         if (_dustMat == null)
@@ -34,7 +51,7 @@ public static class Fx
             }
         }
         catch { }
-        size = Mathf.Clamp(size, .4f, 1.6f);
+        size = Mathf.Clamp(size, minSize, 1.6f);
         var p = new CpuParticles3D
         {
             Mesh = _dustMesh, Amount = 14, OneShot = true, Explosiveness = 1f, Lifetime = .6f, EmissionShape = CpuParticles3D.EmissionShapeEnum.Sphere, EmissionSphereRadius = .15f,
@@ -44,6 +61,23 @@ public static class Fx
         var ramp = new Gradient(); ramp.SetColor(0, Colors.White); ramp.SetColor(1, new Color(1, 1, 1, 0)); p.ColorRamp = ramp;
         Game.Root.AddChild(p); p.GlobalPosition = pos + Vector3.Up * .05f;
         p.GetTree().CreateTimer(1.0).Timeout += () => { if (GodotObject.IsInstanceValid(p)) p.QueueFree(); };
+    }
+
+    /// <summary>Soft smoke puff left along a dodge roll: dark violet, or pale cold-white on a perfect dodge. Fades over ~.25 s; shares the dust mesh.</summary>
+    public static void RollPuff(Vector3 pos, bool pale)
+    {
+        if (Game.Root == null) return;
+        if (_dustMesh == null) Dust(pos, .4f);   // first call builds the shared mesh and material
+        var col = pale ? new Color(.85f, .93f, 1f, .55f) : new Color(.22f, .12f, .32f, .6f);
+        var p = new CpuParticles3D
+        {
+            Mesh = _dustMesh, Amount = 3, OneShot = true, Explosiveness = 1f, Lifetime = .25f, EmissionShape = CpuParticles3D.EmissionShapeEnum.Sphere, EmissionSphereRadius = .2f,
+            Direction = Vector3.Up, Spread = 40f, Gravity = Vector3.Zero, InitialVelocityMin = .1f, InitialVelocityMax = .4f,
+            ScaleAmountMin = 1.6f, ScaleAmountMax = 2.4f, Color = col, Emitting = true,
+        };
+        var ramp = new Gradient(); ramp.SetColor(0, Colors.White); ramp.SetColor(1, new Color(1, 1, 1, 0)); p.ColorRamp = ramp;
+        Game.Root.AddChild(p); p.GlobalPosition = pos + Vector3.Up * .8f;
+        p.GetTree().CreateTimer(.6).Timeout += () => { if (GodotObject.IsInstanceValid(p)) p.QueueFree(); };
     }
 
     public static void Ring(Vector3 pos, float radius, Color col, float time = 0.45f)

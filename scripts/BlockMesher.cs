@@ -88,6 +88,34 @@ public static class BlockMesher
                         }
                         continue;
                     }
+                    if (def.Shape is "ladder" or "door")
+                    {
+                        // thin boxes against one side of the cell; meta & 3 = which side the wall/panel is on (0 +X, 1 -X, 2 +Z, 3 -Z), meta & 4 = upper half of a door
+                        int dir = meta & 3; float l0 = jit.G;
+                        void Part(float d0, float d1, float t0, float t1, float y0, float y1, bool coll)
+                        {
+                            Vector3 mn, mx;
+                            switch (dir)
+                            {
+                                case 0: mn = new(1 - d1, y0, t0); mx = new(1 - d0, y1, t1); break;
+                                case 1: mn = new(d0, y0, t0); mx = new(d1, y1, t1); break;
+                                case 2: mn = new(t0, y0, 1 - d1); mx = new(t1, y1, 1 - d0); break;
+                                default: mn = new(t0, y0, d0); mx = new(t1, y1, d1); break;
+                            }
+                            Box(id, new Vector3(x, y, z) + mn, mx - mn, l0, coll);
+                        }
+                        if (def.Shape == "ladder")
+                        {
+                            Part(0f, .08f, .1f, .2f, 0f, 1f, false); Part(0f, .08f, .8f, .9f, 0f, 1f, false);
+                            for (int r = 0; r < 4; r++) { float ry = .08f + r * .25f; Part(.02f, .1f, .2f, .8f, ry, ry + .07f, false); }
+                        }
+                        else
+                        {
+                            if (def.Key.EndsWith("_open")) dir = dir switch { 0 => 2, 2 => 1, 1 => 3, _ => 0 };   // swung 90 degrees about the corner
+                            Part(0f, .12f, 0f, 1f, 0f, 1f, def.Solid);
+                        }
+                        continue;
+                    }
                     var lip = Lip(id);
                     if (def.Tufts > 0f && At(x, y + 1, z) == 0)
                     {
@@ -155,6 +183,23 @@ public static class BlockMesher
                 }
         d.Faces = faces.ToArray();
         return d;
+
+        // an axis-aligned box (min corner + size) as 6 faces; coll adds it to the collision faces
+        void Box(byte id, Vector3 bas, Vector3 size, float lit, bool coll)
+        {
+            for (int f = 0; f < 6; f++)
+            {
+                var ps = Surf(Slot(id, f, 0)); int pb = ps.V.Count; float l = Shade[f] * lit; var q = new Vector3[4];
+                for (int k = 0; k < 4; k++)
+                {
+                    int su = k == 1 || k == 2 ? 1 : 0, sv = k >= 2 ? 1 : 0; var u = U[f]; var v = Vv[f];
+                    var o = new Vector3(P0[f].X + su * u.X + sv * v.X, P0[f].Y + su * u.Y + sv * v.Y, P0[f].Z + su * u.Z + sv * v.Z);
+                    q[k] = bas + o * size; ps.V.Add(q[k]); ps.N.Add(new Vector3(Nrm[f].X, Nrm[f].Y, Nrm[f].Z)); ps.C.Add(new Color(l, l, l));
+                }
+                Tri(ps, pb);
+                if (coll) Face6(faces, q[0], q[1], q[2], q[3]);
+            }
+        }
 
         // lip tint of a block's side material ("lip" colour in data/blocks.json), cached per mesh build
         Color? Lip(byte id)
