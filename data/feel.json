@@ -8,9 +8,19 @@
                     "critBonus":  0.03,
                     "killBonus":  0.03,
                     "taken":  0.05,
-                    "max":  0.12,
+                    "max":  0.14,
                     "timeScale":  0.05
                 },
+    "impact":  {
+                   "light":  0.045,
+                   "heavy":  0.09,
+                   "critMul":  1.5,
+                   "killMul":  1.6,
+                   "max":  0.14,
+                   "kick":  0.12,
+                   "fovPulse":  2,
+                   "fovTime":  0.12
+               },
     "recoil":  {
                    "time":  0.2,
                    "push":  0.22,

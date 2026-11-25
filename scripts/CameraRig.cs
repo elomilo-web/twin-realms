@@ -18,6 +18,16 @@ public partial class CameraRig : Node3D
 
     public void Shake(float amount) => _shake = Mathf.Max(_shake, amount * Game.Set.Shake);
 
+    Vector2 _kick; float _fovT;
+    /// <summary>Short punch of the camera along a world-space swing direction, optional tiny FOV pulse. Off when Shake setting is 0.</summary>
+    public void Kick(Vector3 dir, float dist, bool fovPulse)
+    {
+        float s = Game.Set.Shake; if (s <= 0 || dir.LengthSquared() < .0001f) return;
+        var right = GlobalTransform.Basis.X; dir = dir.Normalized();
+        _kick += new Vector2(right.Dot(dir), -.4f) * dist * s;
+        if (fovPulse) _fovT = Feel.FovPulseTime;
+    }
+
     public Camera3D Camera => _cam;
     /// <summary>Horizontal facing of the camera in radians (rig yaw).</summary>
     public float Yaw => Rotation.Y;
@@ -67,11 +77,13 @@ public partial class CameraRig : Node3D
             var d = t.GlobalPosition - Target.GlobalPosition; d.Y = 0;
             if (d.LengthSquared() > .5f) Rotation = new Vector3(0, Mathf.LerpAngle(Rotation.Y, Util.YawTo(d.X, d.Z), 1f - Mathf.Exp(-Feel.LockTurn * (float)delta)), 0);
         }
-        _cam.Fov = Game.Set.Fov;
+        float pulse = 0f; if (_fovT > 0) { _fovT = Mathf.Max(0, _fovT - (float)delta); float u = _fovT / Mathf.Max(.01f, Feel.FovPulseTime); pulse = Feel.FovPulse * Mathf.Sin(u * Mathf.Pi); }
+        _cam.Fov = Game.Set.Fov - pulse;
+        _kick *= Mathf.Exp(-16f * (float)delta);
         _arm.SpringLength = Mathf.Lerp(_arm.SpringLength, Distance, 1f - Mathf.Exp(-10f * (float)delta));
         _shake = Mathf.Max(0, _shake - (float)delta * 1.2f);
         // over the right shoulder, so the aim point at screen centre is not hidden behind the hero (data/feel.json camera.shoulder)
-        _cam.HOffset = Feel.Shoulder + (float)GD.RandRange(-1.0, 1.0) * _shake * 0.3f;
-        _cam.VOffset = Feel.ShoulderUp + (float)GD.RandRange(-1.0, 1.0) * _shake * 0.3f;
+        _cam.HOffset = Feel.Shoulder + (float)GD.RandRange(-1.0, 1.0) * _shake * 0.3f + _kick.X;
+        _cam.VOffset = Feel.ShoulderUp + (float)GD.RandRange(-1.0, 1.0) * _shake * 0.3f + _kick.Y;
     }
 }

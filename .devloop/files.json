@@ -330,15 +330,15 @@
     },
     {
         "path":  "scripts/Builder.cs",
-        "lines":  471,
-        "hash8":  "1b0b5c78",
+        "lines":  481,
+        "hash8":  "59cbb946",
         "system":  "world",
         "summary":  "Builds the hand-placed overworld: Oakhaven, the arena, dungeon mouths, the dragon lair, standing stones, obelisks,..."
     },
     {
         "path":  "scripts/CameraRig.cs",
-        "lines":  78,
-        "hash8":  "1a048ecf",
+        "lines":  90,
+        "hash8":  "c888b119",
         "system":  "camera",
         "summary":  "Free third-person camera. Mouse look, scroll to zoom, Esc frees the mouse, click recaptures it."
     },
@@ -379,8 +379,8 @@
     },
     {
         "path":  "scripts/Enemy.cs",
-        "lines":  947,
-        "hash8":  "24d3bc65",
+        "lines":  974,
+        "hash8":  "4572ac10",
         "system":  "enemies",
         "summary":  "Data-driven enemy. Melee, ranged, summoning bosses and the dragon. Stats come from data/enemies.json."
     },
@@ -421,8 +421,8 @@
     },
     {
         "path":  "scripts/Feel.cs",
-        "lines":  80,
-        "hash8":  "a63a2a8d",
+        "lines":  102,
+        "hash8":  "962f29de",
         "system":  "combat",
         "summary":  "Game feel: hit-stop (a tiny freeze on impact) and enemy recoil settings. Tuning lives in..."
     },
@@ -456,8 +456,8 @@
     },
     {
         "path":  "scripts/Fx.cs",
-        "lines":  44,
-        "hash8":  "28988b6f",
+        "lines":  77,
+        "hash8":  "0721db09",
         "system":  "skills_vfx",
         "summary":  "Cheap visual effects: particle bursts and expanding rings."
     },
@@ -568,8 +568,8 @@
     },
     {
         "path":  "scripts/Kit.cs",
-        "lines":  156,
-        "hash8":  "17fe635b",
+        "lines":  168,
+        "hash8":  "ec6290dc",
         "system":  "animation",
         "summary":  "Environment models from the Quaternius kits (assets/models/env, listed in data/env.json)."
     },
@@ -701,8 +701,8 @@
     },
     {
         "path":  "scripts/Player.cs",
-        "lines":  806,
-        "hash8":  "81827ca0",
+        "lines":  820,
+        "hash8":  "736e8a5c",
         "system":  "player",
         "summary":  "The hero: movement, roll, four weapon types (sword, bow, wand, staff), block/parry, four spells, potions,..."
     },
@@ -1037,9 +1037,16 @@
     },
     {
         "path":  "scripts/World.cs",
-        "lines":  958,
-        "hash8":  "23de2017",
+        "lines":  715,
+        "hash8":  "ea624ce4",
         "system":  "world",
         "summary":  "The overworld: heightfield terrain, sky and day/night, the Light/Shadow realm shift, vegetation and shared materials."
+    },
+    {
+        "path":  "scripts/WorldEnv.cs",
+        "lines":  256,
+        "hash8":  "253f1072",
+        "system":  "world",
+        "summary":  "World: environment, sky, fog, sun/moon light, day/night and realm-blend look, water."
     }
 ]

@@ -130,6 +130,7 @@ public static class Builder
         Box(g, new Vector3(1.1f, 2.15f, .12f), new Vector3(0, 1.55f, dz), Wood); Box(g, new Vector3(1.4f, .22f, .2f), new Vector3(0, 2.7f, dz), Beam);
         Box(g, new Vector3(2.0f, .28f, 1.0f), new Vector3(0, .14f, d / 2 + .6f), Stone);
         g.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = .13f, Height = .3f }, MaterialOverride = World.WindowMat, Position = new Vector3(1.15f, 2.2f, dz + .15f) });
+        DoorLantern(g, new Vector3(-.95f, 2.5f, dz + .15f));
         float wy = h * .6f + .5f;
         void Win(float px, float pz, float ry) { var wg = new Node3D { Position = new Vector3(px, wy, pz), Rotation = new Vector3(0, ry, 0) }; g.AddChild(wg);
             Box(wg, new Vector3(.9f, 1f, .08f), Vector3.Zero, World.WindowMat); Box(wg, new Vector3(1.1f, .1f, .14f), new Vector3(0, .55f, .03f), Beam); Box(wg, new Vector3(1.1f, .1f, .14f), new Vector3(0, -.55f, .03f), Beam);
@@ -180,6 +181,7 @@ public static class Builder
         var hub = new Spinner { Axis = Vector3.Forward, Speed = .45f, Position = new Vector3(0, 8f, 2.4f) }; wm.AddChild(hub);
         for (int i = 0; i < 4; i++) { var arm = new Node3D { Rotation = new Vector3(0, 0, i * P / 2) }; arm.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(.5f, 6f, .12f) }, MaterialOverride = Wood, Position = new Vector3(0, 3f, 0) }); hub.AddChild(arm); }
         foreach (var p in new[] { (-11f, 0f), (11, 0), (0, -12), (3.5f, 13), (-22, -2), (22, 12), (30, 10), (-30, 6) }) Lamp(over, p.Item1, p.Item2);
+        _doorLanterns = 0;
         foreach (var p in new[] { (-20f, -14f), (21, -22), (-22, 16), (15, 25) }) { Crate(over, p.Item1, p.Item2, 1.1f); Crate(over, p.Item1 + 1.3f, p.Item2 + .4f, .8f); Barrel(over, p.Item1 - 1, p.Item2 + 1); }
         for (int i = 0; i < 4; i++) { var hb = Group(over, -24 + i * 1.8f, 20 + (i % 2) * .8f, 0, .4f); hb.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = .9f, BottomRadius = .9f, Height = .8f, RadialSegments = 8 }, MaterialOverride = Hay, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off, VisibilityRangeEnd = 110f, VisibilityRangeEndMargin = 15f, VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self }); }
         if (Kit.Available) { for (int i = 0; i < 7; i++) foreach (var zz in new[] { -4.2f, 4.2f }) Kit.Add(over, Kit.Str("props", "fence"), World.OnGround(31.03f + i * 2.06f, 10 + zz, -.02f)); }
@@ -202,7 +204,15 @@ public static class Builder
         Box(g, new Vector3(.5f, .07f, .07f), new Vector3(.18f, 2.95f, 0), Post);
         g.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = .12f, BottomRadius = .2f, Height = .42f, RadialSegments = 6 }, MaterialOverride = World.LampMat, Position = new Vector3(.38f, 2.68f, 0) });
         g.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = .02f, BottomRadius = .26f, Height = .18f, RadialSegments = 6 }, MaterialOverride = Post, Position = new Vector3(.38f, 2.97f, 0) });
-        World.Lamp(g, new Vector3(.38f, 2.6f, 0), new Color(1f, .75f, .4f), 14f, 1.6f);
+        var lt = World.Lamp(g, new Vector3(.38f, 2.6f, 0), new Color(1f, .62f, .32f), 10f, 2.2f);
+        lt.DistanceFadeEnabled = true; lt.DistanceFadeBegin = 100f; lt.DistanceFadeLength = 20f; lt.OmniAttenuation = 1.3f;
+    }
+    static int _doorLanterns;   // door lanterns added this build (capped; reset after the lamp posts, which are placed after the houses)
+    static void DoorLantern(Node3D g, Vector3 pos)
+    {
+        if (_doorLanterns >= 4) return; _doorLanterns++;
+        g.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = .1f, Height = .24f, RadialSegments = 6, Rings = 3 }, MaterialOverride = World.LampMat, Position = pos, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off, VisibilityRangeEnd = 120f });
+        var lt = World.Lamp(g, pos + new Vector3(0, -.1f, .4f), new Color(1f, .62f, .32f), 8f, 1.8f); lt.DistanceFadeEnabled = true; lt.DistanceFadeBegin = 100f; lt.DistanceFadeLength = 20f;
     }
     static void Campfire(Node parent, float x, float z)
     {

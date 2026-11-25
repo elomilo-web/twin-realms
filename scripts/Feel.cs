@@ -51,6 +51,28 @@ public static class Feel
         return t;
     }
 
+    // melee impact (feel.json "impact"): hit-stop seconds by weapon weight, crit/kill multipliers, camera kick distance, FOV pulse
+    public static float ImpLight = .045f, ImpHeavy = .09f, ImpCrit = 1.5f, ImpKill = 1.6f, ImpMax = .14f, KickDist = .12f, FovPulse = 2f, FovPulseTime = .12f;
+    static bool _impLoaded;
+    static void LoadImpact()
+    {
+        if (_impLoaded) return; _impLoaded = true; Load();
+        using var doc = JsonUtil.Load("res://data/feel.json");
+        if (!doc.RootElement.TryGetProperty("impact", out var i)) return;
+        ImpLight = JsonUtil.F(i, "light", ImpLight); ImpHeavy = JsonUtil.F(i, "heavy", ImpHeavy); ImpCrit = JsonUtil.F(i, "critMul", ImpCrit); ImpKill = JsonUtil.F(i, "killMul", ImpKill);
+        ImpMax = JsonUtil.F(i, "max", ImpMax); KickDist = JsonUtil.F(i, "kick", KickDist); FovPulse = JsonUtil.F(i, "fovPulse", FovPulse); FovPulseTime = JsonUtil.F(i, "fovTime", FovPulseTime);
+    }
+
+    /// <summary>One entry point for a landed melee hit: hit-stop scaled by damage/maxHp and weapon weight (heavy = true), plus a camera kick along dir (world XZ).</summary>
+    public static void Impact(float dmg, float maxHp, bool heavy, bool crit, bool kill, Vector3 dir, CameraRig? rig = null)
+    {
+        LoadImpact();
+        float rel = Mathf.Clamp(dmg / Mathf.Max(1f, maxHp), 0f, 1f), sc = Mathf.Lerp(.8f, 1.4f, Mathf.Clamp(rel * 5f, 0f, 1f));
+        float t = (heavy ? ImpHeavy : ImpLight) * sc * (crit ? ImpCrit : 1f) * (kill ? ImpKill : 1f);
+        HitStop(Mathf.Min(t, ImpMax));
+        rig?.Kick(dir, (heavy ? 1.5f : 1f) * sc * (crit ? 1.3f : 1f) * KickDist, heavy || crit);
+    }
+
     /// <summary>Freeze the game for a few hundredths of a second. Overlapping calls extend to the latest end, never stack.</summary>
     public static void HitStop(float seconds)
     {

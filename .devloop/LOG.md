@@ -1,5 +1,16 @@
 # Dev loop log (newest first; max 20 detailed entries, older ones rolled into History)
 
+## #4 (2026-11-24) feel, animation, code, lighting, combat, graphics
+- Feel.Impact (Feel.cs): hit-stop 45 ms light / 90 ms heavy, x0.8-1.4 by dmg/maxHp, crit x1.5, kill x1.6, cap 140 ms; CameraRig.Kick: directional punch + -2 deg FOV pulse on heavy/crit (respects Shake). Player.ResolveMelee calls it; Enemy.TakeHit's old hit-stop only for non-melee. Numbers: data/feel.json "impact".
+- Landing: Player tracks peak height; falls >1.2 m -> Fx.Dust (surface-coloured), small shake, low thud (step_stone pitched down), longer crouch.
+- Code: World.cs 958 -> 714 lines; environment/sky/water/look moved verbatim to WorldEnv.cs (partial).
+- Night: lamp posts (1,.62,.32) r10 e2.2, distance fade 100-120 m; up to 4 door lanterns; windows Night*2.2 -> 3.4 (WorldEnv.cs).
+- Enemies: wind-up glint at head height; slam/boss/dragon ground ring (lead changed the solid disc to a thin torus ring: the disc hid the ground); stagger on hits >=20% max HP or crit (bosses every 3rd); tuning.json game.monsters.stagger*.
+- Kit: env.json lookup "<folder>/<material>" first (Kit.Shared folder-aware); TR_Matte darkening only for village/ and castle/; plaster f0e8dc, planks 6a5c52.
+- Fixes by lead: OmniLight3D has no VisibilityRangeEnd (use DistanceFade*).
+- FPS: village 56.6 -> 49.1 (-13%, more lights), night 60.9 -> 54.9 (-10%); within the 15% rule. Watch next cycle.
+- Scores: combat feel 6.5->7, player feel 6->6.5, world code 6->7, enemies visuals 3->4.
+
 ## #3 (2026-11-24) world, menus, shaders, vfx, ui, mechanics
 - Settlements: env.json "materials" maps kit TR_Tex_* (plaster, planks, thatch, 4 roof colours, stone/dungeon bricks, slabs) to G_* gothic sets; TR_Matte/Metal vertex colours tinted down; Kit.Shared honours "tint". Hollowfrost now dark gothic timber (a bit too dark in shade).
 - Title: Frame() skips the full-screen dark layers for the title; panel 620 px, left, alpha .72, 44 px letter-spaced gold title; hero slots stacked; TitleBackdrop camera MakeCurrent + yawed. Skyline now visible.

@@ -1,7 +1,8 @@
 # World
 Purpose: Overworld terrain, sky/day-night, Light/Shadow realm shift, hand-built Oakhaven, flora, gathering, far lands, shared gothic/toon materials.
 ## Files
-- `scripts/World.cs` (949 lines): heightfield terrain, sky, day/night, realm shift, shared mats. Key: `GetPoi()` L26, `Mat()` L53, `Fbm()` L96, `RoadDist()` L102, `GroundAt()` L124, `OnGround()` L132, `_Ready()` L153
+- `scripts/World.cs` (714 lines): heightfield terrain, realm shift, shared mats, vegetation, net enemy index. Key: `GetPoi()` L26, `Mat()` L44, `Fbm()` L87, `RoadDist()` L93, `GroundAt()` L115, `OnGround()` L123, `_Ready()` L144, `BuildTerrain()` L159
+- `scripts/WorldEnv.cs` (255 lines, `partial class World`): environment/sky/fog/sun, look.json (LF/LC), water. Key: `LoadLook()` L21, `BuildEnvironment()` L35, `SkyShader` L67, `BuildWater()` L121, `WaterShader` L131, `ApplyQuality()` L180, `UpdateVisuals()` L204, `SetDungeonLook()` L249
 - `scripts/Builder.cs` (471): hand-placed Oakhaven, arena, dungeon mouths, lair, stones. Key: `BuildAll()` L18, `Box()` L37, `Solid()` L42, `SetGate()` L262
 - `scripts/Lands.cs` (922): data-driven heightfield islands. Key: `Load()` L45, `WaterAt()` L193, `GroundAt()` L224, `CoverAt()` L249, `RegionAt()` L275, `Build()` L299
 - `scripts/Flora.cs` (325): wind grass/ferns/bushes per chunk. Key: `Build()` L190, `ApplyQuality()` L220, `BuildChunk()` L233, `_Process()` L294

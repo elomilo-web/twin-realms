@@ -387,6 +387,7 @@ public partial class Player : CharacterBody3D, IDamageable
             if (GearFx.Get(D.Weapon?.Elem) is { } el && el.Status != "") hi.With(el.Status, el.Proc * (fin || _atkPower ? 1.5f : 1f) * (_step?.ElemMul ?? 1f));   // elemental weapon
             if (_step != null) foreach (var (sid, ch) in _step.Status) hi.With(sid, ch);   // the chain step and its modifiers
             e.TakeHit(hi); if (crit) TriggerAuto("crit");
+            Feel.Impact(dmg, e.MaxHp, w.Id is "greatsword" or "mace" or "axe" or "hammer" || _atkPower, crit, e.Dead, new Vector3(d.X, 0, d.Z), Rig);
             // where steel meets the foe: a spark on its near side, bigger for crits, finishers and heavies
             var toMe = -d.Normalized(); float big = crit ? 1.6f : fin || _atkPower ? 1.4f : 1f;
             SpellFx.Play("hit_spark", e.GlobalPosition + new Vector3(0, e.HeightM() * .55f, 0) + toMe * e.Def.R * e.ScaleF() * .8f, big);
@@ -679,6 +680,7 @@ public partial class Player : CharacterBody3D, IDamageable
     }
 
     // ------------------------------------------------------------------ animation (procedural, on the HeroRig joints)
+    float _peakY;
     void Animate(float dt)
     {
         Feel.Load(); var w = W;
@@ -687,7 +689,19 @@ public partial class Player : CharacterBody3D, IDamageable
         // grounded for animation: a moment in the air over a bump is not a fall (coyote time); a jump is
         _airT = IsOnFloor() ? 0 : _airT + dt; bool floor = IsOnFloor() || (_airT < .2f && Velocity.Y < 1f);
         if (_feet != null) _feet.Enabled = floor && !Mounted;
-        if (floor && !_wasFloor) _landT = .22f; _wasFloor = floor; _landT = Mathf.Max(0, _landT - dt);
+        if (!floor) _peakY = Mathf.Max(_peakY, GlobalPosition.Y);
+        if (floor && !_wasFloor)
+        {
+            _landT = .22f; float fall = _peakY - GlobalPosition.Y;
+            if (fall > 1.2f && !Mounted && _liftT <= 0)
+            {
+                float k = Mathf.Clamp((fall - 1.2f) / 6f, 0, 1);
+                Fx.Dust(GlobalPosition, .5f + k * 1.1f); Rig?.Shake(.03f + k * .1f);
+                Sfx.Play("step_stone", .5f + k * .6f, .55f - k * .15f); _landT = .3f;
+            }
+        }
+        if (floor) _peakY = GlobalPosition.Y;
+        _wasFloor = floor; _landT = Mathf.Max(0, _landT - dt);
         float moveAmt = floor && !Mounted && _rollT <= 0 ? Mathf.Clamp(hv / SprintSpeed, 0, 1) : 0f;
         _walkAmt = Mathf.Lerp(_walkAmt, moveAmt, 1f - Mathf.Exp(-10f * dt));
         _walkPh = Mathf.Wrap(_walkPh + hv * Feel.Stride * dt, 0, Mathf.Tau); _idleT += dt;

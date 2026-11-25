@@ -446,7 +446,27 @@ public partial class Enemy : CharacterBody3D, IDamageable
     };
 
     // ------------------------------------------------------------------ public API
-    public void Stun(float t) { if (Dead) return; if (Duelist) { DuelParried(t); return; } _hitSerial++; if (Puppet) { if (DuelPeer == 0) Net.I?.SendEnemyStun(this, t); return; } _stun = Mathf.Max(_stun, t); if (_state != State.Sleep) _state = State.Stagger; }
+    int _staggerCount; float _staggerLean; MeshInstance3D? _tele;
+    void ClearTele() { if (_tele != null && IsInstanceValid(_tele)) _tele.QueueFree(); _tele = null; }
+    // wind-up telegraph: cold glint at the head, plus a growing dark-red ground ring for heavy / boss / area blows (visuals are local)
+    void Telegraph()
+    {
+        if (Dead || Puppet) return;
+        Fx.Burst(GlobalPosition + new Vector3(0, HeightM() * 0.85f, 0), new Color(0.75f, 0.9f, 1f), 7, 1.5f, Mathf.Max(.2f, Def.Wind), 0.14f);
+        ClearTele();
+        if (!(Def.Slam || Def.Boss || Def.Kind == "dragon") || Tune.F("monsters.telegraphRing", 1) <= 0) return;
+        float rad = Def.Reach + 0.8f;
+        var mat = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, AlbedoColor = new Color(.45f, .02f, .02f, .1f), CullMode = BaseMaterial3D.CullModeEnum.Disabled };
+        // a thin ring at the edge of the blow (a solid disc hid the ground and the hero: devloop #4)
+        _tele = new MeshInstance3D { Mesh = new TorusMesh { InnerRadius = rad - 0.14f, OuterRadius = rad, Rings = 48, RingSegments = 4 }, MaterialOverride = mat, TopLevel = true, Scale = new Vector3(1, 0.05f, 1), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
+        AddChild(_tele); _tele.GlobalPosition = GlobalPosition + Vector3.Up * 0.08f;
+    }
+    void TeleTick()
+    {
+        if (_tele == null || !IsInstanceValid(_tele)) return;
+        if (_tele.MaterialOverride is StandardMaterial3D m) m.AlbedoColor = new Color(.6f, .05f, .03f, Mathf.Lerp(.85f, .15f, Mathf.Clamp(_timer / Mathf.Max(.05f, Def.Wind), 0, 1)));
+    }
+    public void Stun(float t) { ClearTele(); if (Dead) return; if (Duelist) { DuelParried(t); return; } _hitSerial++; if (Puppet) { if (DuelPeer == 0) Net.I?.SendEnemyStun(this, t); return; } _stun = Mathf.Max(_stun, t); if (_state != State.Sleep) _state = State.Stagger; }
     public void Ignite(float t, float dps) => Status.Add("burn", t / 3f, 1, dps);
     public void Slow(float t) => Status.Add("chill", t / 3f, 0, 0);
     public void Wake() { if (Def.Flee && !Dead) { _state = State.Flee; return; } if (_state == State.Sleep || _state == State.Idle || _state == State.Return) { if (Overworld && !Puppet && Hp >= MaxHp - .5f) Rescale(false); _state = State.Chase; if (_state == State.Chase && Def.Kind == "dragon") Sfx.Play("roar"); } }
@@ -528,6 +548,13 @@ public partial class Enemy : CharacterBody3D, IDamageable
         if (Duelist && !DuelHit(h, ref dmg)) return;   // dodged, immune, or soaked by the Eclipse barrier
         if (Scarletta) ScarHitTaken(ref dmg);          // the Bloom counts it; broken, she takes more
         Hp -= dmg; _flash = 0.12f; NoteDamage(h, dmg);
+        // stagger (decided here, on the host/owner): a big hit or crit cancels the wind-up; bosses only every Nth qualifying hit
+        if (h.IsPlayer && Hp > 0 && !Duelist && !Scarletta && (h.Crit || dmg >= MaxHp * Tune.F("monsters.staggerFrac", .2f)) && _state != State.Sleep && _state != State.Stagger)
+        {
+            bool go = true;
+            if (Def.Boss || Def.Kind == "dragon") { _staggerCount++; go = _staggerCount % Mathf.Max(1, Mathf.RoundToInt(Tune.F("monsters.staggerBossEvery", 3))) == 0; }
+            if (go) { Stun(Tune.F("monsters.staggerTime", .4f)); _staggerLean = 1f; }
+        }
         if (h.IsPlayer && !h.Remote) Flag.Event($"hit {Def.N} Lv{Level} for {dmg}{(h.Crit ? " crit" : "")} {h.Type}, its hp {Mathf.Max(0, Hp):0}/{MaxHp:0}");
         if (h.IsPlayer) { var D = Game.D; var p = Player.Instance; if (p != null) { p.Hp = Mathf.Min(D.MaxHp(), p.Hp + dmg * (Game.TS["leech"] + h.Leech) / 100f * Player.HealIn); p.Mp = Mathf.Min(D.MaxMp(), p.Mp + dmg * Game.TS["mleech"] / 100f); } }
         ApplyStatuses(h, dealt);
@@ -542,14 +569,14 @@ public partial class Enemy : CharacterBody3D, IDamageable
         // recoil: the body jolts away from the hit and squashes, then springs back (local space, since the enemy node is yawed)
         Feel.Load();
         if (away.LengthSquared() > 0.001f) _recoilDir = Basis.Inverse() * away.Normalized();
-        _recoilK = Mathf.Clamp(h.Knock / 5f, 0.4f, 1.5f) * (Def.Boss || Def.Kind == "dragon" ? Feel.RecoilBossMul : 1f) * (h.Crit ? 1.3f : 1f); _recoilT = Feel.RecoilTime;
-        if (h.IsPlayer && h.Attacker is Player) Feel.HitStop(Feel.ForHit(h, Hp <= 0));
+        _recoilK = Mathf.Clamp(h.Knock / 5f, 0.4f, 1.5f) * (Def.Boss || Def.Kind == "dragon" ? Feel.RecoilBossMul : 1f) * (h.Crit ? 1.3f : 1f) * (_staggerLean > 0 ? 1.6f : 1f); _recoilT = Feel.RecoilTime * (_staggerLean > 0 ? 1.5f : 1f); _staggerLean = 0;
+        if (h.IsPlayer && h.Attacker is Player && h.Kind is not ("light" or "combo" or "power")) Feel.HitStop(Feel.ForHit(h, Hp <= 0));
         if (Hp <= 0) Die(h);
     }
 
     void Die(HitInfo? h)
     {
-        _state = State.Dead; _deadT = 0; CollisionLayer = 0; CollisionMask = 1; _label.Visible = false; if (_aura != null) _aura.Visible = false;
+        ClearTele(); _state = State.Dead; _deadT = 0; CollisionLayer = 0; CollisionMask = 1; _label.Visible = false; if (_aura != null) _aura.Visible = false;
         if (CurrentBoss == this) CurrentBoss = null;
         var D = Game.D; var p = Player.Instance;
         // shared overworld kill in multiplayer: the host pays the killer and their party (experience, quests, materials, loot by party rules)
@@ -734,17 +761,17 @@ public partial class Enemy : CharacterBody3D, IDamageable
                     if (dist > range * 0.9f) move = toP.Normalized() * Def.Spd;
                     else if (dist < keep) move = -toP.Normalized() * Def.Spd * 0.8f;
                     else { var side = new Vector3(-toP.Z, 0, toP.X).Normalized() * ((GetInstanceId() % 2 == 0) ? 1 : -1); move = side * Def.Spd * 0.4f; }
-                    if (dist <= range && _timer <= 0) { _state = State.Wind; _timer = Def.Wind; _swingSerial++; }
+                    if (dist <= range && _timer <= 0) { _state = State.Wind; _timer = Def.Wind; _swingSerial++; Telegraph(); }
                 }
                 else
                 {
                     if (dist > Def.Reach * 0.8f) move = toP.Normalized() * Def.Spd;
-                    if (dist <= Def.Reach + 0.2f && _timer <= 0) { _state = State.Wind; _timer = Def.Wind; _swingSerial++; }
+                    if (dist <= Def.Reach + 0.2f && _timer <= 0) { _state = State.Wind; _timer = Def.Wind; _swingSerial++; Telegraph(); }
                 }
                 break;
             case State.Wind:
                 _yaw = Mathf.LerpAngle(_yaw, yawToP, 1f - Mathf.Exp(-12f * dt));
-                _timer -= dt;
+                _timer -= dt; TeleTick(); if (_timer <= 0) ClearTele();
                 // melee: lunge in over the last third of the wind-up so the blow lands in contact, not from a step away
                 if (!ranged && _timer < Def.Wind * .35f && dist - Def.R * _scale > .9f)
                     move = new Vector3(-Mathf.Sin(_yaw), 0, -Mathf.Cos(_yaw)) * Mathf.Min(Def.Spd * 2.2f, (dist - Def.R * _scale - .7f) / Mathf.Max(.05f, _timer));

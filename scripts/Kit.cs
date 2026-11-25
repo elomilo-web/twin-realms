@@ -51,7 +51,7 @@ public static class Kit
             }
             else if (p != null)
             {
-                for (int i = 0; i < p.Mesh.GetSurfaceCount(); i++) if (p.Mesh.SurfaceGetMaterial(i) is { } m && p.Mesh is ArrayMesh am) am.SurfaceSetMaterial(i, Shared(m));
+                for (int i = 0; i < p.Mesh.GetSurfaceCount(); i++) if (p.Mesh.SurfaceGetMaterial(i) is { } m && p.Mesh is ArrayMesh am) am.SurfaceSetMaterial(i, Shared(m, Folder(name)));
                 p.Box = p.Xf * p.Mesh.GetAabb();
             }
             root.Free();
@@ -86,14 +86,26 @@ public static class Kit
         return am;
     }
 
+    /// <summary>Kit folder of a model name: "kit/village/x" and "village/x" both give "village".</summary>
+    static string Folder(string name)
+    {
+        var parts = name.Split('/');
+        int i = parts.Length > 0 && parts[0] == "kit" ? 1 : 0;
+        return parts.Length > i + 1 ? parts[i] : "";
+    }
+
     /// <summary>One material per glTF material name across all models, with the tweaks from env.json "materials".</summary>
-    static Material Shared(Material m)
+    static Material Shared(Material m, string folder = "")
     {
         var k = m.ResourceName;
+        Cfg.TryGetProperty("materials", out var all);
+        bool isObj = all.ValueKind == JsonValueKind.Object;
+        // folder-aware override: "village/TR_Matte" in env.json beats plain "TR_Matte" for models in that folder
+        JsonElement tw = default; bool has = false;
+        if (k != "" && folder != "" && isObj && all.TryGetProperty(folder + "/" + k, out tw)) { has = true; k = folder + "/" + k; }
         if (k != "" && _mats.TryGetValue(k, out var s)) return s;
         s = m;
-        Cfg.TryGetProperty("materials", out var all);
-        JsonElement tw = default; bool has = all.ValueKind == JsonValueKind.Object && all.TryGetProperty(k, out tw);
+        if (!has) has = isObj && all.TryGetProperty(k, out tw);
         // gothic realism: a realistic shared material by name ("gothic": "G_Stone" in env.json, or a G_* name from tools/blender_gothic)
         string gname = has && tw.TryGetProperty("gothic", out var gv) ? gv.GetString() ?? "" : k.StartsWith("G_") ? k : "";
         if (has && tw.TryGetProperty("glow", out var g) && g.ValueKind == JsonValueKind.True) s = World.WindowMat;

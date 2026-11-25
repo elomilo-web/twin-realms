@@ -37,6 +37,7 @@
     },
     "monsters": {
       "_help": "Rewards and respawns for every monster (stats and scaling are under files > enemies.json and files > progression.json). xp = base xp x (1 + xpPerLevel x (level-1)) x xpMul. Killing a monster more than lowLevelGap levels below you gives lowLevelXp of the xp. Gold = random between goldMin + level x goldMinPerLevel and goldMax + level x goldMaxPerLevel, x goldMul (bosses x bossGoldMul). itemChance: chance a normal monster drops an item (+ shadowItemChance in the Shadow realm, + upgradeItemChance per dungeon upgrade). Loot bonus raises rarity. respawn: seconds before an overworld monster comes back.",
+      "staggerFrac": 0.2, "staggerTime": 0.4, "staggerBossEvery": 3, "telegraphRing": 1,
       "xpPerLevel": 0.12, "xpMul": 1, "lowLevelGap": 4, "lowLevelXp": 0.5, "summonedXp": 0.3,
       "goldMin": 2, "goldMinPerLevel": 1, "goldMax": 6, "goldMaxPerLevel": 2, "goldMul": 1, "bossGoldMul": 12,
       "itemChance": 0.2, "shadowItemChance": 0.06, "upgradeItemChance": 0.06,
