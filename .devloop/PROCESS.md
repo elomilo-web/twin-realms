@@ -47,7 +47,7 @@
 EDIT FILES ONLY WITH THE Edit/Write TOOLS: no PowerShell file rewrites (Set-Content/Add-Content/[IO.File] or helper
 functions): #15's Ui.cs split lost 342 lines to a PowerShell alias collision (`R` -> Invoke-History) and was reverted.
 CpuParticles3D has no AmountRatio and no Turbulence*. A local variable named like a class (float Dmg) hides it: qualify
-TwinRealms.Dmg. Ui partials already define Parch, Muted, GoldC, Parchment, ErrRed, Amber, RuneGold: don't redeclare.
+TwinRealms.Dmg. A static class holding a nested Godot node class must be partial (GD0002). PlaneMesh.OrientationEnum is X/Y/Z. Ui partials already define Parch, Muted, GoldC, Parchment, ErrRed, Amber, RuneGold: don't redeclare.
 New files: `namespace TwinRealms;` after the usings. Ui helpers like Lbl/Btn are instance methods (no `static` callers).
 CpuParticles3D has no Turbulence* (GPU only). Shader globals must be `const` (or uniforms). GeometryInstance3D.ShadowCastingSetting
 needs the class prefix outside GeometryInstance3D subclasses.

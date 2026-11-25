@@ -1,5 +1,13 @@
 # Dev loop log (newest first; max 20 detailed entries, older ones rolled into History)
 
+## #18 (2026-11-25) menus (directive), feel/combat, shaders, ui, perf, tools
+- Menus: Frame gets a deferred Recentre() for windows whose content outgrows the requested size (pack still sits left of centre in capture: follow-up); pause menu 2x3 stats strip (gold, valor, kills, played, deepest, best wave).
+- Combo: trail grows per step, finisher gold trail + ring + dust + heavy Feel.Impact + low "hit"; perfect presses (last 25% of recovery) speed the next step 10% + blade glint; "Rhythm" on an all-perfect finisher (feel.json combo).
+- Terrain shader (World.TerrainShader): 37/113 m macro brightness/hue/roughness variation, rock blend + darkening on slopes, normal detail fades 40-200 m, far ground desaturates toward haze.
+- Boss bar (Hud.DrawBossBar): Elden Ring layout bottom-centre (60% width), letter-spaced name, level, crimson fill + amber ghost, 2.5 s damage counter, fade-in; raid/duel bosses keep the old top bar.
+- Perf: CharRim off on Quality < 2, dropped beyond 40 m (RimLod, .5 s checks); sway shader inverse() once per vertex. Lead fix: CharRim must be `partial` (GD0002: nested GodotObject).
+- Capture: boss view (mushroomKing, level 8 so it doesn't kill the hero; hero healed while views settle) and combo view (combo3). Death screen seen once ("FALLEN" band): looks right.
+
 ## #17 (2026-11-25) menus (directive), animation, graphics, vfx, mechanics, tools
 - Inventory (Ui.OpenPack): PaperDoll silhouette (iron body + faint gold outline) with 8 equipment slots placed around it, 2-column gold stats, GoldTab header buttons; window now left of centre (follow-up). Lead fix: RuneGold is MapView's -> GoldC.Lightened.
 - Dodge roll: dust kick + whoosh at start, violet smoke puffs along the roll (pale + ring on a perfect dodge), dust + tiny settle at the end (Player.cs, Fx.RollPuff).
@@ -132,42 +140,8 @@
 - FPS: village 56.6 -> 49.1 (-13%, more lights), night 60.9 -> 54.9 (-10%); within the 15% rule. Watch next cycle.
 - Scores: combat feel 6.5->7, player feel 6->6.5, world code 6->7, enemies visuals 3->4.
 
-## #3 (2026-11-24) world, menus, shaders, vfx, ui, mechanics
-- Settlements: env.json "materials" maps kit TR_Tex_* (plaster, planks, thatch, 4 roof colours, stone/dungeon bricks, slabs) to G_* gothic sets; TR_Matte/Metal vertex colours tinted down; Kit.Shared honours "tint". Hollowfrost now dark gothic timber (a bit too dark in shade).
-- Title: Frame() skips the full-screen dark layers for the title; panel 620 px, left, alpha .72, 44 px letter-spaced gold title; hero slots stacked; TitleBackdrop camera MakeCurrent + yawed. Skyline now visible.
-- Sea shader (World.cs WaterShader inline): roughness .08 glints, fresnel toward sky_tint, 2nd rotated noise layer, calmer far water.
-- Sword trail: new assets/shaders/sword_trail.gdshader (steel edge, smoky tail, element tint via vertex colour), tip sparks above 8 m/s (Vfx.cs SwordTrail).
-- Inventory: ItemSlot.Inset framed wells, rarity frame + glow (rare+), hover ring.
-- Mechanics: "torch" block (post shape, craft 1 planks + 1 coal -> 4), BlockWorld lights the 24 nearest with Props.Torch.
-- Capture: "biome" lookup, new views settlement + terrace_close, wild foes within 30 m cleared before each view.
-- Scores: world visuals 5->5.5, menus/ui visuals 6->6.5, skills_vfx visuals 4->4.5. FPS: views unchanged (settlement 38 = old foliage spot).
-
-## #2 (2026-11-24) menus, combat, animation, audio, lighting, perf
-- Title: new scripts/TitleBackdrop.cs (dusk ProceduralSky, gothic skyline silhouettes, embers, drifting camera), Main.cs adds it as "TitleEnv". NOT yet visible (opaque title panel; see BACKLOG).
-- Perfect dodge: hit within 0.18 s of roll start -> 0.35x slow-mo 0.35 s (off in multiplayer), flash, "Perfect dodge!", 1.2 s x1.5 counter, 2 s cooldown (Player.cs PerfectDodge/TakeHit, Feel.SlowMo/Tick, tuning.json game.perfectDodge).
-- Animation: Avatar.cs HeadLook SkeletonModifier3D: head 60/neck 30/chest 10 toward lock target / nearest foe / camera, fades during one-shots; spine roll into turns.
-- Audio: footsteps by block under the foot (blocks.json "step", Blocks.BlockDef.Step, Sfx.BlockStep): grass/dirt/stone/wood/sand/snow/gravel/ice.
-- Dungeon: entry room always gets 3 lit torches, lit torches capped 20/floor, warm (1,.55,.25) r9 e2; cold ambient fill (Dungeon.Generate L117; World resets ambient per frame after exit).
-- Perf: hay/campfire stones no shadow + range. Sky-island grass range+Self fade REVERTED (foliage 35->29 fps: Self fade = transparent pass).
-- Water "bug" was a bad viewpoint (camera under the lake surface); diagnostics in DevCapture.
-- Fix by lead: CPUParticles3D -> CpuParticles3D (C# name).
-- Scores: dungeons visuals 6->6.5, combat feel 6->6.5, audio feel 5->6, animation feel 5->5.5. FPS avg 70.7 (unchanged; foliage 34.6).
-
-## #1 (2026-11-24) lighting, graphics, ui, vfx, world, code
-- Fog: look.json fogDay .0028->.0009, skyAffect .6->.2, volFog .0042->.0018, horizon beige->blue-grey, new fogHeight 30 / fogHeightDensity .0035 (World.cs ~193), day fog light 40% cooler (World.cs ~829). Vista now readable: island, sea, roads, far lands.
-- White beam = Lands.cs Updraft column (~831): alpha .07->.03, fades out beyond 140 m.
-- Blocks: per-block colour jitter, grass/forest_floor side lip band, darker side bodies, stronger AO (BlockMesher.cs; blocks.json "lip").
-- HUD: framed gothic bars with dark inset, top highlight, damage ghost (0.5 s hold, drain) on HP/MP/ST; low-HP (<30%) dark-red pulse (Hud.cs SlantBar/GhostStep).
-- Dungeon exit: rune circle (torus + 12 ticks + inner sigil, counter-rotating, motes, pulsing light) replaces the flat ellipse (Dungeon.cs MakePad, Pad._Process).
-- Code: 10 -> 1 compiler warnings. DevCapture: arena left before dungeon; hero keeps starting kit.
-- BLOCKED/partial: Frostmere water still dry (rounding fix kept, harmless; root cause unknown, see BACKLOG top).
-- Scores: world visuals 4->5, ui visuals 5->6, dungeons visuals 5->6, code 6.1->6.2. FPS avg 70.7 -> 70.6 (unchanged).
-
-## #0 setup (2026-11-24)
-- Built the info web: INDEX, 18 system cards, files.json (147 files), BACKLOG (45 items), PROCESS, STATE, DIRECTIVES.
-- Eyes: scripts/dev/DevCapture.cs autoload (--devcapture), 16 viewpoints, tools/capture|verify .bat/.ps1, sheet.ps1, reindex.ps1.
-- First capture: 16/16 views, avg 70.7 fps; baseline scores in STATE.json.
-- Decision: art direction stays dark gothic realism + block world (see PROCESS.md), not anime cel-shading.
-
 ## History
-(none yet)
+- #0 (11-24) setup: info web, DevCapture eyes (16 views), verify/capture/sheet/reindex tools; art direction kept as gothic realism + block world.
+- #1 vista fog cleared, updraft beam faded, block colour jitter + grass lips, gothic HUD bars + damage ghost, dungeon rune exit, 9 warnings fixed.
+- #2 title backdrop, perfect dodge, head look-at + lean, block-surface footsteps, lit dungeon entry; the 'dry lake' was a camera under water.
+- #3 gothic settlement materials, visible title skyline, sea glints, gothic sword trail, framed rarity slots, torch block.

@@ -11,6 +11,8 @@ Play a few minutes and tick what works; write problems into DIRECTIVES.md (or te
 - [ ] Enemy flinch + death fall (#9): enemies twist away from hits and tip over when they die.
 
 ## Movement and feel
+- [ ] Combo (#18): each step's trail grows; the finisher hits with a gold ring and dust; time presses near the end of each swing for 'Rhythm'.
+- [ ] Boss bar (#18): bottom-centre bar with name, draining ghost and a damage counter.
 - [ ] Lock-on (#15): camera frames you and the target; flick the mouse sideways to switch targets; lock drops when the target dies or hides.
 - [ ] Gathering (#15): press E on herbs/logs/ore: short timed action with a ring, chips/sparks, node shrinks.
 - [ ] Camera (#11): leads slightly where you run, eases out after walls/trees (no jitter?), slight over-the-shoulder offset.

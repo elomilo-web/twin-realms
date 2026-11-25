@@ -26,8 +26,9 @@ void vertex(){
   float s = sin(t + wp.x * 0.35 + wp.z * 0.22) * 0.6 + sin(t * 2.3 + wp.x * 1.1 + wp.z * 0.7) * 0.25;
   float wave = pow(sin((dot(wp.xz, vec2(0.89, 0.46)) - TIME * 3.0) * 0.2513) * 0.5 + 0.5, 3.0);
   vec3 off = vec3(s * 0.8 + 0.35, 0.0, s * 0.45) * h * h * sway * wind * wind_strength * (0.5 + gust + wave * 0.8);
-  VERTEX += inverse(mat3(MODEL_MATRIX)) * off;
-  NORMAL = normalize(inverse(mat3(MODEL_MATRIX)) * vec3(0.0, 1.0, 0.0));
+  mat3 im = inverse(mat3(MODEL_MATRIX));
+  VERTEX += im * off;
+  NORMAL = normalize(im * vec3(0.0, 1.0, 0.0));
 }
 void fragment(){
   vec3 base = COLOR.rgb * mix(0.45, 1.0, h);   // dark roots, tips no brighter than the colour (brighter tips burned out to pale yellow in sunlight)

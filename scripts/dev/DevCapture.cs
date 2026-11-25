@@ -110,8 +110,11 @@ public partial class DevCapture : Node
     }
 
     /// <summary>Hero back to neutral: no statuses/buffs, full bars, no hurt vignette, normal time.</summary>
+    Enemy? _boss;
     void ResetHero()
     {
+        if (_boss != null) { if (GodotObject.IsInstanceValid(_boss)) _boss.QueueFree(); _boss = null; }   // a frozen boss from the last view
+        Enemy.CurrentBoss = null;
         if (Player.Instance is not { } p) return;
         p.Buffs.Clear(); p.Statuses.Clear(); Engine.TimeScale = 1.0; Heal(); TwinRealms.Hud.ResetFx();
     }
@@ -239,18 +242,30 @@ public partial class DevCapture : Node
                         if (new Vector2(d.X, d.Z).LengthSquared() > .01f) P.Teleport(P.GlobalPosition, Mathf.Atan2(-d.X, -d.Z));
                     }
                 }
+                if (Str(v, "boss") is { Length: > 0 } bossType)
+                {   // a boss 3.2 m in front of the hero; "boss_freeze" stops it after the action (the hits) so the frame is stable
+                    var bf2 = -P.GlobalTransform.Basis.Z with { Y = 0 }; bf2 = bf2.LengthSquared() > .01f ? bf2.Normalized() : Vector3.Forward;
+                    var bp = P.GlobalPosition + bf2 * Num(v, "boss_dist", 3.2f);
+                    _boss = new Enemy { Type = bossType, Level = (int)Num(v, "boss_level", 30f), AnyRealm = true, NoLeash = true, Position = World.OnGround(bp.X, bp.Z, .3f) };
+                    Game.Root!.AddChild(_boss);
+                    await Secs(1f);
+                    Enemy.CurrentBoss = _boss;
+                }
                 // camera: free (absolute or relative to the hero) or the follow camera
                 var cp = Vec(v, "camera_pos"); var la = Vec(v, "look_at") ?? Vector3.Zero;
                 if (lakeCam != null && cp == null) FreeCam(lakeCam.Value.from, lakeCam.Value.at);
                 else if (cp != null) { if (Flag(v, "relative", false)) { cp += P.GlobalPosition; la += P.GlobalPosition; } FreeCam(cp, la); }
                 else { FreeCam(null, default); P.Rig!.Rotation = new Vector3(Num(v, "cam_pitch", -.25f), Num(v, "cam_yaw", P.Rotation.Y + Mathf.Pi), 0); P.Rig.Distance = Num(v, "cam_dist", 4.5f); }
                 await DoAction(action, Num(v, "cast_wait", .35f));
+                if (_boss != null && GodotObject.IsInstanceValid(_boss) && Flag(v, "boss_freeze", false))
+                { _boss.SetProcess(false); _boss.SetPhysicsProcess(false); Enemy.CurrentBoss = _boss; }
             }
             // measure frame times while the view settles
             var dts = new List<double>(); ulong last = Time.GetTicksUsec();
             for (int i = 0; i < wait; i++)
             {
                 await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                if (scene != "title" && Player.Instance is { Dead: false }) Heal();   // keep the hero alive while the view settles (the boss view killed it)
                 ulong now = Time.GetTicksUsec(); dts.Add((now - last) / 1e6); last = now;
             }
             if (dts.Count > 4) dts = dts.Skip(dts.Count / 4).ToList();   // the first frames after a teleport are spikes
@@ -290,6 +305,9 @@ public partial class DevCapture : Node
             case "sprint": Input.ActionPress(Inputs.Forward); Input.ActionPress(Inputs.Sprint); await Secs(1f); break;
             case "swing": Input.ActionPress(Inputs.Attack); await Secs(.05f); Input.ActionRelease(Inputs.Attack); await Secs(.2f); break;
             case "swing3": for (int s = 0; s < 3; s++) { Input.ActionPress(Inputs.Attack); await Secs(.05f); Input.ActionRelease(Inputs.Attack); await Secs(.3f); } break;
+            case "combo3":   // three presses, then .2 s after the last one: the finisher is in full swing
+                for (int s = 0; s < 3; s++) { Input.ActionPress(Inputs.Attack); await Secs(.05f); Input.ActionRelease(Inputs.Attack); await Secs(s < 2 ? .3f : .15f); }
+                break;
             case "cast":
                 var id = Game.D.Skills.Keys.FirstOrDefault(k => Skills.Get(k) is { } s && s.Kind is not "resurrect" && s.Kind is not "buff");
                 if (id != null) { Game.D.Bar[0] = id; Game.Notify(); }

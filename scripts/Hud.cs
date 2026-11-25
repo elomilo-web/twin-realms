@@ -32,7 +32,10 @@ public partial class HudCanvas : Control
     static readonly Color Gold = new Color("e3b04b"), Mute = new Color("a095bd");
     float _hurt, _lastHp = -1, _ptsShowT; int _lastPts;
     float _gHp = 1, _gHpH, _gMp = 1, _gMpH, _gSt = 1, _gStH, _lowV;   // damage ghosts (value, hold) and smoothed low-HP vignette
-    public void ResetFx() { _hurt = 0; _lowV = 0; _lastHp = -1; _gHp = _gMp = _gSt = 1; _gHpH = _gMpH = _gStH = 0; }
+    // Elden Ring style boss bar state (cached strings so nothing allocates per frame)
+    Enemy? _bossRef; float _gBoss = 1, _gBossH, _bossLastHp, _bossDmg, _bossDmgT, _bossFade; int _bossDmgShown = -1;
+    string _bossLv = "", _bossDmgS = ""; string[] _bossCh = System.Array.Empty<string>(); float[] _bossAdv = System.Array.Empty<float>();
+    public void ResetFx() { _bossRef = null; _hurt = 0; _lowV = 0; _lastHp = -1; _gHp = _gMp = _gSt = 1; _gHpH = _gMpH = _gStH = 0; }
     static GradientTexture2D? _vig;
     static GradientTexture2D Vignette
     {
@@ -188,7 +191,10 @@ public partial class HudCanvas : Control
         DrawCompass(p, p.Rig?.Yaw ?? 0f, sz.X / 2, pad, Mathf.Min(520f, sz.X * .4f), cBarH, fs(1.4f), fs(.8f), dtv);
         // target bar
         Enemy? tgt = Targeting.Aim != null && IsInstanceValid(Targeting.Aim) && !Targeting.Aim.Dead ? Targeting.Aim : Enemy.CurrentBoss != null && GodotObject.IsInstanceValid(Enemy.CurrentBoss) && !Enemy.CurrentBoss.Dead && Enemy.CurrentBoss.Active && Enemy.CurrentBoss.GlobalPosition.DistanceTo(p.GlobalPosition) < (Enemy.CurrentBoss.HpBars > 1 ? 120f : 35f) ? Enemy.CurrentBoss : p.Dead ? null : p.AimPoint(40f).enemy;
-        if (tgt != null && !tgt.Dead)
+        bool eldenBoss = tgt != null && !tgt.Dead && tgt.Def.Boss && tgt.HpBars <= 1 && !tgt.Duelist;
+        if (!eldenBoss) _bossRef = null;
+        if (eldenBoss) DrawBossBar(tgt!, sz, u, pad, dtv, Mathf.Max(18, fs(1.2f)));
+        else if (tgt != null && !tgt.Dead)
         {
             float tw = u * 24, ty = u * 7.6f + (Arenas.Active ? fs(1.4f) : 0); Txt(new Vector2(sz.X / 2 - tw / 2, ty), $"{tgt.Def.N}  Lv {tgt.Level}", fs(1.2f), tgt.Def.Boss ? UiTheme.Highlight : Colors.White, HorizontalAlignment.Center, tw);
             float extra = 0;
@@ -428,6 +434,47 @@ public partial class HudCanvas : Control
         var o = Para(x, x + w - skew); DrawPolyline(new[] { o[0], o[1], o[2], o[3], o[0] }, new Color(0, 0, 0, .8f), 3f);   // dark outer edge
         DrawPolyline(new[] { o[0], o[1], o[2], o[3], o[0] }, new Color(.72f, .58f, .3f, .9f), 1f);   // thin tarnished-gold frame
     }
+
+    /// <summary>Elden Ring style boss bar: bottom centre above the hotbar, name in spaced caps, crimson fill, amber ghost, gold frame, summed damage counter, fade-in on a new boss.</summary>
+    void DrawBossBar(Enemy t, Vector2 sz, float u, float pad, float dt, int nameSz)
+    {
+        if (_bossRef != t)
+        {
+            _bossRef = t; _gBoss = _bossLastHp = t.Hp / t.MaxHp; _gBossH = 0; _bossDmg = 0; _bossDmgT = 0; _bossFade = 0; _bossDmgShown = -1;
+            string nm = t.Def.N.ToUpper(); _bossCh = new string[nm.Length]; _bossAdv = new float[nm.Length];
+            for (int i = 0; i < nm.Length; i++) { _bossCh[i] = nm[i].ToString(); _bossAdv[i] = F.GetStringSize(_bossCh[i], HorizontalAlignment.Left, -1, nameSz).X; }
+            _bossLv = $"Lv {t.Level}";
+        }
+        float frac = Mathf.Clamp(t.Hp / t.MaxHp, 0, 1);
+        if (t.Hp < _bossLastHp - .01f) { _bossDmg += _bossLastHp - t.Hp; _bossDmgT = 2.5f; }
+        _bossLastHp = t.Hp; if (_bossDmgT > 0) { _bossDmgT -= dt; if (_bossDmgT <= 0) _bossDmg = 0; }
+        GhostStep(ref _gBoss, ref _gBossH, frac, dt);
+        _bossFade = Mathf.Min(1f, _bossFade + dt / .6f); float fa = _bossFade * _bossFade * (3 - 2 * _bossFade);
+        float bw = sz.X * .6f * (.88f + .12f * fa), bh = 10f, ss = Mathf.Max(36, u * 4.4f);
+        float x0 = sz.X / 2 - bw / 2, by = sz.Y - pad - ss - 110f;   // clear of the hotbar, its buff row and macro line
+        var gold = new Color(.72f, .58f, .3f, fa); var parch = new Color(.93f, .87f, .7f, fa);
+        // name, letter-spaced
+        float cx = x0, ny = by - 8f, sp = 3f;
+        for (int i = 0; i < _bossCh.Length; i++) { DrawString(F, new Vector2(cx + 1, ny + 1), _bossCh[i], HorizontalAlignment.Left, -1, nameSz, new Color(0, 0, 0, .8f * fa)); DrawString(F, new Vector2(cx, ny), _bossCh[i], HorizontalAlignment.Left, -1, nameSz, parch); cx += _bossAdv[i] + sp; }
+        // level at the right, muted gold
+        Txt(new Vector2(x0, ny), _bossLv, fs18(nameSz), new Color(.62f, .5f, .3f, fa), HorizontalAlignment.Right, bw);
+        // cumulative damage counter, fades out over the last .5 s
+        if (_bossDmgT > 0)
+        {
+            int shown = Mathf.RoundToInt(_bossDmg); if (shown != _bossDmgShown) { _bossDmgShown = shown; _bossDmgS = shown.ToString("N0"); }
+            float da = Mathf.Clamp(_bossDmgT / .5f, 0, 1) * fa;
+            Txt(new Vector2(cx + 18, ny), _bossDmgS, nameSz + 2, new Color(1f, .86f, .5f, da));
+        }
+        // bar: crimson fill, amber ghost via SlantBar, then a gold double rule
+        var r = new Rect2(x0, by, bw, bh);
+        DrawRect(r.Grow(3), new Color(.03f, .02f, .02f, .85f * fa));
+        SlantBar(r, frac * fa, new Color("7a0f14"), 0, 0, _gBoss * fa);
+        DrawRect(r.Grow(3), gold, false, 1f);
+        // status chips under the bar
+        float tx = x0, ic = Mathf.Max(18, u * 1.6f);
+        foreach (var s in t.Status.List) { StatusChip(new Vector2(tx, by + bh + 8), ic, s.Def.Col, s.Def.Name[..1], s.T, s.Stacks); tx += ic + 3; }
+    }
+    static int fs18(int nameSz) => Mathf.Max(11, nameSz - 2);
 
     /// <summary>Damage ghost: g trails the current fraction, holding ~0.5 s after a drop and then draining.</summary>
     static void GhostStep(ref float g, ref float hold, float cur, float dt)

@@ -162,6 +162,9 @@ public partial class Ui : CanvasLayer
             void Clamp() { var s = GetViewport().GetVisibleRect().Size; var m = new Vector2(Mathf.Min(size.X, s.X - 48), Mathf.Min(size.Y, s.Y - 48)); pc.CustomMinimumSize = m; pc.AnchorLeft = .5f; pc.AnchorRight = .5f; pc.AnchorTop = .5f; pc.AnchorBottom = .5f; pc.OffsetLeft = -m.X / 2; pc.OffsetRight = m.X / 2; pc.OffsetTop = -m.Y / 2; pc.OffsetBottom = m.Y / 2; }   // centred: offsets are half the size each way
             Clamp(); pc.GrowHorizontal = Control.GrowDirection.Both; pc.GrowVertical = Control.GrowDirection.Both; root.AddChild(pc);
             Action onSz = Clamp; GetViewport().SizeChanged += onSz; root.TreeExiting += () => GetViewport().SizeChanged -= onSz;
+            // content wider/taller than the requested size (e.g. the pack's tab row) makes the panel grow one way from stale offsets: re-centre on the real size
+            void Recentre() { if (!GodotObject.IsInstanceValid(pc)) return; var sz = pc.Size; float l = -sz.X / 2, t2 = -sz.Y / 2; if (Mathf.Abs(pc.OffsetLeft - l) > .5f || Mathf.Abs(pc.OffsetTop - t2) > .5f) { pc.OffsetLeft = l; pc.OffsetRight = l + sz.X; pc.OffsetTop = t2; pc.OffsetBottom = t2 + sz.Y; } }
+            pc.Resized += () => Callable.From(Recentre).CallDeferred();
         }
         var v = new VBoxContainer(); v.AddThemeConstantOverride("separation", 8); pc.AddChild(v);
         var hb = new HBoxContainer(); v.AddChild(hb); var t = Lbl(title.ToUpper(), 24, UiTheme.Title, hb); t.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;

@@ -384,6 +384,20 @@ void fragment(){
   c = mix(c, vec3(0.9, 0.93, 0.97), wSnow);
   c = mix(c, c * vec3(0.36, 0.33, 0.32), UV2.y * (0.55 + 0.45 * patchy));
   c *= (0.84 + 0.32 * macro);                                             // large soft light/dark patches seen from afar
+  // macro variation: world-space noise at ~37 m and ~113 m moves brightness and hue by about 8 %, so wide areas are not uniform
+  float dist = length(VERTEX);
+  float m37 = fb(p / 37.0 + vec2(7.3, 1.9)), m113 = fb(p / 113.0 + vec2(-4.1, 12.7));
+  float mv = (m37 - 0.5) * 0.6 + (m113 - 0.5) * 1.0;
+  c *= 1.0 + 0.16 * mv;
+  c *= vec3(1.0 + 0.08 * (m113 - 0.5), 1.0, 1.0 - 0.08 * (m113 - 0.5));  // warm / cool drift
+  // slope shading: steep ground turns darker and toward the rock colour, hollows (low macro height) a touch darker
+  float steep = smoothstep(0.12, 0.42, slope);
+  c = mix(c, rock * 0.8, steep * 0.35 * (1.0 - wSnow));
+  c *= 1.0 - 0.28 * steep * (1.0 - wSnow);
+  c *= 0.94 + 0.06 * smoothstep(0.0, 1.0, wnrm.y);
+  // aerial perspective: very far ground loses saturation and lifts slightly toward a hazy grey-blue
+  float far = smoothstep(150.0, 600.0, dist);
+  c = mix(c, vec3(lum(c)) * vec3(0.95, 1.0, 1.08) + vec3(0.015, 0.02, 0.03), far * 0.3);
   c = mix(vec3(lum(c)), c, saturation) * brightness;
 
   // normal and ambient-occlusion maps follow the same layer weights as the colour
@@ -397,14 +411,14 @@ void fragment(){
   nG = mix(nG, vec3(0.5, 0.5, 1.0), max(wRock * (1.0 - bw.y), wSnow));
   ao = mix(1.0, ao, ao_strength * (1.0 - wSnow));
   c *= mix(1.0, ao, 0.5); AO = ao; AO_LIGHT_AFFECT = 0.35;
-  NORMAL_MAP = nG; NORMAL_MAP_DEPTH = normal_depth;
+  NORMAL_MAP = nG; NORMAL_MAP_DEPTH = normal_depth * (1.0 - 0.7 * smoothstep(40.0, 200.0, dist));  // fade fine detail with distance
 
   float l = lum(c);
   vec3 sh = vec3(l * 0.5, l * 0.38, l * 0.85) + vec3(0.03, 0.01, 0.06);
   float vein = 1.0 - smoothstep(0.0, 0.03, abs(fb(p * 0.028 + vec2(5.0, -9.0)) - 0.5));
   sh = mix(sh, vec3(0.78, 0.22, 0.6), vein * 0.5 * step(2.0, wpos.y));
   ALBEDO = mix(c, sh, realm_t);
-  ROUGHNESS = mix(0.92, 0.6, wSnow); SPECULAR = 0.25;
+  ROUGHNESS = clamp(mix(0.92, 0.6, wSnow) + 0.1 * (m37 - 0.5) + 0.12 * (m113 - 0.5), 0.5, 1.0); SPECULAR = 0.25;
 }";
 
     void BuildMapImage()

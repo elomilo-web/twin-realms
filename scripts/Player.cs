@@ -41,6 +41,7 @@ public partial class Player : CharacterBody3D, IDamageable
     public static float SprintSpeed { get { Feel.Load(); return Feel.Sprint; } }
     float _heavyT; const float HeavyGather = .25f;   // heavy attack: seconds between pressing and the swing
     AttackStep? _step;   // the basic-attack chain step being swung (data/attacks.json)
+    bool _pressPerfect, _stepPerfect, _allPerfect = true; float _stepTotal;   // combo rhythm: press landed in the last part of the previous step's recovery
     float _recT, _recDur, _recPending; string _recClip = "";   // weight: the pause after a swing before the next one (attacks.json "recovery")
     /// <summary>For the pose packet: which attack animation is playing (index in avatar.json attackAnims + 1, 0 = none) and when its blow lands (s).</summary>
     public int NetAtkAnim; public float NetAtkHit;
@@ -336,8 +337,11 @@ public partial class Player : CharacterBody3D, IDamageable
         if (Attacks.HasStyle(w.Id)) { _step = Attacks.Resolve(w, _combo, power); _atk = _step.Def; }
         else { _step = null; _atk = power ? w.Power : w.Combo[Mathf.Min(_combo, w.Combo.Count - 1)]; }
         UseStamina(cost * (_step?.Stamina ?? 1f));
-        Fought(); _atkPower = power; _atkDur = _atk.Dur / (Game.D.AtkSpeed() * w.Speed * (_step?.Speed ?? 1f)); _atkT = _atkDur; _hitDone = false; _atkSerial++;
-        _recPending = (_step?.Recover ?? (power ? .5f : .05f)) / Game.D.AtkSpeed(); _comboT = _atkDur + _recPending + Tune.F("player.chainWindow", 1.3f);   // recovery counts toward keeping the chain going; then this long to press again before it starts over
+        _stepPerfect = !power && _combo > 0 && _pressPerfect; _pressPerfect = false;
+        if (_combo == 0 || power) _allPerfect = true; else _allPerfect &= _stepPerfect;
+        Fought(); _atkPower = power; _atkDur = _atk.Dur / (Game.D.AtkSpeed() * w.Speed * (_step?.Speed ?? 1f) * (_stepPerfect ? Feel.ComboF("perfectSpeed", 1.1f) : 1f)); _atkT = _atkDur;
+        if (_stepPerfect) SpellFx.Play("hit_spark", _trail.Tip?.GlobalPosition ?? GlobalPosition + Vector3.Up, .5f);   // faint gold glint at the blade _hitDone = false; _atkSerial++;
+        _recPending = (_step?.Recover ?? (power ? .5f : .05f)) / Game.D.AtkSpeed(); _stepTotal = _atkDur + _recPending; _comboT = _stepTotal + Tune.F("player.chainWindow", 1.3f);   // recovery counts toward keeping the chain going; then this long to press again before it starts over
         NetAtkAnim = _step != null && _step.Anim != "" ? Avatar.AttackIndex(_step.Anim) : 0; NetAtkHit = _atk.Hit * _atkDur;
         float camYaw = Rig?.Yaw ?? _modelYaw; float face = camYaw;
         var tgt = Targeting.Aim; _magnet = null;
@@ -397,7 +401,7 @@ public partial class Player : CharacterBody3D, IDamageable
             if (GearFx.Get(D.Weapon?.Elem) is { } el && el.Status != "") hi.With(el.Status, el.Proc * (fin || _atkPower ? 1.5f : 1f) * (_step?.ElemMul ?? 1f));   // elemental weapon
             if (_step != null) foreach (var (sid, ch) in _step.Status) hi.With(sid, ch);   // the chain step and its modifiers
             e.TakeHit(hi); if (crit) TriggerAuto("crit");
-            Feel.Impact(dmg, e.MaxHp, w.Id is "greatsword" or "mace" or "axe" or "hammer" || _atkPower, crit, e.Dead, new Vector3(d.X, 0, d.Z), Rig);
+            Feel.Impact(dmg, e.MaxHp, w.Id is "greatsword" or "mace" or "axe" or "hammer" || _atkPower || fin, crit, e.Dead, new Vector3(d.X, 0, d.Z), Rig);
             // where steel meets the foe: a spark on its near side, bigger for crits, finishers and heavies
             var toMe = -d.Normalized(); float big = crit ? 1.6f : fin || _atkPower ? 1.4f : 1f;
             var hitPt = e.GlobalPosition + new Vector3(0, e.HeightM() * .55f, 0) + toMe * e.Def.R * e.ScaleF() * .8f;
@@ -406,6 +410,14 @@ public partial class Player : CharacterBody3D, IDamageable
             hits++;
         }
         if (hits > 0) { Rig?.Shake(_atkPower ? Tune.F("heavy.shake", .32f) : fin ? 0.15f : 0.08f); Sfx.Play("hit"); if (_atkPower) Fx.Dust(GlobalPosition + GlobalTransform.Basis.Z * -1.2f, Tune.F("heavy.dust", 1.4f)); }   // a connecting heavy blow kicks up dust
+        if (fin && hits > 0 && !_atkPower)
+        {   // finisher lands: gold shockwave + dust + low thump
+            var gp = GlobalPosition + Vector3.Up * .08f;
+            Vfx.Ring(gp, Mathf.Max(2f, range * Feel.ComboF("ringScale", 1.1f)), new Color(1f, .82f, .4f), Feel.ComboF("ringTime", .45f));
+            Fx.Dust(GlobalPosition + GlobalTransform.Basis.Z * -1f, Feel.ComboF("dust", 1.2f)); Rig?.Shake(Feel.ComboF("shake", .22f));
+            Sfx.Play("hit", Feel.ComboF("thumpPitch", .75f));
+            if (_allPerfect && _combo > 0) FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.4f, 0), "Rhythm", new Color(1f, .85f, .4f), 1f);
+        }
         if ((_atkPower || fin) && (a.Up > 0 || a.Arc >= 180 || stun > .5f)) { Vfx.Ring(GlobalPosition + Vector3.Up * .08f, range * .9f, w.Trail, .35f); }
         // the block world: the blade meets whatever block is in front at chest height (axes cut wood and leaves, weak swings do nothing to stone)
         var fwd = new Vector3(-Mathf.Sin(_modelYaw), 0, -Mathf.Cos(_modelYaw));
@@ -595,7 +607,7 @@ public partial class Player : CharacterBody3D, IDamageable
         bool lmb = captured && !building && Input.IsActionPressed(Inputs.Attack);
         // a press during a swing or its recovery waits for them (it used to give up after 0.3 s, so a press early in a slow swing was lost)
         if (building) { }
-        else if (captured && Input.IsActionJustPressed(Inputs.Attack)) { if (!TryAttack(false)) { _hasQueue = true; _queuePower = false; _queueT = Mathf.Max(0.3f, Mathf.Min(_atkT, .8f) + Mathf.Max(_recT, _recPending) + .15f); } }
+        else if (captured && Input.IsActionJustPressed(Inputs.Attack)) { float rhyLeft = _comboT - Tune.F("player.chainWindow", 1.3f); _pressPerfect = _comboT > 0 && rhyLeft <= _stepTotal * Feel.ComboF("perfectWindow", .25f) && rhyLeft > -.2f; if (!TryAttack(false)) { _hasQueue = true; _queuePower = false; _queueT = Mathf.Max(0.3f, Mathf.Min(_atkT, .8f) + Mathf.Max(_recT, _recPending) + .15f); } }
         else if (lmb && !_hasQueue && _atkT <= 0 && _heavyT <= 0) TryAttack(false);   // held: the chain on repeat
         // pressing heavy drops a buffered light press, so the light swing cannot start during the gather and take the heavy's turn
         if (captured && !building && Input.IsActionJustPressed(Inputs.Heavy) && _heavyT <= 0 && !Dead) { _heavyT = HeavyGather; if (!_queuePower) _hasQueue = false; FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.1f, 0), "Heavy", new Color(1f, .8f, .45f), .35f); }
@@ -820,7 +832,9 @@ public partial class Player : CharacterBody3D, IDamageable
         if (atk && !w.Ranged)
         {
             _trail.Emit = prog > _atk!.Wind * .9f && prog < Mathf.Min(.95f, _atk.Hit + .3f);
-            _trail.Col = _atkPower ? new Color(1f, .8f, .35f) : _atk.Finisher ? w.Trail.Lerp(new Color(1f, .45f, .2f), .6f) : w.Trail;
+            int ts = _atkPower ? 0 : Mathf.Max(0, _combo);
+            _trail.Col = (_atkPower ? new Color(1f, .8f, .35f) : _atk.Finisher ? w.Trail.Lerp(new Color(1f, .82f, .4f), Feel.ComboF("finisherGold", .7f)) : w.Trail.Lerp(Colors.White, ts * Feel.ComboF("trailBrightStep", .1f)));
+            _trail.Life = .22f * (1f + ts * Feel.ComboF("trailLifeStep", .12f));
         }
         else _trail.Emit = false;
         AnimateAvatar(hv, floor, atk);

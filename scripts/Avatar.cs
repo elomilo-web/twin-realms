@@ -901,7 +901,7 @@ public partial class HeadLook : SkeletonModifier3D
 }
 
 /// <summary>Subtle fresnel rim on characters so they read against dark scenes: one shared unshaded additive overlay, driven by global uniforms.</summary>
-public static class CharRim
+public static partial class CharRim
 {
     static bool _g; static ShaderMaterial? _mat;
     public static Material Mat => _mat ??= Make();
@@ -930,8 +930,25 @@ public static class CharRim
     /// <summary>Put the rim overlay on every mesh under root that has no overlay yet.</summary>
     public static void Apply(Node root)
     {
-        var m = Mat;
-        void Walk(Node n) { foreach (var c in n.GetChildren()) { if (c is GeometryInstance3D g && g.MaterialOverlay == null) g.MaterialOverlay = m; Walk(c); } }
+        if (Game.Set.Quality < 2) return;
+        var m = Mat; var list = new List<GeometryInstance3D>();
+        void Walk(Node n) { foreach (var c in n.GetChildren()) { if (c is GeometryInstance3D g && g.MaterialOverlay == null) { g.MaterialOverlay = m; list.Add(g); } Walk(c); } }
         Walk(root);
+        if (list.Count > 0 && root is Node3D r3) root.AddChild(new RimLod { Root = r3, Meshes = list });
+    }
+    /// <summary>Drops the rim overlay (an extra draw pass per surface) on characters farther than 40 m from the camera; checked every 0.5 s.</summary>
+    sealed partial class RimLod : Node
+    {
+        public Node3D Root = null!; public List<GeometryInstance3D> Meshes = null!; double _t; bool _on = true;
+        public override void _Ready() { _t = GD.Randf() * .5f; }
+        public override void _Process(double dt)
+        {
+            _t -= dt; if (_t > 0) return; _t = .5;
+            var cam = GetViewport()?.GetCamera3D(); if (cam == null || !GodotObject.IsInstanceValid(Root)) return;
+            bool near = Root.GlobalPosition.DistanceSquaredTo(cam.GlobalPosition) < 40f * 40f;
+            if (near == _on) return; _on = near;
+            var m = Mat;
+            foreach (var g in Meshes) if (GodotObject.IsInstanceValid(g)) { if (!near) { if (g.MaterialOverlay == m) g.MaterialOverlay = null; } else if (g.MaterialOverlay == null) g.MaterialOverlay = m; }
+        }
     }
 }

@@ -63,6 +63,18 @@ public static class Feel
         ImpMax = JsonUtil.F(i, "max", ImpMax); KickDist = JsonUtil.F(i, "kick", KickDist); FovPulse = JsonUtil.F(i, "fovPulse", FovPulse); FovPulseTime = JsonUtil.F(i, "fovTime", FovPulseTime);
     }
 
+    static System.Text.Json.JsonElement? _comboEl;
+    /// <summary>A number from data/feel.json "combo" (chain rhythm cues), with a fallback.</summary>
+    public static float ComboF(string key, float def)
+    {
+        if (_comboEl == null)
+        {
+            _comboEl = default(System.Text.Json.JsonElement);
+            try { using var doc = JsonUtil.Load("res://data/feel.json"); if (doc.RootElement.TryGetProperty("combo", out var c)) _comboEl = c.Clone(); } catch { }
+        }
+        var el = _comboEl.Value; return el.ValueKind == System.Text.Json.JsonValueKind.Object ? JsonUtil.F(el, key, def) : def;
+    }
+
     /// <summary>One entry point for a landed melee hit: hit-stop scaled by damage/maxHp and weapon weight (heavy = true), plus a camera kick along dir (world XZ).</summary>
     public static void Impact(float dmg, float maxHp, bool heavy, bool crit, bool kill, Vector3 dir, CameraRig? rig = null)
     {

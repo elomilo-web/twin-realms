@@ -267,8 +267,8 @@
     },
     {
         "path":  "scripts/Avatar.cs",
-        "lines":  938,
-        "hash8":  "059de2dc",
+        "lines":  955,
+        "hash8":  "998ee937",
         "system":  "animation",
         "summary":  "A character built from the Quaternius universal rig (data/avatar.json): a plain base body (male or..."
     },
@@ -365,8 +365,8 @@
     },
     {
         "path":  "scripts/dev/DevCapture.cs",
-        "lines":  347,
-        "hash8":  "1bb9d1f6",
+        "lines":  365,
+        "hash8":  "da602fe2",
         "system":  "devtools",
         "summary":  "Dev loop eyes (autoload). Does nothing unless the game is started with the user arg..."
     },
@@ -435,8 +435,8 @@
     },
     {
         "path":  "scripts/Feel.cs",
-        "lines":  102,
-        "hash8":  "dc875dc5",
+        "lines":  114,
+        "hash8":  "95b3559a",
         "system":  "combat",
         "summary":  "Game feel: hit-stop (a tiny freeze on impact) and enemy recoil settings. Tuning lives in..."
     },
@@ -456,8 +456,8 @@
     },
     {
         "path":  "scripts/Flora.cs",
-        "lines":  411,
-        "hash8":  "9b567dd0",
+        "lines":  412,
+        "hash8":  "3966df5e",
         "system":  "world",
         "summary":  "Scenery ground cover: wind-swept grass, ferns, bushes and pebbles. Scattered per chunk from data/flora.json,"
     },
@@ -533,8 +533,8 @@
     },
     {
         "path":  "scripts/Hud.cs",
-        "lines":  508,
-        "hash8":  "243025de",
+        "lines":  555,
+        "hash8":  "dfcd744a",
         "system":  "ui",
         "summary":  "In-game HUD matching the prototype layout: top-left info, compass, quest tracker, target bar, bottom bars,..."
     },
@@ -715,8 +715,8 @@
     },
     {
         "path":  "scripts/Player.cs",
-        "lines":  864,
-        "hash8":  "023a9106",
+        "lines":  878,
+        "hash8":  "7e97ea41",
         "system":  "player",
         "summary":  "The hero: movement, roll, four weapon types (sword, bow, wand, staff), block/parry, four spells, potions,..."
     },
@@ -911,8 +911,8 @@
     },
     {
         "path":  "scripts/Ui.cs",
-        "lines":  764,
-        "hash8":  "60cabe26",
+        "lines":  767,
+        "hash8":  "61a18aab",
         "system":  "ui",
         "summary":  "All menus and overlays, built in code: notes, banners, dialogue, shop, smith, pack, character, skill..."
     },
@@ -1002,8 +1002,8 @@
     },
     {
         "path":  "scripts/UiSystem.cs",
-        "lines":  260,
-        "hash8":  "ef25f201",
+        "lines":  263,
+        "hash8":  "bb6ff233",
         "system":  "ui",
         "summary":  "System menus: the pause menu (hero summary, quick links, save, quit with a confirm step)"
     },
@@ -1093,8 +1093,8 @@
     },
     {
         "path":  "scripts/World.cs",
-        "lines":  715,
-        "hash8":  "90ab295c",
+        "lines":  729,
+        "hash8":  "e279ca24",
         "system":  "world",
         "summary":  "The overworld: heightfield terrain, sky and day/night, the Light/Shadow realm shift, vegetation and shared materials."
     },

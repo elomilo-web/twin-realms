@@ -21,6 +21,19 @@
                    "fovPulse":  2,
                    "fovTime":  0.12
                },
+    "combo":  {
+                  "trailLifeStep":  0.12,
+                  "trailBrightStep":  0.1,
+                  "finisherGold":  0.7,
+                  "perfectWindow":  0.25,
+                  "perfectSpeed":  1.1,
+                  "ringTime":  0.45,
+                  "ringScale":  1.1,
+                  "dust":  1.2,
+                  "thumpPitch":  0.75,
+                  "thumpVol":  1.0,
+                  "shake":  0.22
+              },
     "crit":  {
                  "flash":  0.06,
                  "sparks":  14,

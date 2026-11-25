@@ -72,6 +72,9 @@ public partial class Ui
         // ---- bottom: hero name, level, location
         string place = Dungeon.Active ? $"Dungeon, floor {Dungeon.Depth}" : Arenas.Active ? "Crimson Arena" : p != null ? HudCanvas.PlaceName(p.GlobalPosition) : "";
         v.AddChild(new ColorRect { Color = gold with { A = .5f }, CustomMinimumSize = new Vector2(0, 1), MouseFilter = Control.MouseFilterEnum.Ignore });
+        var sg = new GridContainer { Columns = 2 }; sg.AddThemeConstantOverride("h_separation", 14); sg.AddThemeConstantOverride("v_separation", 0); v.AddChild(sg);
+        foreach (var (sk, sv) in new[] { ("Gold", $"{d.Gold}"), ("Valor", $"{d.Valor}"), ("Kills", $"{d.Kills}"), ("Played", Game.Played(d)), ("Deepest floor", $"{d.Deepest}"), ("Best wave", $"{d.BestWave}") })
+        { var sr = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; sg.AddChild(sr); var sl = Lbl(sk, 12, gold, sr); sl.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; Lbl(sv, 12, parch, sr); }
         Lbl(d.Name, 22, parch, v);
         Lbl($"Level {d.Level} {Races.Get(d.Race).Name} {Classes.Get(d.Class).Name}", 14, Dim, v);
         if (place != "") Lbl(place + (World.Realm == 1 ? "  (Shadow realm)" : ""), 14, World.Realm == 1 ? new Color(.78f, .62f, 1f) : gold, v);
