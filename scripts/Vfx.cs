@@ -136,6 +136,65 @@ public static class Vfx
         Sparks(pos + Vector3.Up * .4f, Ramp((0, new Color(.25f, .22f, .2f, 0)), (.2f, new Color(.2f, .18f, .17f, .55f)), (1, new Color(.3f, .3f, .3f, 0))), 12, 2.2f, 1.8f, 2.2f, 1.2f, false, 60f, null, radius * .3f, "smoke");
         Ring(pos + Vector3.Up * .08f, radius, new Color(1f, .5f, .15f), .5f);
         GroundMark(pos, "scorch", radius * 1.6f, new Color(.08f, .06f, .05f, .85f), 4f, 3f);   // a burnt patch that lingers
+        Aftermath(pos, radius);
+    }
+
+    // ---- fire aftermath: scorch decal, heat shimmer, lingering embers and smoke ----
+    static ImageTexture? _scorchTex;
+    static Shader? _shimmerShader;
+    static QuadMesh? _shimmerMesh;
+    static readonly Queue<Decal> _scorches = new();
+    const int MaxScorches = 12;
+
+    static ImageTexture ScorchTex()
+    {
+        if (_scorchTex != null) return _scorchTex;
+        const int N = 128; var img = Image.CreateEmpty(N, N, false, Image.Format.Rgba8);
+        var noise = new FastNoiseLite { Frequency = .05f, Seed = 7 };
+        for (int y = 0; y < N; y++) for (int x = 0; x < N; x++)
+        {
+            float dx = (x + .5f) / N * 2 - 1, dy = (y + .5f) / N * 2 - 1, d = Mathf.Sqrt(dx * dx + dy * dy);
+            float edge = .72f + noise.GetNoise2D(x * 2.2f, y * 2.2f) * .28f;   // ragged rim
+            float a = Mathf.Clamp((edge - d) / .35f, 0f, 1f); a *= a * (.75f + .25f * noise.GetNoise2D(x * 5f + 40, y * 5f));
+            float soot = .02f + .05f * (noise.GetNoise2D(x * 3f, y * 3f) * .5f + .5f);
+            img.SetPixel(x, y, new Color(soot, soot * .85f, soot * .75f, Mathf.Clamp(a, 0f, 1f)));
+        }
+        return _scorchTex = ImageTexture.CreateFromImage(img);
+    }
+
+    /// <summary>Burn mark on the ground that fades over ~6 s. At most 12 alive; the oldest is recycled.</summary>
+    public static void ScorchDecal(Vector3 pos, float radius)
+    {
+        while (_scorches.Count > 0 && (!GodotObject.IsInstanceValid(_scorches.Peek()) || _scorches.Count >= MaxScorches))
+        { var old = _scorches.Dequeue(); if (GodotObject.IsInstanceValid(old)) old.QueueFree(); }
+        float gy = World.GroundAt(pos.X, pos.Z); if (!Dungeon.Active && gy > -50f) pos.Y = gy;
+        float d = Mathf.Max(1.5f, radius * 2.2f);
+        var dec = new Decal { TextureAlbedo = ScorchTex(), Size = new Vector3(d, 3f, d), CullMask = 1, LowerFade = .3f, UpperFade = .3f };
+        Add(dec, pos); dec.Rotation = new Vector3(0, GD.Randf() * Mathf.Tau, 0); _scorches.Enqueue(dec);
+        dec.CreateTween().TweenProperty(dec, "modulate:a", 0f, 6f).SetDelay(.5f).SetEase(Tween.EaseType.In);
+        Later(dec, 6.8f);
+    }
+
+    /// <summary>Short heat haze above an impact (screen-distortion quad, ~0.6 s).</summary>
+    public static void HeatShimmer(Vector3 pos, float radius)
+    {
+        _shimmerShader ??= GD.Load<Shader>("res://assets/shaders/heat_shimmer.gdshader");
+        if (_shimmerShader == null) return;
+        _shimmerMesh ??= new QuadMesh { Size = Vector2.One, Material = new ShaderMaterial { Shader = _shimmerShader } };
+        float s = Mathf.Max(2f, radius * 2.4f);
+        var q = Add(new MeshInstance3D { Mesh = _shimmerMesh, Scale = new Vector3(s, s, s), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off, ExtraCullMargin = 2f }, pos + Vector3.Up * (radius * .5f + .4f));
+        q.SetInstanceShaderParameter("life", 1f);
+        q.CreateTween().TweenMethod(Callable.From<float>(v => { if (GodotObject.IsInstanceValid(q)) q.SetInstanceShaderParameter("life", v); }), 1f, 0f, .6f);
+        Later(q, .65f);
+    }
+
+    /// <summary>Everything that lingers after a fire blast: scorch decal, heat haze, drifting embers, a puff of black smoke.</summary>
+    public static void Aftermath(Vector3 pos, float radius)
+    {
+        ScorchDecal(pos, radius);
+        HeatShimmer(pos, radius);
+        Sparks(pos + Vector3.Up * .2f, Ramp((0, new Color(1, .6f, .2f)), (.5f, new Color(1, .3f, .06f)), (1, new Color(.4f, .06f, .02f, 0))), 14, 1.6f, 1.5f, .12f, 1.2f, true, 40f, null, radius * .4f, "spark");
+        Sparks(pos + Vector3.Up * .3f, Ramp((0, new Color(.03f, .03f, .03f, 0)), (.2f, new Color(.04f, .035f, .035f, .6f)), (1, new Color(.08f, .08f, .08f, 0))), 6, 1.8f, 2.2f, radius * .9f + .8f, 1.4f, false, 25f, null, radius * .25f, "smoke");
     }
 
     /// <summary>Flat ring on the ground that expands and fades.</summary>

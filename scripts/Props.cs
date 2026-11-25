@@ -36,7 +36,7 @@ public partial class Torch : Node3D
         var smoke = new CpuParticles3D { Amount = 5, Lifetime = 2.2f, Direction = Vector3.Up, Spread = 10f, InitialVelocityMin = .4f, InitialVelocityMax = .7f, Gravity = new Vector3(.15f, .3f, 0), Emitting = true, Position = new Vector3(0, .4f * Size, 0),
             Mesh = new QuadMesh { Size = new Vector2(.6f * Size, .6f * Size), Material = Vfx.SpriteMat(false, "smoke") }, ColorRamp = sg, ScaleAmountMin = .7f, ScaleAmountMax = 1.4f };
         Vfx.Spin(smoke, "smoke", 30f); AddChild(smoke);
-        if (Light) { _l = new OmniLight3D { LightColor = Col, OmniRange = Range, LightEnergy = Energy, Position = new Vector3(0, 0.4f, 0) }; AddChild(_l); }
+        if (Light) { _l = new OmniLight3D { LightColor = Col, OmniRange = Range, LightEnergy = Energy, Position = new Vector3(0, 0.4f, 0), DistanceFadeEnabled = true, DistanceFadeBegin = 60f, DistanceFadeLength = 15f }; AddChild(_l); }
     }
     public override void _Process(double delta) { if (_l != null) _l.LightEnergy = Energy * (.93f + Mathf.Sin(Game.PlayTime * 9f + _ph) * 0.14f + Mathf.Sin(Game.PlayTime * 23f + _ph) * 0.07f); }
 }

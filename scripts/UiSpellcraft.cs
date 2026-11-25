@@ -52,7 +52,7 @@ public partial class Ui
 
         // ---- left: crafted spells
         var left = new VBoxContainer { CustomMinimumSize = new Vector2(220, 0) }; left.AddThemeConstantOverride("separation", 5); cols.AddChild(left);
-        Lbl("YOUR SPELLS", 15, UiTheme.Accent, left);
+        Header("Your spells", left);
         var nb = Btn("+  New spell", () => { ScLoad(""); OpenSpellcraft(null); }, true); Mark(nb, _scEdit == ""); left.AddChild(nb);
         var ls = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; left.AddChild(ls);
         var list = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; list.AddThemeConstantOverride("separation", 4); ls.AddChild(list);
@@ -78,9 +78,15 @@ public partial class Ui
         {
             var cards = sec == 0 ? _scWork.A : _scWork.B;
             var hr = new HBoxContainer(); hr.AddThemeConstantOverride("separation", 8); mid.AddChild(hr);
-            var hb = Btn(title, () => { _scSec = sec; OpenSpellcraft(null); }, true); Mark(hb, _scSec == sec); hr.AddChild(hb);
+            var hb = Btn(title, () => { _scSec = sec; OpenSpellcraft(null); }, true); hr.AddChild(hb);
+            var flat = new StyleBoxEmpty();
+            foreach (var sn in new[] { "normal", "hover", "pressed", "focus", "disabled" }) hb.AddThemeStyleboxOverride(sn, flat);
+            var hc = _scSec == sec ? UiTheme.Highlight : UiTheme.Accent.Lerp(UiTheme.Dim, .25f);
+            foreach (var cn in new[] { "font_color", "font_hover_color", "font_pressed_color", "font_focus_color" }) hb.AddThemeColorOverride(cn, hc);
+            hb.AddThemeFontSizeOverride("font_size", 15);
             var sl = Lbl(sub, 12, Dim, hr); sl.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; sl.AutowrapMode = TextServer.AutowrapMode.WordSmart;
             if (sec == 1 && cards.Count > 0) hr.AddChild(Btn("Remove section", () => { _scWork.B.Clear(); _scSec = 0; OpenSpellcraft(null); }, true));
+            mid.AddChild(new ColorRect { Color = (_scSec == sec ? UiTheme.Highlight : UiTheme.Accent) with { A = .45f }, CustomMinimumSize = new Vector2(0, 1) });
             var row = new HFlowContainer(); row.AddThemeConstantOverride("h_separation", 5); row.AddThemeConstantOverride("v_separation", 5); mid.AddChild(row);
             // carrier first, then the effect, then modifiers: the order they are read in
             var order = cards.Select((id, i) => (id, i)).OrderBy(x => Spellcraft.Card(x.id)?.Type switch { "carrier" => 0, "effect" => 1, _ => 2 }).ThenBy(x => x.i).ToList();
@@ -95,7 +101,7 @@ public partial class Ui
             int empty = Mathf.Clamp(maxCards - used, 0, 10); if (sec == 1 && cards.Count == 0) empty = Math.Min(empty, 3);
             for (int i = 0; i < (sec == _scSec ? empty : Math.Min(empty, 1)); i++)
             {
-                var t = new SkillTile { Known = false, MaxRank = 0, CustomMinimumSize = new Vector2(56, 56), Tint = UiTheme.Accent, Corner = i == 0 && cards.Count == 0 ? (sec == 0 ? "carrier" : "optional") : "" };
+                var t = new SpellCardTile { Empty = true, Known = false, MaxRank = 0, CustomMinimumSize = new Vector2(56, 72), Tint = UiTheme.Accent, Label = i == 0 && cards.Count == 0 ? (sec == 0 ? "carrier" : "optional") : "" };
                 t.Click = () => { _scSec = sec; OpenSpellcraft(null); };
                 t.Hover = (on, at) => { if (on) Info(at, "Empty slot", UiTheme.Dim, new[] { ($"Click a card on the right to put it in the {(sec == 0 ? "first" : "second")} section.", Colors.White, 13) }); else HideInfo(); };
                 row.AddChild(t);
@@ -137,6 +143,12 @@ public partial class Ui
             Sfx.Play("level"); Game.Notify(); Game.Save(); OpenSpellcraft(null);
         });
         forge.Disabled = err != null; bot.AddChild(forge);
+        forge.CustomMinimumSize = new Vector2(150, 38); forge.AddThemeFontSizeOverride("font_size", 17);
+        forge.AddThemeStyleboxOverride("normal", UiTheme.Box(new Color(.16f, .12f, .05f, .95f), UiTheme.Highlight, 2, 20, 8, 0));
+        forge.AddThemeStyleboxOverride("hover", UiTheme.Box(new Color(.26f, .19f, .07f, .98f), UiTheme.Highlight.Lerp(Colors.White, .3f), 2, 20, 8, 0));
+        forge.AddThemeStyleboxOverride("pressed", UiTheme.Box(new Color(.1f, .07f, .03f, .98f), UiTheme.Highlight, 2, 20, 8, 0));
+        forge.AddThemeStyleboxOverride("disabled", UiTheme.Box(new Color(.08f, .07f, .05f, .9f), UiTheme.AccentSoft, 1, 20, 8, 0));
+        forge.AddThemeColorOverride("font_color", UiTheme.Highlight); forge.AddThemeColorOverride("font_hover_color", Colors.White);
         bot.AddChild(Btn("Clear", () => { _scWork.A.Clear(); _scWork.B.Clear(); _scSec = 0; OpenSpellcraft(null); }));
         if (_scEdit != "")
         {
@@ -163,7 +175,7 @@ public partial class Ui
         var groups = _scTab == "carrier" ? new[] { ("spell", "SPELLS   mana, spell power"), ("martial", "WEAPON ARTS   stamina, weapon damage"), ("archery", "ARCHERY   stamina, needs a bow") } : new[] { ("", "") };
         foreach (var (g, gl) in groups)
         {
-            if (gl != "") Lbl(gl, 13, UiTheme.Accent, cl);
+            if (gl != "") Header(gl, cl);
             var grid = new GridContainer { Columns = 6 }; grid.AddThemeConstantOverride("h_separation", 5); grid.AddThemeConstantOverride("v_separation", 5); cl.AddChild(grid);
             foreach (var c in Spellcraft.All.Where(x => x.Type == _scTab && (g == "" || x.Family == g)))
             {
@@ -245,10 +257,20 @@ public partial class Ui
         foot.HorizontalAlignment = HorizontalAlignment.Center;
     }
 
-    static SkillTile CardTile(CardDef c, string corner) => new()
+    static SpellCardTile CardTile(CardDef c, string corner) => new()
     {
-        Icon = Spellcraft.CardIcon(c), Tint = Spellcraft.CardColor(c), Known = true, MaxRank = 0, Corner = corner, CustomMinimumSize = new Vector2(56, 56),
+        Icon = Spellcraft.CardIcon(c), Tint = Spellcraft.CardColor(c), Known = true, MaxRank = 0, Corner = corner, CustomMinimumSize = new Vector2(56, 72),
+        Band = SpellCardTile.BandFor(c), Label = c.Name,
     };
+
+    /// <summary>Gold small-caps section label with a thin divider line under it.</summary>
+    Label Header(string text, Control parent)
+    {
+        var box = new VBoxContainer(); box.AddThemeConstantOverride("separation", 2); parent.AddChild(box);
+        var l = Lbl(text.ToUpperInvariant(), 14, UiTheme.Accent, box);
+        box.AddChild(new ColorRect { Color = UiTheme.Accent with { A = .45f }, CustomMinimumSize = new Vector2(0, 1) });
+        return l;
+    }
     static List<(string, Color, int)> CardLines(CardDef c, string foot)
     {
         var l = new List<(string, Color, int)>();
@@ -277,5 +299,81 @@ public partial class Ui
         foreach (var (b, val) in k.Buff) n.Add(TreeDb.StatText(b, val));
         if (c.Mp > 0) n.Add($"{c.Mp:0} mana"); if (c.St > 0) n.Add($"{c.St:0} stamina"); n.Add($"{c.Cd:0.#} s cooldown");
         return n;
+    }
+}
+
+/// <summary>A spellcraft card: portrait frame, family-coloured top band, centred icon, short name, optional count badge; or a dashed empty slot.</summary>
+public partial class SpellCardTile : SkillTile
+{
+    public Color Band = UiTheme.Accent; public string Label = ""; public bool Empty;
+    bool _hov;
+    static Font F => ThemeDB.FallbackFont;
+
+    public static Color BandFor(CardDef c)
+    {
+        if (c.Type == "carrier") return c.Family == "martial" ? Color.FromHtml("#7d8590") : c.Family == "archery" ? Color.FromHtml("#5b7d34") : Color.FromHtml("#26408f");
+        if (c.Type == "effect")
+        {
+            if (c.Id == "life") return Color.FromHtml("#3f9a4a");
+            if (c.Id == "stone") return Color.FromHtml("#7a5a3a");
+            return c.EType switch
+            {
+                "fire" => Color.FromHtml("#c8501e"), "frost" => Color.FromHtml("#9fe0ee"), "lightning" => Color.FromHtml("#b8a8ff"),
+                "poison" => Color.FromHtml("#7aa628"), "holy" => Color.FromHtml("#e8d68a"), "shadow" => Color.FromHtml("#4a2a6a"),
+                _ => Color.FromHtml("#8a8f96"),
+            };
+        }
+        return Color.FromHtml("#b89a4a");
+    }
+
+    public override void _Ready()
+    {
+        base._Ready();
+        MouseEntered += () => { _hov = true; QueueRedraw(); };
+        MouseExited += () => { _hov = false; QueueRedraw(); };
+    }
+
+    public override void _Draw()
+    {
+        var r = new Rect2(Vector2.Zero, Size);
+        if (Empty)
+        {
+            DrawRect(r, new Color(0, 0, 0, _hov ? .28f : .16f));
+            var col = (_hov ? UiTheme.Accent : UiTheme.AccentSoft) with { A = _hov ? .9f : .55f };
+            var a = new Vector2(1, 1); var b = new Vector2(Size.X - 1, 1); var c = Size - new Vector2(1, 1); var d = new Vector2(1, Size.Y - 1);
+            DrawDashedLine(a, b, col, 1.2f, 4); DrawDashedLine(b, c, col, 1.2f, 4); DrawDashedLine(c, d, col, 1.2f, 4); DrawDashedLine(d, a, col, 1.2f, 4);
+            var cx = Size.X / 2; var cy = Size.Y * .42f;
+            DrawLine(new Vector2(cx - 8, cy), new Vector2(cx + 8, cy), col, 2f); DrawLine(new Vector2(cx, cy - 8), new Vector2(cx, cy + 8), col, 2f);
+            if (Label != "") DrawString(F, new Vector2(0, Size.Y - 7), Label, HorizontalAlignment.Center, Size.X, 10, UiTheme.Dim);
+            return;
+        }
+        float dim = Locked ? .45f : Known ? 1f : .55f;
+        var frame = new StyleBoxFlat { BgColor = new Color(.05f, .045f, .04f, .95f), CornerRadiusTopLeft = 4, CornerRadiusTopRight = 4, CornerRadiusBottomLeft = 4, CornerRadiusBottomRight = 4 };
+        var bc = Selected ? UiTheme.Highlight : _hov ? UiTheme.Highlight.Lerp(Colors.White, .35f) : CanLearn ? UiTheme.Highlight with { A = .75f } : Known ? UiTheme.Accent with { A = .8f } : UiTheme.AccentSoft with { A = .4f };
+        int bw = Selected || _hov ? 2 : 1;
+        frame.BorderColor = bc; frame.BorderWidthLeft = frame.BorderWidthRight = frame.BorderWidthTop = frame.BorderWidthBottom = bw;
+        DrawStyleBox(frame, r);
+        // dark inset and family band
+        DrawRect(new Rect2(3, 14, Size.X - 6, Size.Y - 28), new Color(0, 0, 0, .45f));
+        var band = Band with { A = dim * (_hov ? 1f : .85f) };
+        DrawRect(new Rect2(bw, bw, Size.X - 2 * bw, 12), band);
+        DrawRect(new Rect2(bw, 12 + bw, Size.X - 2 * bw, 1), Colors.Black with { A = .5f });
+        if (_hov) DrawRect(new Rect2(bw, bw, Size.X - 2 * bw, Size.Y - 2 * bw), Colors.White with { A = .07f });
+        if (Icon != "") Icons.Draw(this, Icon, new Vector2(Size.X / 2, 14 + (Size.Y - 28) / 2), 32, dim);
+        // short name
+        int fs = 10; string s = Label;
+        while (s.Length > 2 && F.GetStringSize(s, HorizontalAlignment.Left, -1, fs).X > Size.X - 4) s = s[..^1];
+        if (s != Label) s = s.TrimEnd() + ".";
+        DrawString(F, new Vector2(0, Size.Y - 5), s, HorizontalAlignment.Center, Size.X, fs, (Known ? new Color(.92f, .87f, .74f) : UiTheme.Dim) with { A = dim });
+        // count badge
+        if (Corner != "")
+        {
+            float w = F.GetStringSize(Corner, HorizontalAlignment.Left, -1, 11).X + 8;
+            var br = new Rect2(Size.X - w - 2, 15, w, 15);
+            var badge = new StyleBoxFlat { BgColor = new Color(0, 0, 0, .8f), BorderColor = (CanLearn ? UiTheme.Highlight : UiTheme.AccentSoft), CornerRadiusTopLeft = 7, CornerRadiusTopRight = 7, CornerRadiusBottomLeft = 7, CornerRadiusBottomRight = 7 };
+            badge.BorderWidthLeft = badge.BorderWidthRight = badge.BorderWidthTop = badge.BorderWidthBottom = 1;
+            DrawStyleBox(badge, br);
+            DrawString(F, new Vector2(br.Position.X, br.Position.Y + 12), Corner, HorizontalAlignment.Center, w, 11, CanLearn ? UiTheme.Highlight : UiTheme.Dim);
+        }
     }
 }

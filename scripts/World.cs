@@ -62,7 +62,7 @@ public partial class World : Node3D
     public static readonly List<ShaderMaterial> RealmShaders = new();
     public static OmniLight3D Lamp(Node parent, Vector3 pos, Color col, float range = 14f, float energy = 1.5f, int realmOnly = -1, bool nightOnly = true)
     {
-        var l = new OmniLight3D { LightColor = col, OmniRange = range, LightEnergy = nightOnly ? 0f : energy, ShadowEnabled = false };
+        var l = new OmniLight3D { LightColor = col, OmniRange = range, LightEnergy = nightOnly ? 0f : energy, ShadowEnabled = false, Visible = !nightOnly, DistanceFadeEnabled = true, DistanceFadeBegin = 60f, DistanceFadeLength = 15f };
         parent.AddChild(l); l.Position = pos; Lamps.Add((l, nightOnly ? energy : -energy, realmOnly)); return l;
     }
 

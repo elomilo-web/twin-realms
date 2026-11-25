@@ -1,5 +1,16 @@
 # Dev loop log (newest first; max 20 detailed entries, older ones rolled into History)
 
+## #5 (2026-11-24) full sweep + process review; world, shaders, ui, vfx, tools, perf
+- Shadow realm (WorldEnv.cs + look.json): cold blue-grey/violet palette, pale violet sun at ~1.05x, ambient >= 0.6x day, violet-grey fog .003, eclipse halo. Readable now, still dark.
+- Sea: rotated/irrational noise layers, normals fade to 0 by ~1200 m, macro albedo/roughness variation: grid pattern gone. Lead fix: inline shader `mat2 R1/R2` must be `const` (shader failed to compile).
+- Arena (Builder.cs ArenaMats): ochre-grey rock floor + worn circle + stains, dark brick base, G_Stone stands, 18 crimson banners, 8 braziers.
+- Spellcraft (UiSpellcraft.cs SpellCardTile, Header): portrait cards with family/element band, count badge, dashed "+" slots, gold forge button. Lead fix: Header must be an instance method (Lbl).
+- Fire impacts (Vfx.Aftermath): scorch Decal (cap 12, 6 s fade), heat shimmer quad (assets/shaders/heat_shimmer.gdshader), embers + smoke.
+- Perf: lamps Visible only when lit, writes only on change, distance fade; torches fade 60-75 m.
+- Capture: my #2 teleport bug (code after `//` on the same line) fixed; lake has its own camera; actions dodge, swing3, place:<block>, foe_side; views torch_night, dodge, head_look, stagger (22 views); realm resets to Light per view; full sweeps saved to screenshots/full.
+- FPS: full sweep avg 65.6 over 22 views (new views are heavier); foliage 55->62, vista 59->70 (before the shader fix), village 51.
+- Scores: arena visuals 5->6.5, spellcraft visuals 4->5.5, world visuals 5.5->6, skills_vfx visuals 4.5->5.
+
 ## #4 (2026-11-24) feel, animation, code, lighting, combat, graphics
 - Feel.Impact (Feel.cs): hit-stop 45 ms light / 90 ms heavy, x0.8-1.4 by dmg/maxHp, crit x1.5, kill x1.6, cap 140 ms; CameraRig.Kick: directional punch + -2 deg FOV pulse on heavy/crit (respects Shake). Player.ResolveMelee calls it; Enemy.TakeHit's old hit-stop only for non-melee. Numbers: data/feel.json "impact".
 - Landing: Player tracks peak height; falls >1.2 m -> Fx.Dust (surface-coloured), small shake, low thud (step_stone pitched down), longer crouch.

@@ -90,7 +90,7 @@ void sky(){
   if (y < 0.0) col = mix(col, ground_col, clamp(-y * 5.0, 0.0, 1.0));
   float sdot = max(dot(d, sd), 0.0);
   float halo = pow(sdot, mix(12.0, 80.0, night)) * mix(0.35, 0.12, night) + pow(sdot, 400.0) * mix(1.0, 0.25, night);
-  col += mix(sun_col, vec3(0.6, 0.7, 1.0), night) * halo * (1.0 - realm_t * 0.6);
+  col += mix(sun_col, vec3(0.6, 0.7, 1.0), night) * halo * (1.0 - realm_t * 0.2) + vec3(0.62, 0.58, 0.9) * (pow(sdot, 30.0) * 0.5 + pow(sdot, 220.0) * 0.8) * realm_t;
   float cl = 0.0;
   if (!AT_CUBEMAP_PASS) {
     if (y > 0.0 && night > 0.02) {
@@ -106,15 +106,15 @@ void sky(){
     vec3 cday = mix(vec3(0.6, 0.65, 0.75), vec3(1.05), lit) + dusk_col * dusk * (0.3 + 0.7 * az) * 0.8;
     vec3 cnight = vec3(0.2, 0.25, 0.36) * (0.55 + lit * 0.5);   // dusty blue night clouds
     vec3 ccol = mix(cday, cnight, night);
-    ccol = mix(ccol, vec3(0.3, 0.1, 0.4) * (0.5 + lit * 0.6), realm_t);
+    ccol = mix(ccol, vec3(0.24, 0.23, 0.34) * (0.6 + lit * 0.6), realm_t);
     col = mix(col, ccol, cl * 0.92);
     float neb = fbm(d.xz / (y + 0.35) * 0.45 - wind * 0.4);
-    col += mix(vec3(0.3, 0.05, 0.4), vec3(0.03, 0.35, 0.4), neb) * neb * realm_t * smoothstep(0.0, 0.45, y) * 0.7;
+    col += mix(vec3(0.2, 0.12, 0.3), vec3(0.08, 0.2, 0.26), neb) * neb * realm_t * smoothstep(0.0, 0.45, y) * 0.5;
     float rift = 1.0 - smoothstep(0.0, 0.01, abs(fbm(d.xz / (y + 0.5) * 0.7 + 3.0) - 0.5));
     col += vec3(0.95, 0.45, 1.0) * rift * realm_t * smoothstep(0.15, 0.5, y) * 0.9;
   }
   float disc = smoothstep(mix(0.99955, 0.9997, night), mix(0.9998, 0.99985, night), sdot);
-  col += mix(sun_col * 14.0, vec3(0.85, 0.9, 1.0) * 2.5, night) * disc * (1.0 - cl) * (1.0 - realm_t * 0.7);
+  col += mix(sun_col * 14.0, vec3(0.85, 0.9, 1.0) * 2.5, night) * disc * (1.0 - cl) * (1.0 - realm_t * 0.5);
   COLOR = col;
 }";
 
@@ -141,18 +141,19 @@ global uniform vec4 vox_rect;   // the block world's square: water blocks are dr
 uniform float vox_cut = 1.0;    // 0 on the water blocks' own material
 float h21(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(h21(i), h21(i+vec2(1.0,0.0)), f.x), mix(h21(i+vec2(0.0,1.0)), h21(i+vec2(1.0,1.0)), f.x), f.y); }
+const mat2 R1 = mat2(vec2(0.8660, 0.5), vec2(-0.5, 0.8660)); const mat2 R2 = mat2(vec2(0.3624, 0.9320), vec2(-0.9320, 0.3624));
 float waves(vec2 p, float t){
   return sin(p.x * 0.42 + t * 1.1) * 0.35 + sin(dot(p, vec2(0.23, 0.31)) - t * 0.8) * 0.4 + sin(dot(p, vec2(-0.5, 0.17)) * 1.3 + t * 1.4) * 0.18
-       + vn(p * 0.9 + vec2(t * 0.35, t * 0.2)) * 0.5 + vn(p * 2.7 - vec2(t * 0.6, 0.0)) * 0.18;
+       + vn(R1 * p * 0.9137 + vec2(t * 0.35, t * 0.2) + 17.3) * 0.5 + vn(R2 * p * 2.6483 - vec2(t * 0.6, 0.0) + 41.7) * 0.18;
 }
 void vertex(){ wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz; }
 void fragment(){
   float t = TIME; vec2 p = wp.xz; float e = 0.12;
   if (vox_cut > 0.5 && p.x > vox_rect.x && p.y > vox_rect.y && p.x < vox_rect.z && p.y < vox_rect.w) discard;
   float dist = length(VERTEX);
-  float calm = 1.0 / (1.0 + dist / 140.0);   // far water is calmer
+  float calm = 1.0 / (1.0 + dist / 140.0); calm *= calm * (1.0 - smoothstep(250.0, 1200.0, dist));   // far water is calm and flat: no tiling glints
   vec2 pa = p + vec2(t * 0.6, t * 0.25);
-  vec2 pb = vec2(p.x * 0.8 - p.y * 0.6, p.x * 0.6 + p.y * 0.8) * 0.37 + vec2(-t * 0.18, t * 0.11);   // rotated, larger, other direction
+  vec2 pb = vec2(p.x * 0.8 - p.y * 0.6, p.x * 0.6 + p.y * 0.8) * 0.3713 + 5.9 + vec2(-t * 0.18, t * 0.11);   // rotated, larger, other direction
   float w0 = waves(pa, t) + vn(pb) * 0.7, wx = waves(pa + vec2(e, 0.0), t) + vn(pb + vec2(e * 0.3, 0.0)) * 0.7, wz = waves(pa + vec2(0.0, e), t) + vn(pb + vec2(0.0, e * 0.3)) * 0.7;
   vec3 nw = normalize(vec3((w0 - wx) / e * 0.35 * calm, 1.0, (w0 - wz) / e * 0.35 * calm));
   NORMAL = normalize((VIEW_MATRIX * vec4(nw, 0.0)).xyz);
@@ -164,11 +165,13 @@ void fragment(){
   float fr = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 4.0);
   float fn = vn(p * 3.0 + vec2(t * 0.5, -t * 0.3));
   float fo = (1.0 - smoothstep(0.0, 0.9 + fn * 0.6, thick)) * (0.55 + 0.45 * sin(thick * 9.0 - t * 2.5 + fn * 4.0));
-  fo = clamp(fo + smoothstep(0.82, 0.95, w0 * 0.55 + fn * 0.4) * 0.35, 0.0, 1.0);
+  fo = clamp(fo + smoothstep(0.82, 0.95, w0 * 0.55 + fn * 0.4) * 0.35 * calm, 0.0, 1.0);
   c *= mix(1.0, 0.7, clamp(1.0 - fr * 2.0, 0.0, 1.0));   // darker looking straight down
   c = mix(c, sky_tint, clamp(fr * 1.3, 0.0, 0.85));       // reflect the horizon at grazing angles
   ALBEDO = mix(c, foam, fo);
-  ROUGHNESS = mix(0.08, 0.5, fo); SPECULAR = 0.9; METALLIC = 0.0;
+  float macro = vn(p * 0.0061 + 3.1) * 0.6 + vn(R1 * p * 0.0173) * 0.4;
+  ALBEDO *= 0.88 + 0.24 * macro;
+  ROUGHNESS = mix(mix(0.08, 0.3, smoothstep(150.0, 900.0, dist)) + (macro - 0.5) * 0.08, 0.5, fo); SPECULAR = mix(0.9, 0.5, smoothstep(150.0, 900.0, dist)); METALLIC = 0.0;
   EMISSION = mix(vec3(0.0), vec3(0.25, 0.05, 0.35), realm_t * 0.4 * (1.0 - fo));
   ALPHA = clamp(mix(0.55, 0.95, smoothstep(0.0, 3.0, thick)) + fr * 0.3 + fo, 0.0, 1.0);
 }";
@@ -212,9 +215,9 @@ void fragment(){
         Genshin.SetNight(Night);   // characters switch to their cooler night shadow colours
         Sun.RotationDegrees = new Vector3(-Mathf.RadToDeg(Mathf.Asin(Mathf.Clamp(Mathf.Abs(elev) * 0.9f + 0.1f, 0.06f, 1f))), Mathf.RadToDeg(ang) + 90f, 0);
         // warm sunlight, more golden while the sun is low (morning and evening), orange at dusk (data/look.json sunNoon / sunLow / sunDusk)
-        var dayCol = LC("sunNoon", "fff1dc").Lerp(LC("sunLow", "ffc98a"), 1f - Smooth(.12f, .6f, elev)).Lerp(LC("sunDusk", "ff8c4a"), dusk); var moon = LC("moonColor", "9fb2dc"); var shadowCol = new Color(.6f, .35f, .9f);
+        var dayCol = LC("sunNoon", "fff1dc").Lerp(LC("sunLow", "ffc98a"), 1f - Smooth(.12f, .6f, elev)).Lerp(LC("sunDusk", "ff8c4a"), dusk); var moon = LC("moonColor", "9fb2dc"); var shadowCol = LC("sunShadow", "b8b0ec");
         Sun.LightColor = dayCol.Lerp(moon, Smooth(.35f, 0f, day)).Lerp(shadowCol, RealmT);
-        Sun.LightEnergy = Mathf.Lerp(LF("sunNight", .22f), LF("sunDay", 1.55f), day) * (1 - RealmT * 0.45f) * (1f - dusk * .25f * day);
+        Sun.LightEnergy = Mathf.Lerp(LF("sunNight", .22f), LF("sunDay", 1.55f), day) * Mathf.Lerp(1f, LF("sunShadowMul", 1.05f), RealmT) * (1f - dusk * .25f * day);
         var top = LC("nightTop", "02040d").Lerp(LC("dayTop", "2a64b8"), day).Lerp(LC("duskTop", "2d2f6e"), dusk * .55f).Lerp(LC("shadowTop", "0d0318"), RealmT);
         var hor = LC("nightHorizon", "0b1430").Lerp(LC("dayHorizon", "b5d3ec"), day).Lerp(LC("duskHorizon", "ff8048"), dusk * .5f).Lerp(LC("shadowHorizon", "4a1450"), RealmT);
         float skyNight = Mathf.Clamp(1 - day, 0, 1) * (1 - RealmT);
@@ -222,9 +225,9 @@ void fragment(){
         _sky.SetShaderParameter("dusk_col", LC("duskGlow", "ff6a3a")); _sky.SetShaderParameter("dusk", dusk * (1 - RealmT)); _sky.SetShaderParameter("night", skyNight);
         _sky.SetShaderParameter("sun_col", dayCol);
         _cloudT += dt * LF("cloudSpeed", .006f); _sky.SetShaderParameter("wind", new Vector2(_cloudT, _cloudT * .35f));
-        _env.FogLightColor = hor.Lerp(top, .25f).Lerp(new Color(.52f, .6f, .72f), .4f * day * (1 - RealmT)); _env.FogDensity = Mathf.Lerp(LF("fogDay", .0017f), LF("fogShadow", .0045f), RealmT);
-        _env.AmbientLightColor = LC("ambientDayColor", "9eafc8").Lerp(LC("ambientNightColor", "38426f"), 1 - day).Lerp(new Color(.9f, .55f, .5f), dusk * .45f).Lerp(new Color(.5f, .38f, .68f), RealmT);
-        _env.AmbientLightEnergy = Mathf.Lerp(LF("ambientNight", .45f), LF("ambientDay", .62f), day) * Mathf.Lerp(1f, LF("ambientShadow", 1.25f), RealmT);
+        _env.FogLightColor = hor.Lerp(top, .25f).Lerp(new Color(.52f, .6f, .72f), .4f * day * (1 - RealmT)).Lerp(LC("fogShadowColor", "5f5c7e"), RealmT); _env.FogDensity = Mathf.Lerp(LF("fogDay", .0017f), LF("fogShadow", .0045f), RealmT);
+        _env.AmbientLightColor = LC("ambientDayColor", "9eafc8").Lerp(LC("ambientNightColor", "38426f"), 1 - day).Lerp(new Color(.9f, .55f, .5f), dusk * .45f).Lerp(LC("ambientShadowColor", "8088b0"), RealmT);
+        _env.AmbientLightEnergy = Mathf.Lerp(LF("ambientNight", .45f), LF("ambientDay", .62f), day) * Mathf.Lerp(1f, Mathf.Max(LF("ambientShadow", 1.25f), 0.6f * LF("ambientDay", .62f) / Mathf.Max(.01f, Mathf.Lerp(LF("ambientNight", .45f), LF("ambientDay", .62f), day))), RealmT);
         _env.AdjustmentSaturation = Mathf.Lerp(LF("saturation", 1.2f), LF("saturationShadow", .9f), RealmT);
         if (force || Mathf.Abs(RealmT - _lastRealmT) > 0.001f)
         {
@@ -242,7 +245,10 @@ void fragment(){
         foreach (var (lt, e, realm) in Lamps)
         {
             bool realmOk = realm < 0 || (realm == 1 && RealmT > .5f) || (realm == 0 && RealmT < .5f);
-            lt.LightEnergy = !realmOk ? 0f : e >= 0 ? e * Mathf.Clamp(Night * 1.6f, 0, 1) : -e;
+            float en = !realmOk ? 0f : e >= 0 ? e * Mathf.Clamp(Night * 1.6f, 0, 1) : -e;
+            bool vis = en > 0.01f;
+            if (lt.Visible != vis) lt.Visible = vis;   // hidden lights drop out of the light clusters entirely
+            if (vis && Mathf.Abs(lt.LightEnergy - en) > 0.005f) lt.LightEnergy = en;
         }
     }
 

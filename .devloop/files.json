@@ -189,6 +189,13 @@
         "summary":  "Genshin-Impact-style character shader for Godot 4 (Forward+, Mobile and Compatibility)."
     },
     {
+        "path":  "assets/shaders/heat_shimmer.gdshader",
+        "lines":  25,
+        "hash8":  "68950bc7",
+        "system":  "world",
+        "summary":  "Heat haze: a camera-facing quad that re-samples the screen with a small animated offset. life..."
+    },
+    {
         "path":  "assets/shaders/sword_trail.gdshader",
         "lines":  22,
         "hash8":  "16c2bc46",
@@ -330,8 +337,8 @@
     },
     {
         "path":  "scripts/Builder.cs",
-        "lines":  481,
-        "hash8":  "59cbb946",
+        "lines":  515,
+        "hash8":  "47725771",
         "system":  "world",
         "summary":  "Builds the hand-placed overworld: Oakhaven, the arena, dungeon mouths, the dragon lair, standing stones, obelisks,..."
     },
@@ -358,8 +365,8 @@
     },
     {
         "path":  "scripts/dev/DevCapture.cs",
-        "lines":  235,
-        "hash8":  "20df9d20",
+        "lines":  256,
+        "hash8":  "c1035ceb",
         "system":  "devtools",
         "summary":  "Dev loop eyes (autoload). Does nothing unless the game is started with the user arg..."
     },
@@ -772,7 +779,7 @@
     {
         "path":  "scripts/Props.cs",
         "lines":  199,
-        "hash8":  "8743b025",
+        "hash8":  "41f5eaf8",
         "system":  "world",
         "summary":  "Rotates a node continuously (windmill blades, orbs)."
     },
@@ -967,8 +974,8 @@
     },
     {
         "path":  "scripts/UiSpellcraft.cs",
-        "lines":  282,
-        "hash8":  "4a159015",
+        "lines":  380,
+        "hash8":  "f90d8897",
         "system":  "spellcraft",
         "summary":  "Spellcraft menu (B): build skills from spell cards, as with the amulet in Two Worlds..."
     },
@@ -1009,8 +1016,8 @@
     },
     {
         "path":  "scripts/Vfx.cs",
-        "lines":  304,
-        "hash8":  "91f0286e",
+        "lines":  363,
+        "hash8":  "61fd1ae6",
         "system":  "skills_vfx",
         "summary":  "Spell and combat visuals made in code: soft glowing particles, sword trails, fire explosions, frost..."
     },
@@ -1038,14 +1045,14 @@
     {
         "path":  "scripts/World.cs",
         "lines":  715,
-        "hash8":  "ea624ce4",
+        "hash8":  "b1a471cb",
         "system":  "world",
         "summary":  "The overworld: heightfield terrain, sky and day/night, the Light/Shadow realm shift, vegetation and shared materials."
     },
     {
         "path":  "scripts/WorldEnv.cs",
-        "lines":  256,
-        "hash8":  "253f1072",
+        "lines":  262,
+        "hash8":  "41441a37",
         "system":  "world",
         "summary":  "World: environment, sky, fog, sun/moon light, day/night and realm-blend look, water."
     }

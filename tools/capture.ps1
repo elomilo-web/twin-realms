@@ -25,4 +25,6 @@ foreach ($v in $j.views) { if ($v.error) { "  $($v.name): ERROR $($v.error)" } e
 "CAPTURE: $n pictures, avg $($j.fps_avg_all) fps, $($errs.Count) engine errors"
 if ($errs.Count -gt 0) { $errs | Select-Object -First 10 }
 if ($n -eq 0) { exit 1 }
+# a full sweep is also kept as the baseline in screenshots/full (partial runs rotate current -> previous)
+if (-not $only) { $full = ".devloop/screenshots/full"; if (Test-Path $full) { Remove-Item -Recurse -Force $full }; Copy-Item -Recurse .devloop/screenshots/current $full }
 exit 0

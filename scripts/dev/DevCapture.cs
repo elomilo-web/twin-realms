@@ -121,6 +121,8 @@ public partial class DevCapture : Node
         {
             if (scene != "title")
             {
+                (Vector3 from, Vector3 at)? lakeCam = null;
+                if (Player.Instance != null) P.Visible = true;
                 Ui.I?.Close(); if (Ui.I != null) Ui.I.Visible = action.StartsWith("ui:");
                 Input.MouseMode = Input.MouseModeEnum.Captured;
                 if (scene == "arena" && !Arenas.Active) { Arenas.Start("waves"); await Secs(1.5f); }
@@ -128,6 +130,7 @@ public partial class DevCapture : Node
                 else if (scene == "world" && Arenas.Active) Arenas.Leave();
                 if (v.TryGetProperty("time", out _)) World.TimeOfDay = Num(v, "time", .5f);
                 if (v.TryGetProperty("realm", out _)) World.ForceRealm((int)Num(v, "realm", 0));
+                else if (World.Realm != 0 && scene == "world") World.ForceRealm(0);   // views without "realm" are Light (shadow_realm used to leak into the next views)
                 if (v.TryGetProperty("player_at", out var pa) && pa.ValueKind == JsonValueKind.Array)
                 {
                     var a = pa.EnumerateArray().Select(e => e.GetSingle()).ToArray();
@@ -135,7 +138,12 @@ public partial class DevCapture : Node
                 }
                 else if (Str(v, "lake") is { Length: > 0 } lkName && Lands.All.SelectMany(l => l.Lakes).FirstOrDefault(l => l.Name == lkName) is { } lk)
                 {   // the shore of a named lake, facing the water
-                    float sx = lk.X + lk.R * 1.35f + 10f, sz = lk.Z;   // water fills to 1.35 R (Lands.WaterAt): stand past it P.Teleport(World.OnGround(sx, sz, .5f), Mathf.Pi / 2); await Secs(1.2f);
+                    // water fills to 1.35 R (Lands.WaterAt): stand past it
+                    float sx = lk.X + lk.R * 1.35f + 10f, sz = lk.Z;
+                    P.Teleport(World.OnGround(sx, sz, .5f), Mathf.Pi / 2); await Secs(1.2f);
+                    // absolute camera above the east shore looking west across the surface, wherever the hero ended up; the hero is hidden
+                    lakeCam = (new Vector3(lk.X + lk.R * 1.6f, lk.Level + 14f, lk.Z + lk.R * .25f), new Vector3(lk.X - lk.R * .3f, lk.Level, lk.Z));
+                    P.Visible = false;
                     // water diagnostics (BACKLOG: lake shows dry): level vs ground at the centre, halfway and at the shore
                     foreach (float f in new[] { 0f, .5f, .9f })
                     {
@@ -160,17 +168,19 @@ public partial class DevCapture : Node
                 if (v.TryGetProperty("foes", out var fs) && fs.ValueKind == JsonValueKind.Array)
                 {
                     var fwd = -P.GlobalTransform.Basis.Z with { Y = 0 }; fwd = fwd.LengthSquared() > .01f ? fwd.Normalized() : Vector3.Forward;
-                    int i = 0;
+                    int i = 0; bool side = Flag(v, "foe_side", false);
+                    var right = fwd.Cross(Vector3.Up);
                     foreach (var f in fs.EnumerateArray())
                     {
-                        var at = P.GlobalPosition + fwd * 6f + fwd.Cross(Vector3.Up) * ((i++ - .5f) * 2.5f);
+                        var at = side ? P.GlobalPosition + right * (2.2f + 1.5f * i++) : P.GlobalPosition + fwd * 6f + right * ((i++ - .5f) * 2.5f);
                         Game.Root!.AddChild(new Enemy { Type = f.GetString()!, Level = 18, AnyRealm = true, NoLeash = true, Position = World.OnGround(at.X, at.Z, .3f) });
                     }
                     await Secs(1f);
                 }
                 // camera: free (absolute or relative to the hero) or the follow camera
                 var cp = Vec(v, "camera_pos"); var la = Vec(v, "look_at") ?? Vector3.Zero;
-                if (cp != null) { if (Flag(v, "relative", false)) { cp += P.GlobalPosition; la += P.GlobalPosition; } FreeCam(cp, la); }
+                if (lakeCam != null && cp == null) FreeCam(lakeCam.Value.from, lakeCam.Value.at);
+                else if (cp != null) { if (Flag(v, "relative", false)) { cp += P.GlobalPosition; la += P.GlobalPosition; } FreeCam(cp, la); }
                 else { FreeCam(null, default); P.Rig!.Rotation = new Vector3(Num(v, "cam_pitch", -.25f), Num(v, "cam_yaw", P.Rotation.Y + Mathf.Pi), 0); P.Rig.Distance = Num(v, "cam_dist", 4.5f); }
                 await DoAction(action);
             }
@@ -194,7 +204,7 @@ public partial class DevCapture : Node
         catch (Exception e) { GD.PrintErr($"[DEVCAP] {name} failed: {e.Message}"); entry["error"] = e.Message; }
         finally
         {
-            foreach (var k in new[] { Inputs.Forward, Inputs.Sprint, Inputs.Attack, "spell1" }) Input.ActionRelease(k);
+            foreach (var k in new[] { Inputs.Forward, Inputs.Sprint, Inputs.Attack, Inputs.Roll, "spell1" }) Input.ActionRelease(k);
             if (scene != "title") { Ui.I?.Close(); if (Ui.I != null) Ui.I.Visible = false; }
         }
         _report.Add(entry);
@@ -202,11 +212,22 @@ public partial class DevCapture : Node
 
     async Task DoAction(string action)
     {
+        if (action.StartsWith("place:"))
+        {   // a block of that key two metres in front of the hero, on the ground (needs the block world)
+            byte id = Blocks.Id(action[6..]);
+            var fwd = -P.GlobalTransform.Basis.Z with { Y = 0 }; fwd = fwd.LengthSquared() > .01f ? fwd.Normalized() : Vector3.Forward;
+            var at = P.GlobalPosition + fwd * 2f; int bx = Mathf.FloorToInt(at.X), bz = Mathf.FloorToInt(at.Z), by = Mathf.FloorToInt(P.GlobalPosition.Y + .05f);
+            bool ok = id != 0 && (BlockFx.Place(bx, by, bz, id, 0) || BlockFx.Place(bx, by + 1, bz, id, 0));
+            Say($"place {action[6..]} (id {id}) at {bx},{by},{bz}: {(ok ? "ok" : "failed")}");
+            await Secs(.5f); return;
+        }
         switch (action)
         {
+            case "dodge": Input.ActionPress(Inputs.Roll); await Secs(.05f); Input.ActionRelease(Inputs.Roll); await Secs(.12f); break;
             case "run": Input.ActionPress(Inputs.Forward); await Secs(.8f); break;
             case "sprint": Input.ActionPress(Inputs.Forward); Input.ActionPress(Inputs.Sprint); await Secs(1f); break;
             case "swing": Input.ActionPress(Inputs.Attack); await Secs(.05f); Input.ActionRelease(Inputs.Attack); await Secs(.2f); break;
+            case "swing3": for (int s = 0; s < 3; s++) { Input.ActionPress(Inputs.Attack); await Secs(.05f); Input.ActionRelease(Inputs.Attack); await Secs(.3f); } break;
             case "cast":
                 var id = Game.D.Skills.Keys.FirstOrDefault(k => Skills.Get(k) is { } s && s.Kind is not "resurrect" && s.Kind is not "buff");
                 if (id != null) { Game.D.Bar[0] = id; Game.Notify(); }

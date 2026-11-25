@@ -233,24 +233,58 @@ public static class Builder
     public static StaticBody3D? GateBody; static Node3D? _portcullis;
     public static Vector3 ArenaPos => new Vector3(World.GetPoi("arena")!.X, 0, World.GetPoi("arena")!.Z);
     public static float ArenaH => World.GroundAt(ArenaPos.X, ArenaPos.Z);
+    static StandardMaterial3D _arSand = null!, _arStone = null!, _arBase = null!, _arBanner = null!, _arStain = null!, _arWorn = null!;
+    static void ArenaMats()
+    {
+        if (_arSand != null) return;
+        StandardMaterial3D Tint(string gname, Material fb, Color c) { var m = GothicMats.For(gname) is StandardMaterial3D s ? (StandardMaterial3D)s.Duplicate() : (StandardMaterial3D)fb.Duplicate(); m.AlbedoColor = c; return m; }
+        _arSand = Tint("G_Rock", Sand, new Color(.5f, .44f, .35f)); _arSand.Uv1Scale = new Vector3(.35f, .35f, .35f); _arSand.Uv1Triplanar = true; _arSand.Uv1WorldTriplanar = true;
+        _arStone = Tint("G_Stone", Stone, new Color(.62f, .6f, .57f)); _arBase = Tint("G_Brick", Stone, new Color(.3f, .27f, .26f));
+        _arBanner = Tint("G_Cloth", Cloth, new Color(.34f, .07f, .09f)); _arBanner.CullMode = BaseMaterial3D.CullModeEnum.Disabled;
+        _arStain = new StandardMaterial3D { AlbedoColor = new Color(.06f, .045f, .035f, .38f), Transparency = BaseMaterial3D.TransparencyEnum.Alpha, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded };
+        _arWorn = new StandardMaterial3D { AlbedoColor = new Color(.18f, .15f, .11f, .14f), Transparency = BaseMaterial3D.TransparencyEnum.Alpha, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded };
+    }
     static void Arena(Node3D over)
     {
         var ap = World.GetPoi("arena")!; float H = World.GroundAt(ap.X, ap.Z);
         var g = new Node3D { Position = new Vector3(ap.X, H, ap.Z) }; over.AddChild(g);
-        g.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 22.6f, BottomRadius = 22.6f, Height = .1f, RadialSegments = 40 }, MaterialOverride = Sand, Position = new Vector3(0, .02f, 0) });
+        ArenaMats();
+        g.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 22.6f, BottomRadius = 22.6f, Height = .1f, RadialSegments = 40 }, MaterialOverride = _arSand, Position = new Vector3(0, .02f, 0) });
+        { // worn central circle and dark stains (flat transparent discs, no shadows)
+            void Disc(float x, float z, float r, Material m, float y) => g.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = r, BottomRadius = r, Height = .01f, RadialSegments = 24 }, MaterialOverride = m, Position = new Vector3(x, y, z), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
+            Disc(0, 0, 11f, _arWorn, .075f); Disc(0, 0, 6.5f, _arWorn, .08f);
+            var sr = World.Rng(777u); float F(float a, float b) => a + sr() * (b - a);
+            for (int i = 0; i < 9; i++) { float a = F(0, Tau), d = F(3f, 19f); Disc(Mathf.Cos(a) * d, Mathf.Sin(a) * d, F(.8f, 2.6f), _arStain, .09f + i * .002f); }
+        }
         const int SEG = 44; float gateA = Mathf.Pi; (float r, float h)[] tiers = { (25.6f, 3.4f), (27.8f, 5.2f), (30f, 7f), (32.2f, 9f) };
         foreach (var t in tiers) for (int i = 0; i < SEG; i++)
         {
             float a = i / (float)SEG * Tau; if (Mathf.Abs(Util.AngDiff(a, gateA)) < .17f) continue;
-            Solid(g, new Vector3(Tau * t.r / SEG + .35f, t.h, 2.3f), new Vector3(Mathf.Cos(a) * t.r, t.h / 2 - .3f, Mathf.Sin(a) * t.r), Stone, -a + Mathf.Pi / 2);
+            Solid(g, new Vector3(Tau * t.r / SEG + .35f, t.h, 2.3f), new Vector3(Mathf.Cos(a) * t.r, t.h / 2 - .3f, Mathf.Sin(a) * t.r), t.r < 26f ? _arBase : _arStone, -a + Mathf.Pi / 2);
         }
-        for (int i = 0; i < SEG; i++) { float a = i / (float)SEG * Tau; if (Mathf.Abs(Util.AngDiff(a, gateA)) < .12f) continue; Solid(g, new Vector3(Tau * 23.6f / SEG + .3f, 3f, 1.4f), new Vector3(Mathf.Cos(a) * 23.6f, 1.2f, Mathf.Sin(a) * 23.6f), Crim, -a + Mathf.Pi / 2); }
+        for (int i = 0; i < SEG; i++) { float a = i / (float)SEG * Tau; if (Mathf.Abs(Util.AngDiff(a, gateA)) < .12f) continue; Solid(g, new Vector3(Tau * 23.6f / SEG + .3f, 3f, 1.4f), new Vector3(Mathf.Cos(a) * 23.6f, 1.2f, Mathf.Sin(a) * 23.6f), _arBase,-a + Mathf.Pi / 2); }
+        for (int i = 0; i < 18; i++)   // gently hanging crimson cloth banners every 20 degrees (static)
+        {
+            float a = (10 + i * 20) * Mathf.Pi / 180f; bool nearPillar = false;
+            for (int k = 0; k < 10; k++) if (Mathf.Abs(Util.AngDiff(a, (k + .5f) / 10f * Tau)) < .1f) nearPillar = true;
+            if (nearPillar || Mathf.Abs(Util.AngDiff(a, gateA)) < .35f) continue;
+            Box(g, new Vector3(1.0f, 3.2f, .06f), new Vector3(Mathf.Cos(a) * 24.35f, 4.7f, Mathf.Sin(a) * 24.35f), _arBanner, -a + Mathf.Pi / 2);
+            Box(g, new Vector3(1.2f, .1f, .12f), new Vector3(Mathf.Cos(a) * 24.33f, 6.35f, Mathf.Sin(a) * 24.33f), Metal, -a + Mathf.Pi / 2);
+        }
+        for (int i = 0; i < 8; i++)   // braziers on the first wall tier so the bowl reads at night
+        {
+            float a = (i + .5f) / 8f * Tau; if (Mathf.Abs(Util.AngDiff(a, gateA)) < .3f) continue;
+            Vector3 bp = new Vector3(Mathf.Cos(a) * 25.2f, 3.1f, Mathf.Sin(a) * 25.2f);
+            Cyl(g, .1f, .7f, bp + new Vector3(0, .35f, 0), Metal);
+            g.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = .42f, BottomRadius = .2f, Height = .3f, RadialSegments = 10 }, MaterialOverride = Metal, Position = bp + new Vector3(0, .85f, 0), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
+            Fire(g, bp + new Vector3(0, 1.15f, 0), 1.5f, 10f);
+        }
         for (int i = 0; i < 10; i++)
         {
             float a = (i + .5f) / 10f * Tau; if (Mathf.Abs(Util.AngDiff(a, gateA)) < .3f) continue;
             Box(g, new Vector3(1.2f, 8.5f, 1.2f), new Vector3(Mathf.Cos(a) * 24.6f, 3.9f, Mathf.Sin(a) * 24.6f), Stone);
-            Box(g, new Vector3(1.1f, 3.4f, .08f), new Vector3(Mathf.Cos(a) * 23.8f, 6.2f, Mathf.Sin(a) * 23.8f), Crim, -a + Mathf.Pi / 2);
-            if (i % 2 == 0) Fire(g, new Vector3(Mathf.Cos(a) * 23.6f, 8.9f, Mathf.Sin(a) * 23.6f), 1.8f, 24f);
+            Box(g, new Vector3(1.1f, 3.4f, .08f), new Vector3(Mathf.Cos(a) * 23.8f, 6.2f, Mathf.Sin(a) * 23.8f), _arBanner, -a + Mathf.Pi / 2);
+            if (i % 2 == 0) Fire(g, new Vector3(Mathf.Cos(a) * 23.6f, 8.9f, Mathf.Sin(a) * 23.6f), 1.8f, 14f);
         }
         Solid(g, new Vector3(12, 1.6f, 7), new Vector3(-28, 6.2f, 0), Stone); Solid(g, new Vector3(12, 6, 1.2f), new Vector3(-27.5f, 2.7f, 3f), Stone); Solid(g, new Vector3(12, 6, 1.2f), new Vector3(-27.5f, 2.7f, -3f), Stone);
         _portcullis = new Node3D { Position = new Vector3(-24, 5.2f, 0) }; g.AddChild(_portcullis);
