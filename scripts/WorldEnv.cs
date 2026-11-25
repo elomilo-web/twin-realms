@@ -213,20 +213,26 @@ void fragment(){
         float day = Smooth(-0.12f, 0.25f, elev), dusk = 1f - Smooth(0f, 0.3f, Mathf.Abs(elev - 0.02f));
         Night = (1 - day) * (1 - RealmT) + RealmT * 0.7f;
         Genshin.SetNight(Night);   // characters switch to their cooler night shadow colours
-        Sun.RotationDegrees = new Vector3(-Mathf.RadToDeg(Mathf.Asin(Mathf.Clamp(Mathf.Abs(elev) * 0.9f + 0.1f, 0.06f, 1f))), Mathf.RadToDeg(ang) + 90f, 0);
+        // golden hour: bell over low-sun elevations (dawn/dusk bands only; zero at midday, night and in the shadow realm)
+        float gold = (1f - Smooth(0f, .42f, Mathf.Abs(elev - .1f))) * (1f - RealmT);
+        float sunS = Mathf.Clamp(Mathf.Abs(elev) * 0.9f + 0.1f, 0.06f, 1f) * (1f - gold * LF("goldLowSun", .3f));
+        Sun.RotationDegrees = new Vector3(-Mathf.RadToDeg(Mathf.Asin(Mathf.Clamp(sunS, 0.05f, 1f))), Mathf.RadToDeg(ang) + 90f, 0);
         // warm sunlight, more golden while the sun is low (morning and evening), orange at dusk (data/look.json sunNoon / sunLow / sunDusk)
-        var dayCol = LC("sunNoon", "fff1dc").Lerp(LC("sunLow", "ffc98a"), 1f - Smooth(.12f, .6f, elev)).Lerp(LC("sunDusk", "ff8c4a"), dusk); var moon = LC("moonColor", "9fb2dc"); var shadowCol = LC("sunShadow", "b8b0ec");
+        var dayCol = LC("sunNoon", "fff1dc").Lerp(LC("sunLow", "ffc98a"), 1f - Smooth(.12f, .6f, elev)).Lerp(LC("sunDusk", "ff8c4a"), dusk).Lerp(LC("goldSun", "ff9a40"), gold * day * .85f); var moon = LC("moonColor", "9fb2dc"); var shadowCol = LC("sunShadow", "b8b0ec");
         Sun.LightColor = dayCol.Lerp(moon, Smooth(.35f, 0f, day)).Lerp(shadowCol, RealmT);
-        Sun.LightEnergy = Mathf.Lerp(LF("sunNight", .22f), LF("sunDay", 1.55f), day) * Mathf.Lerp(1f, LF("sunShadowMul", 1.05f), RealmT) * (1f - dusk * .25f * day);
-        var top = LC("nightTop", "02040d").Lerp(LC("dayTop", "2a64b8"), day).Lerp(LC("duskTop", "2d2f6e"), dusk * .55f).Lerp(LC("shadowTop", "0d0318"), RealmT);
-        var hor = LC("nightHorizon", "0b1430").Lerp(LC("dayHorizon", "b5d3ec"), day).Lerp(LC("duskHorizon", "ff8048"), dusk * .5f).Lerp(LC("shadowHorizon", "4a1450"), RealmT);
+        Sun.LightEnergy = Mathf.Lerp(LF("sunNight", .22f), LF("sunDay", 1.55f), day) * Mathf.Lerp(1f, LF("sunShadowMul", 1.05f), RealmT) * (1f - dusk * .25f * day) * Mathf.Lerp(1f, LF("goldSunMul", 1.45f), gold * day);
+        var top = LC("nightTop", "02040d").Lerp(LC("dayTop", "2a64b8"), day).Lerp(LC("duskTop", "2d2f6e"), dusk * .55f).Lerp(LC("goldTop", "1e3a82"), gold * day * .6f).Lerp(LC("shadowTop", "0d0318"), RealmT);
+        var hor = LC("nightHorizon", "0b1430").Lerp(LC("dayHorizon", "b5d3ec"), day).Lerp(LC("duskHorizon", "ff8048"), dusk * .5f).Lerp(LC("goldHorizon", "ff9a5c"), gold * day * .6f).Lerp(LC("shadowHorizon", "4a1450"), RealmT);
         float skyNight = Mathf.Clamp(1 - day, 0, 1) * (1 - RealmT);
         _sky.SetShaderParameter("top_col", top); _sky.SetShaderParameter("hor_col", hor); _sky.SetShaderParameter("ground_col", hor.Darkened(.55f));
         _sky.SetShaderParameter("dusk_col", LC("duskGlow", "ff6a3a")); _sky.SetShaderParameter("dusk", dusk * (1 - RealmT)); _sky.SetShaderParameter("night", skyNight);
         _sky.SetShaderParameter("sun_col", dayCol);
         _cloudT += dt * LF("cloudSpeed", .006f); _sky.SetShaderParameter("wind", new Vector2(_cloudT, _cloudT * .35f));
-        _env.FogLightColor = hor.Lerp(top, .25f).Lerp(new Color(.52f, .6f, .72f), .4f * day * (1 - RealmT)).Lerp(LC("fogShadowColor", "5f5c7e"), RealmT); _env.FogDensity = Mathf.Lerp(LF("fogDay", .0017f), LF("fogShadow", .0045f), RealmT);
-        _env.AmbientLightColor = LC("ambientDayColor", "9eafc8").Lerp(LC("ambientNightColor", "38426f"), 1 - day).Lerp(new Color(.9f, .55f, .5f), dusk * .45f).Lerp(LC("ambientShadowColor", "8088b0"), RealmT);
+        _env.FogLightColor = hor.Lerp(top, .25f).Lerp(new Color(.52f, .6f, .72f), .4f * day * (1 - RealmT)).Lerp(LC("goldFog", "f0a070"), gold * day * .55f).Lerp(LC("fogShadowColor", "5f5c7e"), RealmT);
+        _env.FogSunScatter = LF("goldFogScatter", .55f) * gold * day;
+        _env.GlowIntensity = LF("glowIntensity", .7f) + LF("goldGlow", .35f) * gold * day; _env.GlowHdrThreshold = Mathf.Lerp(1f, LF("goldHdrThreshold", .9f), gold * day);
+        _env.FogDensity = Mathf.Lerp(LF("fogDay", .0017f), LF("fogShadow", .0045f), RealmT);
+        _env.AmbientLightColor = LC("ambientDayColor", "9eafc8").Lerp(LC("ambientNightColor", "38426f"), 1 - day).Lerp(new Color(.9f, .55f, .5f), dusk * .45f * (1f - gold * .7f)).Lerp(LC("goldAmbient", "7f93c4"), gold * day * .6f).Lerp(LC("ambientShadowColor", "8088b0"), RealmT);
         _env.AmbientLightEnergy = Mathf.Lerp(LF("ambientNight", .45f), LF("ambientDay", .62f), day) * Mathf.Lerp(1f, Mathf.Max(LF("ambientShadow", 1.25f), 0.6f * LF("ambientDay", .62f) / Mathf.Max(.01f, Mathf.Lerp(LF("ambientNight", .45f), LF("ambientDay", .62f), day))), RealmT);
         _env.AdjustmentSaturation = Mathf.Lerp(LF("saturation", 1.2f), LF("saturationShadow", .9f), RealmT);
         if (force || Mathf.Abs(RealmT - _lastRealmT) > 0.001f)

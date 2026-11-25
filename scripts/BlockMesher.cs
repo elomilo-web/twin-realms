@@ -11,6 +11,7 @@ public sealed class BlockMeshData
     public readonly Dictionary<int, Surf> Surfs = new();   // key = material slot (BlockMesher.Slot)
     public Vector3[] Faces = Array.Empty<Vector3>();
     public int Version;
+    public readonly List<Transform3D> Tufts = new(); public readonly List<Color> TuftCols = new(); public readonly List<float> TuftKeep = new();   // grass tufts on top faces (keep = 0..1 hash, compared with Game.Set.Grass)
 }
 
 /// <summary>
@@ -88,6 +89,19 @@ public static class BlockMesher
                         continue;
                     }
                     var lip = Lip(id);
+                    if (def.Tufts > 0f && At(x, y + 1, z) == 0)
+                    {
+                        var tc = lip ?? new Color(.5f, .8f, .35f); uint th = h;
+                        float Tf() { th = th * 1664525u + 1013904223u; return (th >> 8 & 0xffff) / 65535f; }
+                        int cnt = Mathf.RoundToInt(def.Tufts * (2 + (int)(r1 * 3.99f)));
+                        for (int t = 0; t < cnt; t++)
+                        {
+                            float sc = .6f + Tf() * .5f;
+                            var basis = Basis.FromEuler(new Vector3(0, Tf() * Mathf.Tau, 0)).Scaled(new Vector3(sc, sc * (.85f + Tf() * .3f), sc));
+                            d.Tufts.Add(new Transform3D(basis, new Vector3(x + .1f + Tf() * .8f, y + 1f - .02f, z + .1f + Tf() * .8f)));
+                            float v = .85f + Tf() * .3f; d.TuftCols.Add(new Color(tc.R * v, tc.G * v, tc.B * v)); d.TuftKeep.Add(Tf());
+                        }
+                    }
                     for (int f = 0; f < 6; f++)
                     {
                         var n = Nrm[f]; byte nb = At(x + n.X, y + n.Y, z + n.Z);

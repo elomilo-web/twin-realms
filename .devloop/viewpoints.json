@@ -21,6 +21,7 @@
     { "name": "stagger",        "scene": "world", "player_at": [-60, 20], "yaw": 0, "time": 0.45, "foes": ["wolf"], "hud": true, "action": "swing3", "cam_yaw": 2.6, "cam_dist": 4.5, "wait_frames": 4 },
     { "name": "inventory",     "scene": "world", "action": "ui:pack", "hud": true, "wait_frames": 20 },
     { "name": "spellcraft",     "scene": "world", "action": "ui:spellcraft", "hud": true, "wait_frames": 20 },
+    { "name": "pause",          "scene": "world", "action": "ui:pause", "hud": true, "wait_frames": 20 },
     { "name": "arena",          "scene": "arena", "time": 0.5, "hud": true, "cam_yaw": 1.6, "cam_dist": 6, "wait_frames": 60 },
     { "name": "dungeon",        "scene": "dungeon:barrow", "hud": true, "cam_yaw": -0.7, "cam_dist": 4, "wait_frames": 60 }
   ]

@@ -54,6 +54,7 @@ uniform float root_blend = 0.75;
 varying float h;
 varying vec3 root_col;
 global uniform vec4 vox_rect;   // the block world's square: no grass over the blocks
+uniform float vox_cut = 1.0;    // 0 on the block world's own tufts (BlockWorld.TuftMat), which live inside the square
 float h21(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(h21(i), h21(i+vec2(1.0,0.0)), f.x), mix(h21(i+vec2(0.0,1.0)), h21(i+vec2(1.0,1.0)), f.x), f.y); }
 void vertex(){
@@ -61,7 +62,7 @@ void vertex(){
   vec3 origin = MODEL_MATRIX[3].xyz;
   float d = distance(origin, CAMERA_POSITION_WORLD);
   float keep = 1.0 - smoothstep(range * 0.55, range, d);
-  if (origin.x > vox_rect.x && origin.z > vox_rect.y && origin.x < vox_rect.z && origin.z < vox_rect.w) keep = 0.0;
+  if (vox_cut > 0.5 && origin.x > vox_rect.x && origin.z > vox_rect.y && origin.x < vox_rect.z && origin.z < vox_rect.w) keep = 0.0;
   VERTEX.y *= keep;
   vec3 wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
   float t = TIME;

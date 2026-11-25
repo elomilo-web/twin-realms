@@ -12,6 +12,7 @@ public class BlockDef
     public bool Solid = true, See, Slippery, Shatter;
     public string Fluid = "";            // "water", "lava" or ""
     public string Step = "";             // footstep surface: grass/dirt/stone/wood/sand/snow/gravel/ice/water (data "step"; default by tool family)
+    public float Tufts;                  // grass tuft density on top faces 0..1 (data "tufts")
     public float Hardness = 1f, Burn, Light, DropChance = 1f;
     public string Shape = "";            // "" = full cube, "post" = small standing post (torch)
     public Color LightCol = new Color(1f, .63f, .31f); public float LightRange, LightEnergy;   // "light": { color, range, energy } makes a real OmniLight3D (BlockWorld)
@@ -50,7 +51,7 @@ public static class Blocks
                 Id = (byte)Defs.Count, Key = p.Name, Name = JsonUtil.S(e, "n", p.Name),
                 Solid = !e.TryGetProperty("solid", out var so) || so.ValueKind != JsonValueKind.False,
                 See = B(e, "see"), Slippery = B(e, "slippery"), Shatter = B(e, "shatter"),
-                Fluid = JsonUtil.S(e, "fluid"), Hardness = JsonUtil.F(e, "hardness", 1f), Burn = JsonUtil.F(e, "burn"), Light = JsonUtil.F(e, "light"), Shape = JsonUtil.S(e, "shape"),
+                Fluid = JsonUtil.S(e, "fluid"), Hardness = JsonUtil.F(e, "hardness", 1f), Burn = JsonUtil.F(e, "burn"), Tufts = JsonUtil.F(e, "tufts"), Light = JsonUtil.F(e, "light"), Shape = JsonUtil.S(e, "shape"),
                 Tool = JsonUtil.S(e, "tool"), Drops = e.TryGetProperty("drops", out var dr) ? dr.GetString() ?? "" : p.Name, DropChance = JsonUtil.F(e, "dropChance", 1f),
                 BurnsTo = JsonUtil.S(e, "burnsTo"), MeltsTo = JsonUtil.S(e, "meltsTo", "?"), FreezesTo = JsonUtil.S(e, "freezesTo"), RotsTo = JsonUtil.S(e, "rotsTo", "?"),
                 WithersTo = JsonUtil.S(e, "withersTo", "?"), BlessTo = JsonUtil.S(e, "blessTo", "?"), PacksTo = JsonUtil.S(e, "packsTo"),

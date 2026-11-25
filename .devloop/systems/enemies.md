@@ -1,7 +1,8 @@
 ﻿# Enemies
 Purpose: Data-driven enemies (melee, ranged, summoner, dragon, wildlife), bespoke bosses, aggro/taunt, lock-on targeting and overworld threat ambushes.
 ## Files
-- `scripts/Enemy.cs` (947 lines): core enemy FSM, stats from enemies.json, hit/status handling, net sync. Key: `Rescale()` L29, `_Ready()` L94, `ModelPose()` L330, `Stun()` L449, `Wake()` L452, `Incoming()` L461, `TakeHit()` L521, `_PhysicsProcess()` L611, `NetWrite()` L877
+- `scripts/Enemy.cs` (920 lines): core enemy FSM, stats from enemies.json, hit/status handling, net sync. Key: `Rescale()` L29, `_Ready()` L94, `ModelPose()` L310, `Stun()` L430, `Wake()` L433, `Incoming()` L442, `TakeHit()` L502, `_PhysicsProcess()` L599, `NetWrite()` L865
+- `scripts/EnemyAi.cs` (64 lines, `partial class Enemy`): `Notices`/`Alert` (aggro), `ClearTele`/`Telegraph`/`TeleTick` (attack telegraph), `SummonAdds`. The state switch is inline in `_PhysicsProcess`, not separate handlers.
 - `scripts/EnemyDb.cs` (88 lines): EnemyDef loader/registry. Key: `Clone()` L51, `Get()` L64, `Load()` L70
 - `scripts/EnemyAggro.cs` (80 lines): who a monster/boss fights (hero or remote peer), taunt. Key: `HeroOf()` L27, `PeerOf()` L33, `Taunt()` L49
 - `scripts/EnemyDuelist.cs` (453 lines): Crimson Arena Shadow Duel boss, round scaling. Key: `DuelStats()` L45, `DuelDef()` L58, `ClampArena()` L440

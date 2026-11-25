@@ -16,37 +16,35 @@ public partial class Ui
     public void OpenPause()
     {
         var d = Game.D; var p = Player.Instance; string K(string a) => Inputs.KeyOf(a);
-        var v = Frame("pause", Net.Active ? "Menu" : "Paused", new Vector2(780, 480), OpenPause);
-        var cols = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; cols.AddThemeConstantOverride("separation", 18); v.AddChild(cols);
+        var v = FrameSlim("pause", OpenPause);
+        var parch = new Color(.86f, .80f, .66f); var gold = new Color(.78f, .62f, .30f);
 
-        // ---- left: hero card
-        var card = new PanelContainer { CustomMinimumSize = new Vector2(350, 0) };
-        card.AddThemeStyleboxOverride("panel", UiTheme.Box(UiTheme.Button, UiTheme.AccentSoft, 1, 14, 10)); cols.AddChild(card);
-        var c = new VBoxContainer(); c.AddThemeConstantOverride("separation", 4); card.AddChild(c);
-        Lbl(d.Name, 24, UiTheme.Title, c);
-        Lbl($"Level {d.Level} {Races.Get(d.Race).Name} {Classes.Get(d.Class).Name}", 15, Colors.White, c);
-        Meter(c, "XP", d.Xp, d.XpNeed(), UiTheme.Highlight);
-        if (p != null) { Meter(c, "HP", p.Hp, d.MaxHp(), new Color("5be37d")); Meter(c, "MP", p.Mp, d.MaxMp(), new Color("4fb6ff")); }
-        var info = new GridContainer { Columns = 2 }; info.AddThemeConstantOverride("h_separation", 14); info.AddThemeConstantOverride("v_separation", 1); c.AddChild(info);
-        float hrs = World.TimeOfDay * 24f;
-        string place = Dungeon.Active ? $"Dungeon, floor {Dungeon.Depth}" : Arenas.Active ? "Crimson Arena" : p != null ? HudCanvas.PlaceName(p.GlobalPosition) : "";
-        foreach (var (k, val) in new[] { ("Place", place), ("Realm", World.Realm == 1 ? "Shadow" : "Light"), ("Time", $"{(int)hrs:00}:{(int)((hrs - (int)hrs) * 60):00}"), ("Gold", $"{d.Gold}"), ("Valor", $"{d.Valor}"), ("Kills", $"{d.Kills}"), ("Played", Game.Played(d)) })
-        { Lbl(k, 14, Dim, info); Lbl(val, 14, k == "Realm" && World.Realm == 1 ? new Color(.78f, .62f, 1f) : Colors.White, info); }
-        if (d.AttrPts + d.RankPts + d.SkillPts > 0) Row(c, $"Unspent: {d.AttrPts} attribute, {d.RankPts} skill, {d.SkillPts} skill tree", UiTheme.Highlight, 13);
-        c.AddChild(new Control { SizeFlagsVertical = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Ignore });
-        var links = new GridContainer { Columns = 3 }; links.AddThemeConstantOverride("h_separation", 6); links.AddThemeConstantOverride("v_separation", 6); c.AddChild(links);
+        // ---- top: small game title and a thin rule
+        var tt = Lbl("TWIN REALMS", 15, gold, v); tt.AddThemeFontOverride("font", new FontVariation { BaseFont = ThemeDB.FallbackFont, SpacingGlyph = 4 });
+        v.AddChild(new ColorRect { Color = gold with { A = .5f }, CustomMinimumSize = new Vector2(0, 1), MouseFilter = Control.MouseFilterEnum.Ignore });
+        v.AddChild(new Control { CustomMinimumSize = new Vector2(0, 10), MouseFilter = Control.MouseFilterEnum.Ignore });
+
+        // ---- entries: large text buttons, gold with a left marker on hover
+        Button Big(string t, Action a)
+        {
+            var b = Btn(t, a); b.Alignment = HorizontalAlignment.Left; b.CustomMinimumSize = new Vector2(0, 31);   // 15 entries + header + footer must fit 720 px (devloop #7)
+            b.AddThemeFontSizeOverride("font_size", 19);
+            b.AddThemeColorOverride("font_color", parch); b.AddThemeColorOverride("font_hover_color", gold); b.AddThemeColorOverride("font_pressed_color", UiTheme.Highlight); b.AddThemeColorOverride("font_disabled_color", new Color(.45f, .42f, .36f));
+            StyleBoxFlat Sb(Color mark, Color bg) => new() { BgColor = bg, BorderColor = mark, BorderWidthLeft = 2, ContentMarginLeft = 16, ContentMarginRight = 8, ContentMarginTop = 2, ContentMarginBottom = 2 };
+            var none = Sb(Colors.Transparent, Colors.Transparent); var hov = Sb(gold, new Color(gold, .10f));
+            b.AddThemeStyleboxOverride("normal", none); b.AddThemeStyleboxOverride("disabled", none); b.AddThemeStyleboxOverride("focus", none);
+            b.AddThemeStyleboxOverride("hover", hov); b.AddThemeStyleboxOverride("pressed", hov);
+            v.AddChild(b); return b;
+        }
+        void Note13(string t, Color? c = null) { var l = Row(v, t, c ?? Dim, 13); l.CustomMinimumSize = new Vector2(0, 0); l.AddThemeConstantOverride("line_spacing", 0); l.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; }
+        Big("Resume", Close);
+        Big("Save game", () => { Game.Save(); _savedAt = DateTime.Now.ToString("HH:mm"); Note("Game saved", Gold); OpenPause(); });
+        if (_savedAt != "") Note13("   Saved at " + _savedAt);
+        Big("Multiplayer" + (Net.Active ? $"  ({Net.I!.Players.Count} online)" : ""), OpenMultiplayer);
         foreach (var (label, key, open) in new (string, string, Action)[] { ("Character", "", OpenCharacterPanel), ("Pack", K(Inputs.Pack), OpenPack), ("Journal", K(Inputs.Journal), OpenJournal),
                                                                              ("Map", K(Inputs.Map), OpenMap), ("Skill tree", K(Inputs.Tree), OpenTree), ("Skills", K(Inputs.SkillsUi), OpenSkills),
                                                                              ("Attacks", K(Inputs.AttacksUi), () => OpenAttacks(null)), ("Modifiers", K(Inputs.ModsUi), OpenMods) })
-        { var b = Btn(key == "" ? label : $"{label} [{key}]", open, true); b.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; b.CustomMinimumSize = new Vector2(104, 32); links.AddChild(b); }
-
-        // ---- right: actions
-        var r = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; r.AddThemeConstantOverride("separation", 8); cols.AddChild(r);
-        Button Big(string t, Action a) { var b = Btn(t, a); b.CustomMinimumSize = new Vector2(0, 42); r.AddChild(b); return b; }
-        Big("Resume", Close);
-        Big("Save game", () => { Game.Save(); _savedAt = DateTime.Now.ToString("HH:mm"); Note("Game saved", Gold); OpenPause(); });
-        if (_savedAt != "") { var l = Lbl("Saved at " + _savedAt, 13, Dim, r); l.HorizontalAlignment = HorizontalAlignment.Center; }
-        Big("Multiplayer" + (Net.Active ? $"  ({Net.I!.Players.Count} online)" : ""), OpenMultiplayer);
+            Big(key == "" ? label : $"{label}  [{key}]", open);
         Big("Settings", OpenSettings);
         // Unstuck: back to the world spawn point (Oakhaven). Asks once, then a short cooldown so it is not a free escape every few seconds
         float wait = UnstuckWait();
@@ -58,8 +56,7 @@ public partial class Ui
         });
         un.Disabled = wait > 0 || p == null;
         un.TooltipText = "Stuck in a wall or out of reach? Takes you back to the world spawn point in Oakhaven" + (Dungeon.Active || Arenas.Active ? " (leaves this dungeon or arena run)." : ".");
-        if (_confirmUnstuck) { un.AddThemeColorOverride("font_color", UiTheme.Highlight); var l = Row(r, Dungeon.Active || Arenas.Active ? "This leaves the dungeon or arena run. Click again to go." : "Click again to go back to Oakhaven.", Dim, 13); l.HorizontalAlignment = HorizontalAlignment.Center; }
-        r.AddChild(new Control { SizeFlagsVertical = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Ignore });
+        if (_confirmUnstuck) { un.AddThemeColorOverride("font_color", UiTheme.Highlight); Note13(Dungeon.Active || Arenas.Active ? "   This leaves the dungeon or arena run. Click again to go." : "   Click again to go back to Oakhaven."); }
         var quit = Big(_confirmQuit ? "Really quit to title?" : "Quit to title", () =>
         {
             if (!_confirmQuit) { _confirmQuit = true; _confirmUnstuck = false; OpenPause(); return; }
@@ -68,9 +65,18 @@ public partial class Ui
         if (_confirmQuit)
         {
             quit.AddThemeColorOverride("font_color", new Color(1f, .55f, .5f));
-            var l = Row(r, "Your hero is saved first. Click again to quit, or Resume to stay.", Dim, 13); l.HorizontalAlignment = HorizontalAlignment.Center;
+            Note13("   Your hero is saved first. Click again to quit, or Resume to stay.");
         }
-        var hint = Row(v, $"{K(Inputs.Pause)} resumes.   Every key can be changed in Settings > Controls.", Dim, 13); hint.HorizontalAlignment = HorizontalAlignment.Center;
+        v.AddChild(new Control { SizeFlagsVertical = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Ignore });
+
+        // ---- bottom: hero name, level, location
+        string place = Dungeon.Active ? $"Dungeon, floor {Dungeon.Depth}" : Arenas.Active ? "Crimson Arena" : p != null ? HudCanvas.PlaceName(p.GlobalPosition) : "";
+        v.AddChild(new ColorRect { Color = gold with { A = .5f }, CustomMinimumSize = new Vector2(0, 1), MouseFilter = Control.MouseFilterEnum.Ignore });
+        Lbl(d.Name, 22, parch, v);
+        Lbl($"Level {d.Level} {Races.Get(d.Race).Name} {Classes.Get(d.Class).Name}", 14, Dim, v);
+        if (place != "") Lbl(place + (World.Realm == 1 ? "  (Shadow realm)" : ""), 14, World.Realm == 1 ? new Color(.78f, .62f, 1f) : gold, v);
+        if (d.AttrPts + d.RankPts + d.SkillPts > 0) Row(v, $"Unspent: {d.AttrPts} attribute, {d.RankPts} skill, {d.SkillPts} skill tree", UiTheme.Highlight, 13);
+        Row(v, $"{K(Inputs.Pause)} resumes", Dim, 12);
     }
 
     // ---- Unstuck

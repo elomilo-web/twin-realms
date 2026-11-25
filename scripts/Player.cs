@@ -13,6 +13,7 @@ public partial class Player : CharacterBody3D, IDamageable
     public static Player? Instance;
 
     public CameraRig? Rig;
+    bool _sprWas; float _skidT;   // sprint start/stop feel
     public float Hp, Mp, St;
     public bool Dead { get; private set; }
     public bool Mounted { get; private set; }
@@ -33,6 +34,8 @@ public partial class Player : CharacterBody3D, IDamageable
     float _atkT, _atkDur, _comboT, _blockT, _queueT, _castT, _castDur; bool _queuePower, _hasQueue;
     int _combo; bool _atkPower, _hitDone, _blocking, _fired;
     ulong _noStMsg; float _airT; FootPlant? _feet;
+    float _riposteT;   // after a parry: the next hit within this many seconds is a x2 riposte
+    float RiposteMul() { if (_riposteT <= 0) return 1f; _riposteT = 0; FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.3f, 0), "Riposte!", new Color(1, .85f, .4f), 1.2f); return Tune.F("guard.riposteMul", 2f); }
     Vector3 _hitKb, _walkV; int _hurtSerial, _avHurt; Enemy? _magnet;   // knockback from blows, hit-clip restarts, the foe a melee swing steps in on
     public static float RunSpeed { get { Feel.Load(); return Feel.Run; } }        // data/feel.json "move"
     public static float SprintSpeed { get { Feel.Load(); return Feel.Sprint; } }
@@ -89,7 +92,7 @@ public partial class Player : CharacterBody3D, IDamageable
             // the drawn hero: base body + separate gear models. HeroRig stays as the invisible pose source (hand targets, look-at).
             var ap = Races.Look(Game.D); _av = new Avatar { Name = "Avatar", Scale = new Vector3(1 / ap.Bulk, 1 / ap.Height, 1 / ap.Bulk) };
             _rig.AddChild(_av); _av.Build(ap, Game.D.Name); HideRig(); _feet = FootPlant.Attach(_av, GetRid());   // feet on slopes
-            if (_feet != null) _feet.Stepped = at => { float sp = new Vector2(Velocity.X, Velocity.Z).Length(); if (sp > .6f && IsOnFloor() && !Mounted) Sfx.Step(at, this, sp); };   // footsteps on the real footfalls   // the cape is an equipment slot now (Avatar.Dress)
+            if (_feet != null) _feet.Stepped = at => { float sp = new Vector2(Velocity.X, Velocity.Z).Length(); if (sp > .6f && IsOnFloor() && !Mounted) { Sfx.Step(at, this, sp); Rig?.StepBob(); } };   // footsteps on the real footfalls   // the cape is an equipment slot now (Avatar.Dress)
         }
         _trail = new SwordTrail(); AddChild(_trail);
         // a soft light around the hero that grows in the dark (night, Shadow realm, dungeons)
@@ -189,16 +192,21 @@ public partial class Player : CharacterBody3D, IDamageable
         float dmg = baseDmg; var away = -toSrc; away.Y = 0;
         if (_blocking && front && !h.NoBlock)
         {
-            if (_blockT < 0.22f && h.Attacker is Enemy en && !h.IsProjectile)
+            var shieldPos = GlobalPosition + new Vector3(0, 1.3f, 0) + new Vector3(-Mathf.Sin(_modelYaw), 0, -Mathf.Cos(_modelYaw)) * 0.7f;
+            if (_blockT < Tune.F("guard.parryWindow", .15f) && h.Attacker is Enemy en && !h.IsProjectile)
             {
-                en.Stun(0.9f); _inv = 0.3f; Sfx.Play("block");
-                FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.3f, 0), "PARRY", new Color(1, 0.88f, 0.5f), 1.3f);
-                Fx.Burst(GlobalPosition + new Vector3(0, 1.3f, 0) + new Vector3(-Mathf.Sin(_modelYaw), 0, -Mathf.Cos(_modelYaw)) * 0.7f, new Color(1, .95f, .6f), 14, 5f, 0.35f, 0.07f);
+                en.Stun(Tune.F("guard.parryStun", .8f)); _inv = 0.3f; Sfx.Play("block"); _riposteT = Tune.F("guard.riposteTime", 1.5f);
+                FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.3f, 0), "Parry!", new Color(1, 0.88f, 0.5f), 1.3f);
+                Fx.Burst(shieldPos, new Color(1, .97f, .8f), (int)Tune.F("guard.parrySparks", 22f), 6f, 0.4f, 0.08f);
+                Feel.HitStop(Tune.F("guard.hitStop", .04f) * 1.5f);
                 return;
             }
             float red = Mathf.Clamp(0.55f + D.ShieldDef * 0.012f + TS["block"] / 100f, 0.5f, 0.92f);
             dmg = baseDmg * (1f - red); UseStamina(h.Damage * Tune.F("stamina.blockPerDamage", .3f)); Sfx.Play("block");
-            if (St <= 0) { _blocking = false; _stagger = 0.7f; FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.3f, 0), "Guard broken", new Color(1, 0.6f, 0.45f)); }
+            Fx.Burst(shieldPos, new Color(1, .95f, .8f), (int)Tune.F("guard.sparks", 10f), 4f, 0.25f, 0.05f);
+            Feel.HitStop(Tune.F("guard.hitStop", .04f));
+            if (away.LengthSquared() > 0.001f) _hitKb += away.Normalized() * Tune.F("guard.pushBack", .3f) * 1.4f;
+            if (St <= 0) { _blocking = false; _stagger = Tune.F("guard.breakStagger", .6f); FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.3f, 0), "Guard broken", new Color(1, 0.6f, 0.45f)); }
         }
         else
         {
@@ -381,7 +389,7 @@ public partial class Player : CharacterBody3D, IDamageable
             if (dist > 0.6f && arc < Mathf.Pi - .01f && Mathf.Abs(Util.AngDiff(_modelYaw, Util.YawTo(d.X, d.Z))) > arc + (e.Def.R > 1 ? 0.5f : 0f)) continue;
             if (Mathf.Abs(e.GlobalPosition.Y - GlobalPosition.Y) > 3.5f + e.Def.R) continue;
             bool crit = GD.Randf() < D.CritChance() + (w.Crit + a.CritBonus) / 100f;
-            float dmg = D.WpnDmg() * (float)GD.RandRange(0.9, 1.1) * mult * (crit ? D.CritMult() : 1f);
+            float dmg = D.WpnDmg() * (float)GD.RandRange(0.9, 1.1) * mult * (crit ? D.CritMult() : 1f) * RiposteMul();
             var hi = new HitInfo { Damage = dmg, From = GlobalPosition, Knock = knock, Stun = stun, Up = up, Crit = crit, Attacker = this, IsPlayer = true, Kind = _atkPower ? "power" : fin ? "combo" : "light" };
             foreach (var kv in w.OnHit) hi.With(kv.Key, kv.Value * (fin || _atkPower ? 1.5f : 1f));
             if (GearFx.Get(D.Weapon?.Elem) is { } el && el.Status != "") hi.With(el.Status, el.Proc * (fin || _atkPower ? 1.5f : 1f) * (_step?.ElemMul ?? 1f));   // elemental weapon
@@ -576,6 +584,7 @@ public partial class Player : CharacterBody3D, IDamageable
         bool wantBlock = captured && HasShield && Input.IsActionPressed(Inputs.Guard) && _atkT <= 0 && _rollT <= 0 && _stagger <= 0 && _castT <= 0 && St > 0 && !Mounted;
         if (wantBlock && !_blocking) _blockT = 0;
         _blocking = wantBlock;
+        if (_riposteT > 0) _riposteT -= dt;
         if (_blocking) { _blockT += dt; _modelYaw = camYaw; }
 
         // ---- attack + cast timelines
@@ -639,7 +648,14 @@ public partial class Player : CharacterBody3D, IDamageable
             if (_spinLeft > 0) speed = Mathf.Max(speed, 3.5f);
             if (_stagger > 0) speed = 0;
             if (sprint) { St = Mathf.Max(0, St - Feel.SprintDrain * dt); _stLockT = Mathf.Max(_stLockT, Feel.SprintRegenDelay); }   // data/feel.json "move"
-            var target = dir * speed; float a = (IsOnFloor() ? Accel : AirAccel) * dt * _accelMul;   // ice: slow to start and to stop
+            {   // sprint feel: camera FOV/bob flag, start dust + whoosh, 0.15 s skid with a puff when stopping from full speed
+                float hs = new Vector2(v.X, v.Z).Length(); bool fast = sprint && hs > SprintSpeed * .7f && IsOnFloor();
+                if (Rig != null) Rig.Sprinting = fast;
+                if (sprint && !_sprWas && IsOnFloor()) { Fx.Dust(GlobalPosition, .5f); Sfx.Play("swing"); }
+                else if (!sprint && _sprWas && hs > SprintSpeed * .8f && IsOnFloor() && !Mounted) { _skidT = .15f; Fx.Dust(GlobalPosition, .4f); }
+                _sprWas = sprint; _skidT = Mathf.Max(0, _skidT - dt);
+            }
+            var target = dir * speed; float a = (IsOnFloor() ? Accel : AirAccel) * dt * _accelMul * (_skidT > 0 ? .35f : 1f);   // ice: slow to start and to stop
             v.X = Mathf.MoveToward(v.X, target.X, a); v.Z = Mathf.MoveToward(v.Z, target.Z, a);
             if (_atkT > 0 && !Ranged && _atk != null) Magnet(1f - _atkT / _atkDur, dt, ref v);   // melee step-in overrides the planted feet
             }

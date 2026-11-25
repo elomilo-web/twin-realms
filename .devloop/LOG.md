@@ -1,5 +1,15 @@
 # Dev loop log (newest first; max 20 detailed entries, older ones rolled into History)
 
+## #7 (2026-11-24) combat, feel, lighting, graphics, code, menus
+- Guard (existed): block now sparks + "block" clang + 40 ms hit-stop + push-back; parry window 0.15 s -> enemy Stun 0.8, "Parry!", riposte x2 within 1.5 s (main melee path only); tuning game.guard.*.
+- Sprint: CameraRig +6 deg FOV, +0.4 m arm, footstep-synced bob (Player.Stepped -> Rig.StepBob), dust + "swing" whoosh at start, skid + dust on hard stop.
+- Golden hour (WorldEnv.UpdateVisuals): gold band over low sun: amber sun up to x1.45, sun 30% lower (long shadows), rose-amber horizon, cooler ambient, warm FogSunScatter, glow +0.35; 10 look.json keys gold*.
+- Grass tufts on grass/forest_floor block tops (BlockMesher worker -> BlockWorld.Show MultiMesh, 60 m range, Game.Set.Grass). Lead fix: grass shader hid them inside vox_rect; added uniform vox_cut (Flora.cs) and BlockWorld.TuftMat copy with vox_cut 0. Ground near the hero is now grassy, a big win.
+- Code: EnemyAi.cs (Notices/Alert, telegraph helpers, SummonAdds); Enemy.cs 973 -> 920 (state switch is inline in _PhysicsProcess; moving it needs a method extraction).
+- Pause: Ui.FrameSlim left column 360 px + desaturate/darken screen shader; 15 text entries (lead: 38->31 px rows, 22->19 font so the footer fits 720 px).
+- FPS: near-hero views -10..-13% (tufts + sprint/idle); e.g. running 59 -> 51, combat 54.5 -> 49.3. Next cycle: perf first.
+- Scores: world visuals 6->6.5 (tufts, dusk), combat feel 7->7.5, menus visuals 6.5->7, player feel 6.5->7.
+
 ## #6 (2026-11-24) audio, animation, mechanics, world, ui, tools
 - Audio: tools/kit_gen/sfx_synth.py synthesizes land_thud_1-3, splash_1-4, step_water_1-4 (ours; ASSETS.md); landing uses land_thud, wading uses step_water (Sfx.BlockStep FluidAt), splash on entering water (PlayerBlocks _wasWater).
 - Animation: HeadLook adds idle breathing (spine_03 + clavicles), weight shift every 6-10 s, idle glance (public Glance) every 8-14 s; fades on move/Busy/lock.

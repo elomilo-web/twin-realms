@@ -96,6 +96,28 @@ public partial class Ui : CanvasLayer
     void Toggle(string name, Action open) { if (_panelName == name) Close(); else if (_panel == null && Player.Instance != null && !Player.Instance.Dead) open(); }
 
     // ---------------------------------------------------------------- panel frame
+    /// <summary>Slim left column over a darkened, desaturated live world (pause menu). Returns the column's content box.</summary>
+    VBoxContainer FrameSlim(string name, Action rebuild)
+    {
+        _scrapMode = false; CloseNoUnpause(); _panelName = name; _rebuild = rebuild;
+        var root = new Control { MouseFilter = Control.MouseFilterEnum.Stop, Theme = MakeTheme() }; root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        var sh = new Shader { Code = "shader_type canvas_item;\nuniform sampler2D screen_tex : hint_screen_texture, filter_linear_mipmap;\nvoid fragment() {\n vec3 c = textureLod(screen_tex, SCREEN_UV, 0.0).rgb;\n float g = dot(c, vec3(0.299, 0.587, 0.114));\n c = mix(c, vec3(g), 0.6) * 0.65;\n COLOR = vec4(c, 1.0);\n}\n" };
+        var dim = new ColorRect { Color = Colors.White, Material = new ShaderMaterial { Shader = sh }, MouseFilter = Control.MouseFilterEnum.Ignore }; dim.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); root.AddChild(dim);
+        const float W = 360;
+        var pc = new PanelContainer { MouseFilter = Control.MouseFilterEnum.Stop, AnchorBottom = 1, OffsetRight = W };
+        pc.AddThemeStyleboxOverride("panel", new StyleBoxFlat { BgColor = new Color(.04f, .035f, .03f, .78f), BorderColor = UiTheme.AccentSoft, BorderWidthRight = 1, ContentMarginLeft = 34, ContentMarginRight = 26, ContentMarginTop = 28, ContentMarginBottom = 26 });
+        root.AddChild(pc);
+        // soft right-edge fade
+        var gr = new Gradient { Colors = new[] { new Color(.04f, .035f, .03f, .5f), new Color(.04f, .035f, .03f, 0f) } };
+        var fade = new TextureRect { Texture = new GradientTexture2D { Gradient = gr, FillFrom = new Vector2(0, 0), FillTo = new Vector2(1, 0), Width = 64, Height = 4 }, StretchMode = TextureRect.StretchModeEnum.Scale, ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, MouseFilter = Control.MouseFilterEnum.Ignore, AnchorBottom = 1, OffsetLeft = W, OffsetRight = W + 64 };
+        root.AddChild(fade);
+        var v = new VBoxContainer(); v.AddThemeConstantOverride("separation", 2); pc.AddChild(v);
+        AddChild(root); _panel = root;
+        root.Modulate = new Color(1, 1, 1, 0); root.CreateTween().TweenProperty(root, "modulate:a", 1f, UiTheme.OpenTime);
+        GetTree().Paused = !Net.Active; Input.MouseMode = Input.MouseModeEnum.Visible;
+        return v;
+    }
+
     VBoxContainer Frame(string name, string title, Vector2 size, Action rebuild)
     {
         if (name != "pack") _scrapMode = false;   // Disassemble stays on only while you stay in the pack

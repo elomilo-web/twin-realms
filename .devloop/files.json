@@ -295,15 +295,15 @@
     },
     {
         "path":  "scripts/BlockMesher.cs",
-        "lines":  180,
-        "hash8":  "92170b1b",
+        "lines":  194,
+        "hash8":  "0bc71dad",
         "system":  "blockworld",
         "summary":  "A chunk\u0027s finished mesh: one surface per material, plus the faces for its collision shape...."
     },
     {
         "path":  "scripts/Blocks.cs",
-        "lines":  185,
-        "hash8":  "9f14b01e",
+        "lines":  186,
+        "hash8":  "b49a8238",
         "system":  "blockworld",
         "summary":  "One block type from data/blocks.json. Id 0 is always air."
     },
@@ -316,8 +316,8 @@
     },
     {
         "path":  "scripts/BlockWorld.cs",
-        "lines":  302,
-        "hash8":  "23b36eb9",
+        "lines":  317,
+        "hash8":  "5681df1e",
         "system":  "blockworld",
         "summary":  "The block world (data/blocks.json, docs/DESIGN.md \"Block world\"). Around the player the ground is made of..."
     },
@@ -344,8 +344,8 @@
     },
     {
         "path":  "scripts/CameraRig.cs",
-        "lines":  90,
-        "hash8":  "c888b119",
+        "lines":  95,
+        "hash8":  "12be1381",
         "system":  "camera",
         "summary":  "Free third-person camera. Mouse look, scroll to zoom, Esc frees the mouse, click recaptures it."
     },
@@ -386,8 +386,8 @@
     },
     {
         "path":  "scripts/Enemy.cs",
-        "lines":  974,
-        "hash8":  "ff5f142c",
+        "lines":  921,
+        "hash8":  "52a77655",
         "system":  "enemies",
         "summary":  "Data-driven enemy. Melee, ranged, summoning bosses and the dragon. Stats come from data/enemies.json."
     },
@@ -397,6 +397,13 @@
         "hash8":  "8cf5b82a",
         "system":  "enemies",
         "summary":  "Who a monster, boss or raid boss fights (runs where the monster is run: the..."
+    },
+    {
+        "path":  "scripts/EnemyAi.cs",
+        "lines":  65,
+        "hash8":  "24879659",
+        "system":  "enemies",
+        "summary":  "Within aggro range: outdoors that is enough; in a dungeon the monster must see the..."
     },
     {
         "path":  "scripts/EnemyDb.cs",
@@ -449,8 +456,8 @@
     },
     {
         "path":  "scripts/Flora.cs",
-        "lines":  325,
-        "hash8":  "7b32f432",
+        "lines":  326,
+        "hash8":  "a067026e",
         "system":  "world",
         "summary":  "Scenery ground cover: wind-swept grass, ferns, bushes and pebbles. Scattered per chunk from data/flora.json,"
     },
@@ -708,8 +715,8 @@
     },
     {
         "path":  "scripts/Player.cs",
-        "lines":  820,
-        "hash8":  "f1f5aa04",
+        "lines":  836,
+        "hash8":  "be4c888f",
         "system":  "player",
         "summary":  "The hero: movement, roll, four weapon types (sword, bow, wand, staff), block/parry, four spells, potions,..."
     },
@@ -904,8 +911,8 @@
     },
     {
         "path":  "scripts/Ui.cs",
-        "lines":  843,
-        "hash8":  "db7af003",
+        "lines":  865,
+        "hash8":  "f7d54cce",
         "system":  "ui",
         "summary":  "All menus and overlays, built in code: notes, banners, dialogue, shop, smith, pack, character, skill..."
     },
@@ -981,8 +988,8 @@
     },
     {
         "path":  "scripts/UiSystem.cs",
-        "lines":  231,
-        "hash8":  "3e948e3f",
+        "lines":  237,
+        "hash8":  "f346de3b",
         "system":  "ui",
         "summary":  "System menus: the pause menu (hero summary, quick links, save, quit with a confirm step)"
     },
@@ -1051,8 +1058,8 @@
     },
     {
         "path":  "scripts/WorldEnv.cs",
-        "lines":  262,
-        "hash8":  "41441a37",
+        "lines":  268,
+        "hash8":  "087aed0c",
         "system":  "world",
         "summary":  "World: environment, sky, fog, sun/moon light, day/night and realm-blend look, water."
     }

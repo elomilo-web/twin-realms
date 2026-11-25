@@ -28,6 +28,10 @@ public partial class CameraRig : Node3D
         if (fovPulse) _fovT = Feel.FovPulseTime;
     }
 
+    // sprint feel: FOV +6 deg and +0.4 m arm (0.35 s ease), footstep-synced 0.03 m vertical bob (bob off when Shake = 0)
+    public bool Sprinting; float _spr, _bob;
+    public void StepBob() { if (Sprinting && Game.Set.Shake > 0) _bob = .03f; }
+
     public Camera3D Camera => _cam;
     /// <summary>Horizontal facing of the camera in radians (rig yaw).</summary>
     public float Yaw => Rotation.Y;
@@ -78,12 +82,13 @@ public partial class CameraRig : Node3D
             if (d.LengthSquared() > .5f) Rotation = new Vector3(0, Mathf.LerpAngle(Rotation.Y, Util.YawTo(d.X, d.Z), 1f - Mathf.Exp(-Feel.LockTurn * (float)delta)), 0);
         }
         float pulse = 0f; if (_fovT > 0) { _fovT = Mathf.Max(0, _fovT - (float)delta); float u = _fovT / Mathf.Max(.01f, Feel.FovPulseTime); pulse = Feel.FovPulse * Mathf.Sin(u * Mathf.Pi); }
-        _cam.Fov = Game.Set.Fov - pulse;
-        _kick *= Mathf.Exp(-16f * (float)delta);
-        _arm.SpringLength = Mathf.Lerp(_arm.SpringLength, Distance, 1f - Mathf.Exp(-10f * (float)delta));
+        _spr = Mathf.MoveToward(_spr, Sprinting ? 1f : 0f, (float)delta / .35f); float sE = _spr * _spr * (3f - 2f * _spr);
+        _cam.Fov = Game.Set.Fov - pulse + 6f * sE;
+        _kick *= Mathf.Exp(-16f * (float)delta); _bob *= Mathf.Exp(-9f * (float)delta);
+        _arm.SpringLength = Mathf.Lerp(_arm.SpringLength, Distance + .4f * sE, 1f - Mathf.Exp(-(10f - 4f * sE) * (float)delta));
         _shake = Mathf.Max(0, _shake - (float)delta * 1.2f);
         // over the right shoulder, so the aim point at screen centre is not hidden behind the hero (data/feel.json camera.shoulder)
         _cam.HOffset = Feel.Shoulder + (float)GD.RandRange(-1.0, 1.0) * _shake * 0.3f + _kick.X;
-        _cam.VOffset = Feel.ShoulderUp + (float)GD.RandRange(-1.0, 1.0) * _shake * 0.3f + _kick.Y;
+        _cam.VOffset = Feel.ShoulderUp + (float)GD.RandRange(-1.0, 1.0) * _shake * 0.3f + _kick.Y + _bob;
     }
 }
