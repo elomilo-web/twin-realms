@@ -171,9 +171,10 @@ public static class BlockMesher
             int lvl = MetaAt(x, y, z) & 7; bool covered = At(x, y + 1, z) == id;
             float top = covered ? 1f : Mathf.Max(.15f, .88f - lvl * .1f);
             var s = Surf(id * 3);
-            void Quad(Vector3 a0, Vector3 a1, Vector3 a2, Vector3 a3, Vector3 nn, float l)
+            void Quad(Vector3 a0, Vector3 a1, Vector3 a2, Vector3 a3, Vector3 nn, float l, bool side = false)
             {
-                int b0 = s.V.Count; s.V.Add(a0); s.V.Add(a1); s.V.Add(a2); s.V.Add(a3); for (int k = 0; k < 4; k++) { s.N.Add(nn); s.C.Add(new Color(l, l, l)); }
+                // COLOR.b = 0 marks a vertical face (the water shader turns it into falling water); the sea plane has no colours (white)
+                int b0 = s.V.Count; s.V.Add(a0); s.V.Add(a1); s.V.Add(a2); s.V.Add(a3); for (int k = 0; k < 4; k++) { s.N.Add(nn); s.C.Add(new Color(l, l, side ? 0f : l)); }
                 s.I.Add(b0); s.I.Add(b0 + 2); s.I.Add(b0 + 1); s.I.Add(b0); s.I.Add(b0 + 3); s.I.Add(b0 + 2);
             }
             if (!covered) { byte up = At(x, y + 1, z); if (up == 0 || !defs[up].Opaque) Quad(new(x, y + top, z), new(x, y + top, z + 1), new(x + 1, y + top, z + 1), new(x + 1, y + top, z), Vector3.Up, 1f); }
@@ -185,7 +186,7 @@ public static class BlockMesher
                 // side faces: v is "up" for +X/-X? use the axis that is vertical
                 Vector3 uu = new(u.X, u.Y, u.Z), vv = new(v.X, v.Y, v.Z);
                 if (uu.Y > 0) uu *= top; else vv *= top;
-                Quad(p, p + uu, p + uu + vv, p + vv, new Vector3(n.X, 0, n.Z), .85f);
+                Quad(p, p + uu, p + uu + vv, p + vv, new Vector3(n.X, 0, n.Z), .85f, true);
             }
             byte dn = At(x, y - 1, z); if (dn == 0) Quad(new(x, y, z), new(x + 1, y, z), new(x + 1, y, z + 1), new(x, y, z + 1), Vector3.Down, .6f);
         }

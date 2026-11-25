@@ -59,14 +59,38 @@ public partial class Chest : Node3D, IInteractable
     }
     public void Interact()
     {
-        if (_open) return; _open = true; Game.D.Disc.Add(Id); Sfx.Play("coin");
-        var tw = _lid.CreateTween(); tw.TweenProperty(_lid, "rotation:x", -1.9f, 0.4f);
+        if (_open) return; _open = true; Game.D.Disc.Add(Id); Sfx.Play("click"); Sfx.Play("coin");
+        var tw = _lid.CreateTween(); tw.TweenProperty(_lid, "rotation:x", -1.9f, 0.45f).SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
+        OpenFx();
         int lvl = Dungeon.Active ? Level : Progression.OverworldLevel(Level, false);   // overworld chests keep up with the heroes, like the monsters
-        Loot.DropFrom(GlobalPosition + Vector3.Up * 0.3f, lvl, 1f, Bonus, GD.RandRange(10, 30) + lvl * 6, 0.5f);
-        if (GD.Randf() < 0.45f) Loot.Drop(GlobalPosition + Vector3.Up * 0.3f, item: LootTables.Roll(lvl, Bonus));
+        var top = GlobalPosition + Vector3.Up * 0.3f;
+        Loot.Pop(top, () =>
+        {
+            Loot.DropFrom(top, lvl, 1f, Bonus, GD.RandRange(10, 30) + lvl * 6, 0.5f);
+            if (GD.Randf() < 0.45f) Loot.Drop(top, item: LootTables.Roll(lvl, Bonus));
+        });
         Spellcraft.OnChest(GlobalPosition);   // chests may hold a spell card
         Fx.Burst(GlobalPosition + Vector3.Up * 0.6f, new Color(1, 0.85f, 0.3f), 14, 3f, 0.6f, 0.08f);
         Game.Save();
+    }
+
+    /// <summary>Golden light spilling out, dust motes and glints rising.</summary>
+    void OpenFx()
+    {
+        var gold = new Color(1f, .8f, .4f);
+        var l = new OmniLight3D { LightColor = gold, OmniRange = 5f, LightEnergy = 0f, ShadowEnabled = false, Position = new Vector3(0, .6f, 0) };
+        AddChild(l);
+        var tw = l.CreateTween(); tw.TweenProperty(l, "light_energy", 2.5f, .3f); tw.TweenProperty(l, "light_energy", 0f, .7f); tw.TweenCallback(Callable.From(l.QueueFree));
+        var m = new StandardMaterial3D { AlbedoColor = gold, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, BlendMode = BaseMaterial3D.BlendModeEnum.Add, VertexColorUseAsAlbedo = true, BillboardMode = BaseMaterial3D.BillboardModeEnum.Enabled };
+        var p = new CpuParticles3D
+        {
+            Amount = 20, Lifetime = 1.6f, OneShot = true, Explosiveness = .7f, Emitting = true, Position = new Vector3(0, .55f, 0),
+            Direction = Vector3.Up, Spread = 35f, InitialVelocityMin = .5f, InitialVelocityMax = 1.6f, Gravity = new Vector3(0, .25f, 0),
+            ScaleAmountMin = .6f, ScaleAmountMax = 1.4f, Mesh = new QuadMesh { Size = new Vector2(.05f, .05f), Material = m },
+            ColorRamp = Vfx.Ramp((0, new Color(1f, .9f, .55f, 0)), (.2f, new Color(1f, .9f, .55f, .9f)), (1, new Color(1f, .8f, .4f, 0)))
+        };
+        AddChild(p);
+        GetTree().CreateTimer(2.2f).Timeout += () => { if (IsInstanceValid(p)) p.QueueFree(); };
     }
 }
 

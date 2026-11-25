@@ -12,12 +12,26 @@ public partial class Loot : Node3D
     float _t, _claimT;
     static Vector3 _dropPos; static ulong _dropMs;
 
+    // chests set this while dropping: loot arcs out from here instead of appearing in place
+    public static Vector3? PopFrom; static int _pops;
+    float _toss = -1; Vector3 _ta, _tb;
+
     public static void Drop(Vector3 pos, int gold = 0, Item? item = null, string? pot = null, bool hold = false)
     {
         var l = new Loot { Gold = gold, Item = item, Pot = pot, Hold = hold };
         Game.Root!.AddChild(l);
+        if (PopFrom is Vector3 from && _pops < 8)
+        {
+            _pops++;
+            float a = GD.Randf() * Mathf.Tau, r = 1f + GD.Randf() * .5f;
+            l._ta = from; l._tb = from + new Vector3(Mathf.Cos(a) * r, 0, Mathf.Sin(a) * r); l._toss = 0; l.GlobalPosition = from;
+            return;
+        }
         l.GlobalPosition = pos + new Vector3((GD.Randf() - .5f) * 1.5f, 0.6f, (GD.Randf() - .5f) * 1.5f);
     }
+
+    /// <summary>Drop everything inside the action as a chest pop: small parabolic arcs to 1-1.5 m around the chest.</summary>
+    public static void Pop(Vector3 from, System.Action drop) { PopFrom = from; _pops = 0; try { drop(); } finally { PopFrom = null; } }
 
     /// <summary>Right-click in the pack: put an item on the ground in front of us, for a friend to take (or for us to pick up again).</summary>
     public static void DropFromPack(Item it)
@@ -55,6 +69,14 @@ public partial class Loot : Node3D
         Mesh mesh = Gold > 0 ? new SphereMesh { Radius = .15f, Height = .3f, RadialSegments = 8, Rings = 4 } : Pot != null ? new CylinderMesh { TopRadius = .1f, BottomRadius = .13f, Height = .3f } : new BoxMesh { Size = new Vector3(.3f, .3f, .3f) };
         AddChild(new MeshInstance3D { Mesh = mesh, MaterialOverride = mat });
         AddChild(new OmniLight3D { LightColor = c, OmniRange = 4f, LightEnergy = .6f });
+        // rarity beam for rare+ items: thin additive column, fades after 6 s (or goes with the pickup)
+        if (Item != null && (Item.Rar >= 2 || Item.Set != null || Item.Unique))
+        {
+            var bm = new StandardMaterial3D { AlbedoColor = new Color(c, .35f), ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, BlendMode = BaseMaterial3D.BlendModeEnum.Add, CullMode = BaseMaterial3D.CullModeEnum.Disabled };
+            var beam = new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = .05f, BottomRadius = .09f, Height = 3f, RadialSegments = 8, Rings = 1 }, MaterialOverride = bm, Position = new Vector3(0, 1.3f, 0), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
+            AddChild(beam);
+            var tw = beam.CreateTween(); tw.TweenInterval(5f); tw.TweenProperty(bm, "albedo_color:a", 0f, 1f); tw.TweenCallback(Callable.From(beam.QueueFree));
+        }
         // a drop reserved for someone else shows whose it is
         if (NetId > 0 && Owner != 0 && Owner != Net.MyId)
             AddChild(new Label3D { Text = OwnerName + "'s", FontSize = 26, OutlineSize = 7, PixelSize = .005f, Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, Position = new Vector3(0, .55f, 0), Modulate = new Color(.8f, .85f, 1f, .85f) });
@@ -63,6 +85,13 @@ public partial class Loot : Node3D
     public override void _PhysicsProcess(double delta)
     {
         _t += (float)delta; RotateY((float)delta * 2f);
+        if (_toss >= 0)
+        {
+            _toss += (float)delta / .55f; float k = Mathf.Min(_toss, 1f);
+            GlobalPosition = _ta.Lerp(_tb, k) + Vector3.Up * Mathf.Sin(k * Mathf.Pi) * 1.1f;
+            if (_toss >= 1f) _toss = -1;
+            return;
+        }
         var pl = Player.Instance; if (pl == null || pl.Dead) return;
         var p = GlobalPosition; p.Y = pl.GlobalPosition.Y;
         // settle onto the ground

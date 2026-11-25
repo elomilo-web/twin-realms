@@ -136,7 +136,11 @@ public static class Kit
     {
         var p = Get(name); if (p == null) return null;
         var t = Place(pos, yaw, scale);
-        var mi = new MeshInstance3D { Mesh = p.Mesh, Transform = t * p.Xf }; parent.AddChild(mi);
+        var mi = new MeshInstance3D { Mesh = p.Mesh, Transform = t * p.Xf };
+        // small props (fences, barrels, crates, lamps, signs): cull far away; tiny ones cast no shadow. Houses/walls/towers are larger and untouched.
+        float big = Mathf.Max(p.Box.Size.X, Mathf.Max(p.Box.Size.Y, p.Box.Size.Z)) * scale;
+        if (big < 4.5f) { mi.VisibilityRangeEnd = 110f; if (big < 1.8f) mi.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off; }
+        parent.AddChild(mi);
         if (solid)
         {
             var b = new StaticBody3D { Transform = t, CollisionLayer = 1 };

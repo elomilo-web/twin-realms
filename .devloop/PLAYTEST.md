@@ -11,6 +11,8 @@ Play a few minutes and tick what works; write problems into DIRECTIVES.md (or te
 - [ ] Enemy flinch + death fall (#9): enemies twist away from hits and tip over when they die.
 
 ## Movement and feel
+- [ ] Camera (#11): leads slightly where you run, eases out after walls/trees (no jitter?), slight over-the-shoulder offset.
+- [ ] Chests (#11): lid swings open, golden light, loot pops out; rare items get a coloured light beam.
 - [ ] Sprint (#7): wider view, dust kick at start, short skid when stopping.
 - [ ] Landing (#4): falls over ~1.2 m puff dust, thud, small camera shake.
 - [ ] Hero idle (#6): breathing, weight shift, glances around; head turns toward nearby foes (#2).

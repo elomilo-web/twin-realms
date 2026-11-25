@@ -94,11 +94,7 @@ public partial class HudCanvas : Control
         if (aq.Count > 0)
         {
             // right-aligned text needs a box: draw from (right edge - width) with that width
-            var q = aq[0]; var s = Game.Q(q.Id); float qw = u * 30, qx = sz.X - pad - qw;
-            float tw0 = F.GetStringSize(q.Name, HorizontalAlignment.Left, -1, fs(1.5f)).X; var dm = new Vector2(sz.X - pad - tw0 - 12, pad + fs(1.5f) * .62f);
-            DrawColoredPolygon(new[] { dm + new Vector2(0, -5), dm + new Vector2(4, 0), dm + new Vector2(0, 5), dm + new Vector2(-4, 0) }, UiTheme.Accent);
-            Txt(new Vector2(qx, pad + fs(1.5f)), q.Name, fs(1.5f), UiTheme.Title, HorizontalAlignment.Right, qw);
-            Txt(new Vector2(qx, pad + fs(1.5f) * 2.1f), s.S == 2 ? "Return to " + Quests.GiverName(q.Giver) : q.Goal + (q.Need > 1 ? $" ({s.N}/{q.Need})" : ""), fs(1.05f), Colors.White, HorizontalAlignment.Right, qw);
+            DrawTracker(aq, sz, u, pad, fs(.95f), fs(1f), dtv);
         }
         // compass
         float yaw = p.Rig?.Yaw ?? 0f; float cw = u * 34, cx = sz.X / 2, cy = pad + fs(1.2f);
@@ -208,10 +204,9 @@ public partial class HudCanvas : Control
             Txt(r.Position + new Vector2(4, fs(.95f) + 1), key, fs(.95f), UiTheme.Accent); Txt(r.Position + new Vector2(0, ss - 4), cnt, fs(.85f), i == 6 ? new Color("ff8f86") : i == 7 ? new Color("8fb8ff") : UiTheme.Dim.Lightened(.3f), HorizontalAlignment.Right, ss - 4);
         }
         // hero statuses and skill buffs: icons with seconds left, just above the hotbar
-        float sx0 = hx; float isz = Mathf.Max(22, u * 2.1f);
-        foreach (var b in p.Buffs) { StatusChip(new Vector2(sx0, hy - isz - 8), isz, new Color(1f, .82f, .4f), Skills.Get(b.id)?.Name[..1] ?? "+", b.t, 0); sx0 += isz + 4; }
-        foreach (var s in p.Statuses.List) { StatusChip(new Vector2(sx0, hy - isz - 8), isz, s.Def.Col, s.Def.Name[..1], s.T, s.Stacks); sx0 += isz + 4; }
-        // a running macro (PlayerMacros.cs), above the status chips
+        float isz = Mathf.Max(22, u * 2.1f);
+        DrawBuffRow(p, new Vector2(px, py + ph + 6), isz);   // buff/debuff row under the player bars
+        // a running macro (PlayerMacros.cs), above the hotbar
         if (p.MacroStatus is { Length: > 0 } ms) Txt(new Vector2(hx, hy - isz - 16), "▶ " + ms, fs(1f), UiTheme.Highlight);
         // minimap bottom-right
         DrawMini(p, new Vector2(sz.X - pad - u * 7, sz.Y - pad - u * 7), u * 7);
@@ -237,6 +232,60 @@ public partial class HudCanvas : Control
         Txt(at + new Vector2(0, s * .72f), letter, (int)(s * .6f), Colors.White, HorizontalAlignment.Center, s);
         if (stacks > 1) Txt(at + new Vector2(0, s - 2), stacks.ToString(), (int)(s * .38f), Colors.White, HorizontalAlignment.Right, s - 2);
         DrawRect(new Rect2(at + new Vector2(0, s + 1), new Vector2(s * Mathf.Clamp(t / 10f, 0, 1), 2)), c);
+    }
+
+    static readonly Color BuffFrame = new("c9a24a"), DebuffFrame = new("7a1a1a"), Parch = new("e8dcc0");
+    readonly System.Collections.Generic.Dictionary<string, float> _maxT = new();   // longest time seen per buff/status id, for the sweep
+    float Span(string id, float t, float def) { if (!_maxT.TryGetValue(id, out var m) || t > m) { m = Mathf.Max(t, def); _maxT[id] = m; } return Mathf.Max(.1f, m); }
+
+    /// <summary>Buff/debuff row: gold-framed buff squares, dark-red debuffs, a draining bottom bar, stack count. Max 8, no per-frame allocation.</summary>
+    void DrawBuffRow(Player p, Vector2 at, float s)
+    {
+        int n = 0; float x = at.X;
+        for (int i = 0; i < p.Buffs.Count && n < 8; i++, n++)
+        {
+            var b = p.Buffs[i]; var nm = Skills.Get(b.id)?.Name;
+            BuffIcon(new Vector2(x, at.Y), s, new Color(1f, .82f, .4f), nm is { Length: > 0 } ? nm[0] : '+', b.t / Span(b.id, b.t, 10f), 0, BuffFrame, b.t); x += s + 4;
+        }
+        for (int i = 0; i < p.Statuses.List.Count && n < 8; i++, n++)
+        {
+            var st = p.Statuses.List[i]; var nm = st.Def.Name;
+            bool good = st.Def.Kind is "buff" or "regen" or "haste" or "shield" or "ward";
+            BuffIcon(new Vector2(x, at.Y), s, st.Def.Col, nm.Length > 0 ? nm[0] : '?', st.T / Span(st.Def.Id, st.T, st.Def.Dur), st.Stacks, good ? BuffFrame : DebuffFrame, st.T); x += s + 4;
+        }
+    }
+    void BuffIcon(Vector2 at, float s, Color c, char letter, float frac, int stacks, Color frame, float t)
+    {
+        var r = new Rect2(at, new Vector2(s, s)); DrawRect(r, new Color(.04f, .03f, .05f, .85f)); DrawRect(r.Grow(-2), c with { A = .3f });
+        Txt(at + new Vector2(0, s * .72f), letter.ToString(), (int)(s * .6f), Parch, HorizontalAlignment.Center, s);
+        frac = Mathf.Clamp(frac, 0, 1);
+        DrawRect(new Rect2(at.X + 1, at.Y + s - 3, s - 2, 2), new Color(0, 0, 0, .6f)); DrawRect(new Rect2(at.X + 1, at.Y + s - 3, (s - 2) * frac, 2), frame.Lightened(.2f));
+        DrawRect(r, frame, false, 1f);
+        if (stacks > 1) Txt(at + new Vector2(0, s - 5), stacks.ToString(), (int)(s * .4f), Colors.White, HorizontalAlignment.Right, s - 2);
+        if (t < 3f && ((int)(Time.GetTicksMsec() / 250) & 1) == 0) DrawRect(r, new Color(1, 1, 1, .12f));   // about to expire
+    }
+
+    int _qSig; float _qAge = 99, _qA = 1;
+    /// <summary>Quest tracker, top right: gold caps name, parchment objective lines with progress, thin gold rule on the left. Dims after 10 s, pulses on progress.</summary>
+    void DrawTracker(System.Collections.Generic.List<QuestDef> aq, Vector2 sz, float u, float pad, int nameSz, int lineSz, float dt)
+    {
+        int sig = 17; for (int i = 0; i < aq.Count && i < 3; i++) { var qi = aq[i]; var si = Game.Q(qi.Id); sig = sig * 31 + qi.Id.GetHashCode(); sig = sig * 31 + si.N * 7 + si.S; }
+        if (sig != _qSig) { _qSig = sig; _qAge = 0; } else _qAge += dt;
+        float target = _qAge < 10f ? 1f : .6f; _qA = Mathf.MoveToward(_qA, target, dt * (target > _qA ? 6f : .5f));
+        float pulse = _qAge < .7f ? 1f - _qAge / .7f : 0f;
+        float qw = u * 24, x = sz.X - pad - qw, y = pad + 2; var q0 = aq[0];
+        int rows = Mathf.Min(3, aq.Count); float h = nameSz + 6 + rows * (lineSz + 4);
+        if (pulse > 0) DrawRect(new Rect2(x - 8, y - 2, qw + 8, h + 4), new Color(Gold, pulse * .18f));
+        var gold = Gold.Lightened(pulse * .4f) with { A = _qA }; var par = Parch with { A = _qA };
+        DrawRect(new Rect2(x - 7, y, 2, h), gold);
+        Txt(new Vector2(x, y + nameSz), q0.Name.ToUpper(), nameSz, gold);
+        for (int i = 0; i < rows; i++)
+        {
+            var q = aq[i]; var s = Game.Q(q.Id);
+            string line = s.S == 2 ? "Return to " + Quests.GiverName(q.Giver) : q.Goal + (q.Need > 1 ? $" {s.N}/{q.Need}" : "");
+            if (i > 0) line = q.Name + ": " + line;
+            Txt(new Vector2(x, y + nameSz + 6 + (i + 1) * (lineSz + 4) - 4), line, lineSz, par, HorizontalAlignment.Left, qw);
+        }
     }
 
     /// <summary>Glass box like the menus: translucent navy, cyan edge, bright corner ticks.</summary>

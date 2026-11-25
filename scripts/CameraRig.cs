@@ -30,6 +30,7 @@ public partial class CameraRig : Node3D
 
     // sprint feel: FOV +6 deg and +0.4 m arm (0.35 s ease), footstep-synced 0.03 m vertical bob (bob off when Shake = 0)
     public bool Sprinting; float _spr, _bob;
+    Vector3 _lead, _lastTp; float _lockB, _camLen = -1f;
     public void StepBob() { if (Sprinting && Game.Set.Shake > 0) _bob = .03f; }
 
     public Camera3D Camera => _cam;
@@ -72,7 +73,17 @@ public partial class CameraRig : Node3D
         if (Target != null)
         {
             // follow the head height, smoothed
-            var goal = Target.GlobalPosition + new Vector3(0, 1.6f, 0);
+            // look-ahead: lead the camera along the horizontal motion (0.8 m run, 1.2 m sprint), tau 0.4 s, none while locked on
+            var tp = Target.GlobalPosition; float dt = Mathf.Max((float)delta, .0001f);
+            var hv = new Vector3(tp.X - _lastTp.X, 0, tp.Z - _lastTp.Z) / dt; _lastTp = tp;
+            if (hv.Length() > 30f) hv = Vector3.Zero;   // teleport / respawn guard
+            bool locked = Targeting.Current is Enemy le && IsInstanceValid(le);
+            _lockB = Mathf.MoveToward(_lockB, locked ? 1f : 0f, (float)delta / .3f);
+            float maxLead = Sprinting ? 1.2f : 0.8f;
+            var leadGoal = locked ? Vector3.Zero : hv.LimitLength(6f) / 6f * maxLead;
+            _lead = _lead.Lerp(leadGoal, 1f - Mathf.Exp(-(float)delta / .4f));
+            if (locked) _lead = _lead.Lerp(Vector3.Zero, 1f - Mathf.Exp(-12f * (float)delta));
+            var goal = tp + new Vector3(0, 1.6f, 0) + _lead;
             GlobalPosition = GlobalPosition.Lerp(goal, 1f - Mathf.Exp(-14f * (float)delta));
         }
         // lock-on: swing the camera so the target stays in view (mouse still controls pitch)
@@ -88,7 +99,12 @@ public partial class CameraRig : Node3D
         _arm.SpringLength = Mathf.Lerp(_arm.SpringLength, Distance + .4f * sE, 1f - Mathf.Exp(-(10f - 4f * sE) * (float)delta));
         _shake = Mathf.Max(0, _shake - (float)delta * 1.2f);
         // over the right shoulder, so the aim point at screen centre is not hidden behind the hero (data/feel.json camera.shoulder)
-        _cam.HOffset = Feel.Shoulder + (float)GD.RandRange(-1.0, 1.0) * _shake * 0.3f + _kick.X;
+        // collision smoothing: pull in instantly, ease back out over ~0.35 s (camera local Z, applied after the arm's own placement)
+        float hit = _arm.GetHitLength();
+        if (_camLen < 0f || hit < _camLen) _camLen = hit; else _camLen = Mathf.Lerp(_camLen, hit, 1f - Mathf.Exp(-(float)delta / .35f));
+        _cam.Position = new Vector3(_cam.Position.X, _cam.Position.Y, _camLen);
+        float shoulderX = .35f * (1f - sE) * (1f - _lockB);
+        _cam.HOffset = Feel.Shoulder + shoulderX + (float)GD.RandRange(-1.0, 1.0) * _shake * 0.3f + _kick.X;
         _cam.VOffset = Feel.ShoulderUp + (float)GD.RandRange(-1.0, 1.0) * _shake * 0.3f + _kick.Y + _bob;
     }
 }

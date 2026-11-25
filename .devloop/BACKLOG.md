@@ -1,17 +1,15 @@
-[4][M][feel] Camera look-ahead + soft collision ease-out + shoulder offset (planned #10, blocked by infra): lead 0.8/1.2 m, ease-out .35 s, HOffset .35 blended off when sprinting/locked; note Feel.Shoulder already offsets HOffset -> CameraRig.cs
-[3][S][tools] lightning_cast view: camera inside a tree at [20,-70]; add the auto open-spot helper (flat, dry, >25 m from POIs, no trees within 6 m) -> DevCapture.cs, viewpoints.json
+[3][S][tools] Auto-spot tree check misses trees (no colliders?): also reject spots within 6 m of Flora tree instances (query FloraField/Lands tree positions) so lightning/holy views aren't occluded -> DevCapture.cs FindSpot
+[3][S][tools] Capture hero has no buffs/quests: grant a buff (e.g. a potion/skill buff) and accept a quest for the hud view so the buff row + tracker get judged -> DevCapture.cs, viewpoints.json
 # Backlog (prioritized; one item per line)
 Format: [impact 1-5][effort S/M/L][category] description -> target files. Top = next. Remove when done (log it in LOG.md).
 Categories: graphics shaders lighting animation feel combat mechanics ui menus world vfx audio perf code tools
 
 [4][S][world] Settlement walls still dark timber after #4 tint lift (plaster f0e8dc not visible in Hollowfrost): check which kit houses Hollowfrost uses and whether their walls are TR_Tex_planks; maybe swap some to plaster-walled models -> Lands.cs Cottages/Townhouses, data/env.json
 [4][S][menus] Title backdrop now visible (#3) but the dusk is a flat saturated red; add sky gradient depth (violet top -> ember horizon), a moon, layered fog between skyline rows -> TitleBackdrop.cs
-[3][M][perf] Foliage view still 35 fps / min 13 (Hollowfrost): flora already culled (#2 check). Profile lights/shadows/terrain: try shadow distance per view, omni shadow count, draw calls in report.json -> World.cs, Lands.cs
 [4][S][graphics] Verify block lip/jitter look up close (#1 added it; not visible at capture distance): add a close terrace viewpoint, tune data/blocks.json "lip" colours -> viewpoints.json, data/blocks.json
 [3][S][feel] A wild wolf wanders into the "running" view and hits the hero (-40): DevCapture clears foes near the hero before each world view -> DevCapture.cs
 [4][M][animation] Running pose stiff at distance: add lean into turns and upper-body counter-rotation -> HeroRig.cs / Avatar.cs
 [3][S][ui] HUD ghost/vignette colours are hard-coded in Hud.SlantBar/GhostStep: move to data/ui_theme.json; add a "low_hp" viewpoint (hero at 20% HP) to judge the pulse -> Hud.cs, viewpoints.json
-[3][M][shaders] Water: add depth-based color, shoreline foam and refraction to block-world water faces -> BlockMesher.cs, assets water shader
 [3][S][audio] Normalise SFX/music levels (GOTHIC.md: levels not normalised) -> tools script + Sfx.cs volume table
 [3][M][ui] Target lock reticle and enemy nameplate restyle (gothic frame, HP bar with level badge) -> Targeting.cs, Hud.cs
 [3][L][world] Trees as block-aware (fire spreads to trees): convert nearby trees to burnable wood/leaves blocks on hit -> Flora.cs, BlockSim.cs
@@ -36,4 +34,4 @@ Categories: graphics shaders lighting animation feel combat mechanics ui menus w
 [3][S][animation] Enemies with a Death clip get the clip AND the tip-over (double); skip tip for bodies with a Death clip or blend -> Enemy.cs Die
 [2][S][animation] Puppets (multiplayer clients) get no flinch/death fall: drive visuals from replicated hit/death events -> Enemy.cs, NetAggro
 [2][S][code] water_stylized.gdshader unused (proof in LOG #10): delete together with its docs/kit/README.md row -> assets/shaders, docs/kit/README.md
-[3][S][vfx] Holy/shadow/poison impacts (#10) need capture views (cast a holy/shadow/poison skill) -> viewpoints.json
+[3][S][feel] Camera look-ahead uses a guessed 6 m/s run speed and writes _cam.Position.Z beside the SpringArm: check for jitter in play (PLAYTEST) -> CameraRig.cs

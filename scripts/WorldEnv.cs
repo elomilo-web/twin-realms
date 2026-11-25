@@ -187,6 +187,12 @@ void fragment(){
   ROUGHNESS = mix(mix(0.08, 0.3, smoothstep(150.0, 900.0, dist)) + (macro - 0.5) * 0.08, 0.5, fo); SPECULAR = mix(0.9, 0.5, smoothstep(150.0, 900.0, dist)); METALLIC = 0.0;
   EMISSION = mix(vec3(0.0), vec3(0.25, 0.05, 0.35), realm_t * 0.4 * (1.0 - fo));
   ALPHA = clamp(mix(0.55, 0.95, smoothstep(0.0, 3.0, thick)) + fr * 0.3 + fo, 0.0, 1.0);
+  if (COLOR.b < 0.5) {   // block-water side face: falling water, lighter, streaks scrolling down
+    float st = vn(vec2((wp.x + wp.z) * 5.0, wp.y * 2.5 + t * 3.0)) * 0.6 + vn(vec2((wp.x - wp.z) * 11.0, wp.y * 5.0 + t * 5.0)) * 0.4;
+    ALBEDO = mix(ALBEDO, foam, 0.25 + 0.5 * st);
+    ALPHA = 0.3 + 0.35 * st;
+    ROUGHNESS = 0.3;
+  }
 }";
 
     /// <summary>

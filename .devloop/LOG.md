@@ -1,5 +1,14 @@
 # Dev loop log (newest first; max 20 detailed entries, older ones rolled into History)
 
+## #11 (2026-11-25) feel, tools, shaders, ui, mechanics, perf
+- Camera (CameraRig.cs): look-ahead lead 0.8 m run / 1.2 m sprint (tau .4, off when locked), collision pull-in instant + .35 s ease-out, shoulder offset .35 (off sprinting/locked). Untested by eye (stills).
+- Capture: "spot": "auto:n" (FindSpot: dry, flat, >25 m from POIs, no collider in a 3.5 m sphere 5 m up); cast views auto:0-5; holy (smite), shadow (shadowbolt), poison (thornvolley) views; hero faces the foe. Trees seem to have no colliders: lightning/holy views still occluded.
+- Water: block water already shared the sea shader + shore foam; falls/side faces now lighter scrolling streaks (COLOR.b=0 marks them).
+- HUD: buff/debuff row (8 icons, gold/red frames, drain bar, stacks) under the bars; quest tracker top-right (gold caps title, objective progress, fades after 10 s, pulses on progress). Not visible in captures (no buffs/quests on the capture hero).
+- Chests: lid ease-out-back, gold light swell, motes; loot pops out in arcs (Loot.Pop), rare+ beams 3 m fading after 6 s.
+- Perf: Kit.Add props < 4.5 m get range 110, < 1.8 m no shadow: settlement 40 -> 61 fps.
+- Note: capture fps depends on the views run before (closeup 47 in a full set, 90 alone): compare fps only between runs of the same view set.
+
 ## #10 (2026-11-24) full sweep + process review #2; vfx, combat, world, code, tools
 - Full sweep: 28 views, 61.9 fps avg, 0 engine errors. Process review #2 in PROCESS.md; PLAYTEST.md checklist for the user.
 - INFRA: 4 of 6 subagents could not edit (auto-mode safety classifier unavailable, "no verdict"); lead applied the small ones from their plans. Camera look-ahead (#10c) and the auto-spot capture helper were NOT done.

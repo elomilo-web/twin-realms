@@ -13,7 +13,7 @@ namespace TwinRealms;
 /// in file order, 1280x720 PNGs to .devloop/screenshots/current/ (the last run moves to previous/), report.json with
 /// FPS avg/min per view, and quit. Run it with tools/capture.bat (tools/capture.ps1 adds the engine errors to the report).
 /// Viewpoint fields: name, scene (title | world | arena | dungeon:&lt;key&gt;), action (idle | run | sprint | swing | cast | ui:&lt;menu&gt;),
-/// player_at [x,z], yaw, time (0..1), realm (0|1), cast:&lt;skillId&gt; (grants it, bar 0, waits cast_wait s, default .35), freeze_foes (bool), cam_yaw + cam_dist (follow camera) or camera_pos + look_at (free camera;
+/// player_at [x,z] or spot "auto:&lt;n&gt;" (n-th flat dry open point on rings of 60/80/100 m), yaw, time (0..1), realm (0|1), cast:&lt;skillId&gt; (grants it, bar 0, waits cast_wait s, default .35), freeze_foes (bool), cam_yaw + cam_dist (follow camera) or camera_pos + look_at (free camera;
 /// relative: true makes them offsets from the hero), hud (bool), foes (enemy types spawned 6 m in front), wait_frames.
 /// </summary>
 public partial class DevCapture : Node
@@ -112,6 +112,29 @@ public partial class DevCapture : Node
     void ClearFoes() { foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Node nn) nn.QueueFree(); Targeting.Clear(); }
     void Hud(bool on) { if (Game.Root?.GetNodeOrNull<CanvasLayer>("Hud") is { } h) h.Visible = on; }
 
+    /// <summary>The n-th accepted point of the deterministic ring scan (radius 60/80/100, every 20 deg), or null.</summary>
+    Vector2? FindSpot(int n)
+    {
+        var space = GetViewport().World3D.DirectSpaceState;
+        var shape = new SphereShape3D { Radius = 3.5f };   // centred 5 m up: catches trunks and canopies, not the block ground's colliders
+        int found = 0;
+        foreach (float r in new[] { 60f, 80f, 100f })
+            for (int deg = 0; deg < 360; deg += 20)
+            {
+                float x = r * Mathf.Cos(Mathf.DegToRad(deg)), z = r * Mathf.Sin(Mathf.DegToRad(deg));
+                float g = World.GroundAt(x, z);
+                if (g <= Lands.WaterAt(x, z) + 1f) continue;
+                if (Mathf.Abs(World.GroundAt(x + 3f, z) - g) >= 1.2f || Mathf.Abs(World.GroundAt(x - 3f, z) - g) >= 1.2f
+                    || Mathf.Abs(World.GroundAt(x, z + 3f) - g) >= 1.2f || Mathf.Abs(World.GroundAt(x, z - 3f) - g) >= 1.2f) continue;
+                if (World.Pois.Any(p => new Vector2(p.X - x, p.Z - z).Length() <= 25f)) continue;
+                var q = new PhysicsShapeQueryParameters3D { Shape = shape, Transform = new Transform3D(Basis.Identity, new Vector3(x, g + 5f, z)) };
+                if (Player.Instance != null) q.Exclude = new Godot.Collections.Array<Rid> { P.GetRid() };
+                if (space.IntersectShape(q, 1).Count > 0) continue;
+                if (found++ == n) return new Vector2(x, z);
+            }
+        return null;
+    }
+
     async Task Capture(JsonElement v)
     {
         string name = Str(v, "name", "view"), scene = Str(v, "scene", "world"), action = Str(v, "action", "idle");
@@ -131,7 +154,13 @@ public partial class DevCapture : Node
                 if (v.TryGetProperty("time", out _)) World.TimeOfDay = Num(v, "time", .5f);
                 if (v.TryGetProperty("realm", out _)) World.ForceRealm((int)Num(v, "realm", 0));
                 else if (World.Realm != 0 && scene == "world") World.ForceRealm(0);   // views without "realm" are Light (shadow_realm used to leak into the next views)
-                if (v.TryGetProperty("player_at", out var pa) && pa.ValueKind == JsonValueKind.Array)
+                if (Str(v, "spot").StartsWith("auto:") && int.TryParse(Str(v, "spot")[5..], out int spotN))
+                {   // the n-th flat, dry, open point away from every POI (rings 60/80/100 m, every 20 deg)
+                    var sp = FindSpot(spotN);
+                    if (sp == null) throw new Exception("no auto spot " + spotN);
+                    P.Teleport(World.OnGround(sp.Value.X, sp.Value.Y, .5f), Num(v, "yaw", 0f)); await Secs(.6f);
+                }
+                else if (v.TryGetProperty("player_at", out var pa) && pa.ValueKind == JsonValueKind.Array)
                 {
                     var a = pa.EnumerateArray().Select(e => e.GetSingle()).ToArray();
                     P.Teleport(World.OnGround(a[0], a[1], .5f), Num(v, "yaw", 0f)); await Secs(.6f);
@@ -170,14 +199,21 @@ public partial class DevCapture : Node
                     var fwd = -P.GlobalTransform.Basis.Z with { Y = 0 }; fwd = fwd.LengthSquared() > .01f ? fwd.Normalized() : Vector3.Forward;
                     int i = 0; bool side = Flag(v, "foe_side", false);
                     var right = fwd.Cross(Vector3.Up);
+                    Vector3? firstFoe = null;
                     foreach (var f in fs.EnumerateArray())
                     {
                         var at = side ? P.GlobalPosition + right * (2.2f + 1.5f * i++) : P.GlobalPosition + fwd * 6f + right * ((i++ - .5f) * 2.5f);
                         var foe = new Enemy { Type = f.GetString()!, Level = 18, AnyRealm = true, NoLeash = true, Position = World.OnGround(at.X, at.Z, .3f) };
                         Game.Root!.AddChild(foe);
+                        firstFoe ??= foe.Position;
                         if (Flag(v, "freeze_foes", false)) { foe.Rotation = new Vector3(0, Mathf.Pi, 0); foe.SetProcess(false); foe.SetPhysicsProcess(false); }   // stands still: no attacks, no interrupts
                     }
                     await Secs(1f);
+                    if (action.StartsWith("cast") && firstFoe != null)
+                    {   // face the first foe so targeted spells fire at it
+                        var d = firstFoe.Value - P.GlobalPosition;
+                        if (new Vector2(d.X, d.Z).LengthSquared() > .01f) P.Teleport(P.GlobalPosition, Mathf.Atan2(-d.X, -d.Z));
+                    }
                 }
                 // camera: free (absolute or relative to the hero) or the follow camera
                 var cp = Vec(v, "camera_pos"); var la = Vec(v, "look_at") ?? Vector3.Zero;

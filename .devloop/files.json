@@ -295,8 +295,8 @@
     },
     {
         "path":  "scripts/BlockMesher.cs",
-        "lines":  194,
-        "hash8":  "c00c9bed",
+        "lines":  195,
+        "hash8":  "68a14d81",
         "system":  "blockworld",
         "summary":  "A chunk\u0027s finished mesh: one surface per material, plus the faces for its collision shape...."
     },
@@ -344,8 +344,8 @@
     },
     {
         "path":  "scripts/CameraRig.cs",
-        "lines":  95,
-        "hash8":  "12be1381",
+        "lines":  111,
+        "hash8":  "4c61d68e",
         "system":  "camera",
         "summary":  "Free third-person camera. Mouse look, scroll to zoom, Esc frees the mouse, click recaptures it."
     },
@@ -365,8 +365,8 @@
     },
     {
         "path":  "scripts/dev/DevCapture.cs",
-        "lines":  263,
-        "hash8":  "5f6d5c07",
+        "lines":  299,
+        "hash8":  "27139b9f",
         "system":  "devtools",
         "summary":  "Dev loop eyes (autoload). Does nothing unless the game is started with the user arg..."
     },
@@ -533,8 +533,8 @@
     },
     {
         "path":  "scripts/Hud.cs",
-        "lines":  374,
-        "hash8":  "22a3e6fd",
+        "lines":  423,
+        "hash8":  "49df0a50",
         "system":  "ui",
         "summary":  "In-game HUD matching the prototype layout: top-left info, compass, quest tracker, target bar, bottom bars,..."
     },
@@ -582,8 +582,8 @@
     },
     {
         "path":  "scripts/Kit.cs",
-        "lines":  168,
-        "hash8":  "ec6290dc",
+        "lines":  172,
+        "hash8":  "5e336966",
         "system":  "animation",
         "summary":  "Environment models from the Quaternius kits (assets/models/env, listed in data/env.json)."
     },
@@ -603,8 +603,8 @@
     },
     {
         "path":  "scripts/Loot.cs",
-        "lines":  101,
-        "hash8":  "516d91cb",
+        "lines":  130,
+        "hash8":  "c3041d3d",
         "system":  "loot",
         "summary":  "Pickups: gold, potions and items. Walk close to collect them."
     },
@@ -785,8 +785,8 @@
     },
     {
         "path":  "scripts/Props.cs",
-        "lines":  199,
-        "hash8":  "1f8abd02",
+        "lines":  223,
+        "hash8":  "9b85dec4",
         "system":  "world",
         "summary":  "Rotates a node continuously (windmill blades, orbs)."
     },
@@ -1065,8 +1065,8 @@
     },
     {
         "path":  "scripts/WorldEnv.cs",
-        "lines":  306,
-        "hash8":  "b679ee47",
+        "lines":  312,
+        "hash8":  "2da85d35",
         "system":  "world",
         "summary":  "World: environment, sky, fog, sun/moon light, day/night and realm-blend look, water."
     }
