@@ -138,14 +138,23 @@ public partial class Sfx : Node
     public static void Step(Vector3 p, Node3D who, float speed)
     {
         if (I == null || Game.Set.Steps <= 0) return;
-        string kind = StepKind(p, who); StepCount++;
+        string kind = BlockStep(p) ?? StepKind(p, who); StepCount++; LastStep = kind;
         var (id, pitch, vol) = kind switch
         {
+            "gravel" => ("step_gravel", 1f, .5f), "ice" => ("step_stone", 1.25f, .45f),
             "stone" => ("step_stone", 1f, .55f), "wood" => ("step_wood", 1f, .5f), "leaves" => ("step_leaves", 1.05f, .32f), "dirt" => ("step_dirt", 1.1f, .4f),
             "sand" => ("step_soft", .92f, .55f), "snow" => ("step_soft", .68f, .6f), _ => ("step_soft", 1.18f, .32f),   // grass: the soft steps, lighter
         };
         vol *= Mathf.Lerp(.75f, 1.15f, Mathf.Clamp((speed - 1f) / 5f, 0, 1));
-        Play(id, vol, pitch);
+        Play(id, vol, pitch * (.94f + GD.Randf() * .12f));
+    }
+    /// <summary>Surface class of the 1 m block under the foot (null outside the block area, over air, or in water: no splash sound exists, so today's logic decides).</summary>
+    static string? BlockStep(Vector3 p)
+    {
+        byte b = BlockWorld.At(p + Vector3.Down * .1f);
+        if (b == 255 || b == 0) return null;
+        string s = Blocks.Def(b).Step;
+        return s == "" || s == "water" ? null : s;
     }
     public static string LastStep = ""; public static int StepCount;
     static string StepKind(Vector3 p, Node3D who)

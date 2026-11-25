@@ -114,6 +114,7 @@ public static partial class Dungeon
         w.SetOverworldActive(false);
         var th = Theme(key);
         w.SetDungeonLook(true, JsonUtil.Hex(th.GetProperty("torch").GetInt32()).Darkened(0.55f).Lerp(new Color(.35f, .38f, .45f), .35f));
+        if (w.Env?.Environment is Godot.Environment denv) { denv.AmbientLightSource = Godot.Environment.AmbientSource.Color; denv.AmbientLightColor = new Color(.45f, .55f, .8f); denv.AmbientLightEnergy = .8f; }   // cold fill so walls/floor read
         var start = Origin + new Vector3((_rooms[0].Cx + .5f) * Tile, 1f, (_rooms[0].Cz + .5f) * Tile + 3f);
         Player.Instance.Teleport(start, 0f);
         int tier = Progression.Tier(depth);
@@ -308,25 +309,39 @@ public static partial class Dungeon
         foreach (var (x, z) in wallSet)
             foreach (var (dx, dz) in new[] { (1, 0), (-1, 0), (0, 1), (0, -1) })
                 if (Floor(x + dx, z + dz)) faces.Add((new Vector3((x + .5f + dx * .5f) * Tile, 0, (z + .5f + dz * .5f) * Tile), new Vector3(dx, 0, dz), Util.YawTo(dx, dz), Math.Abs(x * 73856093 ^ z * 19349663 ^ (dx + 2) * 83492791 ^ (dz + 2) * 297)));
-        int torches = 0;
-        foreach (var f in faces)
+        int torches = 0, lit = 0;
+        // entry room: force 3 evenly spaced lit torches on its walls so the first room always reads
+        var entry = new HashSet<int>();
+        if (_rooms.Count > 0)
         {
+            var r0 = _rooms[0]; var cand = new List<int>();
+            for (int i = 0; i < faces.Count; i++)
+            {
+                int fx = (int)Mathf.Floor(faces[i].p.X / Tile + faces[i].n.X * .5f), fz = (int)Mathf.Floor(faces[i].p.Z / Tile + faces[i].n.Z * .5f);
+                if (fx >= r0.X && fx < r0.X + r0.W && fz >= r0.Z && fz < r0.Z + r0.H) cand.Add(i);
+            }
+            for (int k = 0; k < 3 && cand.Count > 0; k++) entry.Add(cand[(int)((k + .5f) * cand.Count / 3f) % cand.Count]);
+        }
+        for (int fi = 0; fi < faces.Count; fi++)
+        {
+            var f = faces[fi]; bool forced = entry.Contains(fi);
             var rot = new Vector3(0, f.yaw, 0);
             Put(new BoxMesh { Size = new Vector3(Tile, .5f, .35f) }, plinthMat, f.p + f.n * .17f + Vector3.Up * .25f, rot);
             Put(new BoxMesh { Size = new Vector3(Tile, .32f, .4f) }, trim, f.p + f.n * .2f + Vector3.Up * (WallH - .3f), rot);
-            if (f.h % 3 == 0)
+            if (f.h % 3 == 0 && !forced)
             {
                 Put(new BoxMesh { Size = new Vector3(.62f, WallH - .6f, .3f) }, trim, f.p + f.n * .15f + Vector3.Up * (WallH / 2), rot);
                 Put(new BoxMesh { Size = new Vector3(.82f, .25f, .45f) }, trim, f.p + f.n * .22f + Vector3.Up * (WallH - .58f), rot);
             }
-            else if (f.h % 5 == 1 && torches < 46)
+            else if (forced || (f.h % 5 == 1 && torches < 46))
             {
                 // iron sconce: wall plate, arm, cup, flame (only some cast light, to keep it fast)
                 torches++; var at = f.p + f.n * .5f + Vector3.Up * 2.7f;
                 Put(new BoxMesh { Size = new Vector3(.22f, .4f, .05f) }, iron, f.p + f.n * .03f + Vector3.Up * 2.55f, rot);
                 Put(new BoxMesh { Size = new Vector3(.06f, .06f, .5f) }, iron, f.p + f.n * .28f + Vector3.Up * 2.5f, rot);
                 Put(new CylinderMesh { TopRadius = .14f, BottomRadius = .06f, Height = .16f, RadialSegments = 8 }, iron, at - Vector3.Up * .12f);
-                Root.AddChild(new Torch { Position = at, Size = 1.1f, Range = 13f, Col = flame, Light = torches % 2 == 0 });
+                bool on = forced || (torches % 2 == 0 && lit < 20); if (on) lit++;
+                Root.AddChild(new Torch { Position = at, Size = 1.1f, Range = 9f, Col = new Color(1f, .55f, .25f), Energy = 2f, Light = on });
             }
             else if (S("banner") != "" && f.h % 7 == 2)
             {

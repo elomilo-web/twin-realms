@@ -25,6 +25,10 @@
       "combatStanceSeconds": 6,
       "chainWindow": 1.3
     },
+    "perfectDodge": {
+      "_help": "Perfect dodge: a blow that would land within window seconds of starting a roll is avoided with slow motion (slowScale for slowTime real seconds) and a counter window (counterTime s) where the next melee hit does counterMul x damage. cooldown: seconds before another can trigger.",
+      "window": 0.18, "slowScale": 0.35, "slowTime": 0.35, "counterTime": 1.2, "counterMul": 1.5, "cooldown": 2.0
+    },
     "stamina": {
       "_help": "Stamina cost of each action. Sprint drain and refill speed are in files > feel.json > move. twoHandedMul / daggerMul scale melee costs for two-handed weapons and daggers. blockPerDamage: stamina lost per point of damage blocked.",
       "lightMelee": 9, "heavyMelee": 26, "lightRanged": 7, "heavyRanged": 16,

@@ -253,8 +253,8 @@
     },
     {
         "path":  "scripts/Avatar.cs",
-        "lines":  755,
-        "hash8":  "cd7fc116",
+        "lines":  842,
+        "hash8":  "d5a828ff",
         "system":  "animation",
         "summary":  "A character built from the Quaternius universal rig (data/avatar.json): a plain base body (male or..."
     },
@@ -288,8 +288,8 @@
     },
     {
         "path":  "scripts/Blocks.cs",
-        "lines":  175,
-        "hash8":  "8253ff69",
+        "lines":  177,
+        "hash8":  "b95679c4",
         "system":  "blockworld",
         "summary":  "One block type from data/blocks.json. Id 0 is always air."
     },
@@ -324,7 +324,7 @@
     {
         "path":  "scripts/Builder.cs",
         "lines":  471,
-        "hash8":  "9d496d20",
+        "hash8":  "1b0b5c78",
         "system":  "world",
         "summary":  "Builds the hand-placed overworld: Oakhaven, the arena, dungeon mouths, the dragon lair, standing stones, obelisks,..."
     },
@@ -351,15 +351,15 @@
     },
     {
         "path":  "scripts/dev/DevCapture.cs",
-        "lines":  222,
-        "hash8":  "086c1096",
+        "lines":  229,
+        "hash8":  "b19c36e5",
         "system":  "devtools",
         "summary":  "Dev loop eyes (autoload). Does nothing unless the game is started with the user arg..."
     },
     {
         "path":  "scripts/Dungeon.cs",
-        "lines":  480,
-        "hash8":  "e7dbecab",
+        "lines":  495,
+        "hash8":  "88098ab7",
         "system":  "dungeons",
         "summary":  "Procedural dungeons: three themes, descending depth, boss in the farthest room. Raid lairs (DungeonLair.cs) reuse..."
     },
@@ -414,8 +414,8 @@
     },
     {
         "path":  "scripts/Feel.cs",
-        "lines":  67,
-        "hash8":  "edba4d57",
+        "lines":  80,
+        "hash8":  "a63a2a8d",
         "system":  "combat",
         "summary":  "Game feel: hit-stop (a tiny freeze on impact) and enemy recoil settings. Tuning lives in..."
     },
@@ -596,8 +596,8 @@
     },
     {
         "path":  "scripts/Main.cs",
-        "lines":  151,
-        "hash8":  "c93a8b5a",
+        "lines":  150,
+        "hash8":  "23f084d7",
         "system":  "core",
         "summary":  "Game root: shows the title screen, then builds the world, player, camera and HUD."
     },
@@ -694,8 +694,8 @@
     },
     {
         "path":  "scripts/Player.cs",
-        "lines":  792,
-        "hash8":  "910995ac",
+        "lines":  806,
+        "hash8":  "81827ca0",
         "system":  "player",
         "summary":  "The hero: movement, roll, four weapon types (sword, bow, wand, staff), block/parry, four spells, potions,..."
     },
@@ -765,7 +765,7 @@
     {
         "path":  "scripts/Props.cs",
         "lines":  199,
-        "hash8":  "3cf50f78",
+        "hash8":  "8743b025",
         "system":  "world",
         "summary":  "Rotates a node continuously (windmill blades, orbs)."
     },
@@ -792,8 +792,8 @@
     },
     {
         "path":  "scripts/Sfx.cs",
-        "lines":  251,
-        "hash8":  "d8063626",
+        "lines":  260,
+        "hash8":  "e4fb05f1",
         "system":  "audio",
         "summary":  "Sound effects, ambience and music."
     },
@@ -859,6 +859,13 @@
         "hash8":  "080f098c",
         "system":  "enemies",
         "summary":  "The longer you play in one sitting, the harder the overworld pushes back (data/progression.json \"threat\"):"
+    },
+    {
+        "path":  "scripts/TitleBackdrop.cs",
+        "lines":  124,
+        "hash8":  "8083df8b",
+        "system":  "core",
+        "summary":  "Cheap moody dusk backdrop for the title screen: sky, fog, gothic silhouettes, embers, slow camera..."
     },
     {
         "path":  "scripts/Titles.cs",

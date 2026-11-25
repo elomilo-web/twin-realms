@@ -135,7 +135,14 @@ public partial class DevCapture : Node
                 }
                 else if (Str(v, "lake") is { Length: > 0 } lkName && Lands.All.SelectMany(l => l.Lakes).FirstOrDefault(l => l.Name == lkName) is { } lk)
                 {   // the shore of a named lake, facing the water
-                    float sx = lk.X + lk.R + 6f, sz = lk.Z; P.Teleport(World.OnGround(sx, sz, .5f), Mathf.Pi / 2); await Secs(1.2f);
+                    float sx = lk.X + lk.R * 1.35f + 10f, sz = lk.Z;   // water fills to 1.35 R (Lands.WaterAt): stand past it P.Teleport(World.OnGround(sx, sz, .5f), Mathf.Pi / 2); await Secs(1.2f);
+                    // water diagnostics (BACKLOG: lake shows dry): level vs ground at the centre, halfway and at the shore
+                    foreach (float f in new[] { 0f, .5f, .9f })
+                    {
+                        float x = lk.X + lk.R * f, z = lk.Z;
+                        Say($"lake {lkName} at {f:0.0}R ({x:0},{z:0}): level {lk.Level:0.00} water {Lands.WaterAt(x, z):0.00} landsGround {Lands.GroundAt(x, z):0.00} worldGround {World.GroundAt(x, z):0.00}");
+                    }
+                    Say($"lake {lkName}: hero at {P.GlobalPosition}");
                 }
                 else if (Str(v, "place") is { Length: > 0 } pl && pl.Split('/') is { Length: 2 } lp
                          && Lands.All.Find(l => l.Id == lp[0])?.Places.Find(q => q.Id == lp[1]) is { } place)

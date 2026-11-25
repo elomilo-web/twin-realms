@@ -69,8 +69,7 @@ public partial class Main : Node3D
         }
         if (DevCapture.Wanted()) ui.ShowTitle(); else if (Updater.Wanted()) ui.ShowLauncher(); else ui.ShowTitle();  // the launcher: update check, patch notes, online login, then Play (Updater.cs)
         // a calm backdrop behind the title screen
-        var cam = new Camera3D { Name = "TitleCam", Position = new Vector3(0, 30, 60), RotationDegrees = new Vector3(-12, 0, 0), Current = true }; AddChild(cam);
-        AddChild(new WorldEnvironment { Name = "TitleEnv", Environment = new Godot.Environment { BackgroundMode = Godot.Environment.BGMode.Color, BackgroundColor = new Color(.04f, .03f, .08f) } });
+        AddChild(new TitleBackdrop { Name = "TitleEnv" });   // dusk skyline, embers, drifting camera (TitleBackdrop.cs); Begin frees it by name
     }
 
     /// <summary>The host accepted us: build the world next to the host's hero (online: where the hero was saved).</summary>

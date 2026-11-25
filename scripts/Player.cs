@@ -157,9 +157,21 @@ public partial class Player : CharacterBody3D, IDamageable
     }
 
     // ------------------------------------------------------------------ damage in
+    float _pdT, _pdCd;   // perfect dodge: counter window left, cooldown left (real seconds)
+    void PerfectDodge()
+    {
+        double now = Time.GetTicksMsec() / 1000.0; if (now < _pdCd) return;
+        _pdCd = (float)now + Tune.F("perfectDodge.cooldown", 2f); _pdT = Tune.F("perfectDodge.counterTime", 1.2f);
+        Feel.SlowMo(Tune.F("perfectDodge.slowScale", .35f), Tune.F("perfectDodge.slowTime", .35f));
+        Ui.Flash(new Color(.85f, .95f, 1f)); Sfx.Play("block");
+        FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.3f, 0), "Perfect dodge!", new Color(.8f, .95f, 1f), 1.3f);
+    }
+
     public void TakeHit(HitInfo h)
     {
-        if (Dead || _inv > 0 || _rollT > 0 || World.Shifting || _moveT > 0) return;
+        if (Dead || World.Shifting || _moveT > 0) return;
+        if (_rollT > 0 && h.Attacker is Enemy && RollTime - _rollT <= Tune.F("perfectDodge.window", .18f)) PerfectDodge();
+        if (_inv > 0 || _rollT > 0) return;
         var D = Game.D; var TS = Game.TS;
         // evade: a clean dodge (Halfling, Ranger passives)
         if (GD.Randf() < Mathf.Clamp(TS["evade"], 0, 60) / 100f) { FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.2f, 0), "Evade", new Color(.75f, .95f, 1f), .9f); _inv = .15f; return; }
@@ -358,12 +370,14 @@ public partial class Player : CharacterBody3D, IDamageable
         float range = a.Range + (cleave ? .8f : 0f) + TS["reach"] / 100f * a.Range, arc = cleave ? Mathf.Pi : Mathf.DegToRad(Mathf.Min(180, a.Arc));
         float mult = a.Dmg * (fin ? 1f + TS["finisherP"] / 100f : 1f) * (_atkPower ? 1f + TS["powerP"] / 100f : 1f);
         float stun = a.Stun + (fin ? TS["finisherStun"] : 0f), up = a.Up + (fin ? TS["finisherUp"] : 0f), knock = a.Knock * (1f + TS["knockP"] / 100f);
-        int hits = 0;
+        int hits = 0; bool pdOn = _pdT > 0;   // perfect dodge counter: this swing hits harder
+        if (pdOn) mult *= Tune.F("perfectDodge.counterMul", 1.5f);
         foreach (var n in GetTree().GetNodesInGroup("enemies"))
         {
             if (n is not Enemy e || e.Dead || !e.Active) continue;
             var d = e.GlobalPosition - GlobalPosition; d.Y = 0; float dist = d.Length() - e.Def.R * e.ScaleF();
             if (dist > range) continue;
+            if (pdOn && _pdT > 0) { _pdT = 0; Sfx.Play("block", 1.2f); }   // counter spent on first target (re-check range checks below are fine: bonus applies this swing)
             if (dist > 0.6f && arc < Mathf.Pi - .01f && Mathf.Abs(Util.AngDiff(_modelYaw, Util.YawTo(d.X, d.Z))) > arc + (e.Def.R > 1 ? 0.5f : 0f)) continue;
             if (Mathf.Abs(e.GlobalPosition.Y - GlobalPosition.Y) > 3.5f + e.Def.R) continue;
             bool crit = GD.Randf() < D.CritChance() + (w.Crit + a.CritBonus) / 100f;
@@ -487,7 +501,7 @@ public partial class Player : CharacterBody3D, IDamageable
             v.Y = GlobalPosition.Y < _liftTop ? Mathf.MoveToward(v.Y, 15f, 40f * dt) : Mathf.MoveToward(v.Y, (_liftTop + .5f - GlobalPosition.Y) * 2f, 30f * dt);
             _airT = 0f;
         }
-        _rollCd = Mathf.Max(0, _rollCd - dt); _inv = Mathf.Max(0, _inv - dt); _stagger = Mathf.Max(0, _stagger - dt);
+        _rollCd = Mathf.Max(0, _rollCd - dt); _pdT = Mathf.Max(0, _pdT - dt); _inv = Mathf.Max(0, _inv - dt); _stagger = Mathf.Max(0, _stagger - dt);
         _comboT = Mathf.Max(0, _comboT - dt); _stLockT = Mathf.Max(0, _stLockT - dt);
 
         if (Dead)

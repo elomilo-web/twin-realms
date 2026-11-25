@@ -2,9 +2,13 @@
 Format: [impact 1-5][effort S/M/L][category] description -> target files. Top = next. Remove when done (log it in LOG.md).
 Categories: graphics shaders lighting animation feel combat mechanics ui menus world vfx audio perf code tools
 
-[5][M][world] Frostmere shore STILL dry after #1 (rounding fix in BlockGen.Column did not help; whole basin is sand terraces, sky looks smeared there too). Next: log hero pos, Lands.WaterAt/GroundAt, lake Level at the view from DevCapture; check the view really is at Frostmere (land offset Cx/Cz) and whether the lake bed is carved -> DevCapture.cs, BlockGen.cs, Lands.cs
+[5][M][world] Land settlements (Hollowfrost etc., Lands.cs placeholder villages) are still the cartoon look: cream walls, red/green roofs, bright trims. Apply GothicMats / Gfx scanned sets (plaster, timber, slate) like Oakhaven -> Lands.cs settlement builder, Gfx.cs, data/env.json
+[5][M][menus] Title backdrop (TitleBackdrop.cs, #2) is invisible: the title panel (Ui.ShowTitle Frame 1060x640) is opaque and the edges render black. Check the backdrop renders (camera current? env?), then make the title frame translucent/narrower and left-aligned so the skyline shows -> Ui.cs ShowTitle, TitleBackdrop.cs
+[4][S][tools] Water viewpoint: lake was NOT dry (#2 diagnostics: level 12.7 over ground 10.3; old view camera was underwater). New shore spot teleports the hero to (44,-791) instead of (-138,-860): find why (Teleport into water? swim push?), then frame the lake from above the surface -> DevCapture.cs, viewpoints.json
 [4][S][tools] Foliage viewpoint lands in Hollowfrost village, not a forest: point it at a forest biome region -> .devloop/viewpoints.json, DevCapture.cs (add "biome" lookup)
-[4][M][lighting] Dungeon entry room still near-black although Dungeon.Dress places torches (L295-335, every 2nd lit, Range 13): check torches near the entry, warm them, add ambient fill/volumetric wisps -> Dungeon.cs, Torch class (grep)
+[3][M][lighting] Dungeon better after #2 (3 lit torches in the entry room, cold ambient fill) but floors still very dark between pools: volumetric fog for glowing torch pools (World.SetDungeonLook, restore on exit) -> World.cs SetDungeonLook
+[3][S][animation] Head look-at + turn lean added #2 (Avatar.cs HeadLook): not visible in stills; add a viewpoint with a foe beside the hero to judge; flip lean sign if wrong -> viewpoints.json, Avatar.cs
+[3][M][perf] Foliage view still 35 fps / min 13 (Hollowfrost): flora already culled (#2 check). Profile lights/shadows/terrain: try shadow distance per view, omni shadow count, draw calls in report.json -> World.cs, Lands.cs
 [4][S][graphics] Verify block lip/jitter look up close (#1 added it; not visible at capture distance): add a close terrace viewpoint, tune data/blocks.json "lip" colours -> viewpoints.json, data/blocks.json
 [3][S][feel] A wild wolf wanders into the "running" view and hits the hero (-40): DevCapture clears foes near the hero before each world view -> DevCapture.cs
 [4][M][feel] Hit-stop + camera kick scaled by damage and weapon weight; heavier for crits -> Feel.cs, CameraRig.cs
@@ -12,20 +16,18 @@ Categories: graphics shaders lighting animation feel combat mechanics ui menus w
 [3][S][ui] HUD ghost/vignette colours are hard-coded in Hud.SlantBar/GhostStep: move to data/ui_theme.json; add a "low_hp" viewpoint (hero at 20% HP) to judge the pulse -> Hud.cs, viewpoints.json
 [3][S][lighting] Vista now clear: sea reads flat grey-blue; add sun glint/specular and horizon gradient on far water -> World.cs water material
 [4][M][ui] Inventory grid is empty dark squares: add slot frame textures, rarity border glow, hovered-slot highlight, paper-doll silhouette behind equipment -> Ui.cs OpenPack, ItemSlot.cs
-[4][M][menus] Main menu is a flat panel over a black void: title backdrop scene (slow camera over Oakhaven at dusk) behind a translucent gothic panel, serif title -> Main.cs title cam, Ui.cs ShowTitle
 [4][M][world] Village plaza is sparse: add market stalls, banners, crates, lanterns on posts, scattered hay/leaves decals -> Builder.cs, data/env.json
 [4][L][graphics] Sky in water view shows a smeared, tiled cloud texture: rebuild sky clouds as a procedural sky shader with layered fbm, sun disk and gothic overcast -> World.cs sky, new shaders/sky_gothic.gdshader
 [4][M][vfx] Sword swing trail is a flat pale-blue quad: gothic trail with dark core, ember/steel spark edge, fade by speed -> SwordTrail (grep), Vfx.cs
 [4][M][combat] Enemy telegraph wind-up poses + ground decals for heavy attacks -> Enemy.cs, EnemyAggro.cs
-[4][M][combat] Perfect dodge: roll just before a hit gives 0.4 s slow-mo + counter window -> Player.cs, Feel.cs
+[3][S][audio] No water splash sound exists: add a CC0 splash/wade set (record in assets/ASSETS.md) and map block "water" step to it -> assets/audio/sfx, Sfx.cs BlockStep
+[3][S][combat] Perfect dodge (#2) untested in play: add a capture action "dodge" with a foe swinging to see the flash; maybe a bot step if the user asks -> DevCapture.cs
 [3][M][vfx] Fire spell impact: add heat distortion shader quad + ember particles + scorch decal that fades -> SpellFx.cs, Vfx.cs
 [3][M][world] Grass hidden over block area (port limitation): scatter grass tufts on grass-top blocks in mesher -> BlockMesher.cs, Flora.cs
 [3][M][shaders] Water: add depth-based color, shoreline foam and refraction to block-world water faces -> BlockMesher.cs, assets water shader
 [3][S][lighting] Night village: lamps light pools too small; add warm omni lights on lamp posts with shadow off, window emissive bloom -> Builder.cs, World.cs night
 [3][M][world] Shadow realm reads as purple murk: add drifting ash particles, desaturated cold rim light, distorted silhouette trees -> World.cs realm blend, Ambient.cs
-[3][M][animation] Head look-at toward nearest enemy/NPC -> HeroRig.cs
 [3][S][animation] Landing squash/dust after jumps and falls -> Player.cs, Fx.cs
-[3][M][audio] Footstep surface types on blocks (stone/wood/sand/snow/water splash) -> Sfx.cs, PlayerBlocks.cs, data/blocks.json
 [3][S][audio] Normalise SFX/music levels (GOTHIC.md: levels not normalised) -> tools script + Sfx.cs volume table
 [3][M][ui] Floating damage numbers: gothic serif, crit scale-pop, color by element -> Hud.cs / Fx.cs
 [3][M][ui] Target lock reticle and enemy nameplate restyle (gothic frame, HP bar with level badge) -> Targeting.cs, Hud.cs
@@ -33,7 +35,6 @@ Categories: graphics shaders lighting animation feel combat mechanics ui menus w
 [3][M][mechanics] Block world: ladders/doors/torches as placeable blocks with light -> data/blocks.json, BlockFx.cs, BlockWorld.cs
 [3][M][mechanics] Fast travel between discovered wayshrines -> MapMarks.cs, Ui.cs OpenMap
 [3][L][world] Trees as block-aware (fire spreads to trees): convert nearby trees to burnable wood/leaves blocks on hit -> Flora.cs, BlockSim.cs
-[3][M][perf] Foliage view drops to 14 fps min: profile draw calls, add LOD/visibility ranges to props and trees -> Flora.cs, Builder.cs
 [3][M][perf] Greedy meshing for block chunks (fewer verts, faster remesh) -> BlockMesher.cs
 [3][S][perf] Player close-up min 20 fps: find first-frame spikes (shader compile?) -> report.json, Main.cs warmup
 [3][M][code] Enemy.cs 947 lines: split AI states into EnemyAi.cs (no behavior change) -> Enemy.cs

@@ -19,7 +19,7 @@ public partial class RealmGate : Node3D
 /// <summary>Flickering torch / brazier.</summary>
 public partial class Torch : Node3D
 {
-    public Color Col = new Color(1f, 0.6f, 0.2f); public float Size = 1f, Range = 12f; public bool Light = true;
+    public Color Col = new Color(1f, 0.6f, 0.2f); public float Size = 1f, Range = 12f, Energy = 1.4f; public bool Light = true;
     OmniLight3D? _l; float _ph;
     public override void _Ready()
     {
@@ -36,9 +36,9 @@ public partial class Torch : Node3D
         var smoke = new CpuParticles3D { Amount = 5, Lifetime = 2.2f, Direction = Vector3.Up, Spread = 10f, InitialVelocityMin = .4f, InitialVelocityMax = .7f, Gravity = new Vector3(.15f, .3f, 0), Emitting = true, Position = new Vector3(0, .4f * Size, 0),
             Mesh = new QuadMesh { Size = new Vector2(.6f * Size, .6f * Size), Material = Vfx.SpriteMat(false, "smoke") }, ColorRamp = sg, ScaleAmountMin = .7f, ScaleAmountMax = 1.4f };
         Vfx.Spin(smoke, "smoke", 30f); AddChild(smoke);
-        if (Light) { _l = new OmniLight3D { LightColor = Col, OmniRange = Range, LightEnergy = 1.4f, Position = new Vector3(0, 0.4f, 0) }; AddChild(_l); }
+        if (Light) { _l = new OmniLight3D { LightColor = Col, OmniRange = Range, LightEnergy = Energy, Position = new Vector3(0, 0.4f, 0) }; AddChild(_l); }
     }
-    public override void _Process(double delta) { if (_l != null) _l.LightEnergy = 1.3f + Mathf.Sin(Game.PlayTime * 9f + _ph) * 0.2f + Mathf.Sin(Game.PlayTime * 23f + _ph) * 0.1f; }
+    public override void _Process(double delta) { if (_l != null) _l.LightEnergy = Energy * (.93f + Mathf.Sin(Game.PlayTime * 9f + _ph) * 0.14f + Mathf.Sin(Game.PlayTime * 23f + _ph) * 0.07f); }
 }
 
 public partial class Chest : Node3D, IInteractable

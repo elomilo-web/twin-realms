@@ -42,6 +42,7 @@ public partial class Avatar : Node3D
         Body.Rotation = new Vector3(0, Mathf.Pi, 0);   // glTF faces +Z, the game faces -Z
         Body.Scale = new Vector3(ap.Bulk, ap.Height, ap.Bulk);
         _sk = (Skeleton3D)Body.FindChild("Skeleton3D", true, false)!;
+        if (_sk.FindBone("Head") >= 0) _sk.AddChild(new HeadLook { Name = "HeadLook", Av = this });   // head turns toward the target + leans into turns
         foreach (var c in _sk.GetChildren())
             if (c is MeshInstance3D mi)
             {
@@ -751,4 +752,90 @@ public partial class Avatar : Node3D
     public static JsonElement? Npc(string role) => Cfg.GetProperty("npcs").TryGetProperty(role, out var v) ? v : null;
     public static JsonElement? Foe(string type) => Cfg.GetProperty("enemies").TryGetProperty(type, out var v) ? v : null;
     public static string Str(JsonElement e, string k, string d = "") => S(e, k, d);
+}
+
+/// <summary>
+/// Head / neck / chest look-at (60/30/10 %) toward the lock target, else the nearest enemy within 10 m in front, else the camera direction (local hero only);
+/// plus a body roll into turns while running (max 8 deg). Runs after the animation, damped, faded out during one-shot clips (attacks, rolls, hits).
+/// </summary>
+public partial class HeadLook : SkeletonModifier3D
+{
+    public Avatar Av = null!;
+    int _head = -1, _neck = -1, _chest = -1, _sp1 = -1, _sp2 = -1; bool _init, _local;
+    float _yaw, _pitch, _lean, _w, _scan, _lastY, _wanY, _wanP; bool _hasLast; Vector3 _lastPos;
+    Vector3? _tgt;
+
+    public override void _ProcessModificationWithDelta(double delta)
+    {
+        var sk = GetSkeleton(); if (sk == null || Av == null || !GodotObject.IsInstanceValid(Av)) return;
+        if (!_init)
+        {
+            _init = true; _head = sk.FindBone("Head"); _neck = sk.FindBone("neck_01"); _chest = sk.FindBone("spine_03"); _sp1 = sk.FindBone("spine_01"); _sp2 = sk.FindBone("spine_02");
+            for (Node? n = Av; n != null; n = n.GetParent()) if (n is Player) { _local = true; break; }
+        }
+        if (_head < 0) return;
+        float dt = Mathf.Clamp((float)delta, 0.0001f, .1f); float k = 1f - Mathf.Exp(-8f * dt);
+        _w = Mathf.MoveToward(_w, Av.Busy ? 0f : 1f, dt * 4f);
+
+        // ---- lean into turns: yaw rate x ground speed
+        float y = Av.GlobalRotation.Y; var pos = Av.GlobalPosition; float lean = 0;
+        if (_hasLast)
+        {
+            float dy = Mathf.Wrap(y - _lastY, -Mathf.Pi, Mathf.Pi) / dt; float sp = new Vector2(pos.X - _lastPos.X, pos.Z - _lastPos.Z).Length() / dt;
+            if (sp < 14f) lean = Mathf.Clamp(-dy * Mathf.Min(sp, 8f) * .008f, -.14f, .14f);
+        }
+        _lastY = y; _lastPos = pos; _hasLast = true;
+        _lean = Mathf.Lerp(_lean, lean, k);
+
+        // ---- look target
+        var gi = sk.GlobalTransform.AffineInverse(); Vector3 hp = sk.GetBoneGlobalPose(_head).Origin; var hw = sk.GlobalTransform * hp;
+        _scan -= dt;
+        if (_scan <= 0)
+        {
+            _scan = .25f; _tgt = null;
+            if (_local)
+            {
+                var t = Targeting.Current; float best = 100f; Vector3 f = -Av.GlobalBasis.Z;
+                if (t != null && GodotObject.IsInstanceValid(t) && !t.Dead) _tgt = t.GlobalPosition + Vector3.Up * 1.5f;
+                else foreach (var n in GetTree().GetNodesInGroup("enemies"))
+                    if (n is Enemy e && !e.Dead && e.Active)
+                    {
+                        var d = e.GlobalPosition - Av.GlobalPosition; d.Y = 0; float dd = d.LengthSquared();
+                        if (dd < best && dd > .01f && f.Dot(d.Normalized()) > .34f) { best = dd; _tgt = e.GlobalPosition + Vector3.Up * 1.5f; }
+                    }
+                if (_tgt == null) { var cam = GetViewport().GetCamera3D(); if (cam != null) _tgt = hw + (-cam.GlobalBasis.Z) * 6f; }
+            }
+        }
+        float wy = 0, wp = 0;
+        if (_tgt != null)
+        {
+            var d = (gi * _tgt.Value - hp); if (d.LengthSquared() > .01f)
+            {
+                d = d.Normalized(); wy = Mathf.Atan2(d.X, d.Z); wp = Mathf.Asin(Mathf.Clamp(d.Y, -1f, 1f));   // skeleton space: model faces +Z
+                float lim = Mathf.DegToRad(70f);
+                if (Mathf.Abs(wy) > Mathf.Pi * .75f) wy = 0;   // behind: look ahead instead of snapping round
+                wy = Mathf.Clamp(wy, -lim, lim); wp = Mathf.Clamp(wp, -Mathf.DegToRad(30f), Mathf.DegToRad(30f));
+            }
+        }
+        _yaw = Mathf.Lerp(_yaw, wy, k); _pitch = Mathf.Lerp(_pitch, wp, k);
+
+        float w = _w;
+        if (w > .001f) { Apply(sk, _chest, .1f * w); Apply(sk, _neck, .3f * w); Apply(sk, _head, .6f * w); }
+        if (Mathf.Abs(_lean) > .002f) { Roll(sk, _sp1, _lean * .5f); Roll(sk, _sp2, _lean * .5f); }
+    }
+
+    void Apply(Skeleton3D sk, int b, float frac)
+    {
+        if (b < 0) return;
+        var q = new Quaternion(Vector3.Up, _yaw * frac) * new Quaternion(Vector3.Right, -_pitch * frac);
+        Set(sk, b, q);
+    }
+    void Roll(Skeleton3D sk, int b, float ang) { if (b >= 0) Set(sk, b, new Quaternion(Vector3.Back, ang)); }
+    /// <summary>Pre-multiplies a skeleton-space rotation onto a bone's animated global pose.</summary>
+    static void Set(Skeleton3D sk, int b, Quaternion q)
+    {
+        int par = sk.GetBoneParent(b); var pg = par >= 0 ? sk.GetBoneGlobalPose(par).Basis.Orthonormalized() : Basis.Identity;
+        var g = sk.GetBoneGlobalPose(b).Basis.Orthonormalized();
+        sk.SetBonePoseRotation(b, (pg.Inverse() * (new Basis(q) * g)).GetRotationQuaternion().Normalized());
+    }
 }

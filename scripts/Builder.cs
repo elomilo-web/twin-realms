@@ -181,7 +181,7 @@ public static class Builder
         for (int i = 0; i < 4; i++) { var arm = new Node3D { Rotation = new Vector3(0, 0, i * P / 2) }; arm.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(.5f, 6f, .12f) }, MaterialOverride = Wood, Position = new Vector3(0, 3f, 0) }); hub.AddChild(arm); }
         foreach (var p in new[] { (-11f, 0f), (11, 0), (0, -12), (3.5f, 13), (-22, -2), (22, 12), (30, 10), (-30, 6) }) Lamp(over, p.Item1, p.Item2);
         foreach (var p in new[] { (-20f, -14f), (21, -22), (-22, 16), (15, 25) }) { Crate(over, p.Item1, p.Item2, 1.1f); Crate(over, p.Item1 + 1.3f, p.Item2 + .4f, .8f); Barrel(over, p.Item1 - 1, p.Item2 + 1); }
-        for (int i = 0; i < 4; i++) { var hb = Group(over, -24 + i * 1.8f, 20 + (i % 2) * .8f, 0, .4f); hb.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = .9f, BottomRadius = .9f, Height = .8f, RadialSegments = 8 }, MaterialOverride = Hay }); }
+        for (int i = 0; i < 4; i++) { var hb = Group(over, -24 + i * 1.8f, 20 + (i % 2) * .8f, 0, .4f); hb.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = .9f, BottomRadius = .9f, Height = .8f, RadialSegments = 8 }, MaterialOverride = Hay, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off, VisibilityRangeEnd = 110f, VisibilityRangeEndMargin = 15f, VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self }); }
         if (Kit.Available) { for (int i = 0; i < 7; i++) foreach (var zz in new[] { -4.2f, 4.2f }) Kit.Add(over, Kit.Str("props", "fence"), World.OnGround(31.03f + i * 2.06f, 10 + zz, -.02f)); }
         else for (int i = 0; i < 10; i++) foreach (var zz in new[] { -4.2f, 4.2f }) Box(over, new Vector3(.15f, 1.1f, .15f), World.OnGround(30 + i * 1.6f, 10 + zz, .5f), Wood);
     }
@@ -206,7 +206,7 @@ public static class Builder
     }
     static void Campfire(Node parent, float x, float z)
     {
-        var g = Group(parent, x, z); for (int i = 0; i < 6; i++) { float a = i / 6f * Tau; g.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = .22f, Height = .3f, RadialSegments = 6, Rings = 3 }, MaterialOverride = Stone, Position = new Vector3(Mathf.Cos(a) * .6f, .08f, Mathf.Sin(a) * .6f) }); }
+        var g = Group(parent, x, z); for (int i = 0; i < 6; i++) { float a = i / 6f * Tau; g.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = .22f, Height = .3f, RadialSegments = 6, Rings = 3 }, MaterialOverride = Stone, Position = new Vector3(Mathf.Cos(a) * .6f, .08f, Mathf.Sin(a) * .6f), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off, VisibilityRangeEnd = 90f, VisibilityRangeEndMargin = 12f, VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self }); }
         for (int i = 0; i < 3; i++) g.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = .08f, BottomRadius = .08f, Height = .9f }, MaterialOverride = Wood, Position = new Vector3(0, .25f, 0), Rotation = new Vector3(0, i * 2.1f, 1.2f) });
         Fire(g, new Vector3(0, .5f, 0), 1.2f, 14f);
     }

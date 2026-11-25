@@ -11,6 +11,7 @@ public class BlockDef
     public byte Id; public string Key = "", Name = "";
     public bool Solid = true, See, Slippery, Shatter;
     public string Fluid = "";            // "water", "lava" or ""
+    public string Step = "";             // footstep surface: grass/dirt/stone/wood/sand/snow/gravel/ice/water (data "step"; default by tool family)
     public float Hardness = 1f, Burn, Light, DropChance = 1f;
     public string Tool = "", Drops = "", BurnsTo = "", MeltsTo = "?", FreezesTo = "", RotsTo = "?", WithersTo = "?", BlessTo = "?", PacksTo = "";
     public JsonElement Mat;              // how it looks (see Blocks.Material)
@@ -52,6 +53,7 @@ public static class Blocks
                 WithersTo = JsonUtil.S(e, "withersTo", "?"), BlessTo = JsonUtil.S(e, "blessTo", "?"), PacksTo = JsonUtil.S(e, "packsTo"),
                 Mat = e.TryGetProperty("mat", out var m) ? m.Clone() : default,
             };
+            d.Step = JsonUtil.S(e, "step", d.Fluid == "water" ? "water" : d.Tool == "pickaxe" ? "stone" : d.Tool == "axe" ? "wood" : d.Tool == "shovel" ? "dirt" : "stone");
             Defs.Add(d); _ids[p.Name] = d.Id;
         }
         Water = Id("water"); Lava = Id("lava"); Bedrock = Id("bedrock"); Stone = Id("stone"); Dirt = Id("dirt"); Ice = Id("ice"); Obsidian = Id("obsidian");

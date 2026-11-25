@@ -62,5 +62,18 @@ public static class Feel
     }
 
     /// <summary>Called every frame (real time) to end the freeze.</summary>
-    public static void Tick() { if (_on && Time.GetTicksMsec() >= _until) { _on = false; Engine.TimeScale = 1.0; } }
+    public static void Tick()
+    {
+        ulong now = Time.GetTicksMsec();
+        if (_on && now >= _until) { _on = false; Engine.TimeScale = _slow ? _slowScale : 1.0; }
+        if (_slow && now >= _slowUntil) { _slow = false; if (!_on) Engine.TimeScale = 1.0; }
+    }
+
+    static bool _slow; static ulong _slowUntil; static double _slowScale = 1.0;
+    /// <summary>Slow motion for a perfect dodge; real-time length, ended by Tick (Ui always processes). Local game only.</summary>
+    public static void SlowMo(float scale, float seconds)
+    {
+        if (seconds <= 0 || Net.Active || _slow || _on || !Mathf.IsEqualApprox((float)Engine.TimeScale, 1f)) return;
+        _slow = true; _slowScale = scale; _slowUntil = Time.GetTicksMsec() + (ulong)(seconds * 1000f); Engine.TimeScale = scale;
+    }
 }
