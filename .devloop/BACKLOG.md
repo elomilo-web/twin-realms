@@ -1,12 +1,10 @@
-[3][M][code] Ui.cs split (BLOCKED #15: tool alias accident, reverted): move MapView, TreeView, shop/valor/totals into UiMap.cs, UiTree.cs, UiShop.cs using only Edit/Write tools (no PowerShell rewrites) -> Ui.cs
+[3][S][tools] Burn (hud view) leaves a red screen tint in the following menu views: clear Status effects + hurt vignette after each view -> DevCapture.cs
+[2][S][perf] CritFx re-reads feel.json each crit via Cf(): cache the crit block -> Player.cs
 [3][S][ui] Compass quest marker: quests have no target positions; add optional x/z to data/quests.json objectives and show a gold diamond -> Quests.cs, data/quests.json, Hud.cs
 [2][S][world] Arena floor still faintly stripy (plaster tint): add a real CC0 soil/sand scanned set (ambientCG Ground/Soil) to assets/textures/gothic -> tools/blender_gothic or foliage_tex.ps1-like fetch, ASSETS.md
 [4][S][menus] coverage (user directive): ALL listed menus have had a gothic pass (#12-#14). LEFT: inventory window sits right of centre; party/lobby panel (UiNet) check in a capture; keep re-checking every menu_* view each full sweep
-[3][S][world] Bushes don't sway yet (procedural Bush mesh path not hooked to Flora.Windy) -> Flora.cs
-[3][S][audio] Rain has no sound: synthesize a rain loop (filtered noise + droplet ticks) and fade with Weather.Rain -> tools/kit_gen/sfx_synth.py, Weather.cs
 [2][S][tools] Capture logs Jolt RID leaks at exit sometimes: ignore in capture.ps1 (teardown) -> tools/capture.ps1
 [3][S][tools] Auto-spot tree check misses trees (no colliders?): also reject spots within 6 m of Flora tree instances (query FloraField/Lands tree positions) so lightning/holy views aren't occluded -> DevCapture.cs FindSpot
-[3][S][tools] Capture hero has no buffs/quests: grant a buff (e.g. a potion/skill buff) and accept a quest for the hud view so the buff row + tracker get judged -> DevCapture.cs, viewpoints.json
 # Backlog (prioritized; one item per line)
 Format: [impact 1-5][effort S/M/L][category] description -> target files. Top = next. Remove when done (log it in LOG.md).
 Categories: graphics shaders lighting animation feel combat mechanics ui menus world vfx audio perf code tools

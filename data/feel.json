@@ -21,6 +21,19 @@
                    "fovPulse":  2,
                    "fovTime":  0.12
                },
+    "crit":  {
+                 "flash":  0.06,
+                 "sparks":  14,
+                 "sparkSpeed":  11,
+                 "streakLen":  1.2,
+                 "streakTime":  0.12,
+                 "hitPitch":  1.05,
+                 "clashVol":  0.7,
+                 "clashPitch":  1.6,
+                 "killSlowScale":  0.25,
+                 "killSlowTime":  0.12,
+                 "killKick":  0.22
+             },
     "recoil":  {
                    "time":  0.2,
                    "push":  0.22,

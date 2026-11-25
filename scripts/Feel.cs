@@ -95,7 +95,7 @@ public static class Feel
     /// <summary>Slow motion for a perfect dodge; real-time length, ended by Tick (Ui always processes). Local game only.</summary>
     public static void SlowMo(float scale, float seconds)
     {
-        if (seconds <= 0 || Net.Active || _slow || _on || !Mathf.IsEqualApprox((float)Engine.TimeScale, 1f)) return;
-        _slow = true; _slowScale = scale; _slowUntil = Time.GetTicksMsec() + (ulong)(seconds * 1000f); Engine.TimeScale = scale;
+        if (seconds <= 0 || Net.Active || _slow || (!_on && !Mathf.IsEqualApprox((float)Engine.TimeScale, 1f))) return;
+        _slow = true; _slowScale = scale; _slowUntil = Time.GetTicksMsec() + (ulong)(seconds * 1000f); if (!_on) Engine.TimeScale = scale;   // during a hit-stop the slow-mo starts when it ends
     }
 }

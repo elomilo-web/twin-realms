@@ -398,7 +398,9 @@ public partial class Player : CharacterBody3D, IDamageable
             Feel.Impact(dmg, e.MaxHp, w.Id is "greatsword" or "mace" or "axe" or "hammer" || _atkPower, crit, e.Dead, new Vector3(d.X, 0, d.Z), Rig);
             // where steel meets the foe: a spark on its near side, bigger for crits, finishers and heavies
             var toMe = -d.Normalized(); float big = crit ? 1.6f : fin || _atkPower ? 1.4f : 1f;
-            SpellFx.Play("hit_spark", e.GlobalPosition + new Vector3(0, e.HeightM() * .55f, 0) + toMe * e.Def.R * e.ScaleF() * .8f, big);
+            var hitPt = e.GlobalPosition + new Vector3(0, e.HeightM() * .55f, 0) + toMe * e.Def.R * e.ScaleF() * .8f;
+            SpellFx.Play("hit_spark", hitPt, big);
+            if (crit) CritFx(e, hitPt, new Vector3(d.X, 0, d.Z).Normalized());
             hits++;
         }
         if (hits > 0) { Rig?.Shake(_atkPower ? Tune.F("heavy.shake", .32f) : fin ? 0.15f : 0.08f); Sfx.Play("hit"); if (_atkPower) Fx.Dust(GlobalPosition + GlobalTransform.Basis.Z * -1.2f, Tune.F("heavy.dust", 1.4f)); }   // a connecting heavy blow kicks up dust
@@ -407,6 +409,25 @@ public partial class Player : CharacterBody3D, IDamageable
         var fwd = new Vector3(-Mathf.Sin(_modelYaw), 0, -Mathf.Cos(_modelYaw));
         string? bel = GearFx.Get(D.Weapon?.Elem) is { } ge && ge.Status != "" ? D.Weapon!.Elem : "physical";
         BlockFx.Basic(GlobalPosition + Vector3.Up * .9f + fwd * Mathf.Min(range, 1.4f), D.WpnDmg() * mult, bel ?? "physical");
+    }
+
+    /// <summary>Critical hit flourish (numbers in feel.json "crit"): body flash, gold sparks + streak, metallic layer, slow-mo and bigger kick on kills.</summary>
+    void CritFx(Enemy e, Vector3 pt, Vector3 dir)
+    {
+        float Cf(string k, float def) { using var doc = JsonUtil.Load("res://data/feel.json"); return doc.RootElement.TryGetProperty("crit", out var c) ? JsonUtil.F(c, k, def) : def; }
+        e.Flash(Cf("flash", .06f));
+        Vfx.Sparks(pt, Vfx.Ramp((0, new Color(1, .98f, .85f)), (.4f, new Color(1, .8f, .3f)), (1, new Color(1, .6f, .1f, 0))), (int)Cf("sparks", 14), Cf("sparkSpeed", 11f), .3f, .12f, -5f, true, 35f, dir, .05f, "spark");
+        var mat = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, BlendMode = BaseMaterial3D.BlendModeEnum.Add, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, AlbedoColor = new Color(1, .92f, .6f, 1), CullMode = BaseMaterial3D.CullModeEnum.Disabled };
+        var streak = new MeshInstance3D { Mesh = new QuadMesh { Size = new Vector2(Cf("streakLen", 1.2f), .06f), Orientation = PlaneMesh.OrientationEnum.Z }, MaterialOverride = mat, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
+        GetParent().AddChild(streak); streak.GlobalPosition = pt;
+        streak.LookAtFromPosition(pt, pt + dir, Vector3.Up); streak.RotateObjectLocal(Vector3.Up, Mathf.Pi / 2);   // quad's long axis (local X) along the swing
+        var tw = streak.CreateTween(); tw.TweenProperty(mat, "albedo_color:a", 0f, Cf("streakTime", .12f)); tw.TweenCallback(Callable.From(streak.QueueFree));
+        Sfx.Play("hit", 1f, Cf("hitPitch", 1.05f)); Sfx.Play("block", Cf("clashVol", .7f), Cf("clashPitch", 1.6f));
+        if (e.Dead)
+        {
+            Feel.SlowMo(Cf("killSlowScale", .25f), Cf("killSlowTime", .12f));
+            Rig?.Kick(dir, Cf("killKick", .22f), true);
+        }
     }
 
     /// <summary>Hand poses for the current attack at progress p (0..1): rest -> wind-up -> mid-swing -> follow-through.</summary>

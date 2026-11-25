@@ -1,7 +1,10 @@
 # UI
 Purpose: In-game HUD plus every menu/overlay (pack, skills, spellcraft, mods, pause, settings, controls, smith, dialogue), all built in code with vector-drawn icons and a data-driven gothic theme.
 ## Files
-- `scripts/Ui.cs` (827 lines): partial Control owning all menus, notes, banners, dialogue, shop, pack, character. Key: `MakeTheme()` L22, `Note()` L40, `Banner()` L41, `_Ready()` L44, `_UnhandledInput()` L85, `Close()` L122, `Btn()` L125, `Inner()` L132
+- `scripts/Ui.cs` (736 lines): partial Control owning menus, notes, banners, dialogue, pack, character. Key: `MakeTheme()` L22, `Note()` L40, `Banner()` L41, `_Ready()` L44, `_UnhandledInput()` L85, `Close()` L122, `Btn()` L125, `Inner()` L132
+- `scripts/UiShop.cs` (94 lines): partial Ui: shop (`OpenShop()` L13, `BuyPrice()` L12), valor quartermaster (`OpenValor()` L46), bonus totals (`OpenTotals()` L83)
+- `scripts/UiTree.cs` (143 lines): `TreeView` interactive passive skill tree control. Key: `_Draw()`, `PathTo()`, `_GuiInput()`
+- `scripts/UiMap.cs` (131 lines): `MapView` world/dungeon map control with parchment shader. Key: `_Draw()`, `_GuiInput()`
 - `scripts/Hud.cs` (350 lines): top-left info, compass, quest tracker, target bar, hotbar, minimap. Key: `_Process()` L42, `_Draw()` L56, `PlaceName()` L348
 - `scripts/Icons.cs` (239 lines): code-drawn vector icons (spells, potions, gear, materials). Key: `Draw()` L30, `ForSkill()` L217, `ForItem()` L225, `Frame()` L232
 - `scripts/UiTheme.cs` (65 lines): colours/sizes from ui_theme.json, panel drawing. Key: `Box()` L23, `_Draw()` L36

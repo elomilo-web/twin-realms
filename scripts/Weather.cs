@@ -13,6 +13,57 @@ public partial class Weather : Node3D
     /// <summary>DevCapture: lock the weather to this rain level (negative = release).</summary>
     public static void Force(float rain) { _forced = rain; }
     static float _forced = -1f;
+    /// <summary>Lightning flash 0..1 (brief, decays on its own); WorldEnv may add it to sun/ambient energy.</summary>
+    public static float Flash;
+
+    AudioStreamPlayer? _rainP, _lightP; float _rainLv, _lightLv, _thunderIn = 60f, _thunderDelay = -1f;
+    static AudioStream? LoadLoop(string path)
+    {
+        if (!ResourceLoader.Exists(path)) return null;
+        var s = GD.Load<AudioStream>(path);
+        if (s is AudioStreamWav w) { w.LoopMode = AudioStreamWav.LoopModeEnum.Forward; w.LoopBegin = 0; w.LoopEnd = w.Data.Length / (w.Stereo ? 4 : 2); }
+        return s;
+    }
+    static AudioStreamPlayer? MakeLoop(Node parent, string id)
+    {
+        var s = LoadLoop($"res://assets/audio/sfx/{id}.wav"); if (s == null) return null;
+        var p = new AudioStreamPlayer { Stream = s, VolumeDb = -80f }; parent.AddChild(p);
+        p.Finished += () => p.Play();   // safety net if the loop flag is ignored
+        return p;
+    }
+    static void Fade(AudioStreamPlayer? p, ref float lv, float target, float amb, float dt)
+    {
+        if (p == null) return;
+        lv = Mathf.MoveToward(lv, target, dt / 2f);
+        float v = lv * amb;
+        if (v < .003f) { if (p.Playing) p.Stop(); p.VolumeDb = -80f; return; }
+        if (!p.Playing) p.Play();
+        p.VolumeDb = Mathf.LinearToDb(v);
+    }
+    void TickAudio(float dt)
+    {
+        float amb = Game.Set.Ambient, r = Rain;
+        // -18 dB at .2, -6 dB at 1; silent below .05
+        float g = r < .05f ? 0f : Mathf.Lerp(Mathf.DbToLinear(-18f), Mathf.DbToLinear(-6f), Mathf.Clamp((r - .2f) / .8f, 0f, 1f));
+        if (r < .2f && r >= .05f) g = Mathf.DbToLinear(-18f) * (r - .05f) / .15f;
+        float light = 1f - Mathf.Clamp((r - .2f) / .25f, 0f, 1f);   // light loop at low intensity, full loop above ~.45
+        if (Dungeon.Active || amb <= 0f) { g = 0f; }
+        Fade(_rainP, ref _rainLv, g * (1f - light), amb, dt);
+        Fade(_lightP, ref _lightLv, g * light, amb, dt);
+
+        Flash = Mathf.MoveToward(Flash, 0f, dt * 2.5f);
+        if (_thunderDelay >= 0f)
+        {
+            _thunderDelay -= dt;
+            if (_thunderDelay < 0f && Sfx.Has("thunder")) Sfx.Play("thunder", .8f);
+            if (_thunderDelay < 0f) _thunderDelay = -1f;
+        }
+        else if (r > .7f && !Dungeon.Active && amb > 0f)
+        {
+            _thunderIn -= dt;
+            if (_thunderIn <= 0f) { _thunderIn = _rg.RandfRange(40f, 120f); Flash = .6f; _thunderDelay = _rg.RandfRange(.5f, 3f); }
+        }
+    }
 
     float _target, _rain, _over, _overTarget, _timer = 120f, _clear = .6f, _overC = .25f, _min = 360f, _max = 900f, _fade = 40f;
     int _streaks = 1500, _splashes = 150;
@@ -21,7 +72,8 @@ public partial class Weather : Node3D
 
     public override void _Ready()
     {
-        _rg.Randomize();
+        _rg.Randomize(); _thunderIn = _rg.RandfRange(40f, 120f);
+        _rainP = MakeLoop(this, "rain_loop"); _lightP = MakeLoop(this, "rain_light_loop");
         using var doc = JsonUtil.Load("res://data/look.json");
         if (doc.RootElement.TryGetProperty("weather", out var w))
         {
@@ -72,6 +124,7 @@ public partial class Weather : Node3D
         }
         float vis = dungeon ? 0f : 1f - Mathf.Clamp(World.RealmT * 1.5f, 0f, 1f);   // ash replaces rain in the shadow realm
         Rain = _rain * vis; Cloud = Mathf.Max(_over, _rain) * vis;
+        TickAudio(dt);
 
         bool on = Rain > .02f && World.I != null && World.I.Over.Visible;
         if (_drops.Visible != on) { _drops.Visible = _splash.Visible = on; _drops.Emitting = _splash.Emitting = on; }

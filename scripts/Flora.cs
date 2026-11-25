@@ -42,6 +42,9 @@ void fragment(){
     // Grass blades: curved, tapered blades whose roots take the colour of the ground texture under them (so a meadow reads as one
     // surface from afar), darker at the base, lit through from behind, with travelling wind gusts. Far blades shrink into the ground
     // instead of popping out.
+    // Procedural bush: the grass shader, but the sway height comes from the vertex height above the instance origin (the sphere UVs are no use), faster flutter
+    static readonly string BushShader = GrassShader.Replace("h = UV.y;", "h = clamp(VERTEX.y / 1.1, 0.0, 1.0);").Replace("float s = sin(t + ", "float s = sin(t * 1.6 + ");
+
     const string BladeShader = @"
 shader_type spatial;
 render_mode cull_disabled;
@@ -120,6 +123,7 @@ uniform float spec = 0.3;
 uniform float tree_h = 8.0;
 uniform float amp = 0.12;
 uniform float lean_amp = 0.2;
+uniform float flut = 1.0;
 global uniform float wind_strength;
 void vertex(){
   vec3 o = MODEL_MATRIX[3].xyz;
@@ -130,7 +134,7 @@ void vertex(){
   float wave = pow(sin((dot(wp.xz, vec2(0.89, 0.46)) - t * 3.0) * 0.2513) * 0.5 + 0.5, 3.0);
   float lean = sin(t * 0.45 + ph) * 0.6 + 0.4 + wave * 0.9;   // slow whole-canopy lean, pushed by gust fronts
   vec3 off = vec3(0.89, 0.0, 0.46) * lean * lean_amp * hh * hh;
-  off += vec3(sin(t * 1.9 + ph + wp.x * 0.8 + wp.y * 0.6), sin(t * 1.4 + ph * 1.3 + wp.z * 0.7) * 0.4, sin(t * 2.3 + ph * 0.7 + wp.z * 0.9 + wp.y * 0.5)) * amp * hh * (0.6 + wave * 0.8);
+  off += vec3(sin(t * 1.9 * flut + ph + wp.x * 0.8 + wp.y * 0.6), sin(t * 1.4 * flut + ph * 1.3 + wp.z * 0.7) * 0.4, sin(t * 2.3 * flut + ph * 0.7 + wp.z * 0.9 + wp.y * 0.5)) * amp * hh * (0.6 + wave * 0.8);
   off *= wind_strength;
   VERTEX += inverse(mat3(MODEL_MATRIX)) * off;
 }
@@ -154,7 +158,7 @@ void fragment(){
         {
             if (copy.SurfaceGetMaterial(i) is not StandardMaterial3D sm) continue;
             string n = sm.ResourceName.ToLowerInvariant();
-            if (!(n.Contains("lea") || n.Contains("foliage") || n.Contains("needle") || n.Contains("canopy"))) continue;
+            if (!(n.Contains("lea") || n.Contains("foliage") || n.Contains("needle") || n.Contains("canopy") || n.Contains("bush") || n.Contains("shrub") || n.Contains("atlas"))) continue;
             if (!_leafMats.TryGetValue(sm, out var m))
             {
                 m = new ShaderMaterial { Shader = new Shader { Code = LeafShader.Replace("CULLMODE", sm.CullMode == BaseMaterial3D.CullModeEnum.Back ? "cull_back" : "cull_disabled") } };
@@ -166,7 +170,8 @@ void fragment(){
                 m.SetShaderParameter("rough", sm.Roughness); m.SetShaderParameter("spec", sm.MetallicSpecular);
                 _leafMats[sm] = m;
             }
-            var mm = (ShaderMaterial)m.Duplicate(); mm.SetShaderParameter("tree_h", th); mm.SetShaderParameter("amp", Mathf.Clamp(th * 0.012f, .08f, .15f) ); mm.SetShaderParameter("lean_amp", .2f);
+            var mm = (ShaderMaterial)m.Duplicate(); mm.SetShaderParameter("tree_h", th); bool small = th < 3.5f;   // bushes and shrubs: gentler, quicker flutter
+            mm.SetShaderParameter("amp", small ? .06f : Mathf.Clamp(th * 0.012f, .08f, .15f)); mm.SetShaderParameter("lean_amp", small ? .05f : .2f); mm.SetShaderParameter("flut", small ? 1.6f : 1f);
             copy.SurfaceSetMaterial(i, mm);
         }
         return _windy[src] = copy;
@@ -215,10 +220,10 @@ void fragment(){
         st.GenerateNormals(); return st.Commit();
     }
 
-    static ShaderMaterial Mat(float sway, float wind)
+    static ShaderMaterial Mat(float sway, float wind, string code = GrassShader)
     {
         EnsureWind();
-        var m = new ShaderMaterial { Shader = new Shader { Code = GrassShader } };
+        var m = new ShaderMaterial { Shader = new Shader { Code = code } };
         m.SetShaderParameter("sway", sway); m.SetShaderParameter("wind", wind); Materials.Add(m); return m;
     }
 
@@ -289,7 +294,7 @@ void fragment(){
             tall.Mat = BladeMat(tall.E); tall.Grass = true; Layers.Add(tall);
         }
         var fern = L("fern", "size"); fern.Mesh = Fern((int)JsonUtil.F(fern.E, "leaves", 7), rnd); fern.Mat = Mat(0.12f, 1f); if (fern.Per > 0) Layers.Add(fern);
-        var bush = L("bush", "size"); bush.Mesh = Bush(); bush.Mat = Mat(0.04f, 1f); bush.Shadows = true; if (bush.Per > 0) Layers.Add(bush);
+        var bush = L("bush", "size"); bush.Mesh = Bush(); bush.Mat = Mat(0.06f, 1f, BushShader); bush.Shadows = true; if (bush.Per > 0) Layers.Add(bush);
         var stone = L("stone", "size"); stone.Mesh = new SphereMesh { Radius = 1, Height = 1.3f, RadialSegments = 6, Rings = 3 }; stone.Flat = true;
         var sMat = World.Mat(new Color(.55f, .54f, .52f), new Color(.2f, .17f, .26f), 1f); sMat.VertexColorUseAsAlbedo = true; stone.Mat = sMat; if (stone.Per > 0) Layers.Add(stone);
         foreach (var l in Layers) { l.BasePer = l.Per; l.BaseRange = l.Range; }

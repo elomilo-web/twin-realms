@@ -100,6 +100,7 @@ public partial class DevCapture : Node
         foreach (var v in views.Where(v => Str(v, "scene") != "title")) await Capture(v);
     }
 
+    string? _quest;
     Camera3D? _free;
     void FreeCam(Vector3? from, Vector3 at)
     {
@@ -195,6 +196,22 @@ public partial class DevCapture : Node
                 foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Enemy we && we.GlobalPosition.DistanceTo(P.GlobalPosition) < 60f) we.QueueFree();
                 if (scene.StartsWith("dungeon:") || scene == "arena") { foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Enemy e && e.GlobalPosition.DistanceTo(P.GlobalPosition) < 10f) e.QueueFree(); }
                 Heal(); Hud(Flag(v, "hud", false));
+                // "buffs": skill ids with a buff (warcry) go on the hero's buff list, status ids (burn, poison) on its statuses; "quest": accepted + "quest_progress" kills
+                P.Buffs.Clear(); P.Statuses.Clear();
+                if (_quest != null) { Game.Q(_quest).S = 0; Game.Q(_quest).N = 0; _quest = null; }
+                if (v.TryGetProperty("buffs", out var bf) && bf.ValueKind == JsonValueKind.Array)
+                    foreach (var b in bf.EnumerateArray())
+                    {
+                        var bid = b.GetString() ?? "";
+                        if (Skills.Get(bid) is { } sk && sk.Buff.Count > 0) P.Buffs.Add((bid, new Dictionary<string, float>(sk.Buff), 60f));
+                        else P.Statuses.Add(bid, 20f, 0, 0);   // long duration: lasts through the capture
+                    }
+                if (Str(v, "quest") is { Length: > 0 } qid && Quests.ById(qid) is { } qd)
+                {
+                    Quests.Accept(qd); _quest = qid;
+                    Game.Q(qid).N = Math.Min(qd.Need - 1, (int)Num(v, "quest_progress", 1f));
+                }
+                if (v.TryGetProperty("buffs", out _)) Game.RecalcTree();
                 if (v.TryGetProperty("foes", out var fs) && fs.ValueKind == JsonValueKind.Array)
                 {
                     var fwd = -P.GlobalTransform.Basis.Z with { Y = 0 }; fwd = fwd.LengthSquared() > .01f ? fwd.Normalized() : Vector3.Forward;

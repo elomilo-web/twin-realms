@@ -20,6 +20,8 @@ Play a few minutes and tick what works; write problems into DIRECTIVES.md (or te
 - [ ] Hero idle (#6): breathing, weight shift, glances around; head turns toward nearby foes (#2).
 
 ## Sound (levels are untested by ear)
+- [ ] Rain + thunder (#16): rain loop follows the rain, thunder after a sky flash in heavy rain; menu sounds (#13).
+- [ ] Critical hits (#16): flash, spark streak, sharp clash; crit kills slow time for a blink.
 - [ ] Footsteps change with the block under your feet (#2): grass, dirt, stone, wood, sand, snow, gravel, ice, water (#6).
 - [ ] Landing thud and water splash/wading (#6) are synthesized: are they too loud/soft?
 

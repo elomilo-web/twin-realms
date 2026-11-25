@@ -365,8 +365,8 @@
     },
     {
         "path":  "scripts/dev/DevCapture.cs",
-        "lines":  324,
-        "hash8":  "ea19af93",
+        "lines":  341,
+        "hash8":  "9be3cdf7",
         "system":  "devtools",
         "summary":  "Dev loop eyes (autoload). Does nothing unless the game is started with the user arg..."
     },
@@ -386,8 +386,8 @@
     },
     {
         "path":  "scripts/Enemy.cs",
-        "lines":  1033,
-        "hash8":  "2faff84f",
+        "lines":  1035,
+        "hash8":  "feaba7d2",
         "system":  "enemies",
         "summary":  "Data-driven enemy. Melee, ranged, summoning bosses and the dragon. Stats come from data/enemies.json."
     },
@@ -436,7 +436,7 @@
     {
         "path":  "scripts/Feel.cs",
         "lines":  102,
-        "hash8":  "962f29de",
+        "hash8":  "dc875dc5",
         "system":  "combat",
         "summary":  "Game feel: hit-stop (a tiny freeze on impact) and enemy recoil settings. Tuning lives in..."
     },
@@ -456,8 +456,8 @@
     },
     {
         "path":  "scripts/Flora.cs",
-        "lines":  406,
-        "hash8":  "e4bf9009",
+        "lines":  411,
+        "hash8":  "9b567dd0",
         "system":  "world",
         "summary":  "Scenery ground cover: wind-swept grass, ferns, bushes and pebbles. Scattered per chunk from data/flora.json,"
     },
@@ -715,8 +715,8 @@
     },
     {
         "path":  "scripts/Player.cs",
-        "lines":  836,
-        "hash8":  "4fc06867",
+        "lines":  857,
+        "hash8":  "a452a580",
         "system":  "player",
         "summary":  "The hero: movement, roll, four weapon types (sword, bow, wand, staff), block/parry, four spells, potions,..."
     },
@@ -911,8 +911,8 @@
     },
     {
         "path":  "scripts/Ui.cs",
-        "lines":  1081,
-        "hash8":  "cee152d7",
+        "lines":  736,
+        "hash8":  "5cc2a441",
         "system":  "ui",
         "summary":  "All menus and overlays, built in code: notes, banners, dialogue, shop, smith, pack, character, skill..."
     },
@@ -945,6 +945,13 @@
         "summary":  "Skills \u003e Macros: build the two skill chains for the Macro 1 / Macro 2..."
     },
     {
+        "path":  "scripts/UiMap.cs",
+        "lines":  132,
+        "hash8":  "6aac4109",
+        "system":  "ui",
+        "summary":  "World map with discovered points of interest."
+    },
+    {
         "path":  "scripts/UiMods.cs",
         "lines":  83,
         "hash8":  "0d362ff8",
@@ -964,6 +971,13 @@
         "hash8":  "394b310f",
         "system":  "network",
         "summary":  "Play Online: log in or create an account on the online server, then pick a..."
+    },
+    {
+        "path":  "scripts/UiShop.cs",
+        "lines":  95,
+        "hash8":  "0e19b1d6",
+        "system":  "loot",
+        "summary":  "---------------------------------------------------------------- shop and smith"
     },
     {
         "path":  "scripts/UiSkills.cs",
@@ -999,6 +1013,13 @@
         "hash8":  "4bf480d4",
         "system":  "ui",
         "summary":  "Menu colours and sizes for the sci-fi \"system window\" look. Loaded from data/ui_theme.json."
+    },
+    {
+        "path":  "scripts/UiTree.cs",
+        "lines":  144,
+        "hash8":  "1441e687",
+        "system":  "progression",
+        "summary":  "Interactive passive tree (about 420 nodes). Opens centred on your class start. Wheel zooms toward..."
     },
     {
         "path":  "scripts/UiWidgets.cs",
@@ -1051,8 +1072,8 @@
     },
     {
         "path":  "scripts/Weather.cs",
-        "lines":  87,
-        "hash8":  "924a1a3f",
+        "lines":  140,
+        "hash8":  "3914a821",
         "system":  "core",
         "summary":  "Weather: clear / overcast / rain, re-rolled every few minutes (data/look.json \"weather\"). Rain is 0..1..."
     },
@@ -1079,8 +1100,8 @@
     },
     {
         "path":  "scripts/WorldEnv.cs",
-        "lines":  318,
-        "hash8":  "af27588c",
+        "lines":  327,
+        "hash8":  "981f569a",
         "system":  "world",
         "summary":  "World: environment, sky, fog, sun/moon light, day/night and realm-blend look, water."
     }

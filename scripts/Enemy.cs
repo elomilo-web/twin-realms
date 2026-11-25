@@ -627,6 +627,8 @@ public partial class Enemy : CharacterBody3D, IDamageable
         _flT = Mathf.Max(0, _flT - dt); float p = 1f - _flT / .18f, e = p < .25f ? p / .25f : (1f - p) / .75f; e *= e * (3 - 2 * e);
         _body.Quaternion = new Quaternion(_flAxis, _flAmt * e) * new Quaternion(Vector3.Up, _flTwist * e);
     }
+    /// <summary>Brief white-gold body flash (crit hits); restores the rim overlay when it ends.</summary>
+    public void Flash(float t) { if (_state == State.Dead || Duelist || Scarletta) return; _killT = t; KillFlash(true); }
     void KillFlash(bool on)
     {
         _killMat ??= new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, AlbedoColor = new Color(1f, .97f, .85f, .85f), Transparency = BaseMaterial3D.TransparencyEnum.Alpha };

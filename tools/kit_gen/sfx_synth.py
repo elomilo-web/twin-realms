@@ -118,6 +118,49 @@ def ui_error(rng):   # dull low thud, 150 ms
     return np.sin(2 * np.pi * 70 * (1 + 0.4 * np.exp(-t * 50)) * t) * np.exp(-t * 26) + lowpass(rng.standard_normal(t.size), 300) * np.exp(-t * 60) * 0.5
 
 
+def save_loop(name, x, xf, peak=0.6):
+    """x has length L+xf; the last xf samples are crossfaded onto the head so the loop is seamless (no end fade)."""
+    L = x.size - xf; w = np.linspace(0, 1, xf)
+    out = x[:L].copy(); out[:xf] = x[:xf] * np.sin(w * np.pi / 2) + x[L:] * np.cos(w * np.pi / 2)
+    out = out - out.mean(); out = out / (np.abs(out).max() + 1e-9) * peak
+    with wave.open(str(OUT / f"{name}.wav"), "wb") as f:
+        f.setnchannels(1); f.setsampwidth(2); f.setframerate(SR)
+        f.writeframes((out * 32767).astype("<i2").tobytes())
+    print(f"{name}.wav  rms={np.sqrt(np.mean(out ** 2)):.3f}")
+
+
+def rain_loop(rr, dur=20.0, xf=2.0, density=1.0, drips=1.0):
+    t = t_arr(dur + xf); n = rr.standard_normal(t.size)
+    x = bandpass(n, 400, 8000) * 1.0 * (0.85 + 0.15 * lowpass(rr.standard_normal(t.size), 0.5) * 6)
+    x = x / np.abs(x).max() * (0.6 if density >= 1 else 0.35)
+    for _ in range(int(900 * density * (dur + xf))):   # dense droplet ticks
+        s = int(rr.uniform(0, t.size - 400)); L = int(rr.uniform(0.002, 0.006) * SR); k = np.arange(L) / SR
+        x[s:s + L] += np.sin(2 * np.pi * rr.uniform(2500, 7000) * k) * np.exp(-k * rr.uniform(700, 1500)) * rr.uniform(0.02, 0.1)
+    for _ in range(int(2.0 * drips * (dur + xf))):   # occasional heavier drips
+        s = int(rr.uniform(0, t.size - 4000)); L = int(0.05 * SR); k = np.arange(L) / SR
+        f = rr.uniform(700, 1800) * (1 + 2.5 * k)
+        x[s:s + L] += np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-k * rr.uniform(60, 110)) * rr.uniform(0.12, 0.3)
+    return x
+
+
+def wind_loop(rr, dur=20.0, xf=2.0):
+    t = t_arr(dur + xf); n = rr.standard_normal(t.size)
+    lo = lowpass(n, 250); mid = lowpass(n, 900)
+    sweep = 0.5 + 0.5 * np.sin(2 * np.pi * t / dur * 2 + 1.0)   # integer cycles over the loop length keeps it periodic
+    amp = 0.55 + 0.45 * np.sin(2 * np.pi * t / dur * 3 + 0.4) * np.sin(2 * np.pi * t / dur + 2.0)
+    return (lo * 3.0 + mid * sweep * 2.0) * amp
+
+
+def thunder(rr, i):
+    dur = rr.uniform(4.0, 6.0); t = t_arr(dur); x = np.zeros(t.size)
+    for k in range(int(rr.integers(4, 8))):   # rolling low-passed bursts with long decay
+        s = int(rr.uniform(0, dur * 0.55) * SR); L = t.size - s; tt = np.arange(L) / SR
+        burst = lowpass(rr.standard_normal(L), rr.uniform(70, 160)) * (1 - np.exp(-tt * 12)) * np.exp(-tt * rr.uniform(0.7, 1.6))
+        x[s:] += burst * rr.uniform(0.4, 1.0) * (1.0 if k else 1.6)
+    x += lowpass(rr.standard_normal(t.size), 400) * np.exp(-t * 3) * 0.3 * (1 - np.exp(-t * 20))
+    return x * np.minimum(1, (dur - t) / 0.8)
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(1234)
@@ -129,6 +172,11 @@ def main():
     for i in range(3): save(f"land_thud_{i + 1}", thud(rng, i), 0.9)
     for i in range(4): save(f"splash_{i + 1}", splash(rng, i), 0.75)
     for i in range(4): save(f"step_water_{i + 1}", wade(rng, i), 0.5)
+    wr = np.random.default_rng(4242)   # weather stream, independent of the sounds above
+    save_loop("rain_loop", rain_loop(wr), 88200, 0.6)
+    save_loop("rain_light_loop", rain_loop(wr, density=0.3, drips=0.4), 88200, 0.45)
+    save_loop("wind_loop", wind_loop(wr), 88200, 0.6)
+    for i in range(2): save(f"thunder_{i + 1}", thunder(wr, i), 0.85)
 
 
 if __name__ == "__main__":

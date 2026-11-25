@@ -1,5 +1,14 @@
 # Dev loop log (newest first; max 20 detailed entries, older ones rolled into History)
 
+## #16 (2026-11-25) code, audio, lighting, tools, world, combat
+- Code: Ui.cs 1080 -> 736 lines; MapView -> UiMap.cs, TreeView -> UiTree.cs, shop/valor/totals -> UiShop.cs (Edit/Write only; builds; menus unchanged in capture).
+- Audio (sfx_synth.py): rain_loop, rain_light_loop, wind_loop (20 s seamless), thunder_1-2; Weather.cs plays rain loops by intensity (Ambient volume, muted in dungeons) and thunder in heavy rain after a Weather.Flash; lead wired the flash into WorldEnv (cold ambient wash).
+- Lighting: god rays in the gold band (volumetric density +, anisotropy .7, sun volumetric energy +2; morning .6x; rain cuts them; quality >= 2). golden_rays view looks beautiful (backlit trees, warm haze).
+- Capture: hud view gets buffs (warcry, poisonblade, burn) + quest wolves 1/5: buff row + quest tracker now visible; golden_rays view.
+- World: bushes sway (BushShader for procedural bushes; Windy matches bush/shrub/atlas leaf materials with gentler, faster flutter).
+- Combat: crit moment (Player.CritFx: enemy Flash, gold-white spark burst + streak along the swing, hit + pitched clash; crit kills: .12 s slow-mo + bigger kick; feel.json "crit"); Feel.SlowMo queues behind hit-stop. Lead fix: PlaneMesh.OrientationEnum.Z.
+- Seen: menu views after the hud view carry a reddish screen tint (burn status effect leaking): clear statuses' screen effects between views.
+
 ## #15 (2026-11-25) full sweep (50 views, 62.4 fps, 0 errors) + process review #3; feel, shaders, ui, mechanics, perf
 - BLOCKED + REVERTED: Ui.cs split (#15a): the agent's PowerShell helper `R` collided with the `r` alias and wrote empty files after cutting 342 lines; lead restored Ui.cs from HEAD (git checkout -- scripts/Ui.cs; it was fully committed in #14). Retry later with the Edit/Write tools only.
 - Lock-on (CameraRig/Targeting): frames hero+target (lerp .35), distance grows with separation, tall-target pitch; mouse flick > 90 px in .15 s switches side (Targeting.SwitchSide); lock breaks on death / > 30 m / 1.5 s out of sight, auto-reacquire within 12 m if AutoTarget; gold ring + pulsing gold diamond reticle.

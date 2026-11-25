@@ -258,7 +258,16 @@ void fragment(){
         { float wr = Weather.Rain, wc = Weather.Cloud, wg = Mathf.Max(wr, wc * .5f);   // weather mood (Weather.cs): heavier cloud, dimmer cooler light, thicker fog
           _sky.SetShaderParameter("cover", Mathf.Lerp(LF("cloudCover", .48f), .95f, wc)); Sun.LightEnergy *= 1f - .25f * wg; Sun.LightColor = Sun.LightColor.Lerp(new Color(.62f, .68f, .76f), .3f * wg);
           _env.AmbientLightEnergy *= 1f - .2f * wg; _env.AmbientLightColor = _env.AmbientLightColor.Lerp(new Color(.5f, .55f, .62f), .3f * wg); _env.FogDensity *= 1f + .8f * wg;
-          _env.FogLightColor = _env.FogLightColor.Lerp(new Color(.4f, .46f, .54f), .45f * wg); _env.AdjustmentSaturation *= 1f - .15f * wg; }
+          _env.FogLightColor = _env.FogLightColor.Lerp(new Color(.4f, .46f, .54f), .45f * wg); _env.AdjustmentSaturation *= 1f - .15f * wg;
+          // lightning before thunder (Weather.Flash 0..1, decays): a brief cold-white wash over the ambient light
+          if (Weather.Flash > .01f) { _env.AmbientLightEnergy += 1.6f * Weather.Flash; _env.AmbientLightColor = _env.AmbientLightColor.Lerp(new Color(.85f, .9f, 1f), Weather.Flash); } }
+        { // god rays: forward-scattering volumetric haze + stronger sun volumetric energy in the gold band (quality >= 2, fades with rain)
+          float baseVol = LF("volFog", .004f);
+          float gr = (Game.Set.Quality >= 2 && baseVol > 0 && LF("godrays", 1f) > 0) ? gold * day * (TimeOfDay < .5f ? LF("godraysMorning", .6f) : 1f) * (1f - Mathf.Clamp(Weather.Rain, 0f, 1f) * .8f) : 0f;
+          _env.VolumetricFogDensity = baseVol + LF("godraysDensity", .004f) * gr;
+          _env.VolumetricFogAnisotropy = Mathf.Lerp(.6f, LF("godraysAniso", .7f), gr);
+          _env.VolumetricFogLength = Mathf.Lerp(160f, LF("godraysLength", 120f), gr);
+          Sun.LightVolumetricFogEnergy = LF("sunShafts", 1.2f) + LF("godraysEnergy", 2f) * gr; }
         if (force || Mathf.Abs(RealmT - _lastRealmT) > 0.001f)
         {
             _lastRealmT = RealmT; _terrMat.SetShaderParameter("realm_t", RealmT);
