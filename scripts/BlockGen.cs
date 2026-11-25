@@ -51,7 +51,39 @@ public sealed class OverworldGen : IBlockGen
         byte t = _top.TryGetValue(kind, out var tt) ? tt : _top.GetValueOrDefault("grass");
         string tk = Blocks.Def(t).Key; byte u = _under.TryGetValue(tk, out var uu) ? uu : Blocks.Dirt;
         if (water > top) { t = water - top >= _deepAt ? _deep : _underwater; u = t; }
+        else if (kind == "dirt") t = WornRoad(x, z, fx, fz, t);
         return (top, t, u, water);
+    }
+
+    /// <summary>Old worn road: gravel and cobble patches (more cobbles near settlements), cart ruts along the road, kerb stones and grass at the edge. Deterministic per column.</summary>
+    byte WornRoad(int x, int z, float fx, float fz, byte path)
+    {
+        var L = Lands.LandAt(fx, fz); if (L == null) return path;
+        float best = 1e9f, side = 0, w = 3.4f; var q = new Vector2(fx, fz);
+        foreach (var rd in L.Roads)
+        {
+            if (!rd.Box.HasPoint(q)) continue;
+            for (int i = 0; i < rd.P.Length - 1; i++)
+            {
+                var a = rd.P[i]; var ab = rd.P[i + 1] - a; float len2 = Math.Max(ab.LengthSquared(), 1e-4f);
+                float tt = Mathf.Clamp((q - a).Dot(ab) / len2, 0, 1); var d = q - (a + ab * tt); float dist = d.Length();
+                if (dist < best) { best = dist; w = rd.W; side = (ab.X * d.Y - ab.Y * d.X) / Mathf.Sqrt(len2); }   // signed offset across the road
+            }
+        }
+        if (best > 1e8f) return path;
+        float r = (Hash(x, 7, z) & 0xffffff) / 16777216f, r2 = (Hash(x, 11, z) & 0xffffff) / 16777216f;
+        float near = 0;   // 0..1, closer to a settlement = more cobbles
+        foreach (var p in L.Places) { float dd = Mathf.Max(0, new Vector2(p.X - fx, p.Z - fz).Length() - p.R); near = Mathf.Max(near, 1f - Mathf.Min(dd, 40f) / 40f); }
+        bool edge = best > w * .4f;
+        if (edge)
+        {
+            if (r < .1f) return Blocks.Id("cobblestone");                 // kerb stone
+            if (r < .2f) return Blocks.Id("grass");                       // grass creeping on
+        }
+        if (r2 < .08f + .3f * near) return Blocks.Id("cobblestone");
+        if (r2 < .23f + .3f * near) return Blocks.Id("gravel");
+        if (Math.Abs(Math.Abs(side) - w * .2f) < .5f && r < .85f) { byte rut = Blocks.Id("path_rut"); if (rut != 0) return rut; }
+        return path;
     }
 
     public void Fill(BlockChunk c)

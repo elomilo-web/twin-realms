@@ -288,8 +288,8 @@
     },
     {
         "path":  "scripts/BlockGen.cs",
-        "lines":  159,
-        "hash8":  "0a4a60b9",
+        "lines":  191,
+        "hash8":  "d3c8d262",
         "system":  "blockworld",
         "summary":  "The overworld as blocks, made from the same heightfield, ground types and water as the..."
     },
@@ -337,8 +337,8 @@
     },
     {
         "path":  "scripts/Builder.cs",
-        "lines":  516,
-        "hash8":  "c4738749",
+        "lines":  605,
+        "hash8":  "8d47e73c",
         "system":  "world",
         "summary":  "Builds the hand-placed overworld: Oakhaven, the arena, dungeon mouths, the dragon lair, standing stones, obelisks,..."
     },
@@ -365,8 +365,8 @@
     },
     {
         "path":  "scripts/dev/DevCapture.cs",
-        "lines":  256,
-        "hash8":  "21132160",
+        "lines":  263,
+        "hash8":  "5f6d5c07",
         "system":  "devtools",
         "summary":  "Dev loop eyes (autoload). Does nothing unless the game is started with the user arg..."
     },
@@ -386,8 +386,8 @@
     },
     {
         "path":  "scripts/Enemy.cs",
-        "lines":  991,
-        "hash8":  "b562ef6b",
+        "lines":  1033,
+        "hash8":  "1957ca1d",
         "system":  "enemies",
         "summary":  "Data-driven enemy. Melee, ranged, summoning bosses and the dragon. Stats come from data/enemies.json."
     },
@@ -786,7 +786,7 @@
     {
         "path":  "scripts/Props.cs",
         "lines":  199,
-        "hash8":  "41f5eaf8",
+        "hash8":  "1f8abd02",
         "system":  "world",
         "summary":  "Rotates a node continuously (windmill blades, orbs)."
     },
@@ -911,8 +911,8 @@
     },
     {
         "path":  "scripts/Ui.cs",
-        "lines":  865,
-        "hash8":  "f7d54cce",
+        "lines":  892,
+        "hash8":  "80952795",
         "system":  "ui",
         "summary":  "All menus and overlays, built in code: notes, banners, dialogue, shop, smith, pack, character, skill..."
     },
@@ -1065,8 +1065,8 @@
     },
     {
         "path":  "scripts/WorldEnv.cs",
-        "lines":  281,
-        "hash8":  "3dfb73f4",
+        "lines":  306,
+        "hash8":  "b679ee47",
         "system":  "world",
         "summary":  "World: environment, sky, fog, sun/moon light, day/night and realm-blend look, water."
     }

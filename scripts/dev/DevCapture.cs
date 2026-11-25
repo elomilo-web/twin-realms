@@ -13,7 +13,7 @@ namespace TwinRealms;
 /// in file order, 1280x720 PNGs to .devloop/screenshots/current/ (the last run moves to previous/), report.json with
 /// FPS avg/min per view, and quit. Run it with tools/capture.bat (tools/capture.ps1 adds the engine errors to the report).
 /// Viewpoint fields: name, scene (title | world | arena | dungeon:&lt;key&gt;), action (idle | run | sprint | swing | cast | ui:&lt;menu&gt;),
-/// player_at [x,z], yaw, time (0..1), realm (0|1), cam_yaw + cam_dist (follow camera) or camera_pos + look_at (free camera;
+/// player_at [x,z], yaw, time (0..1), realm (0|1), cast:&lt;skillId&gt; (grants it, bar 0, waits cast_wait s, default .35), freeze_foes (bool), cam_yaw + cam_dist (follow camera) or camera_pos + look_at (free camera;
 /// relative: true makes them offsets from the hero), hud (bool), foes (enemy types spawned 6 m in front), wait_frames.
 /// </summary>
 public partial class DevCapture : Node
@@ -173,7 +173,9 @@ public partial class DevCapture : Node
                     foreach (var f in fs.EnumerateArray())
                     {
                         var at = side ? P.GlobalPosition + right * (2.2f + 1.5f * i++) : P.GlobalPosition + fwd * 6f + right * ((i++ - .5f) * 2.5f);
-                        Game.Root!.AddChild(new Enemy { Type = f.GetString()!, Level = 18, AnyRealm = true, NoLeash = true, Position = World.OnGround(at.X, at.Z, .3f) });
+                        var foe = new Enemy { Type = f.GetString()!, Level = 18, AnyRealm = true, NoLeash = true, Position = World.OnGround(at.X, at.Z, .3f) };
+                        Game.Root!.AddChild(foe);
+                        if (Flag(v, "freeze_foes", false)) { foe.Rotation = new Vector3(0, Mathf.Pi, 0); foe.SetProcess(false); foe.SetPhysicsProcess(false); }   // stands still: no attacks, no interrupts
                     }
                     await Secs(1f);
                 }
@@ -182,7 +184,7 @@ public partial class DevCapture : Node
                 if (lakeCam != null && cp == null) FreeCam(lakeCam.Value.from, lakeCam.Value.at);
                 else if (cp != null) { if (Flag(v, "relative", false)) { cp += P.GlobalPosition; la += P.GlobalPosition; } FreeCam(cp, la); }
                 else { FreeCam(null, default); P.Rig!.Rotation = new Vector3(Num(v, "cam_pitch", -.25f), Num(v, "cam_yaw", P.Rotation.Y + Mathf.Pi), 0); P.Rig.Distance = Num(v, "cam_dist", 4.5f); }
-                await DoAction(action);
+                await DoAction(action, Num(v, "cast_wait", .35f));
             }
             // measure frame times while the view settles
             var dts = new List<double>(); ulong last = Time.GetTicksUsec();
@@ -210,7 +212,7 @@ public partial class DevCapture : Node
         _report.Add(entry);
     }
 
-    async Task DoAction(string action)
+    async Task DoAction(string action, float castWait = .35f)
     {
         if (action.StartsWith("place:"))
         {   // a block of that key two metres in front of the hero, on the ground (needs the block world)
@@ -231,7 +233,12 @@ public partial class DevCapture : Node
             case "cast":
                 var id = Game.D.Skills.Keys.FirstOrDefault(k => Skills.Get(k) is { } s && s.Kind is not "resurrect" && s.Kind is not "buff");
                 if (id != null) { Game.D.Bar[0] = id; Game.Notify(); }
-                Input.ActionPress("spell1"); await Secs(.05f); Input.ActionRelease("spell1"); await Secs(.35f); break;
+                Input.ActionPress("spell1"); await Secs(.05f); Input.ActionRelease("spell1"); await Secs(castWait); break;
+            case var c when c.StartsWith("cast:"):
+                var sid = c[5..];
+                if (!Game.D.Skills.ContainsKey(sid)) Game.D.Skills[sid] = new SkillState { Rank = 3 };
+                Game.D.Bar[0] = sid; Game.Notify(); Heal();
+                Input.ActionPress("spell1"); await Secs(.05f); Input.ActionRelease("spell1"); await Secs(castWait); break;
             case "ui:pack": Ui.I?.OpenPack(); await Secs(.4f); break;
             case "ui:spellcraft": Ui.I?.OpenSpellcraft(null); await Secs(.4f); break;
             case "ui:character": Ui.I?.OpenCharacter(); await Secs(.4f); break;

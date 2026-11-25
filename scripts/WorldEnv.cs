@@ -273,8 +273,33 @@ void fragment(){
 
     public void SetDungeonLook(bool on, Color? ambient = null)
     {
-        if (on) { _env.BackgroundMode = Godot.Environment.BGMode.Color; _env.BackgroundColor = new Color(.02f, .015f, .03f); _env.AmbientLightColor = ambient ?? new Color(.25f, .25f, .35f); _env.AmbientLightEnergy = LF("dungeonAmbient", 1.3f); _env.FogDensity = 0.01f; _env.FogLightColor = new Color(.04f, .035f, .06f); _suspend = true; }
-        else { _env.BackgroundMode = Godot.Environment.BGMode.Sky; _suspend = false; }
+        if (on)
+        {
+            if (!_dungSaved)
+            {
+                _dungSaved = true;
+                _sv = (_env.VolumetricFogEnabled, _env.VolumetricFogDensity, _env.VolumetricFogAlbedo, _env.VolumetricFogEmission, _env.VolumetricFogLength, _env.VolumetricFogDetailSpread, _env.VolumetricFogGIInject, _env.FogHeight, _env.FogHeightDensity);
+            }
+            _env.BackgroundMode = Godot.Environment.BGMode.Color; _env.BackgroundColor = new Color(.02f, .015f, .03f); _env.AmbientLightColor = ambient ?? new Color(.25f, .25f, .35f); _env.AmbientLightEnergy = LF("dungeonAmbient", 1.3f); _env.FogDensity = 0.01f; _env.FogLightColor = new Color(.04f, .035f, .06f); _suspend = true;
+            if (Game.Set.Quality >= 2)   // volumetric fog is costly: only on medium+ quality
+            {
+                _env.VolumetricFogEnabled = true; _env.VolumetricFogDensity = .025f; _env.VolumetricFogAlbedo = new Color(.6f, .6f, .6f); _env.VolumetricFogEmission = new Color(0, 0, 0);
+                _env.VolumetricFogLength = 40f; _env.VolumetricFogDetailSpread = .8f; _env.VolumetricFogGIInject = 0f;
+            }
+            _env.FogHeight = 1.2f; _env.FogHeightDensity = .08f;   // ground-hugging mist
+        }
+        else
+        {
+            _env.BackgroundMode = Godot.Environment.BGMode.Sky; _suspend = false;
+            if (_dungSaved)
+            {
+                _dungSaved = false;
+                _env.VolumetricFogEnabled = _sv.en; _env.VolumetricFogDensity = _sv.dens; _env.VolumetricFogAlbedo = _sv.alb; _env.VolumetricFogEmission = _sv.emi; _env.VolumetricFogLength = _sv.len;
+                _env.VolumetricFogDetailSpread = _sv.det; _env.VolumetricFogGIInject = _sv.gi; _env.FogHeight = _sv.fh; _env.FogHeightDensity = _sv.fhd;
+            }
+        }
     }
+    bool _dungSaved;
+    (bool en, float dens, Color alb, Color emi, float len, float det, float gi, float fh, float fhd) _sv;
     bool _suspend;
 }

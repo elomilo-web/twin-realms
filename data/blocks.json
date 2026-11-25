@@ -97,6 +97,7 @@
   "coal_ore":     { "n": "Coal Ore",      "hardness": 3.0, "tool": "pickaxe", "drops": "coal_ore", "mat": { "gothic": "G_Rock", "color": "#4a4644", "tile": 1 } },
   "iron_ore":     { "n": "Iron Ore",      "hardness": 3.0, "tool": "pickaxe", "drops": "ironore", "mat": { "gothic": "G_Rock", "color": "#b08a70", "tile": 1 } },
   "gold_ore":     { "n": "Gold Ore",      "hardness": 3.0, "tool": "pickaxe", "drops": "gold_ore", "mat": { "gothic": "G_Rock", "color": "#d8b860", "tile": 1 } },
-  "crystal_ore":  { "n": "Crystal Ore",   "hardness": 4.0, "tool": "pickaxe", "drops": "crystal", "light": 0.3, "mat": { "gothic": "G_Rock", "color": "#9a80d8", "glow": 0.25, "tile": 1 } }
+  "crystal_ore":  { "n": "Crystal Ore",   "hardness": 4.0, "tool": "pickaxe", "drops": "crystal", "light": 0.3, "mat": { "gothic": "G_Rock", "color": "#9a80d8", "glow": 0.25, "tile": 1 } },
+  "path_rut":     { "n": "Cart Rut",      "hardness": 0.6, "tool": "shovel", "drops": "dirt", "mat": { "top": { "tex": "terrain/gravel", "color": "#7e705c", "tile": 2 }, "side": { "tex": "terrain/gravel", "color": "#6b5642", "tile": 2, "lip": "#5a4c3c" }, "bottom": { "tex": "terrain/gravel", "color": "#6b5642", "tile": 2 } } }
  }
 }

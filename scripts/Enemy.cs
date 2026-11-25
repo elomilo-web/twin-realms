@@ -601,11 +601,43 @@ public partial class Enemy : CharacterBody3D, IDamageable
         if (away.LengthSquared() > 0.001f) _recoilDir = Basis.Inverse() * away.Normalized();
         _recoilK = Mathf.Clamp(h.Knock / 5f, 0.4f, 1.5f) * (Def.Boss || Def.Kind == "dragon" ? Feel.RecoilBossMul : 1f) * (h.Crit ? 1.3f : 1f) * (_staggerLean > 0 ? 1.6f : 1f); _recoilT = Feel.RecoilTime * (_staggerLean > 0 ? 1.5f : 1f); _staggerLean = 0;
         if (h.IsPlayer && h.Attacker is Player && h.Kind is not ("light" or "combo" or "power")) Feel.HitStop(Feel.ForHit(h, Hp <= 0));
+        if (away.LengthSquared() > 0.001f) Flinch(dmg);
         if (Hp <= 0) Die(h);
+    }
+
+    // ---- weighty reactions: directional flinch, tip-over death, kill flash
+    float _flT, _flAmt, _flTwist, _killT; Vector3 _flAxis = Vector3.Right, _fallAxis = Vector3.Right; bool _dustDone;
+    static StandardMaterial3D? _killMat;
+    bool Flier => Def.Kind == "wraith" || Def.Kind == "dragon";
+    /// <summary>0.18 s lean + twist of the body away from the hit (4-14 deg by damage / max hp) and a short hit clip unless a swing is mid-way.</summary>
+    void Flinch(int dmg)
+    {
+        if (_state == State.Dead) return;
+        _flAxis = Vector3.Up.Cross(_recoilDir); if (_flAxis.LengthSquared() < .0001f) return; _flAxis = _flAxis.Normalized();
+        _flAmt = Mathf.DegToRad(Mathf.Lerp(4f, 14f, Mathf.Clamp(dmg / Mathf.Max(1f, MaxHp) * 4f, 0, 1)));
+        _flTwist = (GD.Randf() < .5f ? -1f : 1f) * _flAmt * .5f; _flT = .18f;
+        bool swinging = _state == State.Wind || _state == State.Breath;
+        if (swinging || Hp <= 0 || _state == State.Stagger) return;
+        if (_mdlAp != null && _aHit != "" && _aCur != _aAtk) { _mdlAp.Play(_aHit, .05f); _mdlAp.Seek(0, true); _aCur = _aHit; }
+        else if (_av != null && !_av.Busy) _av.Play("hit", .05f);
+    }
+    void FlinchTick(float dt)
+    {
+        if (_flT <= 0) return;
+        _flT = Mathf.Max(0, _flT - dt); float p = 1f - _flT / .18f, e = p < .25f ? p / .25f : (1f - p) / .75f; e *= e * (3 - 2 * e);
+        _body.Quaternion = new Quaternion(_flAxis, _flAmt * e) * new Quaternion(Vector3.Up, _flTwist * e);
+    }
+    void KillFlash(bool on)
+    {
+        _killMat ??= new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, AlbedoColor = new Color(1f, .97f, .85f, .85f), Transparency = BaseMaterial3D.TransparencyEnum.Alpha };
+        void Walk(Node n) { foreach (var c in n.GetChildren()) { if (c is GeometryInstance3D g) g.MaterialOverlay = on ? _killMat : null; Walk(c); } }
+        Walk(_body);
     }
 
     void Die(HitInfo? h)
     {
+        _fallAxis = Vector3.Up.Cross(_recoilDir); _fallAxis = _fallAxis.LengthSquared() < .0001f ? Vector3.Right : _fallAxis.Normalized(); _dustDone = false; _flT = 0;
+        if (h != null && !Duelist && !Scarletta) { _killT = .08f; KillFlash(true); }
         ClearTele(); _state = State.Dead; _deadT = 0; CollisionLayer = 0; CollisionMask = 1; _label.Visible = false; if (_aura != null) _aura.Visible = false;
         if (CurrentBoss == this) CurrentBoss = null;
         var D = Game.D; var p = Player.Instance;
@@ -660,7 +692,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
     void Respawn()
     {
         Hp = MaxHp; Rescale(false); GlobalPosition = _home; _state = Def.Kind == "dragon" ? State.Sleep : State.Idle; _deadT = 0; _stun = 0; Status.Clear();
-        CollisionLayer = 2; CollisionMask = 1 | 2; _label.Visible = true; _body.Rotation = Vector3.Zero; Velocity = Vector3.Zero;
+        CollisionLayer = 2; CollisionMask = 1 | 2; _label.Visible = true; _body.Rotation = Vector3.Zero; Velocity = Vector3.Zero; _flT = 0; if (_killT > 0) { _killT = 0; KillFlash(false); }
         _body.Position = Vector3.Zero; _body.Scale = Vector3.One; for (int i = 0; i < _mats.Count; i++) { _mats[i].Transparency = BaseMaterial3D.TransparencyEnum.Disabled; _mats[i].AlbedoColor = _baseCols[i]; }
     }
 
@@ -690,13 +722,23 @@ public partial class Enemy : CharacterBody3D, IDamageable
             float k = f * _recoilK; _body.Position = _recoilDir * Feel.RecoilPush * k;
             _body.Scale = new Vector3(1 + Feel.RecoilSquash * k * 0.5f, 1 - Feel.RecoilSquash * k, 1 + Feel.RecoilSquash * k * 0.5f);
         }
+        if (_state != State.Dead) FlinchTick(dt);
+        if (_killT > 0) { _killT -= dt; if (_killT <= 0) KillFlash(false); }
         if (_flash > 0) { _flash -= dt; foreach (var m in _mats) m.AlbedoColor = Colors.White; }
         else { var st = Status.Tint; for (int i = 0; i < _mats.Count; i++) _mats[i].AlbedoColor = (_state == State.Wind ? _baseCols[i].Lerp(new Color(1, 0.2f, 0.1f), 1f - Mathf.Clamp(_timer / Mathf.Max(0.01f, Def.Wind), 0, 1)) : _baseCols[i]).Lerp(new Color(st.R, st.G, st.B), st.A); }
 
         if (_state == State.Dead)
         {
             _deadT += dt;
-            if (_av == null && _mdlAp == null) _body.Rotation = new Vector3(Mathf.Lerp(0, Mathf.Pi / 2, Mathf.Clamp(_deadT / 0.5f, 0, 1)), 0, 0);   // models play their own death
+            if (!Flier)
+            {
+                // weighted fall away from the killing blow: ease-in tip to ~80 deg over .35 s, small bounce on landing, dust for big bodies
+                float fp = Mathf.Clamp(_deadT / .35f, 0, 1), ang = Mathf.DegToRad(80f) * fp * fp, bt = _deadT - .35f;
+                if (bt > 0 && bt < .2f) ang -= Mathf.DegToRad(6f) * Mathf.Sin(Mathf.Pi * bt / .2f);
+                _body.Quaternion = new Quaternion(_fallAxis, ang);
+                if (!_dustDone && _deadT >= .35f) { _dustDone = true; if (HeightM() >= 2f || Def.Boss) Fx.Dust(GlobalPosition, Mathf.Clamp(HeightM() * .6f, 1f, 4f)); }
+            }
+            else if (_av == null && _mdlAp == null) _body.Rotation = new Vector3(Mathf.Lerp(0, Mathf.Pi / 2, Mathf.Clamp(_deadT / 0.5f, 0, 1)), 0, 0);
             AnimateAvatar();
             // dissolve: after the fall the body releases motes of light, then sinks, shrinks and fades away
             const float D0 = 1.4f, D1 = 2.8f;

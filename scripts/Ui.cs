@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
@@ -391,22 +391,9 @@ public partial class Ui : CanvasLayer
     }
     void OpenCharacterPanel()
     {
-        var d = Game.D; var TS = Game.TS; var v = Frame("char", "Character", new Vector2(1000, 620), OpenCharacterPanel); HideInfo();
-        // header: who, level, XP bar, wealth
-        var head = new HBoxContainer(); head.AddThemeConstantOverride("separation", 14); v.AddChild(head);
-        Lbl($"{d.Name}", 22, UiTheme.Title, head); Lbl($"Level {d.Level} {Races.Get(d.Race).Name} {Classes.Get(d.Class).Name}", 16, Colors.White, head);
-        if (d.Titles.Count > 0)
-        {
-            // earned titles: wear one (it shows by your name and gives its bonus)
-            var tb = new OptionButton { TooltipText = "Your title shows beside your name and gives its bonus" }; tb.AddItem("No title"); int sel = 0, idx = 1;
-            foreach (var t in Titles.All) if (d.Titles.Contains(t.Id)) { tb.AddItem(t.Name + (t.Mods.Count > 0 ? "  (" + string.Join(", ", System.Linq.Enumerable.Select(t.Mods, kv => TreeDb.StatText(kv.Key, kv.Value))) + (t.Feathers ? ", feather trail" : "") + ")" : "")); tb.SetItemMetadata(idx, t.Id); if (d.Title == t.Id) sel = idx; idx++; }
-            tb.Select(sel); tb.ItemSelected += i => { Titles.Wear(i == 0 ? "" : tb.GetItemMetadata((int)i).AsString()); Sfx.Play("click"); };
-            head.AddChild(tb);
-        }
-        var xb = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; xb.AddThemeConstantOverride("separation", 0); head.AddChild(xb);
-        xb.AddChild(new ProgressBar { MinValue = 0, MaxValue = Math.Max(1, d.XpNeed()), Value = Math.Min(d.Xp, d.XpNeed()), ShowPercentage = false, CustomMinimumSize = new Vector2(160, 8), MouseFilter = Control.MouseFilterEnum.Ignore });
-        Lbl($"XP {d.Xp} / {d.XpNeed()}", 12, Dim, xb);
-        Lbl($"Gold {d.Gold}   Valor {d.Valor}   Kills {d.Kills}", 14, Dim, head);
+        var d = Game.D; var TS = Game.TS; var v = Frame("char", "Character", new Vector2(1120, 620), OpenCharacterPanel); HideInfo();
+        var gold = UiTheme.Highlight;
+        // top strip: points, respec, shortcuts
         var pts = new HBoxContainer(); pts.AddThemeConstantOverride("separation", 8); v.AddChild(pts);
         Chip(pts, $"Attribute points  {d.AttrPts}", d.AttrPts > 0); Chip(pts, $"Skill points  {d.RankPts}", d.RankPts > 0); Chip(pts, $"Tree points  {d.SkillPts}", d.SkillPts > 0);
         pts.AddChild(Btn("Reset attributes", () =>
@@ -420,47 +407,87 @@ public partial class Ui : CanvasLayer
         pts.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
         pts.AddChild(Btn($"Skills ({Inputs.KeyOf(Inputs.SkillsUi)})", OpenSkills, true)); pts.AddChild(Btn($"Skill tree ({Inputs.KeyOf(Inputs.Tree)})", OpenTree, true)); pts.AddChild(Btn($"Modifiers ({Inputs.KeyOf(Inputs.ModsUi)})", OpenMods, true)); pts.AddChild(Btn("All bonuses", OpenTotals, true));
 
-        var cols = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; cols.AddThemeConstantOverride("separation", 18); v.AddChild(cols);
-        // ---- left: attributes, each with what a point gives and +1 / +5
-        var left = new VBoxContainer { CustomMinimumSize = new Vector2(380, 0) }; left.AddThemeConstantOverride("separation", 6); cols.AddChild(left);
-        Lbl("ATTRIBUTES", 15, UiTheme.Accent, left);
-        void Attr(string name, string role, int val, Action<int> add, Color col)
+        var cols = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; cols.AddThemeConstantOverride("separation", 22); v.AddChild(cols);
+        // ---- left: who you are
+        var left = new VBoxContainer { CustomMinimumSize = new Vector2(220, 0) }; left.AddThemeConstantOverride("separation", 6); cols.AddChild(left);
+        Lbl(d.Name, 26, UiTheme.Title, left);
+        Lbl($"{Races.Get(d.Race).Name} {Classes.Get(d.Class).Name}", 15, Dim, left);
+        if (d.Titles.Count > 0)
         {
-            var pc = new PanelContainer(); pc.AddThemeStyleboxOverride("panel", UiTheme.Box(new Color(.02f, .06f, .12f, .7f), col with { A = .45f }, 1, 12, 6, 0)); left.AddChild(pc);
-            var h = new HBoxContainer(); h.AddThemeConstantOverride("separation", 10); pc.AddChild(h);
+            // earned titles: wear one (it shows by your name and gives its bonus)
+            var tb = new OptionButton { TooltipText = "Your title shows beside your name and gives its bonus" }; tb.AddItem("No title"); int sel = 0, idx = 1;
+            foreach (var t in Titles.All) if (d.Titles.Contains(t.Id)) { tb.AddItem(t.Name + (t.Mods.Count > 0 ? "  (" + string.Join(", ", System.Linq.Enumerable.Select(t.Mods, kv => TreeDb.StatText(kv.Key, kv.Value))) + (t.Feathers ? ", feather trail" : "") + ")" : "")); tb.SetItemMetadata(idx, t.Id); if (d.Title == t.Id) sel = idx; idx++; }
+            tb.Select(sel); tb.ItemSelected += i => { Titles.Wear(i == 0 ? "" : tb.GetItemMetadata((int)i).AsString()); Sfx.Play("click"); };
+            left.AddChild(tb);
+        }
+        Lbl($"Level {d.Level}", 30, gold, left);
+        var xpBar = new ProgressBar { MinValue = 0, MaxValue = Math.Max(1, d.XpNeed()), Value = Math.Min(d.Xp, d.XpNeed()), ShowPercentage = false, CustomMinimumSize = new Vector2(0, 5), MouseFilter = Control.MouseFilterEnum.Ignore };
+        xpBar.AddThemeStyleboxOverride("fill", new StyleBoxFlat { BgColor = gold }); xpBar.AddThemeStyleboxOverride("background", new StyleBoxFlat { BgColor = new Color(0, 0, 0, .55f) });
+        left.AddChild(xpBar); Lbl($"XP {d.Xp} / {d.XpNeed()}", 12, Dim, left);
+        left.AddChild(new Control { CustomMinimumSize = new Vector2(0, 8) });
+        Lbl($"Gold   {d.Gold}", 17, gold, left); Lbl($"Valor   {d.Valor}", 17, UiTheme.Text, left); Lbl($"Kills   {d.Kills}", 14, Dim, left);
+
+        // ---- right: derived stats (built first so the attribute previews can reach their delta labels)
+        float[] Snap() => new[] { d.MaxHp(), d.MaxMp(), d.MaxSt(), d.WpnDmg(), d.SpellPow(), d.Defense(), d.CritChance() * 100, d.AtkSpeed() };
+        var deltas = new Dictionary<int, Label>();
+        var fmts = new Dictionary<int, string> { [0] = "0", [1] = "0", [2] = "0", [3] = "0.#", [4] = "0.00", [5] = "0", [6] = "0.#", [7] = "0.00" };
+        var mid = new VBoxContainer { CustomMinimumSize = new Vector2(380, 0) }; mid.AddThemeConstantOverride("separation", 8); cols.AddChild(mid);
+        var right = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; right.AddThemeConstantOverride("separation", 20); cols.AddChild(right);
+        string P(float x) => $"{x:0.#}%";
+        void Section(Control parent, string title, (string n, string v, Color? c, int di)[] rows)
+        {
+            var box = new VBoxContainer(); box.AddThemeConstantOverride("separation", 1); parent.AddChild(box);
+            Lbl(title.ToUpper(), 13, gold, box); box.AddChild(new HSeparator());
+            var g = new GridContainer { Columns = 3 }; g.AddThemeConstantOverride("h_separation", 8); g.AddThemeConstantOverride("v_separation", 1); box.AddChild(g);
+            foreach (var (n, val, c, di) in rows)
+            {
+                Lbl(n, 13, Dim, g).SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+                var vl = Lbl(val, 15, c ?? Colors.White, g); vl.HorizontalAlignment = HorizontalAlignment.Right; vl.CustomMinimumSize = new Vector2(64, 0);
+                var dl = Lbl("", 12, Colors.White, g); dl.CustomMinimumSize = new Vector2(40, 0); if (di >= 0) deltas[di] = dl;
+            }
+        }
+        var rc1 = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; rc1.AddThemeConstantOverride("separation", 10); right.AddChild(rc1);
+        var rc2 = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; rc2.AddThemeConstantOverride("separation", 10); right.AddChild(rc2);
+        Section(rc1, "Offense", new (string, string, Color?, int)[] { ("Weapon damage", $"{d.WpnDmg():0}", null, 3), ("Spell power", $"x{d.SpellPow():0.00}", null, 4), ("Crit chance", P(d.CritChance() * 100), null, 6),
+            ("Crit damage", $"x{d.CritMult():0.0}", null, -1), ("Attack speed", $"x{d.AtkSpeed():0.00}", null, 7), ("Cast speed", "+" + P(TS["castSpd"]), null, -1),
+            ("Cooldowns", "-" + P(TS["cdr"]), null, -1), ("Skill damage", "+" + P(TS["skillP"]), null, -1), ("All damage", "+" + P(TS["allP"]), null, -1) });
+        Section(rc1, "Other", new (string, string, Color?, int)[] { ("Armor pen", $"{TS["armorPen"]:0} + {TS["armorPenP"]:0}%", null, -1), ("Magic pen", $"{TS["magicPen"]:0} + {TS["magicPenP"]:0}%", null, -1), ("Status time", "+" + P(TS["statusP"]), null, -1),
+            ("Move speed", "+" + P(TS["move"]), null, -1), ("XP bonus", "+" + P(TS["xpP"]), null, -1), ("Tree nodes", $"{d.Tree.Count}", null, -1) });
+        Section(rc2, "Defense", new (string, string, Color?, int)[] { ("Health", $"{d.MaxHp()}", new Color("ff8a7a"), 0), ("Mana", $"{d.MaxMp()}", new Color("8fb0ff"), 1), ("Stamina", $"{d.MaxSt()}", new Color("7ee08a"), 2),
+            ("Armor", $"{d.Defense()}", null, 5), ("Magic resist", $"{TS["mr"] + d.Defense() * .5f:0}", null, -1), ("Evade", P(TS["evade"]), null, -1),
+            ("Tenacity", P(TS["tenacity"]), null, -1), ("Block", P(TS["block"]), null, -1), ("Life leech", P(TS["leech"]), null, -1) });
+        var res = new List<(string, string, Color?, int)>(); foreach (var t in new[] { "fire", "frost", "lightning", "poison", "shadow", "holy" }) res.Add((char.ToUpper(t[0]) + t[1..], P(TS["res_" + t]), Dmg.TypeColor(t), -1));
+        Section(rc2, "Resistances", res.ToArray());
+
+        // ---- middle: attributes as large rows
+        Lbl("ATTRIBUTES", 13, gold, mid);
+        void Preview(Action<int> add, bool on)
+        {
+            foreach (var l in deltas.Values) l.Text = "";
+            if (!on) return;
+            var a = Snap(); add(1); var b = Snap(); add(-1);
+            foreach (var kv in deltas) { float dv = b[kv.Key] - a[kv.Key]; if (Mathf.Abs(dv) < .004f) continue; kv.Value.Text = (dv > 0 ? "+" : "") + dv.ToString(fmts[kv.Key]); kv.Value.AddThemeColorOverride("font_color", dv > 0 ? new Color("7ee08a") : new Color("ff6a5a")); }
+        }
+        void Attr(string name, string desc, string icon, int val, Action<int> add, Color col)
+        {
+            var pc = new PanelContainer { TooltipText = PerPoint(add) }; pc.AddThemeStyleboxOverride("panel", UiTheme.Box(new Color(.03f, .025f, .02f, .7f), col with { A = .45f }, 1, 12, 8, 0)); mid.AddChild(pc);
+            var h = new HBoxContainer(); h.AddThemeConstantOverride("separation", 12); pc.AddChild(h);
+            var ic = new Control { CustomMinimumSize = new Vector2(40, 40), MouseFilter = Control.MouseFilterEnum.Ignore }; ic.Draw += () => Icons.Draw(ic, icon, new Vector2(20, 20), 36); h.AddChild(ic);
             var nv = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; nv.AddThemeConstantOverride("separation", 0); h.AddChild(nv);
-            var top = new HBoxContainer(); nv.AddChild(top); Lbl(name, 17, col.Lightened(.3f), top).SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; Lbl(role, 12, Dim, top);
-            var pp = Row(nv, PerPoint(add), UiTheme.Text, 12); pp.CustomMinimumSize = new Vector2(220, 0);
-            Lbl(val.ToString(), 26, Colors.White, h).CustomMinimumSize = new Vector2(44, 0);
+            Lbl(name, 18, col.Lightened(.3f), nv); var dd = Lbl(desc, 12, Dim, nv); dd.CustomMinimumSize = new Vector2(150, 0); dd.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+            var vl = Lbl(val.ToString(), 32, Colors.White, h); vl.CustomMinimumSize = new Vector2(52, 0); vl.HorizontalAlignment = HorizontalAlignment.Right;
+            if (d.AttrPts < 1) return;
             var bv = new VBoxContainer(); bv.AddThemeConstantOverride("separation", 2); h.AddChild(bv);
             foreach (int k in new[] { 1, 5 })
             {
+                if (k == 5 && d.AttrPts < 5) continue;
                 int kk = k; var b = Btn("+" + k, () => { int n = Math.Min(kk, d.AttrPts); if (n <= 0) return; d.AttrPts -= n; add(n); Game.Notify(); }, true);
-                b.Disabled = d.AttrPts < 1 || (k == 5 && d.AttrPts < 5); b.CustomMinimumSize = new Vector2(46, 26); bv.AddChild(b);
+                b.CustomMinimumSize = new Vector2(46, 26); b.AddThemeColorOverride("font_color", gold); bv.AddChild(b);
+                if (k == 1) { b.MouseEntered += () => Preview(add, true); b.MouseExited += () => Preview(add, false); var tw = b.CreateTween().SetLoops(); tw.TweenProperty(b, "modulate:a", .65f, .8f); tw.TweenProperty(b, "modulate:a", 1f, .8f); }
             }
         }
-        Attr("Strength", "melee", d.Str, n => d.Str += n, new Color("ff7a5a")); Attr("Dexterity", "bow · speed · crit", d.Dex, n => d.Dex += n, new Color("7ee08a"));
-        Attr("Vitality", "health · armor", d.Vit, n => d.Vit += n, new Color("ffd36a")); Attr("Magic", "mana · spells", d.Mag, n => d.Mag += n, new Color("8fb0ff"));
-
-        // ---- right: derived stats in groups
-        var right = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; right.AddThemeConstantOverride("separation", 4); cols.AddChild(right);
-        void Section(string title, (string n, string v, Color? c)[] rows)
-        {
-            Lbl(title, 14, UiTheme.Accent, right);
-            var g = new GridContainer { Columns = 6 }; g.AddThemeConstantOverride("h_separation", 10); g.AddThemeConstantOverride("v_separation", 1); right.AddChild(g);
-            foreach (var (n, val, c) in rows) { Lbl(n, 13, Dim, g).CustomMinimumSize = new Vector2(104, 0); Lbl(val, 15, c ?? Colors.White, g).CustomMinimumSize = new Vector2(62, 0); }
-        }
-        string P(float x) => $"{x:0.#}%";
-        Section("OFFENSE", new (string, string, Color?)[] { ("Weapon damage", $"{d.WpnDmg():0}", null), ("Spell power", $"x{d.SpellPow():0.00}", null), ("Crit chance", P(d.CritChance() * 100), null),
-            ("Crit damage", $"x{d.CritMult():0.0}", null), ("Attack speed", $"x{d.AtkSpeed():0.00}", null), ("Cast speed", "+" + P(TS["castSpd"]), null),
-            ("Cooldowns", "-" + P(TS["cdr"]), null), ("Skill damage", "+" + P(TS["skillP"]), null), ("All damage", "+" + P(TS["allP"]), null) });
-        Section("DEFENSE", new (string, string, Color?)[] { ("Health", $"{d.MaxHp()}", new Color("ff8a7a")), ("Mana", $"{d.MaxMp()}", new Color("8fb0ff")), ("Stamina", $"{d.MaxSt()}", new Color("7ee08a")),
-            ("Armor", $"{d.Defense()}", null), ("Magic resist", $"{TS["mr"] + d.Defense() * .5f:0}", null), ("Evade", P(TS["evade"]), null),
-            ("Tenacity", P(TS["tenacity"]), null), ("Block", P(TS["block"]), null), ("Life leech", P(TS["leech"]), null) });
-        var res = new List<(string, string, Color?)>(); foreach (var t in new[] { "fire", "frost", "lightning", "poison", "shadow", "holy" }) res.Add((char.ToUpper(t[0]) + t[1..], P(TS["res_" + t]), Dmg.TypeColor(t)));
-        Section("RESISTANCES", res.ToArray());
-        Section("OTHER", new (string, string, Color?)[] { ("Armor pen", $"{TS["armorPen"]:0} + {TS["armorPenP"]:0}%", null), ("Magic pen", $"{TS["magicPen"]:0} + {TS["magicPenP"]:0}%", null), ("Status time", "+" + P(TS["statusP"]), null),
-            ("Move speed", "+" + P(TS["move"]), null), ("XP bonus", "+" + P(TS["xpP"]), null), ("Tree nodes", $"{d.Tree.Count}", null) });
+        Attr("Strength", "Melee damage and heavy weapons", "sword", d.Str, n => d.Str += n, new Color("ff7a5a")); Attr("Dexterity", "Bows, attack speed and crits", "bow", d.Dex, n => d.Dex += n, new Color("7ee08a"));
+        Attr("Vitality", "Health, stamina and armor", "hp", d.Vit, n => d.Vit += n, new Color("ffd36a")); Attr("Magic", "Mana and spell power", "zap", d.Mag, n => d.Mag += n, new Color("8fb0ff"));
     }
     // ---------------------------------------------------------------- journal
     public void OpenJournal()

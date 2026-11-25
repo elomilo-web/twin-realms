@@ -187,6 +187,95 @@ public static class Builder
         for (int i = 0; i < 4; i++) { var hb = Group(over, -24 + i * 1.8f, 20 + (i % 2) * .8f, 0, .4f); hb.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = .9f, BottomRadius = .9f, Height = .8f, RadialSegments = 8 }, MaterialOverride = Hay, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off, VisibilityRangeEnd = 110f, VisibilityRangeEndMargin = 15f, VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self }); }
         if (Kit.Available) { for (int i = 0; i < 7; i++) foreach (var zz in new[] { -4.2f, 4.2f }) Kit.Add(over, Kit.Str("props", "fence"), World.OnGround(31.03f + i * 2.06f, 10 + zz, -.02f)); }
         else for (int i = 0; i < 10; i++) foreach (var zz in new[] { -4.2f, 4.2f }) Box(over, new Vector3(.15f, 1.1f, .15f), World.OnGround(30 + i * 1.6f, 10 + zz, .5f), Wood);
+        DressVillage(over, hs);
+    }
+
+    // ---- plaza and street dressing: market stalls, banners, firewood, cart, puddles, straw (own RNG so the world seed sequence is untouched)
+    static StandardMaterial3D? _dvPuddle, _dvJar; static readonly Dictionary<uint, StandardMaterial3D> _dvAwn = new();
+    static StandardMaterial3D DvTint(uint key, Color c, bool twoSided = false)
+    {
+        if (_dvAwn.TryGetValue(key, out var m)) return m;
+        m = (StandardMaterial3D)Cloth.Duplicate(); m.AlbedoColor = c; if (twoSided) m.CullMode = BaseMaterial3D.CullModeEnum.Disabled; _dvAwn[key] = m; return m;
+    }
+    static MeshInstance3D DvMesh(Node parent, Mesh mesh, Vector3 pos, Material mat, Vector3? rot = null, Vector3? scale = null)
+    {
+        var m = new MeshInstance3D { Mesh = mesh, MaterialOverride = mat, Position = pos, Rotation = rot ?? Vector3.Zero, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off, VisibilityRangeEnd = 120f };
+        if (scale != null) m.Scale = scale.Value; parent.AddChild(m); return m;
+    }
+    static void DvMulti(Node parent, Mesh mesh, Material mat, List<Transform3D> xf, float range = 120f)
+    {
+        var mm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, Mesh = mesh, InstanceCount = xf.Count };
+        for (int i = 0; i < xf.Count; i++) mm.SetInstanceTransform(i, xf[i]);
+        parent.AddChild(new MultiMeshInstance3D { Multimesh = mm, MaterialOverride = mat, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off, VisibilityRangeEnd = range });
+    }
+    static void MarketStall(Node parent, float x, float z, float yaw, Color awn, Color trim, Func<float> rnd, bool lantern)
+    {
+        var g = Group(parent, x, z, yaw);
+        var aM = DvTint((uint)(awn.ToRgba32() ^ 0x1u), awn, true); var tM = DvTint((uint)(trim.ToRgba32() ^ 0x2u), trim, true);
+        foreach (var (px, pz, ph) in new[] { (-1.5f, -.9f, 2.7f), (1.5f, -.9f, 2.7f), (-1.5f, 1.1f, 2.2f), (1.5f, 1.1f, 2.2f) }) Box(g, new Vector3(.12f, ph, .12f), new Vector3(px, ph / 2, pz), Post);
+        DvMesh(g, new BoxMesh { Size = new Vector3(3.5f, .06f, 2.4f) }, new Vector3(0, 2.46f, .1f), aM, new Vector3(.22f, 0, 0));
+        DvMesh(g, new BoxMesh { Size = new Vector3(3.5f, .3f, .05f) }, new Vector3(0, 2.1f, 1.3f), tM);   // front valance
+        Box(g, new Vector3(3.1f, .05f, .05f), new Vector3(0, 2.62f, -.9f), Wood);
+        Solid(g, new Vector3(3f, .9f, .8f), new Vector3(0, .45f, .6f), Wood);
+        Box(g, new Vector3(3.1f, .05f, .9f), new Vector3(0, .93f, .6f), tM);
+        // wares: crates, sacks (squashed spheres), jars
+        for (int i = 0; i < 2; i++) Box(g, new Vector3(.5f, .4f, .5f), new Vector3(-1.1f + i * .6f, 1.18f, .6f), Wood, R2(rnd, 0, 1));
+        for (int i = 0; i < 3; i++) DvMesh(g, new SphereMesh { Radius = .26f, Height = .52f, RadialSegments = 8, Rings = 4 }, new Vector3(.1f + i * .45f, 1.1f, .55f + (i % 2) * .1f), Hay, null, new Vector3(1.1f, .7f, 1f));
+        _dvJar ??= World.Mat(new Color(.3f, .2f, .14f), new Color(.1f, .08f, .13f), .6f);
+        for (int i = 0; i < 3; i++) DvMesh(g, new CylinderMesh { TopRadius = .08f, BottomRadius = .12f, Height = .26f, RadialSegments = 8 }, new Vector3(-.5f + i * .22f, 1.08f, .85f), _dvJar);
+        Box(g, new Vector3(.8f, .5f, .5f), new Vector3(0, .25f, -.45f), Wood);   // stock behind the counter
+        if (lantern)
+        {
+            Box(g, new Vector3(.04f, .3f, .04f), new Vector3(1.5f, 2.0f, 1.1f), Metal);
+            DvMesh(g, new SphereMesh { Radius = .1f, Height = .24f, RadialSegments = 6, Rings = 3 }, new Vector3(1.5f, 1.8f, 1.1f), World.LampMat);
+            var lt = World.Lamp(g, new Vector3(1.5f, 1.8f, 1.2f), new Color(1f, .62f, .32f), 8f, 1.6f); lt.ShadowEnabled = false; lt.DistanceFadeEnabled = true; lt.DistanceFadeBegin = 80f; lt.DistanceFadeLength = 20f;
+        }
+    }
+    static float R2(Func<float> r, float a, float b) => a + r() * (b - a);
+    static void Banner(Node parent, float hx, float hz, float yaw, float lx, float lz, Color c, Color stripe)
+    {
+        var g = Group(parent, hx, hz, yaw);        var bm = DvTint((uint)(c.ToRgba32() ^ 0x3u), c, true); var sm = DvTint((uint)(stripe.ToRgba32() ^ 0x4u), stripe, true);
+        Box(g, new Vector3(.9f, .06f, .06f), new Vector3(lx, 3.3f, lz + .06f), Beam);
+        DvMesh(g, new QuadMesh { Size = new Vector2(.75f, 1.9f) }, new Vector3(lx, 2.32f, lz + .09f), bm);
+        DvMesh(g, new QuadMesh { Size = new Vector2(.12f, 1.4f) }, new Vector3(lx, 2.45f, lz + .1f), sm);
+        DvMesh(g, new QuadMesh { Size = new Vector2(.4f, .1f) }, new Vector3(lx, 2.55f, lz + .105f), sm);
+        DvMesh(g, new PrismMesh { Size = new Vector3(.75f, .25f, .02f) }, new Vector3(lx, 1.27f, lz + .09f), bm, new Vector3(0, 0, Mathf.Pi));
+    }
+    static void DressVillage(Node3D over, (float x, float z, float w, float d, float h, float r)[] hs)
+    {
+        var rnd = World.Rng(777u);
+        // stalls around the plaza edge (clear of well, campfire, benches, table, lamps, the west stall and the cottage path)
+        MarketStall(over, -3.5f, -9.6f, .08f, new Color(.4f, .13f, .12f), new Color(.52f, .4f, .18f), rnd, true);
+        MarketStall(over, 9.8f, -5.6f, -1.1f, new Color(.5f, .37f, .17f), new Color(.3f, .1f, .1f), rnd, true);
+        MarketStall(over, 11.2f, 8.8f, -1.9f, new Color(.28f, .36f, .37f), new Color(.45f, .35f, .2f), rnd, false);
+        // banners beside the doors of three houses
+        Banner(over, -15, -9, 0, 2.2f, 6.0f / 2 + .0f, new Color(.3f, .07f, .09f), new Color(.65f, .52f, .24f));
+        Banner(over, 15, -10, 0, -2.4f, 3.0f, new Color(.16f, .2f, .22f), new Color(.6f, .5f, .25f));
+        Banner(over, 8, -20, 0, 2.0f, 3.0f, new Color(.4f, .3f, .1f), new Color(.2f, .06f, .07f));
+        // firewood stacks
+        foreach (var (fx, fz, fy) in new[] { (-17f, -5.2f, .1f), (17.5f, -6.2f, -.1f), (5f, -16.2f, .2f), (-13f, 13.5f, 1.2f) })
+        {
+            var g = Group(over, fx, fz, fy); var lm = new CylinderMesh { TopRadius = .1f, BottomRadius = .1f, Height = 1.1f, RadialSegments = 6 }; var xf = new List<Transform3D>();
+            for (int row = 0; row < 3; row++) for (int i = 0; i < 5 - row; i++) xf.Add(new Transform3D(new Basis(Vector3.Forward, Mathf.Pi / 2), new Vector3(0, .12f + row * .19f, -.5f + (i + row * .5f) * .21f)));
+            DvMulti(g, lm, Dark, xf); Box(g, new Vector3(.08f, .55f, .08f), new Vector3(-.6f, .27f, -.5f), Post); Box(g, new Vector3(.08f, .55f, .08f), new Vector3(-.6f, .27f, .5f), Post);
+        }
+        // a handcart left at the plaza edge
+        var c = Group(over, -13.5f, -3.2f, .5f);
+        var cb = new StaticBody3D { Position = new Vector3(0, .75f, 0), CollisionLayer = 1 }; cb.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(2.3f, .7f, 1.3f) } }); c.AddChild(cb);
+        Box(c, new Vector3(2.2f, .14f, 1.2f), new Vector3(0, .7f, 0), Wood);
+        Box(c, new Vector3(2.2f, .35f, .07f), new Vector3(0, .95f, .6f), Wood); Box(c, new Vector3(2.2f, .35f, .07f), new Vector3(0, .95f, -.6f), Wood); Box(c, new Vector3(.07f, .35f, 1.2f), new Vector3(-1.1f, .95f, 0), Wood);
+        Box(c, new Vector3(1.7f, .06f, .06f), new Vector3(1.9f, .6f, .45f), Post, .0f); Box(c, new Vector3(1.7f, .06f, .06f), new Vector3(1.9f, .6f, -.45f), Post);
+        foreach (var wz in new[] { -.7f, .7f }) foreach (var wx in new[] { -.6f, .6f }) DvMesh(c, new CylinderMesh { TopRadius = .38f, BottomRadius = .38f, Height = .08f, RadialSegments = 10 }, new Vector3(wx, .38f, wz), Post, new Vector3(Mathf.Pi / 2, 0, 0));
+        DvMesh(c, new SphereMesh { Radius = .3f, Height = .6f, RadialSegments = 8, Rings = 4 }, new Vector3(-.4f, 1.0f, 0), Hay, null, new Vector3(1.2f, .7f, 1f));
+        // puddles: dark glossy flat discs
+        _dvPuddle ??= World.Mat(new Color(.03f, .035f, .045f), new Color(.02f, .02f, .04f), .1f);
+        foreach (var (px, pz, pr) in new[] { (-4.5f, 4.5f, 1.3f), (4.2f, -3.6f, 1.0f), (12.5f, 3.0f, 1.5f), (-8f, -9.5f, 1.1f) })
+            DvMesh(over, new CylinderMesh { TopRadius = pr, BottomRadius = pr, Height = .015f, RadialSegments = 14 }, World.OnGround(px, pz, Mathf.Sqrt(px * px + pz * pz) < 9f ? .075f : .04f), _dvPuddle, null, new Vector3(1f, 1f, .7f));
+        // scattered straw: thin flat slivers around the stalls and cart
+        var sx = new List<Transform3D>();
+        foreach (var (cx, cz) in new[] { (-3.5f, -8f), (9.8f, -4f), (11.2f, 7f), (-13.5f, -2f) })
+            for (int i = 0; i < 7; i++) { var p = World.OnGround(cx + R2(rnd, -1.6f, 1.6f), cz + R2(rnd, -1.2f, 1.2f), .09f); sx.Add(new Transform3D(new Basis(Vector3.Up, R2(rnd, 0, Tau)), p)); }
+        DvMulti(over, new BoxMesh { Size = new Vector3(.45f, .008f, .035f) }, Hay, sx);
     }
     /// <summary>Extra village dressing from the kits: a wagon by the hay, benches and a table on the plaza edge, buckets and sacks by doors.</summary>
     static void KitVillageProps(Node3D over)

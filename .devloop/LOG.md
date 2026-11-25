@@ -1,5 +1,15 @@
 # Dev loop log (newest first; max 20 detailed entries, older ones rolled into History)
 
+## #9 (2026-11-24) tools, animation, world, graphics, lighting, menus
+- Capture: cast:<skill> action (nova, zap, meteor), freeze_foes, views frost_cast, lightning_cast, fire_impact, wayshrine, character (29 views total).
+- Enemies: directional flinch (0.18 s, 4-14 deg), HitReact clip unless winding up; death tip-over ~80 deg with bounce + dust for big bodies; white kill-flash overlay (cached material).
+- Village: Builder.DressVillage: 3 market stalls with awnings/goods (2 with night lanterns), house banners, firewood stacks, handcart, puddles, straw (Rng(777) so the world seed is unchanged).
+- Roads: OverworldGen.WornRoad: gravel/cobble patches (more near places), grass and cobble kerbs at edges, cart ruts (new block path_rut appended to blocks.json).
+- Dungeon: volumetric fog (quality >= 2) density .025 + ground mist, torches LightVolumetricFogEnergy 2.5; overworld fog values saved/restored.
+- Character sheet (Ui.OpenCharacterPanel): 3 columns: identity + level + XP bar; 4 big attribute rows with pulsing +1/+5 and hover deltas; offense/defense/other/resistances.
+- Seen in capture: frost shard ring looks great; lit wayshrine at night; character sheet clean. Spell views share a spot -> crater + ice from earlier casts; lightning/fire timing misses the bolt/impact (backlog).
+- FPS: steady (running 57, combat 55, closeup 47.7).
+
 ## #8 (2026-11-24) perf, shaders, vfx, mechanics, ui, audio
 - Perf: tufts 1-2 per block (the grass mesh is a 24-blade clump), full density within 2.5 chunks, half beyond, cap 600/chunk, range 45 (log: 78,947 instances / 480 chunk builds); HeadLook does nothing for non-local avatars beyond the turn lean and nothing beyond 25 m. FPS back: running 51 -> 56.5, combat 49.3 -> 55, terrace 45.7 -> 51.1, closeup 45.7 -> 47.7.
 - Sky (WorldEnv SkyShader): warped 3-octave fbm cloud plane, blue-grey bases, silver lining to the sun, warm at golden hour (gold uniform), near-black violet-edged in the shadow realm, horizon fade; cloudCover .72 -> .55.
