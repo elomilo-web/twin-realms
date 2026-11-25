@@ -22,6 +22,11 @@ Play a few minutes and tick what works; write problems into DIRECTIVES.md (or te
 - [ ] Landing thud and water splash/wading (#6) are synthesized: are they too loud/soft?
 
 ## World and systems
+- [ ] Rain (#14): every 6-15 min the weather may turn to rain (streaks, splashes, darker foggier sky); never in dungeons.
+- [ ] Wind (#14): grass gusts and tree leaves sway; trunks stay still.
+- [ ] Enemy heads (#14): hunting enemies turn their heads to you; idle ones look around (tell me if a creature looks the wrong way).
+- [ ] Arrows (#14): stick in the ground for a few seconds; magic bolts glow in their element colour.
+- [ ] Menus (#12-#14): every window fits the screen, buttons work, sounds on hover/click; map travel by clicking a gold rune.
 - [ ] Torch block (#3): craft 4 torches from 1 planks + 1 coal in the Blocks tab, place with N (build mode), they light up.
 - [ ] Fast travel (#6): blocked while foes hunt you and for 30 s after travelling.
 - [ ] Wayshrines (#8): obelisks at each place light up when discovered.

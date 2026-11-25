@@ -255,6 +255,10 @@ void fragment(){
         _env.AmbientLightColor = LC("ambientDayColor", "9eafc8").Lerp(LC("ambientNightColor", "38426f"), 1 - day).Lerp(new Color(.9f, .55f, .5f), dusk * .45f * (1f - gold * .7f)).Lerp(LC("goldAmbient", "7f93c4"), gold * day * .6f).Lerp(LC("ambientShadowColor", "8088b0"), RealmT);
         _env.AmbientLightEnergy = Mathf.Lerp(LF("ambientNight", .45f), LF("ambientDay", .62f), day) * Mathf.Lerp(1f, Mathf.Max(LF("ambientShadow", 1.25f), 0.6f * LF("ambientDay", .62f) / Mathf.Max(.01f, Mathf.Lerp(LF("ambientNight", .45f), LF("ambientDay", .62f), day))), RealmT);
         _env.AdjustmentSaturation = Mathf.Lerp(LF("saturation", 1.2f), LF("saturationShadow", .9f), RealmT);
+        { float wr = Weather.Rain, wc = Weather.Cloud, wg = Mathf.Max(wr, wc * .5f);   // weather mood (Weather.cs): heavier cloud, dimmer cooler light, thicker fog
+          _sky.SetShaderParameter("cover", Mathf.Lerp(LF("cloudCover", .48f), .95f, wc)); Sun.LightEnergy *= 1f - .25f * wg; Sun.LightColor = Sun.LightColor.Lerp(new Color(.62f, .68f, .76f), .3f * wg);
+          _env.AmbientLightEnergy *= 1f - .2f * wg; _env.AmbientLightColor = _env.AmbientLightColor.Lerp(new Color(.5f, .55f, .62f), .3f * wg); _env.FogDensity *= 1f + .8f * wg;
+          _env.FogLightColor = _env.FogLightColor.Lerp(new Color(.4f, .46f, .54f), .45f * wg); _env.AdjustmentSaturation *= 1f - .15f * wg; }
         if (force || Mathf.Abs(RealmT - _lastRealmT) > 0.001f)
         {
             _lastRealmT = RealmT; _terrMat.SetShaderParameter("realm_t", RealmT);

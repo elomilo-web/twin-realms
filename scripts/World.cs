@@ -522,7 +522,7 @@ void fragment(){
                 var local = new Transform3D(Basis.Identity.Scaled(Vector3.One * models[v].Scale), Vector3.Zero) * p.Xf;
                 var mine = new List<Transform3D>(); var cols = new List<Color>();
                 for (int i = v; i < list.Count; i += models.Count) { mine.Add(list[i] * local); cols.Add(tint?.Invoke(i) ?? Colors.White); }
-                Chunked(p.Mesh, mine, tint != null ? cols : null, vis);
+                Chunked(Flora.Windy(p.Mesh), mine, tint != null ? cols : null, vis);
             }
         }
         // leafy trees in the lowlands, pines higher up (same spots; chosen by a hash, so the seed sequence is untouched)

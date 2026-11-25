@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -116,9 +116,9 @@ public partial class Ui
             var hr = new HBoxContainer(); hr.AddThemeConstantOverride("separation", 8); box.AddChild(hr);
             var hb = Btn($"Hone to +{it.Up + 1}", () =>
             {
-                if (d.Gold < gold) { Note("Not enough gold", new Color(1, .5f, .5f)); return; }
-                if (!CanPay(mats)) { Note("Not enough materials", new Color(1, .5f, .5f)); return; }
-                d.Gold -= gold; Pay(mats); Hone(it); Sfx.Play("hit"); Sfx.Play("coin"); Note($"{it.Name}: +{Mathf.RoundToInt(Affixes.HonePer * 100)}% to its stats", it.Color); Game.Notify(); Game.Save(); _smithFlash = it; OpenSmith();
+                if (d.Gold < gold) { Note("Not enough gold", new Color(1, .5f, .5f)); Sfx.UiError(); return; }
+                if (!CanPay(mats)) { Note("Not enough materials", new Color(1, .5f, .5f)); Sfx.UiError(); return; }
+                d.Gold -= gold; Pay(mats); Hone(it); Sfx.Play("hit"); Sfx.Play("coin"); Sfx.UiConfirm(); Note($"{it.Name}: +{Mathf.RoundToInt(Affixes.HonePer * 100)}% to its stats", it.Color); Game.Notify(); Game.Save(); _smithFlash = it; OpenSmith();
             }); hb.CustomMinimumSize = new Vector2(150, 36); hb.AddThemeColorOverride("font_color", UiTheme.Highlight); hr.AddChild(hb);
             Lbl($"+{Mathf.RoundToInt(Affixes.HonePer * 100)}% to base and bonus stats", 12, Dim, hr);
         }
@@ -132,8 +132,8 @@ public partial class Ui
             int cost = RerollCost();
             box.AddChild(Btn($"Reroll its {nm} bonus stats  ({cost}g, 3% of your gold)", () =>
             {
-                if (d.Gold < cost) { Note("Not enough gold", new Color(1, .5f, .5f)); return; }
-                d.Gold -= cost; Affixes.Reroll(it); Sfx.Play("level"); Note($"New bonus stats on {it.Name}", it.Color); Game.Notify(); Game.Save(); OpenSmith();
+                if (d.Gold < cost) { Note("Not enough gold", new Color(1, .5f, .5f)); Sfx.UiError(); return; }
+                d.Gold -= cost; Affixes.Reroll(it); Sfx.Play("level"); Sfx.UiConfirm(); Note($"New bonus stats on {it.Name}", it.Color); Game.Notify(); Game.Save(); OpenSmith();
             }, true));
         }
 

@@ -152,6 +152,7 @@ public partial class DevCapture : Node
                 else if (scene.StartsWith("dungeon:") && !Dungeon.Active) { if (Arenas.Active) Arenas.Leave(); Dungeon.Enter(scene[8..], 1); await Secs(3f); }
                 else if (scene == "world" && Arenas.Active) Arenas.Leave();
                 if (v.TryGetProperty("time", out _)) World.TimeOfDay = Num(v, "time", .5f);
+                Weather.Force(v.TryGetProperty("rain", out _) ? Num(v, "rain", 0f) : 0f);   // views without "rain" are dry (rain used to leak into the next views)
                 if (v.TryGetProperty("realm", out _)) World.ForceRealm((int)Num(v, "realm", 0));
                 else if (World.Realm != 0 && scene == "world") World.ForceRealm(0);   // views without "realm" are Light (shadow_realm used to leak into the next views)
                 if (Str(v, "spot").StartsWith("auto:") && int.TryParse(Str(v, "spot")[5..], out int spotN))

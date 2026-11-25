@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Godot;
 
 namespace TwinRealms;
@@ -136,7 +136,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         }
         else if (Avatar.Available && Avatar.Foe(Type) is { } fc) BuildAvatar(fc, s);
         else BuildHumanoid(r, s, col, main, dark, glow);
-        BakeParts(); if (_mdl == null) CharRim.Apply(_body);
+        BakeParts(); if (_mdl == null) CharRim.Apply(_body); AddLook(_mdl != null ? _mdl.FindChild("Skeleton3D", true, false) as Skeleton3D : _av?.Skel);
         float labelY = _mdl != null ? HeightM() + .1f : quad ? r * 2.6f : dragon ? 6.2f : 2.2f * s;
         _label = new Label3D
         {

@@ -239,8 +239,8 @@
     },
     {
         "path":  "scripts/Ambient.cs",
-        "lines":  236,
-        "hash8":  "a430e185",
+        "lines":  238,
+        "hash8":  "0c7300bb",
         "system":  "world",
         "summary":  "Scenery life that follows the player (no gameplay): butterflies over meadows by day, fireflies at..."
     },
@@ -365,8 +365,8 @@
     },
     {
         "path":  "scripts/dev/DevCapture.cs",
-        "lines":  323,
-        "hash8":  "fb4a0165",
+        "lines":  324,
+        "hash8":  "ea19af93",
         "system":  "devtools",
         "summary":  "Dev loop eyes (autoload). Does nothing unless the game is started with the user arg..."
     },
@@ -387,7 +387,7 @@
     {
         "path":  "scripts/Enemy.cs",
         "lines":  1033,
-        "hash8":  "29693dc7",
+        "hash8":  "2faff84f",
         "system":  "enemies",
         "summary":  "Data-driven enemy. Melee, ranged, summoning bosses and the dragon. Stats come from data/enemies.json."
     },
@@ -400,8 +400,8 @@
     },
     {
         "path":  "scripts/EnemyAi.cs",
-        "lines":  65,
-        "hash8":  "24879659",
+        "lines":  137,
+        "hash8":  "0b98badf",
         "system":  "enemies",
         "summary":  "Within aggro range: outdoors that is enough; in a dungeon the monster must see the..."
     },
@@ -456,8 +456,8 @@
     },
     {
         "path":  "scripts/Flora.cs",
-        "lines":  326,
-        "hash8":  "a067026e",
+        "lines":  406,
+        "hash8":  "e4bf9009",
         "system":  "world",
         "summary":  "Scenery ground cover: wind-swept grass, ferns, bushes and pebbles. Scattered per chunk from data/flora.json,"
     },
@@ -597,7 +597,7 @@
     {
         "path":  "scripts/Lands.cs",
         "lines":  922,
-        "hash8":  "2759a0a2",
+        "hash8":  "2616923b",
         "system":  "world",
         "summary":  "The wider world from data/lands.json: heightfield islands across the sea from the home island, each..."
     },
@@ -618,7 +618,7 @@
     {
         "path":  "scripts/Main.cs",
         "lines":  150,
-        "hash8":  "23f084d7",
+        "hash8":  "220c45d8",
         "system":  "core",
         "summary":  "Game root: shows the title screen, then builds the world, player, camera and HUD."
     },
@@ -778,8 +778,8 @@
     },
     {
         "path":  "scripts/Projectile.cs",
-        "lines":  176,
-        "hash8":  "a7bec7a4",
+        "lines":  219,
+        "hash8":  "5591a031",
         "system":  "skills_vfx",
         "summary":  "Arrows, magic bolts and fireballs. Owner \u0027p\u0027 hits enemies, \u0027e\u0027 hits the player."
     },
@@ -911,8 +911,8 @@
     },
     {
         "path":  "scripts/Ui.cs",
-        "lines":  1009,
-        "hash8":  "49b1ddbb",
+        "lines":  1081,
+        "hash8":  "e280e1b4",
         "system":  "ui",
         "summary":  "All menus and overlays, built in code: notes, banners, dialogue, shop, smith, pack, character, skill..."
     },
@@ -933,14 +933,14 @@
     {
         "path":  "scripts/UiCraft.cs",
         "lines":  329,
-        "hash8":  "12f46472",
+        "hash8":  "fbea59be",
         "system":  "loot",
         "summary":  "Framed recipe/ingredient cell: dark well, rarity-coloured frame, vector icon or a small coloured block cube,..."
     },
     {
         "path":  "scripts/UiMacros.cs",
-        "lines":  98,
-        "hash8":  "a860dd23",
+        "lines":  99,
+        "hash8":  "379cec90",
         "system":  "ui",
         "summary":  "Skills \u003e Macros: build the two skill chains for the Macro 1 / Macro 2..."
     },
@@ -975,7 +975,7 @@
     {
         "path":  "scripts/UiSmith.cs",
         "lines":  205,
-        "hash8":  "eda03d75",
+        "hash8":  "412de925",
         "system":  "loot",
         "summary":  "Dorrin the Smith: put any piece of gear (worn or in the pack) on the..."
     },
@@ -1043,6 +1043,13 @@
         "summary":  "A hand pose in the hero\u0027s model space: hand position and the direction the weapon..."
     },
     {
+        "path":  "scripts/Weather.cs",
+        "lines":  87,
+        "hash8":  "924a1a3f",
+        "system":  "core",
+        "summary":  "Weather: clear / overcast / rain, re-rolled every few minutes (data/look.json \"weather\"). Rain is 0..1..."
+    },
+    {
         "path":  "scripts/Wildlife.cs",
         "lines":  36,
         "hash8":  "8abe8b15",
@@ -1059,14 +1066,14 @@
     {
         "path":  "scripts/World.cs",
         "lines":  715,
-        "hash8":  "b1a471cb",
+        "hash8":  "90ab295c",
         "system":  "world",
         "summary":  "The overworld: heightfield terrain, sky and day/night, the Light/Shadow realm shift, vegetation and shared materials."
     },
     {
         "path":  "scripts/WorldEnv.cs",
-        "lines":  314,
-        "hash8":  "47e5b0d0",
+        "lines":  318,
+        "hash8":  "af27588c",
         "system":  "world",
         "summary":  "World: environment, sky, fog, sun/moon light, day/night and realm-blend look, water."
     }

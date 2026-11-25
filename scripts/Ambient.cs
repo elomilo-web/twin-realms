@@ -203,6 +203,8 @@ public partial class Ambient : Node3D
         SetRealmFx(World.RealmT);
         Soundscape(dt, pl.GlobalPosition);
         var pp = pl.GlobalPosition; float t = (float)Time.GetTicksMsec() / 1000f;
+        Flora.EnsureWind();   // wind: stronger at altitude and in the Shadow, slowly breathing over time
+        RenderingServer.GlobalShaderParameterSet("wind_strength", (0.85f + .3f * Mathf.Sin(t * .05f) * Mathf.Sin(t * .031f + 1f) + .5f * Mathf.Clamp(pp.Y / 80f, 0f, 1f) + .35f * World.RealmT));
         bool shadow = World.RealmT > .5f; float night = World.Night;
         // particles follow the player
         _fireflies.GlobalPosition = pp + Vector3.Up * 1.2f; _spores.GlobalPosition = pp + Vector3.Up * 1.5f;

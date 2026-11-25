@@ -13,7 +13,7 @@ public partial class Ui
     public void OpenMacros()
     {
         var d = Game.D; var mac = d.MacroAt(_macroTab); HideInfo();
-        var v = Frame("macros", "Macros", new Vector2(1000, 640), OpenMacros);
+        var v = Frame("macros", "Macros", new Vector2(1232, 672), OpenMacros);
 
         // ---- which macro, its key, its name
         var top = new HFlowContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; top.AddThemeConstantOverride("h_separation", 8); top.AddThemeConstantOverride("v_separation", 6); v.AddChild(top);
@@ -32,15 +32,16 @@ public partial class Ui
 
         // ---- left: settings and the chain
         var left = new VBoxContainer { CustomMinimumSize = new Vector2(280, 0), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsStretchRatio = 1.4f }; left.AddThemeConstantOverride("separation", 8); cols.AddChild(left);
-        Choice(left, "Looping", "Hold: tap plays the chain once, holding the key keeps it looping and skips skills on cooldown. Toggle: tap starts looping, tap again stops. Once: always plays the chain one time.",
+        var lscroll = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; left.AddChild(lscroll);
+        var inner = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; inner.AddThemeConstantOverride("separation", 8); lscroll.AddChild(inner);
+        Choice(inner, "Looping", "Hold: tap plays the chain once, holding the key keeps it looping and skips skills on cooldown. Toggle: tap starts looping, tap again stops. Once: always plays the chain one time.",
             new[] { "Hold to loop", "Tap to toggle", "Once" }, Math.Clamp(mac.Loop, 0, 2), i => { mac.Loop = i; Game.Save(); });
-        SliderRow(left, "Time between skills", "A pause after each skill finishes, before the next one starts.", mac.Gap, 0f, 2f, .05f, x => $"{x:0.00} s", x => { mac.Gap = x; Game.Save(); });
-        SliderRow(left, "Wait for cooldowns", "On a single pass, how long to wait for a skill still on cooldown (or short on mana) before skipping it. Looping never waits.", mac.MaxWait, 0f, 6f, .25f, x => x <= 0 ? "Skip" : $"{x:0.00} s", x => { mac.MaxWait = x; Game.Save(); });
+        SliderRow(inner, "Time between skills", "A pause after each skill finishes, before the next one starts.", mac.Gap, 0f, 2f, .05f, x => $"{x:0.00} s", x => { mac.Gap = x; Game.Save(); });
+        SliderRow(inner, "Wait for cooldowns", "On a single pass, how long to wait for a skill still on cooldown (or short on mana) before skipping it. Looping never waits.", mac.MaxWait, 0f, 6f, .25f, x => x <= 0 ? "Skip" : $"{x:0.00} s", x => { mac.MaxWait = x; Game.Save(); });
 
-        Header($"Chain  {mac.Steps.Count}/{MacroMaxSteps}", left);
-        Lbl("Plays left to right. The slider adds an extra pause after a step.", 14, Dim, left).AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        var sc = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, CustomMinimumSize = new Vector2(0, 200), HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; left.AddChild(sc);
-        var list = new HFlowContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; list.AddThemeConstantOverride("h_separation", 4); list.AddThemeConstantOverride("v_separation", 8); sc.AddChild(list);
+        Header($"Chain  {mac.Steps.Count}/{MacroMaxSteps}", inner);
+        Lbl("Plays left to right. The slider adds an extra pause after a step.", 13, Dim, inner).AutowrapMode = TextServer.AutowrapMode.WordSmart;
+                var list = new HFlowContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; list.AddThemeConstantOverride("h_separation", 4); list.AddThemeConstantOverride("v_separation", 8); inner.AddChild(list);
         if (mac.Steps.Count == 0) Lbl("Empty. Click learned skills on the right to add them.", 14, UiTheme.Dim, list);
         for (int i = 0; i < mac.Steps.Count; i++)
         {

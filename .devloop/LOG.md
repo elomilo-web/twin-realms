@@ -1,5 +1,13 @@
 # Dev loop log (newest first; max 20 detailed entries, older ones rolled into History)
 
+## #14 (2026-11-25) menus (directive), animation, graphics, vfx, combat, world
+- Map (MapView): parchment shader over World.MapTex (slate-teal hatched sea, sepia land by biome, ink coasts/roads, POI glyphs, red player arrow, vignette); lead: discovered POIs (Game.D.Disc) = gold wayshrine runes. Tree (TreeView): gold taken / pulsing available / iron locked, gold edges, keystone double ring. Banner: letter-spaced gold title + rules, fades; Notes: dark pills with coloured rule.
+- Macros fits 720p (scrolling options, buttons always visible). Sounds: UiConfirm/UiError in craft + smith; lead: UiError on not-enough-gold/valor/pack-full in shop + valor.
+- Enemies (EnemyAi.cs EnemyLook): head tracks the hero when hunting within 15 m (60/25 deg limits), idle look-arounds, quad wobble; assumes +Z forward (PLAYTEST).
+- Wind: global wind_strength (Ambient), travelling gusts in grass/fern shaders, Flora.Windy leaf shader on kit trees (flutter + canopy lean; trunks still).
+- Projectiles: arrow particle trail + wobble, arrows stick 6 s (20 max) with dust/splinters/sparks, dark spurt on enemies; player bolts small capped light + element ring.
+- Weather.cs: clear/overcast/rain (60/25/15, 6-15 min), camera rain streaks + splashes, mood multipliers in WorldEnv (clouds .95, sun -25%, fog +80%, cooler); never in dungeons; rain view. Lead fixes: CpuParticles3D has no AmountRatio; streaks 1500 -> 700 (hud 41 -> 69 fps under rain); capture views without "rain" are dry; TwinRealms.Dmg (local float Dmg shadowed the class).
+
 ## #13 (2026-11-25) menus (directive), audio, lighting
 - Ui.Frame clamps non-title windows to the viewport (24 px margins), re-clamps on resize. Lead fix: centring used SetAnchorsPreset(Center) without offsets (windows sat in the bottom-right quarter) -> explicit centred offsets.
 - Character creation: slim left panel over the title skyline, gold-marker race/class lists, body toggles, styled name field, info card (bonuses in gold, starting skill chips), gold "Begin the journey". Looks great in capture.

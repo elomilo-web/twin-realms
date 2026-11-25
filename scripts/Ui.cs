@@ -65,7 +65,7 @@ public partial class Ui : CanvasLayer
     void AddNote(string t, Color c)
     {
         var pc = new PanelContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
-        pc.AddThemeStyleboxOverride("panel", new StyleBoxFlat { BgColor = UiTheme.Panel with { A = .7f }, BorderColor = UiTheme.Accent, BorderWidthLeft = 3, ContentMarginLeft = 10, ContentMarginRight = 10, ContentMarginTop = 2, ContentMarginBottom = 2 });
+        pc.AddThemeStyleboxOverride("panel", new StyleBoxFlat { BgColor = new Color(.04f, .035f, .03f, .8f), BorderColor = c, BorderWidthLeft = 3, CornerRadiusTopRight = 6, CornerRadiusBottomRight = 6, ContentMarginLeft = 12, ContentMarginRight = 12, ContentMarginTop = 3, ContentMarginBottom = 3 });
         var l = Lbl(t, 16, c, pc); l.AutowrapMode = TextServer.AutowrapMode.WordSmart; l.CustomMinimumSize = new Vector2(300, 0);
         while (_notes.GetChildCount() >= 6) { var old = _notes.GetChild(0); _notes.RemoveChild(old); old.QueueFree(); }
         _notes.AddChild(pc);
@@ -73,12 +73,23 @@ public partial class Ui : CanvasLayer
     }
     void ShowBanner(string t, string s)
     {
-        _banner.Text = t; _bannerSub.Text = s.ToUpper(); _banner.Modulate = Colors.White; _bannerSub.Modulate = Colors.White;
+        string spaced = string.Join(" ", t.ToUpper().Select(ch => ch == ' ' ? "  " : ch.ToString()));
+        _banner.Text = spaced; _bannerSub.Text = s.ToUpper(); _banner.AddThemeColorOverride("font_color", UiTheme.Accent.Lerp(new Color(.85f, .68f, .3f), .5f)); _bannerSub.AddThemeColorOverride("font_color", Parch);
+        if (_bannerRules == null)
+        {
+            _bannerRules = new Control[2];
+            for (int i = 0; i < 2; i++) { var r = new ColorRect { Color = new Color(.8f, .62f, .26f, .8f), MouseFilter = Control.MouseFilterEnum.Ignore }; r.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.CenterTop); AddChild(r); _bannerRules[i] = r; }
+        }
+        float w = ThemeDB.FallbackFont.GetStringSize(spaced, HorizontalAlignment.Left, -1, 52).X / 2 + 24; float y = 130 + 34;
+        _bannerRules[0].OffsetLeft = -w - 160; _bannerRules[0].OffsetRight = -w; _bannerRules[1].OffsetLeft = w; _bannerRules[1].OffsetRight = w + 160;
+        foreach (var r in _bannerRules) { r.OffsetTop = y; r.OffsetBottom = y + 1; }
         _bannerTw?.Kill(); // a new banner restarts the fade instead of fighting the old one
-        var tw = _bannerTw = CreateTween().SetParallel(); tw.TweenProperty(_banner, "modulate:a", 0f, 1.2).SetDelay(2.0); tw.TweenProperty(_bannerSub, "modulate:a", 0f, 1.2).SetDelay(2.0);
+        var clear = new Color(1, 1, 1, 0); _banner.Modulate = clear; _bannerSub.Modulate = clear; foreach (var r in _bannerRules) r.Modulate = clear;
+        var tw = _bannerTw = CreateTween().SetParallel();
+        foreach (CanvasItem ci in new CanvasItem[] { _banner, _bannerSub, _bannerRules[0], _bannerRules[1] }) { tw.TweenProperty(ci, "modulate:a", 1f, 0.4); tw.TweenProperty(ci, "modulate:a", 0f, 1.2).SetDelay(2.4); }
     }
-    Tween? _bannerTw;
-    public static void ClearBanner() { if (I == null) return; I._bannerTw?.Kill(); I._banner.Modulate = new Color(1, 1, 1, 0); I._bannerSub.Modulate = new Color(1, 1, 1, 0); }
+    Tween? _bannerTw; Control[]? _bannerRules;
+    public static void ClearBanner() { if (I == null) return; I._bannerTw?.Kill(); I._banner.Modulate = new Color(1, 1, 1, 0); I._bannerSub.Modulate = new Color(1, 1, 1, 0); if (I._bannerRules != null) foreach (var r in I._bannerRules) r.Modulate = new Color(1, 1, 1, 0); }
     void DoFlash(Color c) { _flash.Color = new Color(c, 0.85f); CreateTween().TweenProperty(_flash, "color:a", 0f, 0.7); }
 
     // ---------------------------------------------------------------- input
@@ -250,10 +261,10 @@ public partial class Ui : CanvasLayer
         if (tab == "buy")
         {
             int hpc = Tune.I("shop.healthPotion", 30), mpc = Tune.I("shop.manaPotion", 35), hc = Tune.I("shop.horse", 350);
-            AddRow(list, "Health potion  (have " + d.HpPot + ")", Colors.White, $"Buy {hpc}g", () => { if (d.Gold < hpc) { Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= hpc; d.HpPot++; Sfx.Play("coin"); OpenShop(tab); }, d.Gold >= hpc);
-            AddRow(list, "Mana potion  (have " + d.MpPot + ")", Colors.White, $"Buy {mpc}g", () => { if (d.Gold < mpc) { Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= mpc; d.MpPot++; Sfx.Play("coin"); OpenShop(tab); }, d.Gold >= mpc);
-            if (!d.Horse) AddRow(list, "Horse (ride with T)", Colors.White, $"Buy {hc}g", () => { if (d.Gold < hc) { Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= hc; d.Horse = true; Sfx.Play("coin"); Note("You bought a horse. Press T to ride.", Gold); OpenShop(tab); }, d.Gold >= hc);
-            for (int i = 0; i < _stock.Count; i++) { int k = i; var it = _stock[i]; ItemRow(list, it, BuyPrice(it) + "g", () => { int c = BuyPrice(it); if (d.Gold < c) { Note("Not enough gold", new Color(1, .5f, .5f)); return; } if (d.Inv.Count >= 28) { Note("Pack is full", new Color(1, .5f, .5f)); return; } d.Gold -= c; d.Inv.Add(it); _stock.RemoveAt(k); Sfx.Play("coin"); OpenShop(tab); }, d.Gold >= BuyPrice(it)); }
+            AddRow(list, "Health potion  (have " + d.HpPot + ")", Colors.White, $"Buy {hpc}g", () => { if (d.Gold < hpc) { Sfx.UiError(); Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= hpc; d.HpPot++; Sfx.Play("coin"); OpenShop(tab); }, d.Gold >= hpc);
+            AddRow(list, "Mana potion  (have " + d.MpPot + ")", Colors.White, $"Buy {mpc}g", () => { if (d.Gold < mpc) { Sfx.UiError(); Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= mpc; d.MpPot++; Sfx.Play("coin"); OpenShop(tab); }, d.Gold >= mpc);
+            if (!d.Horse) AddRow(list, "Horse (ride with T)", Colors.White, $"Buy {hc}g", () => { if (d.Gold < hc) { Sfx.UiError(); Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= hc; d.Horse = true; Sfx.Play("coin"); Note("You bought a horse. Press T to ride.", Gold); OpenShop(tab); }, d.Gold >= hc);
+            for (int i = 0; i < _stock.Count; i++) { int k = i; var it = _stock[i]; ItemRow(list, it, BuyPrice(it) + "g", () => { int c = BuyPrice(it); if (d.Gold < c) { Sfx.UiError(); Note("Not enough gold", new Color(1, .5f, .5f)); return; } if (d.Inv.Count >= 28) { Note("Pack is full", new Color(1, .5f, .5f)); return; } d.Gold -= c; d.Inv.Add(it); _stock.RemoveAt(k); Sfx.Play("coin"); OpenShop(tab); }, d.Gold >= BuyPrice(it)); }
         }
         else
         {
@@ -328,7 +339,7 @@ public partial class Ui : CanvasLayer
         Tabs(top, tab, ("gacha", "Pulls", () => OpenValor("gacha")), ("gear", "Gear", () => OpenValor("gear")), ("gold", "Gold", () => OpenValor("gold")));
         top.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }); Lbl($"{d.Valor} valor", 20, new Color(1f, .78f, .35f), top); Lbl($"   {d.Gold} gold", 18, Gold, top);
         var sc = Scroll(v, 430); var list = Inner(sc); list.AddThemeConstantOverride("separation", 6); sc.HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled;
-        bool Pay(int c) { if (d.Valor < c) { Note("Not enough valor", new Color(1, .5f, .5f)); return false; } d.Valor -= c; return true; }
+        bool Pay(int c) { if (d.Valor < c) { Sfx.UiError(); Note("Not enough valor", new Color(1, .5f, .5f)); return false; } d.Valor -= c; return true; }
         bool Room(int n) { if (d.Inv.Count + n > 28) { Note("Pack is full", new Color(1, .5f, .5f)); return false; } return true; }
         if (tab == "gacha")
         {
@@ -868,15 +879,25 @@ public partial class TreeView : Control
             var m = TreeDb.Nodes[a]; bool on = alloc.Contains(n.Id) && alloc.Contains(a); var p0 = ToScreen(n); var p1 = ToScreen(m);
             if (!GetRect().Grow(400).HasPoint(p0 + Position) && !GetRect().Grow(400).HasPoint(p1 + Position)) continue;
             bool pl = (onPath.Contains(n.Id) || alloc.Contains(n.Id)) && (onPath.Contains(a) || alloc.Contains(a)) && (onPath.Contains(n.Id) || onPath.Contains(a));
-            DrawLine(p0, p1, on ? new Color(.95f, .8f, .4f) : pl ? pathCol : new Color(.25f, .27f, .34f), on ? 3f : pl ? 2.6f : 1.4f);
+            DrawLine(p0, p1, on ? new Color(.78f, .6f, .27f) : pl ? pathCol : new Color(.2f, .2f, .22f), on ? 3f : pl ? 2.6f : 1.4f);
         }
         foreach (var n in TreeDb.Nodes)
         {
             var p = ToScreen(n); if (p.X < -40 || p.Y < -40 || p.X > Size.X + 40 || p.Y > Size.Y + 40) continue;
             bool on = alloc.Contains(n.Id); bool can = TreeDb.CanAlloc(n, set, d.SkillPts, _start); float r = Rad(n);
-            if (n.Type == "key") DrawColoredPolygon(new[] { p + new Vector2(0, -r - 4), p + new Vector2(r + 4, 0), p + new Vector2(0, r + 4), p + new Vector2(-r - 4, 0) }, on ? Colors.White : can ? new Color(.9f, .9f, .5f) : new Color(.25f, .25f, .3f));
-            else DrawCircle(p, r + 2, on ? Colors.White : can ? new Color(.9f, .9f, .5f) : n.Type == "start" ? n.Col.Darkened(.3f) : new Color(.2f, .2f, .26f));
-            DrawCircle(p, r, on ? n.Col : n.Col.Darkened(n.Type == "start" ? .3f : .65f));
+            var gold = new Color(.8f, .62f, .26f); bool hov = _hover == n.Id; bool isStart = n.Type == "start";
+            float pulse = .65f + .35f * Mathf.Sin((float)Time.GetTicksMsec() / 1000f * 2.1f), k = r + 4;
+            if (on) { DrawCircle(p, r + 8, gold with { A = .10f }); DrawCircle(p, r + 5, gold with { A = .16f }); }
+            var ring = on ? gold.Lightened(hov ? .35f : 0f) : can ? (gold with { A = hov ? 1f : pulse }) : isStart ? n.Col.Darkened(.5f) : new Color(.22f, .22f, .25f).Lightened(hov ? .5f : 0f);
+            var fill = on ? gold.Darkened(.1f).Lightened(hov ? .25f : 0f) : isStart ? n.Col.Darkened(.55f) : new Color(.09f, .09f, .1f).Lightened(hov ? .25f : 0f);
+            if (n.Type == "key")
+            {
+                DrawColoredPolygon(new[] { p + new Vector2(0, -k - 3), p + new Vector2(k + 3, 0), p + new Vector2(0, k + 3), p + new Vector2(-k - 3, 0) }, ring);
+                DrawColoredPolygon(new[] { p + new Vector2(0, -k + 1), p + new Vector2(k - 1, 0), p + new Vector2(0, k - 1), p + new Vector2(-k + 1, 0) }, new Color(.05f, .05f, .06f));
+                DrawArc(p, r + 1, 0, Mathf.Tau, 28, ring, 1.5f);
+                DrawCircle(p, r - 2, fill);
+            }
+            else { DrawCircle(p, r + 2, ring); DrawCircle(p, r, isStart ? fill : on ? fill : new Color(.07f, .07f, .08f)); if (isStart || (on && n.Type != "small")) DrawCircle(p, r * .55f, on ? n.Col.Lerp(gold, .5f) : n.Col.Darkened(.55f)); }
             if (onPath.Contains(n.Id)) DrawArc(p, r + 4, 0, Mathf.Tau, 20, pathCol, 2f);
             if (_match.Contains(n.Id)) { DrawArc(p, r + 7, 0, Mathf.Tau, 24, new Color(.35f, .95f, 1f), 2.5f); DrawArc(p, r + 11, 0, Mathf.Tau, 24, new Color(.35f, .95f, 1f, .35f), 2f); }
             if (n.Type == "start" && n.Id == _start) DrawArc(p, r + 7, 0, Mathf.Tau, 32, UiTheme.Highlight, 2.5f);
@@ -894,6 +915,7 @@ public partial class TreeView : Control
             DrawString(F, tl + new Vector2(0, fs), n.Name, HorizontalAlignment.Left, -1, fs, col);
         }
     }
+    public override void _Process(double delta) { if (IsVisibleInTree()) QueueRedraw(); }   // slow pulse on available nodes
     int Pick(Vector2 pos) { int best = -1; float bd = 1e9f; foreach (var n in TreeDb.Nodes) { float d = ToScreen(n).DistanceTo(pos); if (d < Rad(n) + 6 && d < bd) { bd = d; best = n.Id; } } return best; }
     void ZoomAt(Vector2 mouse, float factor)
     {
@@ -946,13 +968,55 @@ public partial class MapView : Control
     Vector2 FromUV(Vector2 uv) => Size / 2 + Pan + (uv - new Vector2(.5f, .5f)) * Size * Zoom;
     Vector2 W2S(float x, float z) => FromUV(UV(x, z));
     Font F => ThemeDB.FallbackFont;
-    public override void _Ready() { MouseFilter = MouseFilterEnum.Stop; ClipContents = true; }
-    void Label(Vector2 at, string s, int size, Color col) { DrawStringOutline(F, at, s, HorizontalAlignment.Left, -1, size, 4, new Color(0, 0, 0, .85f)); DrawString(F, at, s, HorizontalAlignment.Left, -1, size, col); }
+    static readonly Color Ink = new(.07f, .045f, .03f), InkSoft = new(.07f, .045f, .03f, .55f), RuneGold = new(.9f, .72f, .3f);
+    const string ParchShader = @"shader_type canvas_item;
+float sea(vec4 c){ return step(c.r + .12, c.b) * step(c.g + .03, c.b); }
+float hh(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+void fragment() {
+  vec4 c = texture(TEXTURE, UV); vec2 w = max(fwidth(UV), vec2(0.00001)) * 2.0;
+  float s = sea(c); float n = hh(floor(FRAGCOORD.xy / 2.0)) * .05;
+  vec3 col;
+  if (s > .5) {
+    col = vec3(.11, .17, .19) + n * .4;
+    float wv = sin(FRAGCOORD.x * .09 + sin(FRAGCOORD.y * .21) * 1.6) + FRAGCOORD.y * .35;
+    if (fract((FRAGCOORD.x + FRAGCOORD.y) * .11) < .09) col *= .72;
+    if (fract(wv * .2) < .03) col += vec3(.05, .07, .07);
+  } else {
+    float lum = dot(c.rgb, vec3(.3, .59, .11)); float mn = min(c.r, min(c.g, c.b));
+    if (mn > .7) col = vec3(.80, .75, .62);
+    else if (c.r > c.g * 1.3 && c.r > c.b * 1.3) col = vec3(.36, .17, .1) * (.8 + lum * .6);
+    else if (c.r > c.b + .22 && c.g > c.b + .18) col = vec3(.66, .5, .25) * (.85 + lum * .3);
+    else if (c.g > c.r * 1.03 && c.g >= c.b) col = mix(vec3(.26, .24, .12), vec3(.46, .38, .2), clamp(lum * 1.6, 0., 1.));
+    else col = vec3(.45, .36, .25) * (.7 + lum * .6);
+    col += n - .02;
+    float edge = max(max(sea(texture(TEXTURE, UV + vec2(w.x, 0))), sea(texture(TEXTURE, UV - vec2(w.x, 0)))), max(sea(texture(TEXTURE, UV + vec2(0, w.y))), sea(texture(TEXTURE, UV - vec2(0, w.y)))));
+    col = mix(col, vec3(.07, .045, .03), edge);
+  }
+  COLOR = vec4(col, 1.0);
+}";
+    TextureRect? _base;
+    public override void _Ready()
+    {
+        MouseFilter = MouseFilterEnum.Stop; ClipContents = true;
+        _base = new TextureRect { MouseFilter = MouseFilterEnum.Ignore, ShowBehindParent = true, ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.Scale, Texture = World.MapTex, Material = new ShaderMaterial { Shader = new Shader { Code = ParchShader } } };
+        AddChild(_base);
+    }
+    void Label(Vector2 at, string s, int size, Color col) { DrawStringOutline(F, at, s, HorizontalAlignment.Left, -1, size, 4, new Color(.05f, .03f, .02f, .8f)); DrawString(F, at, s, HorizontalAlignment.Left, -1, size, col); }
+    // every POI has a wayshrine (Wayshrine.cs); a discovered one is a lit travel point: gold rune
+    static bool IsShrine(Poi p) => Game.D.Disc.Contains(p.Id);
+    void DrawGlyph(Vector2 s, Poi p, bool known)
+    {
+        if (!known) { DrawArc(s, 3, 0, Mathf.Tau, 10, InkSoft with { A = .28f }, 1f); return; }
+        if (IsShrine(p)) { DrawArc(s, 6, 0, Mathf.Tau, 20, RuneGold, 1.8f); DrawLine(s + new Vector2(0, -9), s + new Vector2(0, 9), RuneGold, 1.8f); DrawCircle(s, 1.6f, RuneGold); return; }
+        if (p.Dun != null) { DrawColoredPolygon(new[] { s + new Vector2(-5, 4), s + new Vector2(0, -5), s + new Vector2(5, 4) }, Ink); DrawRect(new Rect2(s + new Vector2(-1.5f, 0), new Vector2(3, 4)), new Color(.8f, .7f, .5f)); return; }
+        DrawRect(new Rect2(s - new Vector2(4, 4), new Vector2(8, 8)), Ink); DrawRect(new Rect2(s - new Vector2(2, 2), new Vector2(4, 4)), new Color(.8f, .7f, .5f));
+    }
     public override void _Draw()
     {
         var me = Player.Instance;
         if (Dun && !_dInit && Size.X > 0 && me != null) { _dInit = true; _panD = -(UV(me.GlobalPosition.X, me.GlobalPosition.Z) - new Vector2(.5f, .5f)) * Size * _zoomD; ClampPan(); }
-        DrawRect(new Rect2(Vector2.Zero, Size), Dun ? new Color(.03f, .035f, .05f) : new Color(.2f, .3f, .2f));
+        if (Dun) DrawRect(new Rect2(Vector2.Zero, Size), new Color(.03f, .035f, .05f));   // the parchment base is a child drawn behind this control
+        if (_base != null) { _base.Visible = !Dun; _base.Position = FromUV(Vector2.Zero); _base.Size = Size * Zoom; if (_base.Texture == null) _base.Texture = World.MapTex; }
         if (Dun)
         {
             // the floor as far as you have explored it
@@ -971,17 +1035,25 @@ public partial class MapView : Control
         }
         else
         {
-            if (World.MapTex != null) DrawTextureRect(World.MapTex, new Rect2(FromUV(Vector2.Zero), Size * Zoom), false);
+            foreach (var rd in World.Roads) for (int i = 0; i < rd.Length - 1; i++) DrawDashedLine(W2S(rd[i].X, rd[i].Y), W2S(rd[i + 1].X, rd[i + 1].Y), InkSoft, 1.5f, 6f);
             foreach (var p in World.Pois)
             {
                 bool known = Game.D.Disc.Contains(p.Id); var s = W2S(p.X, p.Z);
-                DrawCircle(s, known ? 7 : 4, known ? new Color(1f, .82f, .29f) : new Color(.3f, .3f, .3f));
-                if (known) Label(s + new Vector2(10, 5), p.Name, 15, Colors.White);
+                DrawGlyph(s, p, known);
+                if (known) Label(s + new Vector2(10, 5), p.Name, 15, new Color(.93f, .88f, .76f));
+            }
+            // soft vignette at the map edges
+            for (int i = 0; i < 14; i++)
+            {
+                float t = i * 4f, a = .38f * (1f - i / 14f) * (1f - i / 14f); var vc = new Color(.03f, .02f, .01f, a);
+                DrawRect(new Rect2(0, t, Size.X, 4), vc); DrawRect(new Rect2(0, Size.Y - t - 4, Size.X, 4), vc);
+                DrawRect(new Rect2(t, 0, 4, Size.Y), vc); DrawRect(new Rect2(Size.X - t - 4, 0, 4, Size.Y), vc);
             }
         }
         // party members, then you on top
         foreach (var fr in MapMarks.Friends()) { var s = W2S(fr.Pos.X, fr.Pos.Z); MapMarks.Dot(this, s, 6, fr.Party ? MapMarks.PartyCol : MapMarks.OtherCol); Label(s + new Vector2(9, -6), fr.Name, 14, fr.Party ? MapMarks.PartyCol : MapMarks.OtherCol); }
-        if (me != null && !Arenas.Active) { var pp = me.GlobalPosition; MapMarks.Dot(this, W2S(pp.X, pp.Z), 6, new Color(1f, .2f, .2f)); }
+        if (me != null && !Arenas.Active) { var pp = me.GlobalPosition; var ps = W2S(pp.X, pp.Z); var fw = me.GlobalTransform.Basis * Vector3.Forward; var dir = new Vector2(fw.X, fw.Z).Normalized(); if (dir == Vector2.Zero) dir = Vector2.Up; var side = new Vector2(-dir.Y, dir.X);
+            DrawColoredPolygon(new[] { ps + dir * 11, ps - dir * 7 + side * 6, ps - dir * 3, ps - dir * 7 - side * 6 }, new Color(.55f, .06f, .06f)); DrawPolyline(new[] { ps + dir * 11, ps - dir * 7 + side * 6, ps - dir * 3, ps - dir * 7 - side * 6, ps + dir * 11 }, Ink, 1.5f); }
     }
     void ClampPan() { var lim = Size * Zoom / 2; Pan = new Vector2(Mathf.Clamp(Pan.X, -lim.X, lim.X), Mathf.Clamp(Pan.Y, -lim.Y, lim.Y)); }
     void ZoomAt(Vector2 m, float k)

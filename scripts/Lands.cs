@@ -475,7 +475,7 @@ public static class Lands
             var p = Kit.Get(b.M.Name); if (p == null) continue;
             var local = new Transform3D(Basis.Identity.Scaled(Vector3.One * b.M.Scale), Vector3.Zero) * p.Xf;
             var list = new List<Transform3D>(b.Xf.Count); foreach (var t in b.Xf) list.Add(t * local);
-            World.I!.Chunked(b.Leaf is { } lf && lf != Colors.White ? LeafTinted(b.M.Name, p.Mesh, lf) : p.Mesh, list, b.Col, 1800f);
+            World.I!.Chunked(Flora.Windy(b.Leaf is { } lf && lf != Colors.White ? LeafTinted(b.M.Name, p.Mesh, lf) : p.Mesh), list, b.Col, 1800f);
         }
     }
 

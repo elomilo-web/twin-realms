@@ -73,6 +73,7 @@
   "_qualityHelp": "gi: bounce light on/off (SDFGI), giEnergy its strength; ssil: screen-space indirect light; volFog: haze density for sun shafts (0 = off), sunShafts their strength; shadowDistance: metres of sun shadows.",
   "gi": 1, "giEnergy": 0.55, "ssil": 1.0, "volFog": 0.0018, "sunShafts": 1.2, "shadowDistance": 260
  },
+ "weather": { "_help": "Weather.cs: chances of the next state (rest is rain), seconds between changes (real time; a day lasts 720 s), fade seconds, rain streak and splash counts.", "clear": 0.6, "overcast": 0.25, "minSeconds": 360, "maxSeconds": 900, "fadeSeconds": 40, "firstAfter": 120, "streaks": 700, "splashes": 80 },
  "terrain": {
   "_help": "Ground textures (assets/textures/terrain, CC0 ambientCG) blended by World.cs TerrainShader. *_tile = metres per repeat; *_tint multiplies a texture; saturation/brightness grade the whole ground; meadow_amount = dirt patches in the grass; gravel_amount = gravel patches.",
   "grass_tile": 3.5, "meadow_tile": 5.0, "gravel_tile": 2.5, "rock_tile": 6.0, "sand_tile": 4.0, "forest_tile": 3.0,

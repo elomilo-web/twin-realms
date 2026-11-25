@@ -297,7 +297,7 @@ public partial class Ui
             void Go(int times)
             {
                 bool any = false; for (int i = 0; i < times; i++) { if (!r.Do()) break; any = true; }
-                if (any) OpenCraft(tab);
+                if (any) { Sfx.UiConfirm(); OpenCraft(tab); } else Sfx.UiError();
             }
             var cb = Btn(r.Btn, () => Go(1)); cb.CustomMinimumSize = new Vector2(120, 38); cb.AddThemeColorOverride("font_color", ok ? UiTheme.Highlight : Dim); br.AddChild(cb);
             if (r.Repeat) { var c5 = Btn(r.Btn + " x5", () => Go(5)); c5.CustomMinimumSize = new Vector2(120, 38); c5.AddThemeColorOverride("font_color", ok ? UiTheme.Highlight : Dim); br.AddChild(c5); }

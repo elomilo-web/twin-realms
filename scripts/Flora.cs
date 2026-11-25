@@ -15,6 +15,7 @@ uniform float realm_t = 0.0;
 uniform float wind = 1.0;
 uniform float sway = 0.22;
 varying float h;
+global uniform float wind_strength;
 global uniform vec4 vox_rect;   // the block world's square: no grass over the blocks (it would float over dug holes)
 void vertex(){
   h = UV.y;
@@ -23,7 +24,8 @@ void vertex(){
   float t = TIME * 1.7;
   float gust = sin(t * 0.37 + wp.x * 0.045 + wp.z * 0.03) * 0.5 + 0.5;
   float s = sin(t + wp.x * 0.35 + wp.z * 0.22) * 0.6 + sin(t * 2.3 + wp.x * 1.1 + wp.z * 0.7) * 0.25;
-  vec3 off = vec3(s * 0.8 + 0.35, 0.0, s * 0.45) * h * h * sway * wind * (0.5 + gust);
+  float wave = pow(sin((dot(wp.xz, vec2(0.89, 0.46)) - TIME * 3.0) * 0.2513) * 0.5 + 0.5, 3.0);
+  vec3 off = vec3(s * 0.8 + 0.35, 0.0, s * 0.45) * h * h * sway * wind * wind_strength * (0.5 + gust + wave * 0.8);
   VERTEX += inverse(mat3(MODEL_MATRIX)) * off;
   NORMAL = normalize(inverse(mat3(MODEL_MATRIX)) * vec3(0.0, 1.0, 0.0));
 }
@@ -53,6 +55,7 @@ uniform vec3 ground_tint : source_color = vec3(1.0);
 uniform float root_blend = 0.75;
 varying float h;
 varying vec3 root_col;
+global uniform float wind_strength;
 global uniform vec4 vox_rect;   // the block world's square: no grass over the blocks
 uniform float vox_cut = 1.0;    // 0 on the block world's own tufts (BlockWorld.TuftMat), which live inside the square
 float h21(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -70,7 +73,8 @@ void vertex(){
   float gust = vn(wp.xz * 0.05 + vec2(t * 0.35, t * 0.12));
   float flutter = sin(t * 3.1 + wp.x * 1.7 + wp.z * 1.3 + UV.x * 6.0) * 0.18;
   vec2 dir = normalize(vec2(1.0, 0.45));
-  float bend = (0.25 + gust * 1.1 + flutter) * sway * wind;
+  float wave = pow(sin((dot(wp.xz, vec2(0.89, 0.46)) - TIME * 3.0) * 0.2513) * 0.5 + 0.5, 3.0);   // travelling gust front: ~25 m long, ~3 m/s
+  float bend = (0.25 + gust * 1.1 + flutter + wave * 0.9) * sway * wind * wind_strength;
   vec3 off = vec3(dir.x, 0.0, dir.y) * bend * h * h;
   off.y = -bend * bend * h * h * 0.35;
   VERTEX += inverse(mat3(MODEL_MATRIX)) * off;
@@ -94,8 +98,83 @@ void fragment(){
 
     public static readonly List<ShaderMaterial> Materials = new();
 
+    static bool _windReg;
+    /// <summary>Registers the global shader uniform wind_strength (default 1); Ambient drives it. Safe to call repeatedly.</summary>
+    public static void EnsureWind()
+    {
+        if (_windReg) return; _windReg = true;
+        RenderingServer.GlobalShaderParameterAdd("wind_strength", RenderingServer.GlobalShaderParameterType.Float, 1.0f);
+    }
+
+    const string LeafShader = @"
+shader_type spatial;
+render_mode CULLMODE;
+uniform sampler2D albedo_tex : source_color, filter_linear_mipmap, repeat_enable;
+uniform vec4 albedo : source_color = vec4(1.0);
+uniform vec2 uv_scale = vec2(1.0);
+uniform vec2 uv_off = vec2(0.0);
+uniform float scissor = 0.5;
+uniform float use_vcol = 0.0;
+uniform float rough = 0.9;
+uniform float spec = 0.3;
+uniform float tree_h = 8.0;
+uniform float amp = 0.12;
+uniform float lean_amp = 0.2;
+global uniform float wind_strength;
+void vertex(){
+  vec3 o = MODEL_MATRIX[3].xyz;
+  float ph = o.x * 0.37 + o.z * 0.53;
+  float hh = clamp(VERTEX.y / tree_h, 0.0, 1.0);
+  vec3 wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+  float t = TIME;
+  float wave = pow(sin((dot(wp.xz, vec2(0.89, 0.46)) - t * 3.0) * 0.2513) * 0.5 + 0.5, 3.0);
+  float lean = sin(t * 0.45 + ph) * 0.6 + 0.4 + wave * 0.9;   // slow whole-canopy lean, pushed by gust fronts
+  vec3 off = vec3(0.89, 0.0, 0.46) * lean * lean_amp * hh * hh;
+  off += vec3(sin(t * 1.9 + ph + wp.x * 0.8 + wp.y * 0.6), sin(t * 1.4 + ph * 1.3 + wp.z * 0.7) * 0.4, sin(t * 2.3 + ph * 0.7 + wp.z * 0.9 + wp.y * 0.5)) * amp * hh * (0.6 + wave * 0.8);
+  off *= wind_strength;
+  VERTEX += inverse(mat3(MODEL_MATRIX)) * off;
+}
+void fragment(){
+  vec4 a = texture(albedo_tex, UV * uv_scale + uv_off) * albedo;
+  vec3 c = a.rgb; if (use_vcol > 0.5) c *= COLOR.rgb;
+  ALBEDO = c; ALPHA = a.a; ALPHA_SCISSOR_THRESHOLD = scissor;
+  ROUGHNESS = rough; SPECULAR = spec;
+}";
+    static readonly Dictionary<Mesh, Mesh> _windy = new();
+    static readonly Dictionary<Material, ShaderMaterial> _leafMats = new();
+
+    /// <summary>A copy of a tree mesh whose leaf surfaces use the swaying leaf shader (trunks untouched). Cached per source mesh.</summary>
+    public static Mesh Windy(Mesh src)
+    {
+        if (_windy.TryGetValue(src, out var done)) return done;
+        if (src is not ArrayMesh am) return _windy[src] = src;
+        EnsureWind();
+        var copy = (ArrayMesh)am.Duplicate(); float th = Mathf.Max(am.GetAabb().End.Y, 1f);
+        for (int i = 0; i < copy.GetSurfaceCount(); i++)
+        {
+            if (copy.SurfaceGetMaterial(i) is not StandardMaterial3D sm) continue;
+            string n = sm.ResourceName.ToLowerInvariant();
+            if (!(n.Contains("lea") || n.Contains("foliage") || n.Contains("needle") || n.Contains("canopy"))) continue;
+            if (!_leafMats.TryGetValue(sm, out var m))
+            {
+                m = new ShaderMaterial { Shader = new Shader { Code = LeafShader.Replace("CULLMODE", sm.CullMode == BaseMaterial3D.CullModeEnum.Back ? "cull_back" : "cull_disabled") } };
+                if (sm.AlbedoTexture != null) m.SetShaderParameter("albedo_tex", sm.AlbedoTexture);
+                m.SetShaderParameter("albedo", sm.AlbedoColor);
+                m.SetShaderParameter("uv_scale", new Vector2(sm.Uv1Scale.X, sm.Uv1Scale.Y)); m.SetShaderParameter("uv_off", new Vector2(sm.Uv1Offset.X, sm.Uv1Offset.Y));
+                m.SetShaderParameter("scissor", sm.Transparency == BaseMaterial3D.TransparencyEnum.AlphaScissor ? sm.AlphaScissorThreshold : 0.001f);
+                m.SetShaderParameter("use_vcol", sm.VertexColorUseAsAlbedo ? 1f : 0f);
+                m.SetShaderParameter("rough", sm.Roughness); m.SetShaderParameter("spec", sm.MetallicSpecular);
+                _leafMats[sm] = m;
+            }
+            var mm = (ShaderMaterial)m.Duplicate(); mm.SetShaderParameter("tree_h", th); mm.SetShaderParameter("amp", Mathf.Clamp(th * 0.012f, .08f, .15f) ); mm.SetShaderParameter("lean_amp", .2f);
+            copy.SurfaceSetMaterial(i, mm);
+        }
+        return _windy[src] = copy;
+    }
+
     static ShaderMaterial BladeMat(JsonElement e)
     {
+        EnsureWind();
         var m = new ShaderMaterial { Shader = new Shader { Code = BladeShader } };
         m.SetShaderParameter("sway", JsonUtil.F(e, "sway", .3f)); m.SetShaderParameter("wind", JsonUtil.F(e, "wind", 1f)); m.SetShaderParameter("range", JsonUtil.F(e, "range", 100f));
         const string tex = "res://assets/textures/terrain/grass_col.jpg";
@@ -138,6 +217,7 @@ void fragment(){
 
     static ShaderMaterial Mat(float sway, float wind)
     {
+        EnsureWind();
         var m = new ShaderMaterial { Shader = new Shader { Code = GrassShader } };
         m.SetShaderParameter("sway", sway); m.SetShaderParameter("wind", wind); Materials.Add(m); return m;
     }

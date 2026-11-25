@@ -43,11 +43,18 @@ public partial class Projectile : Node3D
         if (Kind == "arrow")
         {
             // shaft, steel head and fletching (forward is -Z after LookAt)
-            AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = .018f, BottomRadius = .018f, Height = .85f, RadialSegments = 5 }, MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(.55f, .4f, .25f) }, Rotation = new Vector3(Mathf.Pi / 2, 0, 0) });
-            AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 0, BottomRadius = .045f, Height = .14f, RadialSegments = 4 }, MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(.75f, .78f, .82f), Metallic = .8f, Roughness = .3f }, Position = new Vector3(0, 0, -.48f), Rotation = new Vector3(-Mathf.Pi / 2, 0, 0) });
-            foreach (float a in new[] { 0f, 2.1f, 4.2f }) AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(.005f, .07f, .16f) }, MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(.9f, .9f, .85f) }, Position = new Vector3(0, 0, .36f), Rotation = new Vector3(0, 0, a) });
-            var tr = new CpuParticles3D { Amount = 14, Lifetime = .18f, LocalCoords = false, Gravity = Vector3.Zero, InitialVelocityMax = 0, Mesh = new QuadMesh { Size = new Vector2(.08f, .08f), Material = Vfx.SpriteMat() }, Color = new Color(1, 1, .9f, .35f), ScaleAmountCurve = null };
-            AddChild(tr);
+            _shaftMesh ??= new CylinderMesh { TopRadius = .018f, BottomRadius = .018f, Height = .85f, RadialSegments = 5 };
+            _headMesh ??= new CylinderMesh { TopRadius = 0, BottomRadius = .045f, Height = .14f, RadialSegments = 4 };
+            _fletchMesh ??= new BoxMesh { Size = new Vector3(.005f, .07f, .16f) };
+            _shaftMat ??= new StandardMaterial3D { AlbedoColor = new Color(.55f, .4f, .25f) };
+            _headMat ??= new StandardMaterial3D { AlbedoColor = new Color(.75f, .78f, .82f), Metallic = .8f, Roughness = .3f };
+            _fletchMat ??= new StandardMaterial3D { AlbedoColor = new Color(.9f, .9f, .85f) };
+            AddChild(new MeshInstance3D { Mesh = _shaftMesh, MaterialOverride = _shaftMat, Rotation = new Vector3(Mathf.Pi / 2, 0, 0), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
+            AddChild(new MeshInstance3D { Mesh = _headMesh, MaterialOverride = _headMat, Position = new Vector3(0, 0, -.48f), Rotation = new Vector3(-Mathf.Pi / 2, 0, 0), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
+            foreach (float a in new[] { 0f, 2.1f, 4.2f }) AddChild(new MeshInstance3D { Mesh = _fletchMesh, MaterialOverride = _fletchMat, Position = new Vector3(0, 0, .36f), Rotation = new Vector3(0, 0, a), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
+            // faint thin pale-grey motion trail that stays in the world
+            _trail = new CpuParticles3D { Amount = 10, Lifetime = .22f, LocalCoords = false, Gravity = Vector3.Zero, InitialVelocityMax = 0, Mesh = new QuadMesh { Size = new Vector2(.05f, .05f), Material = Vfx.SpriteMat() }, Color = new Color(.78f, .78f, .8f, .22f), ScaleAmountCurve = null, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
+            AddChild(_trail);
         }
         else
         {
@@ -62,15 +69,39 @@ public partial class Projectile : Node3D
             var trail = new CpuParticles3D { Amount = fire ? 48 : 26, Lifetime = fire ? .45f : .3f, LocalCoords = false, Gravity = new Vector3(0, fire ? 2.5f : 0f, 0), Spread = 180, InitialVelocityMin = .1f, InitialVelocityMax = fire ? 1.2f : .5f,
                 Mesh = new QuadMesh { Size = new Vector2(r * 3.6f, r * 3.6f), Material = Vfx.SpriteMat(!fire, look) }, ColorRamp = g, ScaleAmountCurve = sc, EmissionShape = CpuParticles3D.EmissionShapeEnum.Sphere, EmissionSphereRadius = r * .5f };
             Vfx.Spin(trail, look, 180f); AddChild(trail);
-            AddChild(new OmniLight3D { LightColor = c, OmniRange = fire ? 8f : 6f, LightEnergy = fire ? 2.2f : 1.2f });
+            if (fire) AddChild(new OmniLight3D { LightColor = c, OmniRange = 8f, LightEnergy = 2.2f });
+            else if (Own == 'p' && _lights < 6) { _lights++; _hasLight = true; AddChild(new OmniLight3D { LightColor = c, OmniRange = 3f, LightEnergy = .8f, ShadowEnabled = false }); }
         }
         if (Vel.LengthSquared() > 0.01f && Kind == "arrow") LookAt(GlobalPosition + Vel, Vector3.Up);
+    }
+
+    static CylinderMesh? _shaftMesh, _headMesh; static BoxMesh? _fletchMesh; static StandardMaterial3D? _shaftMat, _headMat, _fletchMat;
+    static int _lights; bool _hasLight; float _age; bool _worldHit; CpuParticles3D? _trail;
+    static readonly List<Projectile> Stuck = new();
+    public override void _ExitTree() { if (_hasLight) { _hasLight = false; _lights--; } }
+
+    /// <summary>Arrow lands in the world: dust on earth, splinters on wood/blocks, sparks on stone; the arrow stays 6 s (20 max).</summary>
+    void ArrowLand(Vector3 to)
+    {
+        var dir = Vel.LengthSquared() > .01f ? Vel.Normalized() : Vector3.Down;
+        string step = "";
+        try { byte b = BlockWorld.At(to + dir * .15f); if (b != 255 && b != 0) step = Blocks.Def(b).Step; } catch { }
+        if (step == "wood") Fx.Burst(to, new Color(.5f, .33f, .18f), 6, 2.5f, .35f, .05f, -8f);
+        else if (step is "stone" or "ice" or "gravel") Fx.Burst(to, new Color(1f, .85f, .45f), 5, 3.5f, .25f, .04f, -8f);
+        else Fx.Dust(to, .4f);
+        foreach (var s in Stuck.ToArray()) if (!IsInstanceValid(s)) Stuck.Remove(s);
+        while (Stuck.Count >= 20) { var o = Stuck[0]; Stuck.RemoveAt(0); if (IsInstanceValid(o)) o.QueueFree(); }
+        Stuck.Add(this);
+        RemoveFromGroup("projectiles"); SetPhysicsProcess(false);
+        if (_trail != null) { _trail.QueueFree(); _trail = null; }
+        GlobalPosition = to - dir * .3f;
+        GetTree().CreateTimer(6.0).Timeout += () => { if (IsInstanceValid(this)) QueueFree(); };
     }
 
     public override void _PhysicsProcess(double delta)
     {
         float dt = (float)delta;
-        Life -= dt;
+        Life -= dt; _age += dt;
         if (Kind == "arrow") Vel.Y -= 7f * dt;
         if (Homing && Own == 'p')
         {
@@ -87,9 +118,13 @@ public partial class Projectile : Node3D
         // world collision (ground, walls)
         var q = PhysicsRayQueryParameters3D.Create(from, to, 1);
         var hit = GetWorld3D().DirectSpaceState.IntersectRay(q);
-        if (hit.Count > 0) { to = (Vector3)hit["position"]; end = true; }
+        if (hit.Count > 0) { to = (Vector3)hit["position"]; end = true; _worldHit = true; }
         GlobalPosition = to;
-        if (Kind == "arrow" && Vel.LengthSquared() > 0.01f) LookAt(to + Vel, Vector3.Up);
+        if (Kind == "arrow" && Vel.LengthSquared() > 0.01f)
+        {
+            LookAt(to + Vel, Vector3.Up);
+            if (_age < .3f) { float w = (1f - _age / .3f) * .07f; RotateObjectLocal(Vector3.Right, Mathf.Sin(_age * 55f) * w); RotateObjectLocal(Vector3.Up, Mathf.Cos(_age * 47f) * w); }   // slight wobble off the string
+        }
 
         Enemy? hitE = null;
         if (!end && Own == 'p')
@@ -142,6 +177,7 @@ public partial class Projectile : Node3D
             else if (hitE != null)
             {
                 hitE.TakeHit(HitFor(to - Vel)); Hits.Add(hitE);
+                if (Kind == "arrow") Fx.Burst(to, new Color(.4f, .03f, .03f), 5, 2.5f, .3f, .05f, -9f);
                 if (ChainLeft > 0)
                 {
                     // chain: a new projectile leaps from this foe to the nearest one not yet hit
@@ -155,7 +191,14 @@ public partial class Projectile : Node3D
                     }
                 }
             }
-            else Fx.Burst(to, new Color(0.8f, 0.8f, 0.9f), 4, 2f, 0.25f, 0.06f);
+            else if (Kind == "arrow") { if (_worldHit) { ArrowLand(to); return; } Fx.Burst(to, new Color(0.8f, 0.8f, 0.9f), 3, 2f, 0.25f, 0.05f); }
+            else
+            {
+                // small element-tinted ring and sparks (skills already have their own impact fx)
+                var ec = Tint ?? (Calc != null ? TwinRealms.Dmg.TypeColor(Calc.Type) : Kind == "fire" ? new Color(1f, .55f, .15f) : new Color(.55f, .75f, 1f));
+                if (Calc == null) Fx.Ring(to + Vector3.Up * .05f, .9f, ec, .3f);
+                Fx.Burst(to, ec, 5, 3f, .3f, .05f);
+            }
         }
         else if (Aoe > 0)
         {

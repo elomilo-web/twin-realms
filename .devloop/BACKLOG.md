@@ -1,7 +1,7 @@
-[5][M][menus] coverage (user directive): DONE title, create, pause, inventory, spellcraft, character, settings, controls, journal, shop, valor, totals, skills, attacks, macros (clipped), mods, craft, smith, multiplayer, online, stash, launcher, dialogue, tooltips, death screen. LEFT: map interior palette + wayshrine marks (MapView in Ui.cs ~L752), skill tree nodes (TreeView in Ui.cs ~L871), Banner/Note (Ui.cs L65-81), macros clipping, inventory off-centre, party/lobby panel
-[3][S][audio] Wire Sfx.UiConfirm/UiError: craft/upgrade/purchase success and failure (UiCraft, UiSmith, Ui shop/valor) -> those files
+[4][S][menus] coverage (user directive): ALL listed menus have had a gothic pass (#12-#14). LEFT: inventory window sits right of centre; party/lobby panel (UiNet) check in a capture; keep re-checking every menu_* view each full sweep
+[3][S][world] Bushes don't sway yet (procedural Bush mesh path not hooked to Flora.Windy) -> Flora.cs
+[3][S][audio] Rain has no sound: synthesize a rain loop (filtered noise + droplet ticks) and fade with Weather.Rain -> tools/kit_gen/sfx_synth.py, Weather.cs
 [2][S][tools] Capture logs Jolt RID leaks at exit sometimes: ignore in capture.ps1 (teardown) -> tools/capture.ps1
-[4][M][menus] Map interior is bright cartoon blue/green: gothic parchment palette (sepia land, dark ink coast lines, muted sea), wayshrine rune marks -> MapView (grep), Ui.cs OpenMap
 [3][S][tools] Auto-spot tree check misses trees (no colliders?): also reject spots within 6 m of Flora tree instances (query FloraField/Lands tree positions) so lightning/holy views aren't occluded -> DevCapture.cs FindSpot
 [3][S][tools] Capture hero has no buffs/quests: grant a buff (e.g. a potion/skill buff) and accept a quest for the hud view so the buff row + tracker get judged -> DevCapture.cs, viewpoints.json
 # Backlog (prioritized; one item per line)
@@ -21,7 +21,6 @@ Categories: graphics shaders lighting animation feel combat mechanics ui menus w
 [3][S][perf] Player close-up min 20 fps: find first-frame spikes (shader compile?) -> report.json, Main.cs warmup
 [2][S][code] Last compiler warning: EnemyScarletta.cs(164,29) CS8602 -> EnemyScarletta.cs
 [2][S][ui] Serif font for titles (CC0, e.g. a free-license blackletter/serif) -> data/ui_theme.json, UiTheme.cs
-[2][M][world] Weather: rain/storm cycle with wet darkening on blocks and puddle reflections -> World.cs, Ambient.cs
 [2][S][tools] DevCapture: add viewpoints for block build mode (N) and a crater after Meteor -> .devloop/viewpoints.json, DevCapture.cs actions
 [3][S][ui] Inventory slots framed (#3); equipment paper-doll silhouette still missing; slot colours hard-coded in ItemSlot.Inset -> ItemSlot.cs, Ui.cs OpenPack
 [3][S][vfx] Sword trail restyled (#3): judge in a swing close-up; tune spark threshold 8 m/s -> Vfx.cs SwordTrail, assets/shaders/sword_trail.gdshader
