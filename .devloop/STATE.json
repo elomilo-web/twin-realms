@@ -1,1 +1,1 @@
-{"iteration":0,"last_categories":[],"stale_categories":{},"avg_scores":{"visuals":3.9,"feel":5.7,"code":6.1},"baseline_fps_avg":70.7}
+{"iteration":1,"last_categories":["lighting","graphics","ui","vfx","world","code"],"stale_categories":{"animation":1,"combat":1,"feel":1,"audio":1,"menus":1,"mechanics":1,"perf":1,"shaders":1},"avg_scores":{"visuals":4.2,"feel":5.7,"code":6.2},"baseline_fps_avg":70.7,"last_fps_avg":70.6}

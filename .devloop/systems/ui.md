@@ -1,4 +1,4 @@
-﻿# UI
+# UI
 Purpose: In-game HUD plus every menu/overlay (pack, skills, spellcraft, mods, pause, settings, controls, smith, dialogue), all built in code with vector-drawn icons and a data-driven gothic theme.
 ## Files
 - `scripts/Ui.cs` (827 lines): partial Control owning all menus, notes, banners, dialogue, shop, pack, character. Key: `MakeTheme()` L22, `Note()` L40, `Banner()` L41, `_Ready()` L44, `_UnhandledInput()` L85, `Close()` L122, `Btn()` L125, `Inner()` L132
@@ -19,7 +19,7 @@ data/ui_theme.json (panel, line, text colours, sizes); data/settings via UiSyste
 ## Links
 [[loot]] [[spellcraft]] [[skills_vfx]] [[progression]] [[player]] [[combat]] [[world]] [[audio]] [[core]]
 ## Scores
-- visuals 5/10: gold-corner dark panels read well, but HUD bars are flat slanted rects, hotbar icons are tiny clip-art, empty inventory grid is dull navy blocks, no ornament, no vignette, minimap is a pixelated blob.
+- visuals 6/10: #1: gothic framed bars + damage ghost + low-HP pulse; inventory/menus still plain
 - feel 6/10: clear hotkeys and hints; no open/close animation or sound feedback.
 - code 5/10: Ui.cs 827-line god-class with lambdas; Hud draws everything in one _Draw.
 ## Ideas

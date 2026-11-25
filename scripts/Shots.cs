@@ -403,7 +403,7 @@ public partial class Shots : Node
         {
             P.Teleport(start, Util.YawTo(dir.X, dir.Z)); Cam(Util.YawTo(dir.X, dir.Z), 5f); await Wait(.6f);
             Input.ActionPress(Inputs.Forward); if (sprint) Input.ActionPress(Inputs.Sprint); await Wait(.5f);
-            int n = 0, air = 0, fall = 0, sn = 0, lastFoot = -1; float skate = 0, gapSum = 0, gapMax = 0, sinkMax = 0; Vector3 lastLow = Vector3.Zero; var slides = new List<float>();
+            int n = 0, air = 0, fall = 0; float gapSum = 0, gapMax = 0, sinkMax = 0; Vector3 lastLow = Vector3.Zero; var slides = new List<float>();
             var t = 0f; _stDz = 0; _stDt = 0; int steps0 = Sfx.StepCount;
             // the lower foot against the ground, read right after the foot IK solved
             var fpR = P.Av!.Skel!.GetNodeOrNull<FootPlant>("FootPlant"); float ikSum = 0, ikMax = 0; int ikN = 0;

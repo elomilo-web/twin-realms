@@ -190,6 +190,7 @@ public partial class World : Node3D
             AmbientLightSource = Godot.Environment.AmbientSource.Color, AmbientLightColor = new Color(0.55f, 0.6f, 0.7f), AmbientLightEnergy = 0.8f,
             TonemapMode = (Godot.Environment.ToneMapper)(int)LF("tonemapMode", 3), TonemapExposure = LF("exposure", 1f), TonemapWhite = LF("white", 7f),
             FogEnabled = true, FogDensity = LF("fogDay", .0017f), FogAerialPerspective = LF("aerial", .55f), FogSkyAffect = LF("skyAffect", .45f),
+            FogHeight = LF("fogHeight", 30f), FogHeightDensity = LF("fogHeightDensity", .0035f),
             GlowEnabled = true, GlowIntensity = LF("glowIntensity", .7f), GlowBloom = LF("glowBloom", .04f),
             SsaoEnabled = true, SsaoIntensity = LF("ssaoIntensity", 1.8f), SsaoRadius = LF("ssaoRadius", 1.3f),
             AdjustmentEnabled = true, AdjustmentContrast = LF("contrast", 1.12f), AdjustmentSaturation = LF("saturation", 1.2f), AdjustmentBrightness = LF("brightness", 1f),
@@ -825,7 +826,7 @@ void fragment(){
         _sky.SetShaderParameter("dusk_col", LC("duskGlow", "ff6a3a")); _sky.SetShaderParameter("dusk", dusk * (1 - RealmT)); _sky.SetShaderParameter("night", skyNight);
         _sky.SetShaderParameter("sun_col", dayCol);
         _cloudT += dt * LF("cloudSpeed", .006f); _sky.SetShaderParameter("wind", new Vector2(_cloudT, _cloudT * .35f));
-        _env.FogLightColor = hor.Lerp(top, .25f); _env.FogDensity = Mathf.Lerp(LF("fogDay", .0017f), LF("fogShadow", .0045f), RealmT);
+        _env.FogLightColor = hor.Lerp(top, .25f).Lerp(new Color(.52f, .6f, .72f), .4f * day * (1 - RealmT)); _env.FogDensity = Mathf.Lerp(LF("fogDay", .0017f), LF("fogShadow", .0045f), RealmT);
         _env.AmbientLightColor = LC("ambientDayColor", "9eafc8").Lerp(LC("ambientNightColor", "38426f"), 1 - day).Lerp(new Color(.9f, .55f, .5f), dusk * .45f).Lerp(new Color(.5f, .38f, .68f), RealmT);
         _env.AmbientLightEnergy = Mathf.Lerp(LF("ambientNight", .45f), LF("ambientDay", .62f), day) * Mathf.Lerp(1f, LF("ambientShadow", 1.25f), RealmT);
         _env.AdjustmentSaturation = Mathf.Lerp(LF("saturation", 1.2f), LF("saturationShadow", .9f), RealmT);

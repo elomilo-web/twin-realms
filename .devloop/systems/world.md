@@ -1,4 +1,4 @@
-﻿# World
+# World
 Purpose: Overworld terrain, sky/day-night, Light/Shadow realm shift, hand-built Oakhaven, flora, gathering, far lands, shared gothic/toon materials.
 ## Files
 - `scripts/World.cs` (949 lines): heightfield terrain, sky, day/night, realm shift, shared mats. Key: `GetPoi()` L26, `Mat()` L53, `Fbm()` L96, `RoadDist()` L102, `GroundAt()` L124, `OnGround()` L132, `_Ready()` L153
@@ -19,7 +19,7 @@ data/look.json, lands.json, flora.json, gather.json, ambient.json, env.json, que
 ## Links
 [[blockworld]] [[dungeons]] [[arena]] [[enemies]] [[loot]] [[core]] [[audio]]
 ## Scores
-- visuals 4/10: vista is a flat beige-sepia fog wash, no depth, no light shafts or silhouette contrast; floating island and sky beams look placeholder; far from Elden Ring.
+- visuals 5/10: #1: vista readable (fog fixed, beam gone); block terraces still stair-steppy, Frostmere dry
 - feel 5/10: readable layout and roads, but empty-feeling terrain and uniform haze.
 - code 6/10: World.cs 949 and Lands.cs 922 lines are monoliths; legacy Toon/Genshin kept beside Gothic.
 ## Ideas

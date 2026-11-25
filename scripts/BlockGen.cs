@@ -45,6 +45,8 @@ public sealed class OverworldGen : IBlockGen
         float fx = x + .5f, fz = z + .5f, h = World.GroundAt(fx, fz);
         int top = Mathf.FloorToInt(h + .5f);
         float wl = Lands.WaterAt(fx, fz); int water = Mathf.FloorToInt(wl + .5f);
+        // lakes and rivers: where the smooth world shows water over the bed (ground below the surface) the blocks must too, even when both round to the same y
+        if (wl > .3f && wl > h && water <= top) water = top + 1;
         string kind = Math.Abs(fx) < World.Half && Math.Abs(fz) < World.Half && fx * fx + fz * fz < 9.2f * 9.2f ? "plaza" : World.SurfaceAt(fx, fz, h);
         byte t = _top.TryGetValue(kind, out var tt) ? tt : _top.GetValueOrDefault("grass");
         string tk = Blocks.Def(t).Key; byte u = _under.TryGetValue(tk, out var uu) ? uu : Blocks.Dirt;

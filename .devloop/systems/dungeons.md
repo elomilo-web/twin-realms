@@ -1,4 +1,4 @@
-﻿# Dungeons
+# Dungeons
 Purpose: Procedural 3-theme dungeons with depth, boss room, raid lairs (instanced boss fights), party-shared instances.
 ## Files
 - `scripts/Dungeon.cs` (445): generation, floors, entry/exit. Key: `Reveal()` L39, `Enter()` L68, `EnterShared()` L74, `SetOwner()` L77, `Register()` L90, `SpawnPuppet()` L96, `Leave()` L128
@@ -12,7 +12,7 @@ data/dungeons.json, progression.json
 ## Links
 [[blockworld]] [[enemies]] [[network]] [[progression]] [[loot]] [[combat]]
 ## Scores
-- visuals 5/10: dungeon.png is near-black with a flat cyan blob exit marker; cobble floor is decent but lighting is murky, walls unseen; no atmosphere (fog, dust, props).
+- visuals 6/10: #1: rune-circle exit; entry room still near-black
 - feel 6/10: depth/waves/boss loop works; minimap helps navigation.
 - code 6/10: Dungeon.cs 445 lines mixes gen/entry/puppets.
 ## Ideas

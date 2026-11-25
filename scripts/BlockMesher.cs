@@ -26,7 +26,11 @@ public static class BlockMesher
     static readonly Vector3I[] U = { new(0, 0, 1), new(1, 0, 0), new(0, 1, 0), new(0, 0, 1), new(1, 0, 0), new(0, 1, 0) };
     static readonly Vector3I[] Vv = { new(1, 0, 0), new(0, 0, 1), new(0, 0, 1), new(0, 1, 0), new(0, 1, 0), new(1, 0, 0) };
     static readonly float[] Shade = { 1f, .58f, .82f, .82f, .9f, .9f };
-    static readonly float[] Ao = { .5f, .66f, .83f, 1f };
+    static readonly float[] Ao = { .38f, .58f, .8f, 1f };   // stronger creases
+
+    // clockwise seen from outside = Godot's front face
+    static void Tri(BlockMeshData.Surf s, int b0) { s.I.Add(b0); s.I.Add(b0 + 2); s.I.Add(b0 + 1); s.I.Add(b0); s.I.Add(b0 + 3); s.I.Add(b0 + 2); }
+    static void Face6(List<Vector3> f, Vector3 a, Vector3 b, Vector3 c, Vector3 d) { f.Add(a); f.Add(c); f.Add(b); f.Add(a); f.Add(d); f.Add(c); }
 
     /// <summary>Material slot of a block face: id * 3 + (0 top, 1 side, 2 bottom). Fluids: their own id * 3.</summary>
     public static int Slot(byte id, int face, byte meta)
@@ -41,7 +45,7 @@ public static class BlockMesher
     {
         var d = new BlockMeshData { Version = c.Version }; var faces = new List<Vector3>();
         int S = c.S, x0 = c.Cx * S, z0 = c.Cz * S, yTop = Math.Min(c.Top + 1, c.MinY + c.H);
-        var defs = Blocks.Defs;
+        var defs = Blocks.Defs; var lips = new Dictionary<byte, Color?>();
         byte At(int x, int y, int z)
         {
             if (y < c.MinY) return Blocks.Bedrock; if (y >= c.MinY + c.H) return 0;
@@ -61,30 +65,75 @@ public static class BlockMesher
                     var def = defs[id]; int x = x0 + lx, z = z0 + lz;
                     if (def.IsFluid) { Fluid(def, id, x, y, z); continue; }
                     byte meta = c.Meta[c.Index(lx, y, lz)];
+                    // per-block hash: brightness +-9% and a slight warm/cool hue shift, same on every face of the block
+                    uint h = (uint)(x * 73856093 ^ y * 19349663 ^ z * 83492791); h ^= h >> 13; h *= 1274126177u; h ^= h >> 16;
+                    float r1 = (h & 255) / 255f, r2 = ((h >> 8) & 255) / 255f, r3 = ((h >> 16) & 255) / 255f;
+                    float bright = 1f + (r1 - .5f) * .18f;
+                    var jit = new Color(bright * (1f + (r2 - .5f) * .10f), bright, bright * (1f + (r3 - .5f) * .10f));
+                    var lip = Lip(id);
                     for (int f = 0; f < 6; f++)
                     {
                         var n = Nrm[f]; byte nb = At(x + n.X, y + n.Y, z + n.Z);
                         if (nb != 0 && nb < defs.Count) { var nd = defs[nb]; if (nd.Opaque || (nb == id && !nd.IsFluid)) continue; }
                         var s = Surf(Slot(id, f, meta)); int b0 = s.V.Count;
+                        var pos = new Vector3[4]; var lc = new Color[4]; bool[] hi = new bool[4];
                         for (int k = 0; k < 4; k++)
                         {
                             int su = k == 1 || k == 2 ? 1 : -1, sv = k >= 2 ? 1 : -1;
                             var u = U[f]; var v = Vv[f];
-                            var corner = new Vector3(x + P0[f].X + (su > 0 ? u.X : 0) + (sv > 0 ? v.X : 0), y + P0[f].Y + (su > 0 ? u.Y : 0) + (sv > 0 ? v.Y : 0), z + P0[f].Z + (su > 0 ? u.Z : 0) + (sv > 0 ? v.Z : 0));
+                            pos[k] = new Vector3(x + P0[f].X + (su > 0 ? u.X : 0) + (sv > 0 ? v.X : 0), y + P0[f].Y + (su > 0 ? u.Y : 0) + (sv > 0 ? v.Y : 0), z + P0[f].Z + (su > 0 ? u.Z : 0) + (sv > 0 ? v.Z : 0));
+                            hi[k] = f >= 2 && (u.Y != 0 ? su > 0 : sv > 0);   // top edge of a side face
                             int bx = x + n.X, by = y + n.Y, bz = z + n.Z;
                             bool s1 = Opaque(bx + su * u.X, by + su * u.Y, bz + su * u.Z), s2 = Opaque(bx + sv * v.X, by + sv * v.Y, bz + sv * v.Z);
                             bool cc = Opaque(bx + su * u.X + sv * v.X, by + su * u.Y + sv * v.Y, bz + su * u.Z + sv * v.Z);
                             int ao = s1 && s2 ? 0 : 3 - ((s1 ? 1 : 0) + (s2 ? 1 : 0) + (cc ? 1 : 0));
                             float l = Shade[f] * Ao[ao];
-                            s.V.Add(corner); s.N.Add(new Vector3(n.X, n.Y, n.Z)); s.C.Add(new Color(l, l, l));
+                            lc[k] = new Color(l * jit.R, l * jit.G, l * jit.B);
                         }
-                        // clockwise seen from outside = Godot's front face
-                        s.I.Add(b0); s.I.Add(b0 + 2); s.I.Add(b0 + 1); s.I.Add(b0); s.I.Add(b0 + 3); s.I.Add(b0 + 2);
-                        if (def.Solid) { faces.Add(s.V[b0]); faces.Add(s.V[b0 + 2]); faces.Add(s.V[b0 + 1]); faces.Add(s.V[b0]); faces.Add(s.V[b0 + 3]); faces.Add(s.V[b0 + 2]); }
+                        if (lip is Color lp && f >= 2)
+                        {
+                            // side of a grass-like block: dark earthy body fading darker toward the foot, plus a thin lip band under the top edge
+                            const float band = .2f;
+                            var mid = new Vector3[4]; var midLc = new Color[4];
+                            for (int k = 0; k < 4; k++)
+                            {
+                                int o = U[f].Y != 0 ? (k == 0 ? 1 : k == 1 ? 0 : k == 2 ? 3 : 2) : (k == 0 ? 3 : k == 3 ? 0 : k == 1 ? 2 : 1);   // same horizontal spot, other height
+                                mid[k] = hi[k] ? pos[k].Lerp(pos[o], band) : pos[o].Lerp(pos[k], band);
+                                midLc[k] = hi[k] ? lc[k].Lerp(lc[o], band) : lc[o].Lerp(lc[k], band);
+                            }
+                            var nrm = new Vector3(n.X, n.Y, n.Z);
+                            for (int k = 0; k < 4; k++)   // body: from just under the lip down to the foot, darker toward the bottom
+                            {
+                                var bc = hi[k] ? midLc[k] : lc[k]; float fall = hi[k] ? 1f : .72f;
+                                s.V.Add(hi[k] ? mid[k] : pos[k]); s.N.Add(nrm); s.C.Add(new Color(bc.R * .86f * fall, bc.G * .82f * fall, bc.B * .8f * fall));
+                            }
+                            Tri(s, b0); if (def.Solid) Face6(faces, pos[0], pos[1], pos[2], pos[3]);
+                            int b1 = s.V.Count;
+                            for (int k = 0; k < 4; k++)   // lip band: tinted green-ish at the top edge
+                            {
+                                var lcol = hi[k] ? lc[k] : midLc[k];
+                                s.V.Add(hi[k] ? pos[k] : mid[k]); s.N.Add(nrm); s.C.Add(new Color(lcol.R * lp.R, lcol.G * lp.G, lcol.B * lp.B));
+                            }
+                            Tri(s, b1);
+                            continue;
+                        }
+                        for (int k = 0; k < 4; k++) { s.V.Add(pos[k]); s.N.Add(new Vector3(n.X, n.Y, n.Z)); s.C.Add(lc[k]); }
+                        Tri(s, b0);
+                        if (def.Solid) Face6(faces, pos[0], pos[1], pos[2], pos[3]);
                     }
                 }
         d.Faces = faces.ToArray();
         return d;
+
+        // lip tint of a block's side material ("lip" colour in data/blocks.json), cached per mesh build
+        Color? Lip(byte id)
+        {
+            if (lips.TryGetValue(id, out var have)) return have;
+            Color? r = null; var m = defs[id].Mat;
+            if (m.ValueKind == System.Text.Json.JsonValueKind.Object && m.TryGetProperty("side", out var sd) && sd.ValueKind == System.Text.Json.JsonValueKind.Object && sd.TryGetProperty("lip", out var lv) && lv.ValueKind == System.Text.Json.JsonValueKind.String)
+                r = Color.FromHtml(lv.GetString() ?? "#ffffff");
+            lips[id] = r; return r;
+        }
 
         void Fluid(BlockDef def, byte id, int x, int y, int z)
         {

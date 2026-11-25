@@ -274,15 +274,15 @@
     },
     {
         "path":  "scripts/BlockGen.cs",
-        "lines":  157,
-        "hash8":  "5d2cac65",
+        "lines":  159,
+        "hash8":  "0a4a60b9",
         "system":  "blockworld",
         "summary":  "The overworld as blocks, made from the same heightfield, ground types and water as the..."
     },
     {
         "path":  "scripts/BlockMesher.cs",
-        "lines":  114,
-        "hash8":  "7badf2ba",
+        "lines":  163,
+        "hash8":  "8335c719",
         "system":  "blockworld",
         "summary":  "A chunk\u0027s finished mesh: one surface per material, plus the faces for its collision shape...."
     },
@@ -358,8 +358,8 @@
     },
     {
         "path":  "scripts/Dungeon.cs",
-        "lines":  445,
-        "hash8":  "6c3e3cab",
+        "lines":  480,
+        "hash8":  "e7dbecab",
         "system":  "dungeons",
         "summary":  "Procedural dungeons: three themes, descending depth, boss in the farthest room. Raid lairs (DungeonLair.cs) reuse..."
     },
@@ -400,8 +400,8 @@
     },
     {
         "path":  "scripts/EnemyScarletta.cs",
-        "lines":  673,
-        "hash8":  "f4bffd73",
+        "lines":  674,
+        "hash8":  "380e254d",
         "system":  "enemies",
         "summary":  "Scarletta, The Rotting Blade: the raid boss of the Rotting Hollow (DungeonLair.cs), fought solo or..."
     },
@@ -422,7 +422,7 @@
     {
         "path":  "scripts/FitBot.cs",
         "lines":  659,
-        "hash8":  "bb1f1e88",
+        "hash8":  "dbc0e9a7",
         "system":  "devtools",
         "summary":  "Gear fit bot. Run: godot --path . -- --fit (check + screenshots, bot_out/fit/)"
     },
@@ -512,8 +512,8 @@
     },
     {
         "path":  "scripts/Hud.cs",
-        "lines":  350,
-        "hash8":  "566f3c7f",
+        "lines":  374,
+        "hash8":  "4e647631",
         "system":  "ui",
         "summary":  "In-game HUD matching the prototype layout: top-left info, compass, quest tracker, target bar, bottom bars,..."
     },
@@ -576,14 +576,14 @@
     {
         "path":  "scripts/Lands.cs",
         "lines":  922,
-        "hash8":  "0e0840d3",
+        "hash8":  "2759a0a2",
         "system":  "world",
         "summary":  "The wider world from data/lands.json: heightfield islands across the sea from the home island, each..."
     },
     {
         "path":  "scripts/Loot.cs",
         "lines":  101,
-        "hash8":  "144d19fc",
+        "hash8":  "516d91cb",
         "system":  "loot",
         "summary":  "Pickups: gold, potions and items. Walk close to collect them."
     },
@@ -695,7 +695,7 @@
     {
         "path":  "scripts/Player.cs",
         "lines":  792,
-        "hash8":  "bada1afa",
+        "hash8":  "910995ac",
         "system":  "player",
         "summary":  "The hero: movement, roll, four weapon types (sword, bow, wand, staff), block/parry, four spells, potions,..."
     },
@@ -800,7 +800,7 @@
     {
         "path":  "scripts/Shots.cs",
         "lines":  543,
-        "hash8":  "cdcc6aae",
+        "hash8":  "9079e0c6",
         "system":  "devtools",
         "summary":  "Screenshot tour. Run the game with: godot --path . -- --shots (or tools/run.ps1 shots, tools/shots.sh)"
     },
@@ -1023,8 +1023,8 @@
     },
     {
         "path":  "scripts/World.cs",
-        "lines":  949,
-        "hash8":  "0cabd4df",
+        "lines":  950,
+        "hash8":  "9f2d8f39",
         "system":  "world",
         "summary":  "The overworld: heightfield terrain, sky and day/night, the Light/Shadow realm shift, vegetation and shared materials."
     }

@@ -5,8 +5,8 @@ from `data/*.json` (one scene: scenes/Main.tscn). Art direction: dark gothic rea
 near the player (see PROCESS.md "Decisions"). Project rules: ../CLAUDE.md. Design: docs/DESIGN.md. Status: docs/PORT.md, docs/GOTHIC.md.
 
 ## Loop files
-- DIRECTIVES.md (user, read first) · STATE.json · PROCESS.md · BACKLOG.md · LOG.md · files.json (every file: lines, hash8, system, summary)
-- viewpoints.json (capture views) · godot_path.txt · screenshots/{current,previous}/ (+ report.json: fps per view, engine errors)
+- DIRECTIVES.md (user, read first) Â· STATE.json Â· PROCESS.md Â· BACKLOG.md Â· LOG.md Â· files.json (every file: lines, hash8, system, summary)
+- viewpoints.json (capture views) Â· godot_path.txt Â· screenshots/{current,previous}/ (+ report.json: fps per view, engine errors)
 
 ## Tools
 - `tools\verify.bat [views]`: dotnet build (errors/warnings only) + capture. Exit 1 on failure.
@@ -16,9 +16,9 @@ near the player (see PROCESS.md "Decisions"). Project rules: ../CLAUDE.md. Desig
 - `tools/run.ps1 smoke|showcase|shots|bot` (older bots; bot/mp only when the user asks).
 
 ## Folder map
-- scripts/ (~120 .cs, namespace TwinRealms; one system per file) · scripts/dev/ (loop tools)
-- data/ (all numbers/content; tuning.json "files" overrides others!) · assets/ (models, materials/gothic G_*.tres, textures, audio)
-- tools/ (scripts, blender_gothic/, kit_gen/) · docs/ · installer/ · scenes/Main.tscn
+- scripts/ (~120 .cs, namespace TwinRealms; one system per file) Â· scripts/dev/ (loop tools)
+- data/ (all numbers/content; tuning.json "files" overrides others!) Â· assets/ (models, materials/gothic G_*.tres, textures, audio)
+- tools/ (scripts, blender_gothic/, kit_gen/) Â· docs/ Â· installer/ Â· scenes/Main.tscn
 
 ## Systems (card -> main files)
 - [[core]] systems/core.md: Main.cs boot/Begin, Game.cs (data, save/load, settings), JsonUtil, Stats
@@ -46,6 +46,6 @@ near the player (see PROCESS.md "Decisions"). Project rules: ../CLAUDE.md. Desig
 
 ## Known problems (from capture 2026-11-24)
 - Frostmere shore: no visible water, dry sand blocks (water view).
-- Block terraces look flat/placeholder; vista washed out by fog + a white beam pillar.
+- Block terraces still read stair-steppy at distance (lip/jitter added #1). Dungeon entry room near-black.
 - FPS: foliage view min 14, close-up min 20 (spikes); avg ~55-70 elsewhere at 1280x720 Ultra defaults.
-- Compiler warnings: 10. Engine teardown on quit logs "Handle is not initialized" (harmless, filtered).
+- Compiler warnings: 1. Engine teardown on quit logs "Handle is not initialized" (harmless, filtered).

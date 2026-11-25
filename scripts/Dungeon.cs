@@ -415,8 +415,35 @@ public static partial class Dungeon
     static Pad MakePad(Vector3 pos, bool down, Color col)
     {
         var p = new Pad { Down = down, Position = pos }; Root!.AddChild(p); _pads.Add((Origin + pos, down));
-        p.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 1.4f, BottomRadius = 1.4f, Height = .12f }, MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(col, .6f), Transparency = BaseMaterial3D.TransparencyEnum.Alpha, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded }, Position = new Vector3(0, .06f, 0) });
-        p.AddChild(new OmniLight3D { LightColor = col, OmniRange = 10, LightEnergy = 1.3f, Position = new Vector3(0, 1.2f, 0) });
+        // gothic rune circle: thin emissive outer ring, counter-rotating inner ring with sigil strokes, rising motes
+        var cc = down ? col : new Color(.62f, .78f, 1f);
+        var glow = new StandardMaterial3D { AlbedoColor = cc, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, EmissionEnabled = true, Emission = cc, EmissionEnergyMultiplier = 1.6f };
+        var dim = new StandardMaterial3D { AlbedoColor = new Color(cc, .55f), Transparency = BaseMaterial3D.TransparencyEnum.Alpha, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded };
+        var outer = new Node3D { Position = new Vector3(0, .07f, 0) }; var inner = new Node3D { Position = new Vector3(0, .08f, 0) };
+        outer.AddChild(new MeshInstance3D { Mesh = new TorusMesh { InnerRadius = 1.32f, OuterRadius = 1.4f, Rings = 48, RingSegments = 6 }, MaterialOverride = glow, Scale = new Vector3(1, .12f, 1) });
+        for (int i = 0; i < 12; i++)   // tick marks between the rings
+        {
+            float a = i * Mathf.Tau / 12f; var r = new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a));
+            outer.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(.2f, .01f, .04f) }, MaterialOverride = dim, Position = r * 1.15f, Rotation = new Vector3(0, -a, 0) });
+        }
+        inner.AddChild(new MeshInstance3D { Mesh = new TorusMesh { InnerRadius = .82f, OuterRadius = .86f, Rings = 40, RingSegments = 6 }, MaterialOverride = dim, Scale = new Vector3(1, .1f, 1) });
+        for (int i = 0; i < 3; i++)   // triangular sigil strokes
+        {
+            float a = i * Mathf.Tau / 3f + Mathf.Pi / 6f, b = a + Mathf.Tau / 3f;
+            var pa = new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * .82f; var pb = new Vector3(Mathf.Cos(b), 0, Mathf.Sin(b)) * .82f;
+            inner.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3((pb - pa).Length(), .01f, .035f) }, MaterialOverride = glow, Position = (pa + pb) / 2, Rotation = new Vector3(0, -Mathf.Atan2(pb.Z - pa.Z, pb.X - pa.X), 0) });
+            inner.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(.035f, .01f, .22f) }, MaterialOverride = dim, Position = pa * .45f, Rotation = new Vector3(0, -a, 0) });
+        }
+        p.AddChild(outer); p.AddChild(inner);
+        var mote = new SphereMesh { Radius = .035f, Height = .07f, RadialSegments = 6, Rings = 3 };
+        p.AddChild(new CpuParticles3D
+        {
+            Amount = 10, Lifetime = 2.8f, Mesh = mote, MaterialOverride = glow, Position = new Vector3(0, .1f, 0),
+            EmissionShape = CpuParticles3D.EmissionShapeEnum.Sphere, EmissionSphereRadius = 1.1f, Direction = Vector3.Up, Spread = 8f,
+            Gravity = Vector3.Zero, InitialVelocityMin = .35f, InitialVelocityMax = .7f, ScaleAmountMin = .6f, ScaleAmountMax = 1.4f
+        });
+        var lamp = new OmniLight3D { LightColor = cc, OmniRange = 7, LightEnergy = .7f, Position = new Vector3(0, 1f, 0) };
+        p.AddChild(lamp); p.Outer = outer; p.Inner = inner; p.Lamp = lamp;
         return p;
     }
 
@@ -439,6 +466,14 @@ public partial class Pad : Node3D, IInteractable
     public bool Down;
     public string Prompt => Down ? "Descend deeper" : "Leave dungeon";
     public bool CanInteract => true;
+    public Node3D? Outer, Inner; public OmniLight3D? Lamp; float _t;
     public override void _Ready() { AddToGroup("interact"); }
+    public override void _Process(double d)
+    {
+        _t += (float)d;
+        if (Outer != null) Outer.Rotation = new Vector3(0, _t * .12f, 0);
+        if (Inner != null) Inner.Rotation = new Vector3(0, -_t * .3f, 0);
+        if (Lamp != null) Lamp.LightEnergy = .7f + .2f * Mathf.Sin(_t * 1.6f);
+    }
     public void Interact() { if (Down) Dungeon.Enter(Dungeon.Key, Dungeon.Depth + 1); else Dungeon.Leave(false); }
 }

@@ -110,7 +110,7 @@ public partial class FitBot : Node
 
     // ------------------------------------------------------------------ the body as capsules
     /// <summary>A capsule from one bone point to another (each a bone index plus an offset in that bone's space), radius from the mesh.</summary>
-    sealed class Seg { public string Name = ""; public int A, B; public Vector3 OffA, OffB; public float R = .05f; }
+    sealed class Seg { public string Name = ""; public int A, B; public Vector3 OffA = Vector3.Zero, OffB; public float R = .05f; }
     sealed class BodyModel { public Skeleton3D Sk = null!; public List<Seg> Segs = new(); public string Missing = ""; }   // Sk is only valid while the mannequin exists (not during Tune)
 
     static readonly (string name, string a, string b)[] SegDefs =

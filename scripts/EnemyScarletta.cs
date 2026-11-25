@@ -91,6 +91,7 @@ void fragment() {
     void ScarGothic(Appearance ap)
     {
         var goldSrc = GothicMats.For("G_Metal_Brass"); var crimson = GothicMats.For("G_Cloth");
+        if (_av == null) return;
         foreach (var n in _av.FindChildren("*", "MeshInstance3D", true, false))
         {
             if (n is not MeshInstance3D mi || mi.Mesh == null) continue;
@@ -150,7 +151,7 @@ void fragment() {
     /// </summary>
     void ScarHair()
     {
-        _av.ShowHair();   // her plate must not hide it
+        _av?.ShowHair();   // her plate must not hide it
         var tex = ResourceLoader.Exists("res://assets/textures/gothic/hair_strands.png") ? GD.Load<Texture2D>("res://assets/textures/gothic/hair_strands.png") : null;
         StandardMaterial3D M(Color c, float e) => tex != null
             ? new StandardMaterial3D { AlbedoTexture = tex, Uv1Scale = new Vector3(.25f, 1, 1), AlbedoColor = c, Roughness = .6f, CullMode = BaseMaterial3D.CullModeEnum.Disabled, Transparency = BaseMaterial3D.TransparencyEnum.AlphaScissor, AlphaScissorThreshold = .4f, AlphaAntialiasingMode = BaseMaterial3D.AlphaAntiAliasing.AlphaToCoverage, EmissionEnabled = true, Emission = c * .4f, EmissionEnergyMultiplier = e }

@@ -7,7 +7,7 @@ public partial class Loot : Node3D
 {
     public int Gold; public Item? Item; public string? Pot;   // "hp" or "mp"
     // multiplayer: a drop the host keeps track of (NetId > 0). Owner 0 = anyone may take it.
-    public int NetId; public long Owner; public string OwnerName = "";
+    public int NetId; public new long Owner; public string OwnerName = "";
     public bool Hold;   // dropped by us: not picked up again until we have stepped away from it once
     float _t, _claimT;
     static Vector3 _dropPos; static ulong _dropMs;

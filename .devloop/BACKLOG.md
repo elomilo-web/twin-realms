@@ -2,18 +2,15 @@
 Format: [impact 1-5][effort S/M/L][category] description -> target files. Top = next. Remove when done (log it in LOG.md).
 Categories: graphics shaders lighting animation feel combat mechanics ui menus world vfx audio perf code tools
 
-[5][M][world] Frostmere shore shows dry sand blocks, no water surface: check BlockGen water fill for land lakes vs smooth water plane cut-out (vox_rect hides it) -> BlockGen.cs, BlockWorld.cs, World.cs water
-[5][M][graphics] Block terrain reads as harsh flat stair-steps: add per-block albedo variation, top-edge bevel/AO darkening and grass-lip overhang so terraces read as crafted, not placeholder -> BlockMesher.cs, Blocks.cs, data/blocks.json
-[5][M][lighting] World vista is washed out: fog/haze far too dense from height; tune height-fog falloff and aerial perspective so distance reads blue-grey, not white -> data/look.json, World.cs env setup
-[5][S][world] Huge white light-beam pillar dominates the vista (sky beacon?): find source, make it subtle or hide at distance -> World.cs / Lands.cs (grep beam|pillar|beacon)
-[4][M][graphics] Block side faces (dirt cliffs) are flat brown: use the gothic triplanar scanned sets (G_Soil/G_Rock) on block faces by block type -> BlockMesher.cs, Blocks.cs, assets/materials/gothic
-[4][S][tools] DevCapture: leave arena before entering dungeon (arena HUD leaks into dungeon shot); give capture hero a real kit sword + armor so the hero is not bare-chested with a purple line -> scripts/dev/DevCapture.cs
+[5][M][world] Frostmere shore STILL dry after #1 (rounding fix in BlockGen.Column did not help; whole basin is sand terraces, sky looks smeared there too). Next: log hero pos, Lands.WaterAt/GroundAt, lake Level at the view from DevCapture; check the view really is at Frostmere (land offset Cx/Cz) and whether the lake bed is carved -> DevCapture.cs, BlockGen.cs, Lands.cs
 [4][S][tools] Foliage viewpoint lands in Hollowfrost village, not a forest: point it at a forest biome region -> .devloop/viewpoints.json, DevCapture.cs (add "biome" lookup)
-[4][M][vfx] Dungeon exit marker is a flat pale-blue ellipse: replace with a gothic rune circle (emissive ring + slow rotating sigil + mote particles) -> Dungeon.cs
-[4][M][lighting] Dungeon is near-black except one cold spot: add warm torch pools (OmniLight + flicker) along corridors, volumetric fog wisps -> Dungeon.cs
+[4][M][lighting] Dungeon entry room still near-black although Dungeon.Dress places torches (L295-335, every 2nd lit, Range 13): check torches near the entry, warm them, add ambient fill/volumetric wisps -> Dungeon.cs, Torch class (grep)
+[4][S][graphics] Verify block lip/jitter look up close (#1 added it; not visible at capture distance): add a close terrace viewpoint, tune data/blocks.json "lip" colours -> viewpoints.json, data/blocks.json
+[3][S][feel] A wild wolf wanders into the "running" view and hits the hero (-40): DevCapture clears foes near the hero before each world view -> DevCapture.cs
 [4][M][feel] Hit-stop + camera kick scaled by damage and weapon weight; heavier for crits -> Feel.cs, CameraRig.cs
 [4][M][animation] Running pose stiff at distance: add lean into turns and upper-body counter-rotation -> HeroRig.cs / Avatar.cs
-[4][M][ui] HUD bars are thin flat rectangles: gothic framed bars with damage-ghost trail (lagging white chunk) and low-HP pulse vignette -> Hud.cs, data/ui_theme.json
+[3][S][ui] HUD ghost/vignette colours are hard-coded in Hud.SlantBar/GhostStep: move to data/ui_theme.json; add a "low_hp" viewpoint (hero at 20% HP) to judge the pulse -> Hud.cs, viewpoints.json
+[3][S][lighting] Vista now clear: sea reads flat grey-blue; add sun glint/specular and horizon gradient on far water -> World.cs water material
 [4][M][ui] Inventory grid is empty dark squares: add slot frame textures, rarity border glow, hovered-slot highlight, paper-doll silhouette behind equipment -> Ui.cs OpenPack, ItemSlot.cs
 [4][M][menus] Main menu is a flat panel over a black void: title backdrop scene (slow camera over Oakhaven at dusk) behind a translucent gothic panel, serif title -> Main.cs title cam, Ui.cs ShowTitle
 [4][M][world] Village plaza is sparse: add market stalls, banners, crates, lanterns on posts, scattered hay/leaves decals -> Builder.cs, data/env.json
@@ -41,7 +38,7 @@ Categories: graphics shaders lighting animation feel combat mechanics ui menus w
 [3][S][perf] Player close-up min 20 fps: find first-frame spikes (shader compile?) -> report.json, Main.cs warmup
 [3][M][code] Enemy.cs 947 lines: split AI states into EnemyAi.cs (no behavior change) -> Enemy.cs
 [3][M][code] World.cs 949 lines: split environment/sky/light setup into WorldEnv.cs -> World.cs
-[2][S][code] Fix the 10 compiler warnings (nullables, unused vars) -> Loot.cs, Player.cs, EnemyScarletta.cs, Shots.cs, FitBot.cs
+[2][S][code] Last compiler warning: EnemyScarletta.cs(164,29) CS8602 -> EnemyScarletta.cs
 [2][S][ui] Serif font for titles (CC0, e.g. a free-license blackletter/serif) -> data/ui_theme.json, UiTheme.cs
 [2][M][world] Weather: rain/storm cycle with wet darkening on blocks and puddle reflections -> World.cs, Ambient.cs
 [2][M][vfx] Ambient motes: fireflies at night near water, falling leaves in forests -> Ambient.cs

@@ -47,10 +47,12 @@
   "brightness": 1.0,
   "ssaoIntensity": 0.9,
   "ssaoRadius": 1.3,
-  "fogDay": 0.0028,
-  "fogShadow": 0.0075,
-  "aerial": 0.35,
-  "skyAffect": 0.6,
+  "fogDay": 0.0009,
+  "fogShadow": 0.0045,
+  "fogHeight": 30,
+  "fogHeightDensity": 0.0035,
+  "aerial": 0.5,
+  "skyAffect": 0.2,
   "glowIntensity": 0.55,
   "glowBloom": 0.04,
   "sunDay": 1.6,
@@ -69,7 +71,7 @@
   "moonColor": "9fb2dc",
   "_nightHelp": "Night is a dusty blue, not black: nightTop/nightHorizon colour the sky, ambientNightColor/ambientNight the fill light, moonColor/sunNight the moonlight.",
   "_qualityHelp": "gi: bounce light on/off (SDFGI), giEnergy its strength; ssil: screen-space indirect light; volFog: haze density for sun shafts (0 = off), sunShafts their strength; shadowDistance: metres of sun shadows.",
-  "gi": 1, "giEnergy": 0.55, "ssil": 1.0, "volFog": 0.0042, "sunShafts": 1.2, "shadowDistance": 260
+  "gi": 1, "giEnergy": 0.55, "ssil": 1.0, "volFog": 0.0018, "sunShafts": 1.2, "shadowDistance": 260
  },
  "terrain": {
   "_help": "Ground textures (assets/textures/terrain, CC0 ambientCG) blended by World.cs TerrainShader. *_tile = metres per repeat; *_tint multiplies a texture; saturation/brightness grade the whole ground; meadow_amount = dirt patches in the grass; gravel_amount = gravel patches.",
@@ -83,7 +85,7 @@
  },
  "sky": {
   "dayTop": "5a6470",
-  "dayHorizon": "d6c9a4",
+  "dayHorizon": "9aa6b6",
   "duskTop": "2d2f6e",
   "duskHorizon": "ff8048",
   "duskGlow": "ff6a3a",

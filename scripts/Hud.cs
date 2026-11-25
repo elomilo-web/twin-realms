@@ -27,6 +27,7 @@ public partial class HudCanvas : Control
 {
     static readonly Color Gold = new Color("e3b04b"), Mute = new Color("a095bd");
     float _hurt, _lastHp = -1, _ptsShowT; int _lastPts;
+    float _gHp = 1, _gHpH, _gMp = 1, _gMpH, _gSt = 1, _gStH, _lowV;   // damage ghosts (value, hold) and smoothed low-HP vignette
     static GradientTexture2D? _vig;
     static GradientTexture2D Vignette
     {
@@ -60,8 +61,12 @@ public partial class HudCanvas : Control
         var pad = u * 1.4f;
         // hurt vignette: red edges flash when hit and pulse slowly below 35% health
         float dtv = (float)GetProcessDeltaTime(); if (p.Hp < _lastHp - .5f) _hurt = Mathf.Min(1f, _hurt + .35f + (_lastHp - p.Hp) / d.MaxHp() * 3f); _lastHp = p.Hp; _hurt = Mathf.Max(0, _hurt - dtv * 1.6f);
-        float hpF0 = p.Hp / d.MaxHp(), low = p.Dead ? 0 : Mathf.Clamp((.35f - hpF0) / .35f, 0, 1) * (.55f + .25f * Mathf.Sin((float)Time.GetTicksMsec() / 260f));
-        float vig = Mathf.Max(_hurt, low); if (vig > .01f) DrawTextureRect(Vignette, new Rect2(Vector2.Zero, sz), false, new Color(.85f, .05f, .05f, vig * .85f));
+        float hpF0 = p.Hp / d.MaxHp();
+        float lowT = p.Dead || hpF0 >= .3f ? 0 : Mathf.Clamp((.3f - hpF0) / .3f, 0, 1) * .6f + .4f; _lowV = Mathf.MoveToward(_lowV, lowT, dtv * 1.5f);   // fades in below 30%, out above
+        float low = _lowV * (.6f + .4f * Mathf.Sin((float)Time.GetTicksMsec() / 380f));
+        if (_hurt > .01f) DrawTextureRect(Vignette, new Rect2(Vector2.Zero, sz), false, new Color(.85f, .05f, .05f, _hurt * .85f));
+        if (low > .01f) DrawTextureRect(Vignette, new Rect2(Vector2.Zero, sz), false, new Color(.35f, .01f, .02f, low * .8f));   // dark-red low-HP pulse
+        GhostStep(ref _gHp, ref _gHpH, hpF0, dtv); GhostStep(ref _gMp, ref _gMpH, p.Mp / d.MaxMp(), dtv); GhostStep(ref _gSt, ref _gStH, p.St / d.MaxSt(), dtv);
         // ---- status window, top left: name and level, slanted segmented HP bar (green > yellow > red), MP and stamina, XP line, place
         string realm = World.Realm == 1 ? "SHADOW" : "LIGHT"; float hrs = World.TimeOfDay * 24f;
         float pw = Mathf.Max(300, u * 28), ph = fs(1.2f) + 76, px = pad, py = pad;
@@ -72,11 +77,11 @@ public partial class HudCanvas : Control
         Txt(new Vector2(px + 12, py + fs(1.2f) + 6), $"Lv {d.Level}", fs(1.1f), UiTheme.Accent, HorizontalAlignment.Right, pw - 24);
         float hpF = Mathf.Clamp(p.Hp / d.MaxHp(), 0, 1); var hpCol = hpF > .25f ? new Color("8e1c1a") : new Color("c0281f");   // gothic: crimson health, brighter when low
         float bx0 = px + 12, bw0 = pw - 24, by0 = py + fs(1.2f) + 14;
-        SlantBar(new Rect2(bx0, by0, bw0, 14), hpF, hpCol, 10, 10);
+        SlantBar(new Rect2(bx0, by0, bw0, 14), hpF, hpCol, 10, 10, _gHp);
         Txt(new Vector2(bx0, by0 + 30), "HP", fs(.85f), UiTheme.Dim);
         Txt(new Vector2(bx0, by0 + 30), $"{Mathf.CeilToInt(p.Hp)} / {d.MaxHp()}", fs(.95f), Colors.White, HorizontalAlignment.Right, bw0 - 8);
-        SlantBar(new Rect2(bx0 + 28, by0 + 36, bw0 * .62f, 7), p.Mp / d.MaxMp(), new Color("3c5c98"), 5, 0);
-        SlantBar(new Rect2(bx0 + 28, by0 + 47, bw0 * .62f, 5), p.St / d.MaxSt(), new Color("5c7a3c"), 4, 0);
+        SlantBar(new Rect2(bx0 + 28, by0 + 36, bw0 * .62f, 7), p.Mp / d.MaxMp(), new Color("3c5c98"), 5, 0, _gMp);
+        SlantBar(new Rect2(bx0 + 28, by0 + 47, bw0 * .62f, 5), p.St / d.MaxSt(), new Color("5c7a3c"), 4, 0, _gSt);
         Txt(new Vector2(bx0, by0 + 44), "MP", fs(.75f), UiTheme.Dim);
         DrawRect(new Rect2(px + 1, py + ph - 4, pw - 2, 2), new Color(0, 0, 0, .4f)); DrawRect(new Rect2(px + 1, py + ph - 4, (pw - 2) * Mathf.Clamp((float)d.Xp / d.XpNeed(), 0, 1), 2), UiTheme.Highlight);
         // realm, clock, place and gold sit under the compass (the notes column starts just below the status window)
@@ -271,14 +276,33 @@ public partial class HudCanvas : Control
     }
 
     /// <summary>Slanted bar with segment ticks: track, fill and outline are parallelograms leaning right.</summary>
-    void SlantBar(Rect2 r, float frac, Color col, float skew, int segs)
+    void SlantBar(Rect2 r, float frac, Color col, float skew, int segs, float ghost = -1f)
     {
         frac = Mathf.Clamp(frac, 0, 1); float x = r.Position.X, y = r.Position.Y, w = r.Size.X, h = r.Size.Y;
         Vector2[] Para(float x0, float x1) => new[] { new Vector2(x0 + skew, y), new Vector2(x1 + skew, y), new Vector2(x1, y + h), new Vector2(x0, y + h) };
-        DrawColoredPolygon(Para(x, x + w - skew), new Color(0, 0, 0, .55f));
-        if (frac > 0.001f) { DrawColoredPolygon(Para(x, x + (w - skew) * frac), col); DrawColoredPolygon(new[] { new Vector2(x + skew, y), new Vector2(x + skew + (w - skew) * frac, y), new Vector2(x + skew * .55f + (w - skew) * frac, y + h * .45f), new Vector2(x + skew * .55f, y + h * .45f) }, new Color(1, 1, 1, .18f)); }
+        DrawColoredPolygon(Para(x, x + w - skew), new Color(.02f, .015f, .02f, .8f));   // dark inset background
+        if (ghost > frac + .002f) DrawColoredPolygon(Para(x + (w - skew) * frac, x + (w - skew) * Mathf.Min(ghost, 1f)), new Color(.9f, .72f, .4f, .75f));   // pale amber chunk of lost value
+        if (frac > 0.001f)
+        {
+            float fw = (w - skew) * frac;
+            DrawColoredPolygon(Para(x, x + fw), col);
+            DrawColoredPolygon(new[] { new Vector2(x + skew, y), new Vector2(x + skew + fw, y), new Vector2(x + skew * .55f + fw, y + h * .45f), new Vector2(x + skew * .55f, y + h * .45f) }, new Color(1, 1, 1, .18f));   // lighter top
+            DrawColoredPolygon(new[] { new Vector2(x + skew * .3f, y + h * .7f), new Vector2(x + skew * .3f + fw, y + h * .7f), new Vector2(x + fw, y + h), new Vector2(x, y + h) }, new Color(0, 0, 0, .28f));   // darker bottom
+            DrawLine(new Vector2(x + skew, y + .5f), new Vector2(x + skew + fw, y + .5f), new Color(1, 1, 1, .22f), 1f);   // bright top edge
+        }
         for (int i = 1; i < segs; i++) { float sx = x + (w - skew) * i / segs; DrawLine(new Vector2(sx + skew, y), new Vector2(sx, y + h), new Color(0, 0, 0, .45f), 1f); }
-        var o = Para(x, x + w - skew); DrawPolyline(new[] { o[0], o[1], o[2], o[3], o[0] }, UiTheme.AccentSoft, 1f);
+        var o = Para(x, x + w - skew); DrawPolyline(new[] { o[0], o[1], o[2], o[3], o[0] }, new Color(0, 0, 0, .8f), 3f);   // dark outer edge
+        DrawPolyline(new[] { o[0], o[1], o[2], o[3], o[0] }, new Color(.72f, .58f, .3f, .9f), 1f);   // thin tarnished-gold frame
+    }
+
+    /// <summary>Damage ghost: g trails the current fraction, holding ~0.5 s after a drop and then draining.</summary>
+    static void GhostStep(ref float g, ref float hold, float cur, float dt)
+    {
+        cur = Mathf.Clamp(cur, 0, 1);
+        if (cur >= g) { g = cur; hold = 0; return; }
+        if (hold == 0) hold = .5f;   // fresh drop: wait, then drain (hold < 0 = draining)
+        if (hold > 0) { hold -= dt; if (hold <= 0) hold = -1f; return; }
+        g = Mathf.Max(cur, g - dt * .35f); if (g <= cur) hold = 0;
     }
 
     /// <summary>Slot label that always fits its box: one line if it fits, else two lines split at a space, shrinking the font as a last resort.</summary>
