@@ -1,0 +1,1031 @@
+﻿[
+    {
+        "path":  "assets/materials/gothic/G_Bark.tres",
+        "lines":  21,
+        "hash8":  "5c7da322",
+        "system":  "world",
+        "summary":  ""
+    },
+    {
+        "path":  "assets/materials/gothic/G_Brick.tres",
+        "lines":  21,
+        "hash8":  "ad1c98e4",
+        "system":  "world",
+        "summary":  ""
+    },
+    {
+        "path":  "assets/materials/gothic/G_Cloth.tres",
+        "lines":  21,
+        "hash8":  "e612eb85",
+        "system":  "world",
+        "summary":  ""
+    },
+    {
+        "path":  "assets/materials/gothic/G_Cloth_Black.tres",
+        "lines":  21,
+        "hash8":  "0fb6f5eb",
+        "system":  "world",
+        "summary":  ""
+    },
+    {
+        "path":  "assets/materials/gothic/G_Cloth_Blue.tres",
+        "lines":  21,
+        "hash8":  "2eb4cac5",
+        "system":  "world",
+        "summary":  ""
+    },
+    {
+        "path":  "assets/materials/gothic/G_Cloth_Linen.tres",
+        "lines":  21,
+        "hash8":  "bbd57fd9",
+        "system":  "world",
+        "summary":  ""
+    },
+    {
+        "path":  "assets/materials/gothic/G_Cloth_Wool.tres",
+        "lines":  21,
+        "hash8":  "93559c28",
+        "system":  "world",
+        "summary":  ""
+    },
+    {
+        "path":  "assets/materials/gothic/G_Cobble.tres",
+        "lines":  21,
+        "hash8":  "41061d1c",
+        "system":  "world",
+        "summary":  ""
+    },
+    {
+        "path":  "assets/materials/gothic/G_Fur.tres",
+        "lines":  20,
+        "hash8":  "8f72f5f2",
+        "system":  "world",
+        "summary":  ""
+    },
+    {
+        "path":  "assets/materials/gothic/G_Leather.tres",
+        "lines":  21,
+        "hash8":  "66d10e24",
+        "system":  "world",
+        "summary":  ""
+    },
+    {
+        "path":  "assets/materials/gothic/G_Leaves.tres",
+        "lines":  17,
+        "hash8":  "7c114992",
+        "system":  "world",
+        "summary":  ""
+    },
+    {
+        "path":  "assets/materials/gothic/G_Metal_Brass.tres",
+        "lines":  21,
+        "hash8":  "786052cb",
+        "system":  "world",
+        "summary":  ""
+    },
+    {
+        "path":  "assets/materials/gothic/G_Metal_Iron.tres",
+        "lines":  21,
+        "hash8":  "450e21fa",
+        "system":  "world",
+        "summary":  ""
+    },
+    {
+        "path":  "assets/materials/gothic/G_Metal_Rust.tres",
+        "lines":  23,
+        "hash8":  "5e094c37",
+        "system":  "world",
+        "summary":  ""
+    },
+    {
+        "path":  "assets/materials/gothic/G_Metal_Steel.tres",
+        "lines":  21,
+        "hash8":  "34521d3d",
+        "system":  "world",
+        "summary":  ""
+    },
+    {
+        "path":  "assets/materials/gothic/G_Moss.tres",
+        "lines":  20,
+        "hash8":  "1ea79293",
+        "system":  "world",
+        "summary":  ""
+    },
+    {
+        "path":  "assets/materials/gothic/G_Needles.tres",
+        "lines":  17,
+        "hash8":  "21631ea0",
+        "system":  "world",
+        "summary":  ""
+    },
+    {
+        "path":  "assets/materials/gothic/G_Parchment.tres",
+        "lines":  21,
+        "hash8":  "529b76c7",
+        "system":  "world",
+        "summary":  ""
+    },
+    {
+        "path":  "assets/materials/gothic/G_Planks.tres",
+        "lines":  21,
+        "hash8":  "d148955e",
+        "system":  "world",
+        "summary":  ""
+    },
+    {
+        "path":  "assets/materials/gothic/G_Plaster.tres",
+        "lines":  21,
+        "hash8":  "1bdf88e3",
+        "system":  "world",
+        "summary":  ""
+    },
+    {
+        "path":  "assets/materials/gothic/G_Rock.tres",
+        "lines":  21,
+        "hash8":  "ee7107e6",
+        "system":  "world",
+        "summary":  ""
+    },
+    {
+        "path":  "assets/materials/gothic/G_Scales.tres",
+        "lines":  20,
+        "hash8":  "af6b24e4",
+        "system":  "world",
+        "summary":  ""
+    },
+    {
+        "path":  "assets/materials/gothic/G_Slate.tres",
+        "lines":  21,
+        "hash8":  "6614d230",
+        "system":  "world",
+        "summary":  ""
+    },
+    {
+        "path":  "assets/materials/gothic/G_Stone.tres",
+        "lines":  21,
+        "hash8":  "874ce59f",
+        "system":  "world",
+        "summary":  ""
+    },
+    {
+        "path":  "assets/materials/gothic/G_Wood.tres",
+        "lines":  21,
+        "hash8":  "70b9bbad",
+        "system":  "world",
+        "summary":  ""
+    },
+    {
+        "path":  "assets/shaders/genshin_outline.gdshader",
+        "lines":  48,
+        "hash8":  "b085b0f5",
+        "system":  "world",
+        "summary":  "Genshin-style character outline: the mesh drawn a second time, inside out and slightly bigger."
+    },
+    {
+        "path":  "assets/shaders/genshin_toon.gdshader",
+        "lines":  149,
+        "hash8":  "0cfedd7d",
+        "system":  "world",
+        "summary":  "Genshin-Impact-style character shader for Godot 4 (Forward+, Mobile and Compatibility)."
+    },
+    {
+        "path":  "assets/shaders/water_stylized.gdshader",
+        "lines":  81,
+        "hash8":  "86538026",
+        "system":  "world",
+        "summary":  "Stylized anime water for Godot 4 (Forward+ / Mobile). Put it on a flat, subdivided..."
+    },
+    {
+        "path":  "installer/Setup.cs",
+        "lines":  286,
+        "hash8":  "a32dae09",
+        "system":  "core",
+        "summary":  "Twin Realms installer. Installs for the current user (no admin prompt) into %LOCALAPPDATA%\\Programs\\Twin Realms by..."
+    },
+    {
+        "path":  "scenes/Main.tscn",
+        "lines":  7,
+        "hash8":  "e55f42f8",
+        "system":  "core",
+        "summary":  ""
+    },
+    {
+        "path":  "scripts/Accounts.cs",
+        "lines":  201,
+        "hash8":  "2708cc31",
+        "system":  "network",
+        "summary":  "Settings for the online server and the Play Online screen (data/online.json)."
+    },
+    {
+        "path":  "scripts/Affixes.cs",
+        "lines":  85,
+        "hash8":  "0852b228",
+        "system":  "progression",
+        "summary":  "Bonus stats on epic and legendary gear (Item.Mods, in tree stat keys, added to the..."
+    },
+    {
+        "path":  "scripts/Ambient.cs",
+        "lines":  115,
+        "hash8":  "d65d55f4",
+        "system":  "world",
+        "summary":  "Scenery life that follows the player (no gameplay): butterflies over meadows by day, fireflies at..."
+    },
+    {
+        "path":  "scripts/AnimTool.cs",
+        "lines":  113,
+        "hash8":  "612ce904",
+        "system":  "devtools",
+        "summary":  "--measure-attacks: poses a body through attack clips and finds when the weapon hand moves fastest..."
+    },
+    {
+        "path":  "scripts/Arenas.cs",
+        "lines":  126,
+        "hash8":  "f483b8e3",
+        "system":  "arena",
+        "summary":  "The arena gate from the inside: during a run, interact to leave (Arenas.Leave). A banner..."
+    },
+    {
+        "path":  "scripts/Attacks.cs",
+        "lines":  186,
+        "hash8":  "5ccccdfe",
+        "system":  "combat",
+        "summary":  "A weapon class\u0027s basic attack as the player built it."
+    },
+    {
+        "path":  "scripts/Avatar.cs",
+        "lines":  755,
+        "hash8":  "cd7fc116",
+        "system":  "animation",
+        "summary":  "A character built from the Quaternius universal rig (data/avatar.json): a plain base body (male or..."
+    },
+    {
+        "path":  "scripts/BlockArea.cs",
+        "lines":  170,
+        "hash8":  "9d0ef89f",
+        "system":  "blockworld",
+        "summary":  "A 16 x 16 column of blocks from Blocks.MinY up to Blocks.MaxY. Ids and meta..."
+    },
+    {
+        "path":  "scripts/BlockFx.cs",
+        "lines":  146,
+        "hash8":  "e32ced8c",
+        "system":  "blockworld",
+        "summary":  "How hits change the block world, the same for every skill, basic attack, crafted spell..."
+    },
+    {
+        "path":  "scripts/BlockGen.cs",
+        "lines":  157,
+        "hash8":  "5d2cac65",
+        "system":  "blockworld",
+        "summary":  "The overworld as blocks, made from the same heightfield, ground types and water as the..."
+    },
+    {
+        "path":  "scripts/BlockMesher.cs",
+        "lines":  114,
+        "hash8":  "7badf2ba",
+        "system":  "blockworld",
+        "summary":  "A chunk\u0027s finished mesh: one surface per material, plus the faces for its collision shape...."
+    },
+    {
+        "path":  "scripts/Blocks.cs",
+        "lines":  175,
+        "hash8":  "8253ff69",
+        "system":  "blockworld",
+        "summary":  "One block type from data/blocks.json. Id 0 is always air."
+    },
+    {
+        "path":  "scripts/BlockSim.cs",
+        "lines":  194,
+        "hash8":  "c8d416a1",
+        "system":  "blockworld",
+        "summary":  "Block world over time: water and lava flow, fire spreads and burns out, frozen blocks..."
+    },
+    {
+        "path":  "scripts/BlockWorld.cs",
+        "lines":  255,
+        "hash8":  "74504b29",
+        "system":  "blockworld",
+        "summary":  "The block world (data/blocks.json, docs/DESIGN.md \"Block world\"). Around the player the ground is made of..."
+    },
+    {
+        "path":  "scripts/Bot.cs",
+        "lines":  932,
+        "hash8":  "3cd28af9",
+        "system":  "devtools",
+        "summary":  "Self-test bot. Run the game with: godot --path . -- --bot"
+    },
+    {
+        "path":  "scripts/BotBlocks.cs",
+        "lines":  141,
+        "hash8":  "5ffd443f",
+        "system":  "devtools",
+        "summary":  "Bot checks for the block world (tools/run.ps1 bot block): digging, building, water and ice, fire,..."
+    },
+    {
+        "path":  "scripts/Builder.cs",
+        "lines":  471,
+        "hash8":  "9d496d20",
+        "system":  "world",
+        "summary":  "Builds the hand-placed overworld: Oakhaven, the arena, dungeon mouths, the dragon lair, standing stones, obelisks,..."
+    },
+    {
+        "path":  "scripts/CameraRig.cs",
+        "lines":  78,
+        "hash8":  "1a048ecf",
+        "system":  "camera",
+        "summary":  "Free third-person camera. Mouse look, scroll to zoom, Esc frees the mouse, click recaptures it."
+    },
+    {
+        "path":  "scripts/Classes.cs",
+        "lines":  40,
+        "hash8":  "88a8e50e",
+        "system":  "progression",
+        "summary":  "Classes from data/classes.json: starting attributes, weapon, class passive, starting skills and colours."
+    },
+    {
+        "path":  "scripts/Combat.cs",
+        "lines":  74,
+        "hash8":  "7ee44397",
+        "system":  "combat",
+        "summary":  "The blow staggers the hero: pushes them, plays the flinch and interrupts what they are..."
+    },
+    {
+        "path":  "scripts/dev/DevCapture.cs",
+        "lines":  222,
+        "hash8":  "086c1096",
+        "system":  "devtools",
+        "summary":  "Dev loop eyes (autoload). Does nothing unless the game is started with the user arg..."
+    },
+    {
+        "path":  "scripts/Dungeon.cs",
+        "lines":  445,
+        "hash8":  "6c3e3cab",
+        "system":  "dungeons",
+        "summary":  "Procedural dungeons: three themes, descending depth, boss in the farthest room. Raid lairs (DungeonLair.cs) reuse..."
+    },
+    {
+        "path":  "scripts/DungeonLair.cs",
+        "lines":  291,
+        "hash8":  "44e85e60",
+        "system":  "dungeons",
+        "summary":  "Raid lairs: instanced boss fights that reuse the dungeon instances (solo, or shared by a..."
+    },
+    {
+        "path":  "scripts/Enemy.cs",
+        "lines":  947,
+        "hash8":  "24d3bc65",
+        "system":  "enemies",
+        "summary":  "Data-driven enemy. Melee, ranged, summoning bosses and the dragon. Stats come from data/enemies.json."
+    },
+    {
+        "path":  "scripts/EnemyAggro.cs",
+        "lines":  80,
+        "hash8":  "8cf5b82a",
+        "system":  "enemies",
+        "summary":  "Who a monster, boss or raid boss fights (runs where the monster is run: the..."
+    },
+    {
+        "path":  "scripts/EnemyDb.cs",
+        "lines":  88,
+        "hash8":  "56356106",
+        "system":  "enemies",
+        "summary":  "wildlife"
+    },
+    {
+        "path":  "scripts/EnemyDuelist.cs",
+        "lines":  453,
+        "hash8":  "c776045f",
+        "system":  "enemies",
+        "summary":  "The Shadow Duel boss (Crimson Arena): a dark mirror of the hero. It wears the..."
+    },
+    {
+        "path":  "scripts/EnemyScarletta.cs",
+        "lines":  673,
+        "hash8":  "f4bffd73",
+        "system":  "enemies",
+        "summary":  "Scarletta, The Rotting Blade: the raid boss of the Rotting Hollow (DungeonLair.cs), fought solo or..."
+    },
+    {
+        "path":  "scripts/EnemyShade.cs",
+        "lines":  77,
+        "hash8":  "3e7beea4",
+        "system":  "enemies",
+        "summary":  "Shades (Scarletta\u0027s Rotting Hollow, before the boss room): black mirror images of the party. Each..."
+    },
+    {
+        "path":  "scripts/Feel.cs",
+        "lines":  67,
+        "hash8":  "edba4d57",
+        "system":  "combat",
+        "summary":  "Game feel: hit-stop (a tiny freeze on impact) and enemy recoil settings. Tuning lives in..."
+    },
+    {
+        "path":  "scripts/FitBot.cs",
+        "lines":  659,
+        "hash8":  "bb1f1e88",
+        "system":  "devtools",
+        "summary":  "Gear fit bot. Run: godot --path . -- --fit (check + screenshots, bot_out/fit/)"
+    },
+    {
+        "path":  "scripts/Flag.cs",
+        "lines":  94,
+        "hash8":  "cb69a6c4",
+        "system":  "devtools",
+        "summary":  "Playtest flag (F8, rebindable): saves a screenshot and appends a report to user://playtest/flags.log"
+    },
+    {
+        "path":  "scripts/Flora.cs",
+        "lines":  325,
+        "hash8":  "7b32f432",
+        "system":  "world",
+        "summary":  "Scenery ground cover: wind-swept grass, ferns, bushes and pebbles. Scattered per chunk from data/flora.json,"
+    },
+    {
+        "path":  "scripts/FootIK.cs",
+        "lines":  164,
+        "hash8":  "8a208a01",
+        "system":  "animation",
+        "summary":  "Feet on the ground on slopes, steps and rocks (the clips are made for flat..."
+    },
+    {
+        "path":  "scripts/Fx.cs",
+        "lines":  44,
+        "hash8":  "28988b6f",
+        "system":  "skills_vfx",
+        "summary":  "Cheap visual effects: particle bursts and expanding rings."
+    },
+    {
+        "path":  "scripts/Game.cs",
+        "lines":  215,
+        "hash8":  "93916540",
+        "system":  "core",
+        "summary":  "Global game state, saving and cross-system helpers."
+    },
+    {
+        "path":  "scripts/Gather.cs",
+        "lines":  177,
+        "hash8":  "2d61f974",
+        "system":  "world",
+        "summary":  "Materials and gatherable node types from data/gather.json, and the scattering of nodes over the island."
+    },
+    {
+        "path":  "scripts/GearFx.cs",
+        "lines":  136,
+        "hash8":  "262d35a7",
+        "system":  "skills_vfx",
+        "summary":  "Elemental and rarity glow on worn gear and held weapons, so one model can read..."
+    },
+    {
+        "path":  "scripts/Genshin.cs",
+        "lines":  147,
+        "hash8":  "172fbfbc",
+        "system":  "world",
+        "summary":  "Genshin-Impact-style look for characters: turns a StandardMaterial3D into a ShaderMaterial that uses"
+    },
+    {
+        "path":  "scripts/Gfx.cs",
+        "lines":  357,
+        "hash8":  "eee171c9",
+        "system":  "world",
+        "summary":  "Shared procedural graphics: tileable textures generated in code (plaster, stone blocks, planks, shingles, bark, rock,..."
+    },
+    {
+        "path":  "scripts/GothicMats.cs",
+        "lines":  28,
+        "hash8":  "93ebf9ae",
+        "system":  "world",
+        "summary":  "Shared realistic materials (assets/materials/gothic/G_*.tres, CC0 ambientCG textures, triplanar so models need no UVs)."
+    },
+    {
+        "path":  "scripts/HeroRig.cs",
+        "lines":  280,
+        "hash8":  "920ef465",
+        "system":  "animation",
+        "summary":  "Look of a body: skin, hair and race features (data/races.json feeds this)."
+    },
+    {
+        "path":  "scripts/Home.cs",
+        "lines":  71,
+        "hash8":  "c0ad7135",
+        "system":  "loot",
+        "summary":  "Storage chest at the hero\u0027s home in Oakhaven. Opens the Home Storage window (pack on..."
+    },
+    {
+        "path":  "scripts/Hud.cs",
+        "lines":  350,
+        "hash8":  "566f3c7f",
+        "system":  "ui",
+        "summary":  "In-game HUD matching the prototype layout: top-left info, compass, quest tracker, target bar, bottom bars,..."
+    },
+    {
+        "path":  "scripts/Icons.cs",
+        "lines":  239,
+        "hash8":  "46dd7085",
+        "system":  "ui",
+        "summary":  "Vector icons drawn in code with CanvasItem primitives: spells, potions, weapon and gear types, materials."
+    },
+    {
+        "path":  "scripts/Inputs.cs",
+        "lines":  139,
+        "hash8":  "c93820a4",
+        "system":  "player",
+        "summary":  "Registers all input actions in code so project.godot stays clean. Every action in can be..."
+    },
+    {
+        "path":  "scripts/Interact.cs",
+        "lines":  12,
+        "hash8":  "05be0c8b",
+        "system":  "world",
+        "summary":  "Anything the player can use with E. Add the node to group \"interact\"."
+    },
+    {
+        "path":  "scripts/Items.cs",
+        "lines":  131,
+        "hash8":  "43f88155",
+        "system":  "loot",
+        "summary":  ""
+    },
+    {
+        "path":  "scripts/ItemSlot.cs",
+        "lines":  131,
+        "hash8":  "d1ce220d",
+        "system":  "loot",
+        "summary":  "One inventory cell: rarity frame, vector icon, level or count, hover glow. Raises Hover(on) and..."
+    },
+    {
+        "path":  "scripts/JsonUtil.cs",
+        "lines":  81,
+        "hash8":  "fb39b664",
+        "system":  "core",
+        "summary":  "Loads a data file. If data/tuning.json (the master tuning file) has an entry for this..."
+    },
+    {
+        "path":  "scripts/Kit.cs",
+        "lines":  155,
+        "hash8":  "832eaa6c",
+        "system":  "animation",
+        "summary":  "Environment models from the Quaternius kits (assets/models/env, listed in data/env.json)."
+    },
+    {
+        "path":  "scripts/LairIntro.cs",
+        "lines":  81,
+        "hash8":  "b15bc18f",
+        "system":  "dungeons",
+        "summary":  "The boss room intro (Scarletta\u0027s Rotting Hollow): when the first hero steps into the great..."
+    },
+    {
+        "path":  "scripts/Lands.cs",
+        "lines":  922,
+        "hash8":  "0e0840d3",
+        "system":  "world",
+        "summary":  "The wider world from data/lands.json: heightfield islands across the sea from the home island, each..."
+    },
+    {
+        "path":  "scripts/Loot.cs",
+        "lines":  101,
+        "hash8":  "144d19fc",
+        "system":  "loot",
+        "summary":  "Pickups: gold, potions and items. Walk close to collect them."
+    },
+    {
+        "path":  "scripts/LootTables.cs",
+        "lines":  181,
+        "hash8":  "baf92ae1",
+        "system":  "loot",
+        "summary":  "A named dungeon unique from data/loot.json."
+    },
+    {
+        "path":  "scripts/Main.cs",
+        "lines":  151,
+        "hash8":  "c93a8b5a",
+        "system":  "core",
+        "summary":  "Game root: shows the title screen, then builds the world, player, camera and HUD."
+    },
+    {
+        "path":  "scripts/MapMarks.cs",
+        "lines":  31,
+        "hash8":  "67e75b03",
+        "system":  "ui",
+        "summary":  "Other heroes to mark on the minimap and the map: your party members (or everyone..."
+    },
+    {
+        "path":  "scripts/ModTree.cs",
+        "lines":  76,
+        "hash8":  "d86e7d8d",
+        "system":  "progression",
+        "summary":  "The modifier tree (data/modtree.json): every skill modifier (support) and basic attack modifier sits in a..."
+    },
+    {
+        "path":  "scripts/MpBot.cs",
+        "lines":  290,
+        "hash8":  "97c0773e",
+        "system":  "devtools",
+        "summary":  "Two-machine self-test, run as two game windows on one computer (tools/run.ps1 mp):"
+    },
+    {
+        "path":  "scripts/Net.cs",
+        "lines":  441,
+        "hash8":  "1de76ad0",
+        "system":  "network",
+        "summary":  "What everyone in the lobby knows about one player (sent by the host as the..."
+    },
+    {
+        "path":  "scripts/NetAggro.cs",
+        "lines":  50,
+        "hash8":  "a0fe273b",
+        "system":  "network",
+        "summary":  "Taunts and revives over the network: a taunt on a friend\u0027s copy of a monster..."
+    },
+    {
+        "path":  "scripts/NetBlocks.cs",
+        "lines":  99,
+        "hash8":  "c9c1e53d",
+        "system":  "blockworld",
+        "summary":  "The block world in multiplayer: changes go through the host like loot. A player\u0027s own..."
+    },
+    {
+        "path":  "scripts/NetDungeon.cs",
+        "lines":  176,
+        "hash8":  "a482db07",
+        "system":  "dungeons",
+        "summary":  "Party dungeons. The host keeps one shared instance per party (PartyInfo.Dun*): which dungeon, floor, seed..."
+    },
+    {
+        "path":  "scripts/NetFx.cs",
+        "lines":  92,
+        "hash8":  "64fe8196",
+        "system":  "network",
+        "summary":  "Multiplayer extras: ambushes the host spawns (shared like every overworld monster), and what players see..."
+    },
+    {
+        "path":  "scripts/NetOnline.cs",
+        "lines":  264,
+        "hash8":  "67fc74c8",
+        "system":  "network",
+        "summary":  "The online server (MMO mode). A headless copy of the game runs the shared world..."
+    },
+    {
+        "path":  "scripts/NetParty.cs",
+        "lines":  385,
+        "hash8":  "cce16424",
+        "system":  "network",
+        "summary":  "What a loot pickup gives: gold, a potion or an item."
+    },
+    {
+        "path":  "scripts/Observer.cs",
+        "lines":  346,
+        "hash8":  "dc9c2ec9",
+        "system":  "devtools",
+        "summary":  "Look-and-feel observer. Run: godot --path . -- --observe"
+    },
+    {
+        "path":  "scripts/OnlineBot.cs",
+        "lines":  103,
+        "hash8":  "fc13bf96",
+        "system":  "devtools",
+        "summary":  "Online server self-test (tools/online_test.sh starts a local server, then runs this):"
+    },
+    {
+        "path":  "scripts/Perf.cs",
+        "lines":  44,
+        "hash8":  "52cd970d",
+        "system":  "devtools",
+        "summary":  "\"--perf\": a performance probe. Builds the world with default settings (like a fresh download), stands..."
+    },
+    {
+        "path":  "scripts/Player.cs",
+        "lines":  792,
+        "hash8":  "bada1afa",
+        "system":  "player",
+        "summary":  "The hero: movement, roll, four weapon types (sword, bow, wand, staff), block/parry, four spells, potions,..."
+    },
+    {
+        "path":  "scripts/PlayerBlocks.cs",
+        "lines":  185,
+        "hash8":  "47ff93cc",
+        "system":  "blockworld",
+        "summary":  "The hero and the block world: build mode (Inputs.BuildMode, N) with a crosshair target, hold..."
+    },
+    {
+        "path":  "scripts/PlayerDowned.cs",
+        "lines":  144,
+        "hash8":  "db71da12",
+        "system":  "player",
+        "summary":  "Raid rules for the hero (party lairs, DungeonLair.cs):"
+    },
+    {
+        "path":  "scripts/PlayerMacros.cs",
+        "lines":  89,
+        "hash8":  "8d0c63a2",
+        "system":  "player",
+        "summary":  "Macros (two per hero, keys Macro 1 / Macro 2 in Settings \u003e Controls, set..."
+    },
+    {
+        "path":  "scripts/PlayerNet.cs",
+        "lines":  35,
+        "hash8":  "0370a6cd",
+        "system":  "network",
+        "summary":  "The hero\u0027s side of multiplayer: the pose packet friends draw us from, and the duel..."
+    },
+    {
+        "path":  "scripts/PlayerSkills.cs",
+        "lines":  618,
+        "hash8":  "8c9c282d",
+        "system":  "skills_vfx",
+        "summary":  "The hero\u0027s active skills (data/skills.json via Skills.Compute): hotbar keys 1-6, costs and cooldowns, cast or..."
+    },
+    {
+        "path":  "scripts/PlayerSkillsExtra.cs",
+        "lines":  470,
+        "hash8":  "18b123a3",
+        "system":  "skills_vfx",
+        "summary":  "The newer skill kinds (data/skills.json \"kind\"):"
+    },
+    {
+        "path":  "scripts/PlayerSpellcraft.cs",
+        "lines":  66,
+        "hash8":  "2721559a",
+        "system":  "spellcraft",
+        "summary":  "Crafted spells (Spellcraft.cs): the second section. Like the chained sections of a Two Worlds II..."
+    },
+    {
+        "path":  "scripts/Progression.cs",
+        "lines":  165,
+        "hash8":  "bb494679",
+        "system":  "progression",
+        "summary":  "One dungeon gear tier or monster upgrade from data/progression.json."
+    },
+    {
+        "path":  "scripts/Projectile.cs",
+        "lines":  176,
+        "hash8":  "a7bec7a4",
+        "system":  "skills_vfx",
+        "summary":  "Arrows, magic bolts and fireballs. Owner \u0027p\u0027 hits enemies, \u0027e\u0027 hits the player."
+    },
+    {
+        "path":  "scripts/Props.cs",
+        "lines":  199,
+        "hash8":  "3cf50f78",
+        "system":  "world",
+        "summary":  "Rotates a node continuously (windmill blades, orbs)."
+    },
+    {
+        "path":  "scripts/Quests.cs",
+        "lines":  69,
+        "hash8":  "f63fd7f7",
+        "system":  "progression",
+        "summary":  "Quest log, progress events and rewards. Definitions come from data/quests.json."
+    },
+    {
+        "path":  "scripts/Races.cs",
+        "lines":  49,
+        "hash8":  "a537b290",
+        "system":  "progression",
+        "summary":  "Playable races from data/races.json: attributes, permanent bonuses and appearance."
+    },
+    {
+        "path":  "scripts/RemoteHero.cs",
+        "lines":  159,
+        "hash8":  "e4ffc2db",
+        "system":  "network",
+        "summary":  "A friend\u0027s hero as we see it: the same HeroRig (race look, class colours, every..."
+    },
+    {
+        "path":  "scripts/Sfx.cs",
+        "lines":  251,
+        "hash8":  "d8063626",
+        "system":  "audio",
+        "summary":  "Sound effects, ambience and music."
+    },
+    {
+        "path":  "scripts/Shots.cs",
+        "lines":  543,
+        "hash8":  "cdcc6aae",
+        "system":  "devtools",
+        "summary":  "Screenshot tour. Run the game with: godot --path . -- --shots (or tools/run.ps1 shots, tools/shots.sh)"
+    },
+    {
+        "path":  "scripts/Showcase.cs",
+        "lines":  183,
+        "hash8":  "95b35968",
+        "system":  "devtools",
+        "summary":  "Showcase bot: a handful of good-looking pictures of the game (for a store page, a..."
+    },
+    {
+        "path":  "scripts/Skills.cs",
+        "lines":  321,
+        "hash8":  "11f76dd3",
+        "system":  "skills_vfx",
+        "summary":  "A macro: a chain of learned skills played by one key (PlayerMacros.cs). The skills do..."
+    },
+    {
+        "path":  "scripts/Spellcraft.cs",
+        "lines":  424,
+        "hash8":  "5c1277b5",
+        "system":  "spellcraft",
+        "summary":  "A spell the player built from cards (Spellcraft menu, B). A = the first section,..."
+    },
+    {
+        "path":  "scripts/SpellFx.cs",
+        "lines":  212,
+        "hash8":  "ed7939e9",
+        "system":  "skills_vfx",
+        "summary":  "Plays the hand-drawn-style spell and skill animations in assets/vfx/flipbooks (4x4 sprite sheets made by tools/kit_gen/fx_gen.py)."
+    },
+    {
+        "path":  "scripts/Stats.cs",
+        "lines":  107,
+        "hash8":  "a3b709de",
+        "system":  "core",
+        "summary":  "Everything that is saved. Plain public fields (serialised with IncludeFields)."
+    },
+    {
+        "path":  "scripts/Status.cs",
+        "lines":  97,
+        "hash8":  "40cc96c4",
+        "system":  "combat",
+        "summary":  "Damage types, resistances, penetration and status effects (League of Legends style mitigation)."
+    },
+    {
+        "path":  "scripts/Targeting.cs",
+        "lines":  109,
+        "hash8":  "25436e9a",
+        "system":  "enemies",
+        "summary":  "Lock-on targeting. Tab (or middle mouse) locks the enemy nearest the screen centre; Tab or..."
+    },
+    {
+        "path":  "scripts/Threat.cs",
+        "lines":  95,
+        "hash8":  "080f098c",
+        "system":  "enemies",
+        "summary":  "The longer you play in one sitting, the harder the overworld pushes back (data/progression.json \"threat\"):"
+    },
+    {
+        "path":  "scripts/Titles.cs",
+        "lines":  55,
+        "hash8":  "79f324f4",
+        "system":  "progression",
+        "summary":  "Titles: earned names a hero can wear (Character menu). The worn title shows beside the..."
+    },
+    {
+        "path":  "scripts/Toon.cs",
+        "lines":  114,
+        "hash8":  "945807fd",
+        "system":  "world",
+        "summary":  "One look for everything (procedural meshes and imported models alike), in an anime / Genshin-like..."
+    },
+    {
+        "path":  "scripts/Tree.cs",
+        "lines":  133,
+        "hash8":  "c0a52f4a",
+        "system":  "progression",
+        "summary":  "Aggregated skill tree bonuses. Unknown stats read as 0."
+    },
+    {
+        "path":  "scripts/Ui.cs",
+        "lines":  827,
+        "hash8":  "b6056abd",
+        "system":  "ui",
+        "summary":  "All menus and overlays, built in code: notes, banners, dialogue, shop, smith, pack, character, skill..."
+    },
+    {
+        "path":  "scripts/UiAttacks.cs",
+        "lines":  92,
+        "hash8":  "6bcab45f",
+        "system":  "combat",
+        "summary":  "Basic attacks menu (O, or Skills \u003e Basic attacks): build the chain of swings each..."
+    },
+    {
+        "path":  "scripts/UiControls.cs",
+        "lines":  56,
+        "hash8":  "d3f16e3c",
+        "system":  "ui",
+        "summary":  "Settings \u003e Controls: every action with its key; click one, then press the new key..."
+    },
+    {
+        "path":  "scripts/UiCraft.cs",
+        "lines":  176,
+        "hash8":  "be42bc2e",
+        "system":  "loot",
+        "summary":  "Pack extras: the pickup filter and crafting with disassembly scraps (recipes in data/loot.json \"crafting\")."
+    },
+    {
+        "path":  "scripts/UiMacros.cs",
+        "lines":  90,
+        "hash8":  "fcea3a53",
+        "system":  "ui",
+        "summary":  "Skills \u003e Macros: build the two skill chains for the Macro 1 / Macro 2..."
+    },
+    {
+        "path":  "scripts/UiMods.cs",
+        "lines":  81,
+        "hash8":  "ec0ca829",
+        "system":  "ui",
+        "summary":  "Modifier tree menu (U): every skill modifier and basic attack modifier, in lanes by family..."
+    },
+    {
+        "path":  "scripts/UiNet.cs",
+        "lines":  205,
+        "hash8":  "d91a5bc4",
+        "system":  "network",
+        "summary":  "Multiplayer windows: host or join, the lobby (players, party, loot rules, duels), yes/no requests and..."
+    },
+    {
+        "path":  "scripts/UiOnline.cs",
+        "lines":  46,
+        "hash8":  "4e7e6f25",
+        "system":  "network",
+        "summary":  "Play Online: log in or create an account on the online server, then pick a..."
+    },
+    {
+        "path":  "scripts/UiSkills.cs",
+        "lines":  252,
+        "hash8":  "645e7d93",
+        "system":  "ui",
+        "summary":  "Skills menu (L). Left: every skill as an icon tile (rank pips, hotbar key, lock),..."
+    },
+    {
+        "path":  "scripts/UiSmith.cs",
+        "lines":  167,
+        "hash8":  "3b320757",
+        "system":  "loot",
+        "summary":  "Dorrin the Smith: put any piece of gear (worn or in the pack) on the..."
+    },
+    {
+        "path":  "scripts/UiSpellcraft.cs",
+        "lines":  282,
+        "hash8":  "4a159015",
+        "system":  "spellcraft",
+        "summary":  "Spellcraft menu (B): build skills from spell cards, as with the amulet in Two Worlds..."
+    },
+    {
+        "path":  "scripts/UiSystem.cs",
+        "lines":  231,
+        "hash8":  "3e948e3f",
+        "system":  "ui",
+        "summary":  "System menus: the pause menu (hero summary, quick links, save, quit with a confirm step)"
+    },
+    {
+        "path":  "scripts/UiTheme.cs",
+        "lines":  65,
+        "hash8":  "4bf480d4",
+        "system":  "ui",
+        "summary":  "Menu colours and sizes for the sci-fi \"system window\" look. Loaded from data/ui_theme.json."
+    },
+    {
+        "path":  "scripts/UiWidgets.cs",
+        "lines":  144,
+        "hash8":  "6c905a43",
+        "system":  "ui",
+        "summary":  "A floating card next to the mouse: a title and a few coloured lines. Used..."
+    },
+    {
+        "path":  "scripts/Updater.cs",
+        "lines":  475,
+        "hash8":  "76a69144",
+        "system":  "network",
+        "summary":  "Launch check and auto update state. The launcher (below) asks the online server (OnlineCfg.Server, Railway)..."
+    },
+    {
+        "path":  "scripts/Valor.cs",
+        "lines":  53,
+        "hash8":  "36202a22",
+        "system":  "progression",
+        "summary":  "Valor: the Wave Survival currency (data/valor.json). A run pays valor the first time it clears..."
+    },
+    {
+        "path":  "scripts/Vfx.cs",
+        "lines":  277,
+        "hash8":  "d0ce7037",
+        "system":  "skills_vfx",
+        "summary":  "Spell and combat visuals made in code: soft glowing particles, sword trails, fire explosions, frost..."
+    },
+    {
+        "path":  "scripts/Weapons.cs",
+        "lines":  300,
+        "hash8":  "265568ce",
+        "system":  "loot",
+        "summary":  "A hand pose in the hero\u0027s model space: hand position and the direction the weapon..."
+    },
+    {
+        "path":  "scripts/Wildlife.cs",
+        "lines":  36,
+        "hash8":  "8abe8b15",
+        "system":  "enemies",
+        "summary":  "Places wildlife herds (deer, rabbits, boars, shade stags) from data/wildlife.json. The animals themselves are Enemies"
+    },
+    {
+        "path":  "scripts/Wings.cs",
+        "lines":  38,
+        "hash8":  "b7c4fd18",
+        "system":  "animation",
+        "summary":  "Golden Wings (Scarletta\u0027s raid chest): a cape-slot item. Worn, they let the hero fly: press..."
+    },
+    {
+        "path":  "scripts/World.cs",
+        "lines":  949,
+        "hash8":  "0cabd4df",
+        "system":  "world",
+        "summary":  "The overworld: heightfield terrain, sky and day/night, the Light/Shadow realm shift, vegetation and shared materials."
+    }
+]

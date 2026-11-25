@@ -30,3 +30,11 @@ part_err.txt
 data/build.json
 build_setup/
 smoke_log.txt
+
+# dev loop
+.devloop/screenshots/
+.devloop/capture_log.txt
+.devloop/capture_err.txt
+.devloop/sheet.png
+.devloop/STOP
+.devloop/godot_path.txt

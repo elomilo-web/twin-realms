@@ -17,7 +17,7 @@ public partial class Main : Node3D
         World.I = null; FloraField.I = null; Player.Instance = null; Enemy.CurrentBoss = null; Player.BuildMode = false;
         BlockWorld.InitGlobals();   // the terrain, water and grass shaders read the block world's cut-out square
         if (ServerWanted()) { RunServer(); return; }
-        bool testing = Observer.Wanted() || Bot.Wanted() || Shots.Wanted() || Showcase.Wanted() || FitBot.Wanted() || MpBot.Wanted() != null || OnlineBot.Wanted();
+        bool testing = Observer.Wanted() || Bot.Wanted() || Shots.Wanted() || Showcase.Wanted() || FitBot.Wanted() || MpBot.Wanted() != null || OnlineBot.Wanted() || DevCapture.Wanted();
         if (testing) Game.SetPath = "user://test_settings.json";
         Game.LoadSettings();
         if (testing) Inputs.ResetAll(false);   // test bots press the default keys
@@ -40,7 +40,13 @@ public partial class Main : Node3D
         void Hero() { if (!Game.HasSave() || !Game.Load()) { Game.NewGame(Ui.PickedClass, Ui.PickedName, Ui.PickedRace); Game.D.Body = Ui.PickedBody; Game.D.PosX = 0; Game.D.PosZ = 9; } }
         Ui.OnHost = port => { Hero(); Begin(); Net.I!.Host(port); };
         Ui.OnJoin = (addr, port) => { Hero(); Net.I!.Join(addr, port, JoinWorld); };
-        if (Observer.Wanted() || Bot.Wanted() || Shots.Wanted() || Showcase.Wanted()) Game.SavePath = "user://test_save.json";
+        if (Observer.Wanted() || Bot.Wanted() || Shots.Wanted() || Showcase.Wanted() || DevCapture.Wanted()) Game.SavePath = "user://test_save.json";
+        if (DevCapture.Wanted())
+        {
+            // dev loop eyes (scripts/dev/DevCapture.cs): default graphics, title screen first, then a fresh hero on its cue
+            Game.Set = new Settings { Master = 0 }; Sfx.ApplyVolumes(); Game.ApplyDisplay();
+            DevCapture.StartGame = () => { Ui.I?.Close(); Game.NewGame("warrior", "Capture"); Game.D.PosX = 0; Game.D.PosZ = 9; Begin(); };
+        }
         if (Showcase.Wanted()) { Game.NewGame("warrior", "Showcase"); Begin(); AddChild(new Showcase { Name = "Showcase" }); return; }   // a few pretty pictures
         if (FitBot.Wanted()) { AddChild(new FitBot { Name = "FitBot" }); return; }   // gear fit studio: no world, no title
         if (Shots.Wanted()) { Game.NewGame("warrior", "Shots"); Begin(); AddChild(new Shots { Name = "Shots" }); return; }
@@ -61,7 +67,7 @@ public partial class Main : Node3D
                 GetTree().CreateTimer(5).Timeout += () => { GD.Print($"[QT] replay started={_started} player={Player.Instance != null && IsInstanceValid(Player.Instance)} hp={Player.Instance?.Hp}"); GetTree().Quit(); };
             };
         }
-        if (Updater.Wanted()) ui.ShowLauncher(); else ui.ShowTitle();   // the launcher: update check, patch notes, online login, then Play (Updater.cs)
+        if (DevCapture.Wanted()) ui.ShowTitle(); else if (Updater.Wanted()) ui.ShowLauncher(); else ui.ShowTitle();  // the launcher: update check, patch notes, online login, then Play (Updater.cs)
         // a calm backdrop behind the title screen
         var cam = new Camera3D { Name = "TitleCam", Position = new Vector3(0, 30, 60), RotationDegrees = new Vector3(-12, 0, 0), Current = true }; AddChild(cam);
         AddChild(new WorldEnvironment { Name = "TitleEnv", Environment = new Godot.Environment { BackgroundMode = Godot.Environment.BGMode.Color, BackgroundColor = new Color(.04f, .03f, .08f) } });

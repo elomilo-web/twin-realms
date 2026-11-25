@@ -1,0 +1,21 @@
+{
+  "_comment": "DevCapture viewpoints (scripts/dev/DevCapture.cs). Order matters: title first, world views, UI, arena, dungeon last (it replaces the world). Fields: see the DevCapture header.",
+  "viewpoints": [
+    { "name": "main_menu",      "scene": "title", "wait_frames": 40 },
+    { "name": "player_closeup", "scene": "world", "player_at": [1.5, 6], "yaw": 2.5, "time": 0.5, "cam_yaw": -0.64, "cam_dist": 2.6, "cam_pitch": -0.1, "wait_frames": 90 },
+    { "name": "running",        "scene": "world", "player_at": [-46, 34], "yaw": 2.2, "time": 0.55, "action": "run", "cam_yaw": 5.0, "cam_dist": 4.5, "wait_frames": 20 },
+    { "name": "combat_swing",   "scene": "world", "player_at": [-60, 20], "yaw": 0, "time": 0.45, "foes": ["wolf"], "hud": true, "action": "swing", "cam_yaw": 2.6, "cam_dist": 5, "wait_frames": 6 },
+    { "name": "spell_cast",     "scene": "world", "player_at": [-70, -95], "yaw": 0, "time": 0.45, "foes": ["golem", "golem"], "hud": true, "action": "cast", "cam_yaw": 2.3, "cam_dist": 7.5, "wait_frames": 8 },
+    { "name": "world_vista",    "scene": "world", "time": 0.4, "camera_pos": [0, 160, 260], "look_at": [0, 0, -40], "wait_frames": 90 },
+    { "name": "village",        "scene": "world", "time": 0.7, "camera_pos": [0, 26, 50], "look_at": [0, 2, 0], "wait_frames": 90 },
+    { "name": "foliage",        "scene": "world", "place": "frost/hollowfrost", "time": 0.5, "camera_pos": [-6, 2.2, 8], "look_at": [4, 1.5, -6], "relative": true, "wait_frames": 90 },
+    { "name": "water",          "scene": "world", "lake": "Frostmere", "time": 0.42, "camera_pos": [3, 4, 5], "look_at": [-30, 0, 0], "relative": true, "wait_frames": 90 },
+    { "name": "night_village",  "scene": "world", "time": 0.02, "camera_pos": [4, 9, 30], "look_at": [0, 2, 0], "wait_frames": 90 },
+    { "name": "shadow_realm",   "scene": "world", "player_at": [-46, 34], "realm": 1, "time": 0.5, "cam_yaw": 1.0, "cam_dist": 5, "wait_frames": 120 },
+    { "name": "hud",            "scene": "world", "player_at": [1.5, 12], "realm": 0, "time": 0.5, "hud": true, "cam_yaw": 3.1, "cam_dist": 4.5, "wait_frames": 40 },
+    { "name": "inventory",      "scene": "world", "action": "ui:pack", "hud": true, "wait_frames": 20 },
+    { "name": "spellcraft",     "scene": "world", "action": "ui:spellcraft", "hud": true, "wait_frames": 20 },
+    { "name": "arena",          "scene": "arena", "time": 0.5, "hud": true, "cam_yaw": 1.6, "cam_dist": 6, "wait_frames": 60 },
+    { "name": "dungeon",        "scene": "dungeon:barrow", "hud": true, "cam_yaw": -0.7, "cam_dist": 4, "wait_frames": 60 }
+  ]
+}
