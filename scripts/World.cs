@@ -529,6 +529,7 @@ void fragment(){
         _water = new ShaderMaterial { Shader = new Shader { Code = WaterShader } }; RealmShaders.Add(_water);
         foreach (var k in new[] { "shallow", "deep", "foam", "shadowShallow", "shadowDeep" })
             _water.SetShaderParameter(k switch { "shallow" => "shallow", "deep" => "deep", "foam" => "foam", "shadowShallow" => "s_shallow", _ => "s_deep" }, LC(k, "#3080a0"));
+        _water.SetShaderParameter("sky_tint", LC("horizon", "#4d5659"));
         Over.AddChild(new MeshInstance3D { Mesh = new PlaneMesh { Size = new Vector2(30000, 30000) }, MaterialOverride = _water, Position = new Vector3(0, 0.25f, 0), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
     }
 
@@ -538,6 +539,7 @@ render_mode blend_mix, depth_draw_opaque, cull_disabled, specular_schlick_ggx;
 uniform vec3 shallow : source_color; uniform vec3 deep : source_color; uniform vec3 foam : source_color;
 uniform vec3 s_shallow : source_color; uniform vec3 s_deep : source_color;
 uniform float realm_t = 0.0;
+uniform vec3 sky_tint : source_color = vec3(0.30, 0.34, 0.36);
 uniform sampler2D depth_tex : hint_depth_texture, filter_linear_mipmap;
 varying vec3 wp;
 global uniform vec4 vox_rect;   // the block world's square: water blocks are drawn there instead
@@ -552,8 +554,12 @@ void vertex(){ wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz; }
 void fragment(){
   float t = TIME; vec2 p = wp.xz; float e = 0.12;
   if (vox_cut > 0.5 && p.x > vox_rect.x && p.y > vox_rect.y && p.x < vox_rect.z && p.y < vox_rect.w) discard;
-  float w0 = waves(p, t), wx = waves(p + vec2(e, 0.0), t), wz = waves(p + vec2(0.0, e), t);
-  vec3 nw = normalize(vec3((w0 - wx) / e * 0.35, 1.0, (w0 - wz) / e * 0.35));
+  float dist = length(VERTEX);
+  float calm = 1.0 / (1.0 + dist / 140.0);   // far water is calmer
+  vec2 pa = p + vec2(t * 0.6, t * 0.25);
+  vec2 pb = vec2(p.x * 0.8 - p.y * 0.6, p.x * 0.6 + p.y * 0.8) * 0.37 + vec2(-t * 0.18, t * 0.11);   // rotated, larger, other direction
+  float w0 = waves(pa, t) + vn(pb) * 0.7, wx = waves(pa + vec2(e, 0.0), t) + vn(pb + vec2(e * 0.3, 0.0)) * 0.7, wz = waves(pa + vec2(0.0, e), t) + vn(pb + vec2(0.0, e * 0.3)) * 0.7;
+  vec3 nw = normalize(vec3((w0 - wx) / e * 0.35 * calm, 1.0, (w0 - wz) / e * 0.35 * calm));
   NORMAL = normalize((VIEW_MATRIX * vec4(nw, 0.0)).xyz);
   float dr = textureLod(depth_tex, SCREEN_UV, 0.0).r;
   vec4 up = INV_PROJECTION_MATRIX * vec4(SCREEN_UV * 2.0 - 1.0, dr, 1.0); up.xyz /= up.w;
@@ -564,8 +570,10 @@ void fragment(){
   float fn = vn(p * 3.0 + vec2(t * 0.5, -t * 0.3));
   float fo = (1.0 - smoothstep(0.0, 0.9 + fn * 0.6, thick)) * (0.55 + 0.45 * sin(thick * 9.0 - t * 2.5 + fn * 4.0));
   fo = clamp(fo + smoothstep(0.82, 0.95, w0 * 0.55 + fn * 0.4) * 0.35, 0.0, 1.0);
+  c *= mix(1.0, 0.7, clamp(1.0 - fr * 2.0, 0.0, 1.0));   // darker looking straight down
+  c = mix(c, sky_tint, clamp(fr * 1.3, 0.0, 0.85));       // reflect the horizon at grazing angles
   ALBEDO = mix(c, foam, fo);
-  ROUGHNESS = mix(0.04, 0.5, fo); SPECULAR = 0.6; METALLIC = 0.0;
+  ROUGHNESS = mix(0.08, 0.5, fo); SPECULAR = 0.9; METALLIC = 0.0;
   EMISSION = mix(vec3(0.0), vec3(0.25, 0.05, 0.35), realm_t * 0.4 * (1.0 - fo));
   ALPHA = clamp(mix(0.55, 0.95, smoothstep(0.0, 3.0, thick)) + fr * 0.3 + fo, 0.0, 1.0);
 }";

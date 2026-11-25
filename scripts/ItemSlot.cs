@@ -30,8 +30,8 @@ public partial class ItemSlot : Control
         var r = new Rect2(Vector2.Zero, Size);
         if (Item != null)
         {
-            var rc = Item.Color; Icons.Frame(this, r, rc, Item.Rar);
-            if (Item.Rar >= 3) DrawRect(r.Grow(-1), rc with { A = .1f + .05f * Mathf.Sin(Time.GetTicksMsec() / 300f) }); // epic and legendary shimmer
+            var rc = Item.Color; var fc = Items.RarityColor(Item.Rar); Inset(r, fc, Item.Rar, true);
+            if (Item.Rar >= 3) DrawRect(r.Grow(-2), rc with { A = .07f + .04f * Mathf.Sin(Time.GetTicksMsec() / 300f) }); // epic and legendary shimmer
             float ic = Mathf.Min(r.Size.Y, 66) * .62f; var c = Wide ? new Vector2(r.Size.Y * .5f + 4, r.Size.Y * .5f) : r.GetCenter() + new Vector2(0, -3);
             Icons.Draw(this, Icons.ForItem(Item.Slot, Item.Wt ?? ""), c, ic);
             if (Wide)
@@ -51,21 +51,39 @@ public partial class ItemSlot : Control
         }
         else if (IconId != "")
         {
-            DrawRect(r, new Color(.02f, .05f, .1f, .75f)); DrawRect(r, Tint with { A = .5f }, false, 1f);
+            Inset(r, Tint, 0, true);
             Icons.Draw(this, IconId, r.GetCenter() + new Vector2(0, -3), r.Size.Y * .6f);
             DrawStringOutline(F, new Vector2(0, r.Size.Y - 4), $"{Count}", HorizontalAlignment.Right, r.Size.X - 4, 12, 3, Colors.Black);
             DrawString(F, new Vector2(0, r.Size.Y - 4), $"{Count}", HorizontalAlignment.Right, r.Size.X - 4, 12, Colors.White);
         }
         else
         {
-            DrawRect(r, new Color(.02f, .05f, .1f, .5f)); DrawRect(r, UiTheme.AccentSoft with { A = .25f }, false, 1f);
+            Inset(r, new Color(.55f, .46f, .3f), 0, false);
             if (Empty != "")
             {
                 Icons.Draw(this, Icons.ForItem(Empty, "sword"), Wide ? new Vector2(r.Size.Y * .5f + 4, r.Size.Y * .5f) : r.GetCenter(), r.Size.Y * .5f, .18f);
                 if (Wide) DrawString(F, new Vector2(r.Size.Y + 6, r.Size.Y * .5f + 5), char.ToUpper(Empty[0]) + Empty[1..], HorizontalAlignment.Left, -1, 13, UiTheme.Dim);
             }
         }
-        if (_over) { DrawRect(r, UiTheme.Accent, false, 2f); DrawRect(r, UiTheme.Accent with { A = .08f }); }
+        if (_over) { DrawRect(r, UiTheme.Accent, false, 2f); DrawRect(r.Grow(-2), new Color(1f, .9f, .6f, .35f), false, 1f); DrawRect(r, UiTheme.Accent with { A = .08f }); }
+    }
+
+    /// <summary>Framed inset: dark well with vignette, 1px frame (rarity colour for items, tarnished gold when empty), corner accents, inner glow for rare+.</summary>
+    void Inset(Rect2 r, Color rc, int tier, bool filled)
+    {
+        float k = filled ? 1f : .55f;
+        DrawRect(r, new Color(.035f, .03f, .03f, filled ? .92f : .8f));
+        for (int i = 0; i < 4; i++) DrawRect(r.Grow(-i * 2f), new Color(0, 0, 0, .22f - i * .05f), false, 2f); // inner vignette
+        if (filled && tier >= 2) for (int i = 0; i < 3; i++) DrawRect(r.Grow(-1 - i * 2), rc with { A = (.07f + .04f * tier) * (1f - i * .3f) }, false, 2f); // soft glow
+        var fr = filled ? new Color(rc.R * .5f + .3f * rc.R, rc.G * .8f, rc.B * .8f).Lerp(rc, .6f) with { A = .75f } : rc with { A = .35f };
+        if (filled && tier == 0) fr = new Color(.5f, .48f, .45f, .7f);
+        DrawRect(r.Grow(-.5f), fr, false, 1f);
+        var ca = (filled ? rc.Lightened(.2f) : rc) with { A = .85f * k }; float l = Mathf.Min(6, r.Size.Y * .2f);
+        foreach (var (p, dx, dy) in new[] { (r.Position, 1, 1), (new Vector2(r.End.X, r.Position.Y), -1, 1), (new Vector2(r.Position.X, r.End.Y), 1, -1), (r.End, -1, -1) })
+        {
+            var q = p + new Vector2(dx * .5f, dy * .5f);
+            DrawLine(q, q + new Vector2(dx * l, 0), ca, 1f); DrawLine(q, q + new Vector2(0, dy * l), ca, 1f);
+        }
     }
     public override void _Process(double delta) { if (Item != null && Item.Rar >= 3) QueueRedraw(); }
 

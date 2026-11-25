@@ -108,6 +108,7 @@ public static class Kit
         {
             if (has) sm.Metallic = JsonUtil.F(tw, "metallic", sm.Metallic);
             if (has && tw.TryGetProperty("vertexColor", out var vc) && vc.ValueKind == JsonValueKind.True) sm.VertexColorUseAsAlbedo = true;   // lets per-instance tints show
+            if (has && tw.TryGetProperty("tint", out var tv2) && tv2.ValueKind == JsonValueKind.String) sm.AlbedoColor *= Color.FromHtml(tv2.GetString()!);   // mutes vertex-coloured parts
             sm.Metallic = Mathf.Min(sm.Metallic, .6f);
             World.Track(sm);
         }

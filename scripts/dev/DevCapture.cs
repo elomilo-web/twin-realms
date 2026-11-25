@@ -144,11 +144,17 @@ public partial class DevCapture : Node
                     }
                     Say($"lake {lkName}: hero at {P.GlobalPosition}");
                 }
+                else if (Str(v, "biome") is { Length: > 0 } bName && Lands.All.SelectMany(l => l.Regions).Where(r => r.b == bName).Select(r => ((float x, float z)?)(r.x, r.z)).FirstOrDefault() is { } reg)
+                {   // the middle of the first region of that biome (data/lands.json "biomes")
+                    P.Teleport(World.OnGround(reg.x, reg.z, .6f), Num(v, "yaw", 0f)); await Secs(1.5f);
+                }
                 else if (Str(v, "place") is { Length: > 0 } pl && pl.Split('/') is { Length: 2 } lp
                          && Lands.All.Find(l => l.Id == lp[0])?.Places.Find(q => q.Id == lp[1]) is { } place)
                 {
                     P.Teleport(World.OnGround(place.X + 4, place.Z + place.R * .3f, .6f), Num(v, "yaw", Mathf.Pi * .8f)); await Secs(1.2f);
                 }
+                // wild foes near the hero spoil the pictures (hit flash, damage numbers): clear them before spawning the view's own foes
+                foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Enemy we && we.GlobalPosition.DistanceTo(P.GlobalPosition) < 30f) we.QueueFree();
                 if (scene.StartsWith("dungeon:") || scene == "arena") { foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Enemy e && e.GlobalPosition.DistanceTo(P.GlobalPosition) < 10f) e.QueueFree(); }
                 Heal(); Hud(Flag(v, "hud", false));
                 if (v.TryGetProperty("foes", out var fs) && fs.ValueKind == JsonValueKind.Array)

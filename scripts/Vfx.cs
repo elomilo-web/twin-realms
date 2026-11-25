@@ -211,23 +211,50 @@ public partial class SwordTrail : MeshInstance3D
 {
     public Node3D? Base, Tip; public bool Emit; public Color Col = new(.6f, .9f, 1f); public float Life = .22f;
     readonly List<(Vector3 a, Vector3 b, float t)> _pts = new(); readonly ImmediateMesh _im = new(); float _now;
+    static ShaderMaterial? _mat; static StandardMaterial3D? _sparkMat; static QuadMesh? _sparkMesh;
+    CpuParticles3D? _sparks; Vector3 _lastTip; bool _hasTip;
     public override void _Ready()
     {
         Mesh = _im; TopLevel = true; GlobalTransform = Transform3D.Identity; CastShadow = ShadowCastingSetting.Off;
-        MaterialOverride = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, BlendMode = BaseMaterial3D.BlendModeEnum.Add, VertexColorUseAsAlbedo = true, CullMode = BaseMaterial3D.CullModeEnum.Disabled };
+        // one shared material for every trail; the element tint rides in vertex colour
+        _mat ??= new ShaderMaterial { Shader = GD.Load<Shader>("res://assets/shaders/sword_trail.gdshader") };
+        MaterialOverride = _mat;
+        _sparkMat ??= new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, BlendMode = BaseMaterial3D.BlendModeEnum.Add, VertexColorUseAsAlbedo = true, BillboardMode = BaseMaterial3D.BillboardModeEnum.Particles, CullMode = BaseMaterial3D.CullModeEnum.Disabled };
+        _sparkMesh ??= new QuadMesh { Size = new Vector2(.045f, .045f), Material = _sparkMat };
+        _sparks = new CpuParticles3D
+        {
+            Emitting = false, Amount = 20, Lifetime = .35, Mesh = _sparkMesh, TopLevel = true, LocalCoords = false,
+            Direction = Vector3.Up, Spread = 70f, InitialVelocityMin = .8f, InitialVelocityMax = 3f, Gravity = new Vector3(0, -7f, 0),
+            ScaleAmountMin = .5f, ScaleAmountMax = 1.4f, CastShadow = ShadowCastingSetting.Off,
+            ColorRamp = new Gradient { Colors = new[] { new Color(1f, .95f, .8f, 1f), new Color(1f, .6f, .25f, .8f), new Color(.4f, .2f, .1f, 0f) }, Offsets = new[] { 0f, .35f, 1f } },
+        };
+        AddChild(_sparks);
     }
     public override void _Process(double delta)
     {
-        _now += (float)delta;
+        float dt = (float)delta; _now += dt;
         if (Emit && Base != null && Tip != null) _pts.Add((Base.GlobalPosition, Tip.GlobalPosition, _now));
         while (_pts.Count > 0 && _now - _pts[0].t > Life) _pts.RemoveAt(0);
+        // sparks only on fast swings, at the blade tip
+        if (_sparks != null)
+        {
+            bool fast = false;
+            if (Emit && Tip != null && IsInstanceValid(Tip))
+            {
+                var tp = Tip.GlobalPosition;
+                fast = _hasTip && dt > 0f && tp.DistanceTo(_lastTip) / dt > 8f; _lastTip = tp; _hasTip = true; _sparks.GlobalPosition = tp;
+            }
+            else _hasTip = false;
+            _sparks.Emitting = fast;
+        }
         _im.ClearSurfaces(); if (_pts.Count < 2) return;
+        var edgeCol = Col.Lerp(Colors.White, .35f);
         _im.SurfaceBegin(Mesh.PrimitiveType.TriangleStrip);
         foreach (var (a, b, t) in _pts)
         {
-            float k = 1f - (_now - t) / Life; k *= k;
-            _im.SurfaceSetColor(new Color(Col, .15f * k)); _im.SurfaceAddVertex(a);
-            _im.SurfaceSetColor(new Color(Col.Lerp(Colors.White, .6f), 1.6f * k)); _im.SurfaceAddVertex(b.Lerp(b + (b - a) * .08f, 1f));
+            float age = Mathf.Clamp((_now - t) / Life, 0f, 1f);
+            _im.SurfaceSetColor(new Color(edgeCol, 1f)); _im.SurfaceSetUV(new Vector2(age, 0f)); _im.SurfaceAddVertex(a);
+            _im.SurfaceSetColor(new Color(edgeCol, 1f)); _im.SurfaceSetUV(new Vector2(age, 1f)); _im.SurfaceAddVertex(b + (b - a) * .08f);
         }
         _im.SurfaceEnd();
     }

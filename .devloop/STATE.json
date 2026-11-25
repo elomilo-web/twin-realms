@@ -1,1 +1,1 @@
-{"iteration":2,"last_categories":["menus","combat","animation","audio","lighting","perf"],"stale_categories":{"shaders":2,"mechanics":2,"vfx":1,"graphics":1,"world":1,"ui":1,"code":1,"feel":0},"avg_scores":{"visuals":4.3,"feel":5.9,"code":6.2},"baseline_fps_avg":70.7,"last_fps_avg":70.7}
+{"iteration":3,"last_categories":["world","menus","shaders","vfx","ui","mechanics"],"stale_categories":{"animation":1,"combat":1,"audio":1,"perf":1,"lighting":1,"graphics":2,"code":2,"feel":3},"avg_scores":{"visuals":4.6,"feel":5.9,"code":6.2},"baseline_fps_avg":70.7,"last_fps_avg":71.5}

@@ -13,6 +13,8 @@ public class BlockDef
     public string Fluid = "";            // "water", "lava" or ""
     public string Step = "";             // footstep surface: grass/dirt/stone/wood/sand/snow/gravel/ice/water (data "step"; default by tool family)
     public float Hardness = 1f, Burn, Light, DropChance = 1f;
+    public string Shape = "";            // "" = full cube, "post" = small standing post (torch)
+    public Color LightCol = new Color(1f, .63f, .31f); public float LightRange, LightEnergy;   // "light": { color, range, energy } makes a real OmniLight3D (BlockWorld)
     public string Tool = "", Drops = "", BurnsTo = "", MeltsTo = "?", FreezesTo = "", RotsTo = "?", WithersTo = "?", BlessTo = "?", PacksTo = "";
     public JsonElement Mat;              // how it looks (see Blocks.Material)
     public bool Breakable => Hardness >= 0;
@@ -31,6 +33,7 @@ public static class Blocks
     static JsonDocument? _doc; static JsonElement _root;
     public static JsonElement Root { get { Load(); return _root; } }
     public static byte Water, Lava, Bedrock, Stone, Dirt, Ice, Obsidian;
+    public static bool HasLights;
     public static int Chunk = 16, Radius = 5, MinY = -24, MaxY = 160;
 
     public static void Load()
@@ -47,12 +50,17 @@ public static class Blocks
                 Id = (byte)Defs.Count, Key = p.Name, Name = JsonUtil.S(e, "n", p.Name),
                 Solid = !e.TryGetProperty("solid", out var so) || so.ValueKind != JsonValueKind.False,
                 See = B(e, "see"), Slippery = B(e, "slippery"), Shatter = B(e, "shatter"),
-                Fluid = JsonUtil.S(e, "fluid"), Hardness = JsonUtil.F(e, "hardness", 1f), Burn = JsonUtil.F(e, "burn"), Light = JsonUtil.F(e, "light"),
+                Fluid = JsonUtil.S(e, "fluid"), Hardness = JsonUtil.F(e, "hardness", 1f), Burn = JsonUtil.F(e, "burn"), Light = JsonUtil.F(e, "light"), Shape = JsonUtil.S(e, "shape"),
                 Tool = JsonUtil.S(e, "tool"), Drops = e.TryGetProperty("drops", out var dr) ? dr.GetString() ?? "" : p.Name, DropChance = JsonUtil.F(e, "dropChance", 1f),
                 BurnsTo = JsonUtil.S(e, "burnsTo"), MeltsTo = JsonUtil.S(e, "meltsTo", "?"), FreezesTo = JsonUtil.S(e, "freezesTo"), RotsTo = JsonUtil.S(e, "rotsTo", "?"),
                 WithersTo = JsonUtil.S(e, "withersTo", "?"), BlessTo = JsonUtil.S(e, "blessTo", "?"), PacksTo = JsonUtil.S(e, "packsTo"),
                 Mat = e.TryGetProperty("mat", out var m) ? m.Clone() : default,
             };
+            if (e.TryGetProperty("light", out var lj) && lj.ValueKind == JsonValueKind.Object)
+            {
+                d.LightCol = Color.FromHtml(JsonUtil.S(lj, "color", "ffa050")); d.LightRange = JsonUtil.F(lj, "range", 8f); d.LightEnergy = JsonUtil.F(lj, "energy", 1.6f); d.Light = d.LightEnergy;
+                HasLights = true;
+            }
             d.Step = JsonUtil.S(e, "step", d.Fluid == "water" ? "water" : d.Tool == "pickaxe" ? "stone" : d.Tool == "axe" ? "wood" : d.Tool == "shovel" ? "dirt" : "stone");
             Defs.Add(d); _ids[p.Name] = d.Id;
         }

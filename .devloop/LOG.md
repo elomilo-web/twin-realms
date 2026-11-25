@@ -1,5 +1,15 @@
 # Dev loop log (newest first; max 20 detailed entries, older ones rolled into History)
 
+## #3 (2026-11-24) world, menus, shaders, vfx, ui, mechanics
+- Settlements: env.json "materials" maps kit TR_Tex_* (plaster, planks, thatch, 4 roof colours, stone/dungeon bricks, slabs) to G_* gothic sets; TR_Matte/Metal vertex colours tinted down; Kit.Shared honours "tint". Hollowfrost now dark gothic timber (a bit too dark in shade).
+- Title: Frame() skips the full-screen dark layers for the title; panel 620 px, left, alpha .72, 44 px letter-spaced gold title; hero slots stacked; TitleBackdrop camera MakeCurrent + yawed. Skyline now visible.
+- Sea shader (World.cs WaterShader inline): roughness .08 glints, fresnel toward sky_tint, 2nd rotated noise layer, calmer far water.
+- Sword trail: new assets/shaders/sword_trail.gdshader (steel edge, smoky tail, element tint via vertex colour), tip sparks above 8 m/s (Vfx.cs SwordTrail).
+- Inventory: ItemSlot.Inset framed wells, rarity frame + glow (rare+), hover ring.
+- Mechanics: "torch" block (post shape, craft 1 planks + 1 coal -> 4), BlockWorld lights the 24 nearest with Props.Torch.
+- Capture: "biome" lookup, new views settlement + terrace_close, wild foes within 30 m cleared before each view.
+- Scores: world visuals 5->5.5, menus/ui visuals 6->6.5, skills_vfx visuals 4->4.5. FPS: views unchanged (settlement 38 = old foliage spot).
+
 ## #2 (2026-11-24) menus, combat, animation, audio, lighting, perf
 - Title: new scripts/TitleBackdrop.cs (dusk ProceduralSky, gothic skyline silhouettes, embers, drifting camera), Main.cs adds it as "TitleEnv". NOT yet visible (opaque title panel; see BACKLOG).
 - Perfect dodge: hit within 0.18 s of roll start -> 0.35x slow-mo 0.35 s (off in multiplayer), flash, "Perfect dodge!", 1.2 s x1.5 counter, 2 s cooldown (Player.cs PerfectDodge/TakeHit, Feel.SlowMo/Tick, tuning.json game.perfectDodge).

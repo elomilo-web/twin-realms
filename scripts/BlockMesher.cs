@@ -70,6 +70,23 @@ public static class BlockMesher
                     float r1 = (h & 255) / 255f, r2 = ((h >> 8) & 255) / 255f, r3 = ((h >> 16) & 255) / 255f;
                     float bright = 1f + (r1 - .5f) * .18f;
                     var jit = new Color(bright * (1f + (r2 - .5f) * .10f), bright, bright * (1f + (r3 - .5f) * .10f));
+                    if (def.Shape == "post")
+                    {
+                        // a small standing post (torch): 0.2 x 0.65 x 0.2 m in the middle of its cell, no collision
+                        var size = new Vector3(.2f, .65f, .2f); var bas = new Vector3(x + .4f, y, z + .4f);
+                        for (int f = 0; f < 6; f++)
+                        {
+                            var ps = Surf(Slot(id, f, meta)); int pb = ps.V.Count; float l = Shade[f] * jit.G;
+                            for (int k = 0; k < 4; k++)
+                            {
+                                int su = k == 1 || k == 2 ? 1 : 0, sv = k >= 2 ? 1 : 0; var u = U[f]; var v = Vv[f];
+                                var o = new Vector3(P0[f].X + su * u.X + sv * v.X, P0[f].Y + su * u.Y + sv * v.Y, P0[f].Z + su * u.Z + sv * v.Z);
+                                ps.V.Add(bas + o * size); ps.N.Add(new Vector3(Nrm[f].X, Nrm[f].Y, Nrm[f].Z)); ps.C.Add(new Color(l, l, l));
+                            }
+                            Tri(ps, pb);
+                        }
+                        continue;
+                    }
                     var lip = Lip(id);
                     for (int f = 0; f < 6; f++)
                     {

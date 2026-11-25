@@ -55,7 +55,7 @@
  },
  "build": {
   "_help": "blocks you can place in build mode cycle with the mouse wheel; the first owned one is chosen",
-  "order": ["dirt", "cobblestone", "stone", "planks", "log", "brick", "dark_stone", "glass", "sand", "gravel", "sandstone", "snow", "ice", "packed_ice", "leaves", "obsidian", "grass"]
+  "order": ["dirt", "cobblestone", "stone", "planks", "log", "brick", "dark_stone", "glass", "sand", "gravel", "sandstone", "snow", "ice", "packed_ice", "leaves", "obsidian", "grass", "torch"]
  },
  "recipes": {
   "_help": "crafting window, Blocks tab: what you get from what you pay (block ids from this file or materials from data/gather.json)",
@@ -65,7 +65,8 @@
   "brick":       { "out": 2, "cost": { "cobblestone": 2, "dirt": 1 } },
   "sandstone":   { "out": 1, "cost": { "sand": 2 } },
   "packed_ice":  { "out": 1, "cost": { "ice": 4 } },
-  "dark_stone":  { "out": 2, "cost": { "cobblestone": 2, "coal_ore": 1 } }
+  "dark_stone":  { "out": 2, "cost": { "cobblestone": 2, "coal_ore": 1 } },
+  "torch":       { "out": 4, "cost": { "planks": 1, "coal_ore": 1 } }
  },
  "blocks": {
   "bedrock":      { "n": "Bedrock",       "hardness": -1, "mat": { "gothic": "G_Rock", "color": "#3a3438" } },
@@ -92,6 +93,7 @@
   "planks":       { "n": "Planks", "step": "wood",        "hardness": 2.0, "tool": "axe", "drops": "planks", "burn": 10, "burnsTo": "", "mat": { "gothic": "G_Planks", "color": "#a88a66", "tile": 1.5 } },
   "leaves":       { "n": "Leaves",        "hardness": 0.2, "tool": "axe", "drops": "", "see": true, "burn": 3, "burnsTo": "", "rotsTo": "", "withersTo": "", "mat": { "gothic": "G_Leaves", "color": "#5a7040", "tile": 1 } },
   "glass":        { "n": "Glass",         "hardness": 0.3, "drops": "", "see": true, "shatter": true, "mat": { "color": "#d8ecff", "alpha": 0.28, "rough": 0.05 } },
+  "torch":        { "n": "Torch",         "hardness": 0.1, "solid": false, "see": true, "shape": "post", "drops": "torch", "burn": 4, "burnsTo": "", "light": { "color": "ffa050", "range": 8, "energy": 1.6 }, "mat": { "color": "#d49a52", "glow": 1.4, "rough": 0.8 } },
   "coal_ore":     { "n": "Coal Ore",      "hardness": 3.0, "tool": "pickaxe", "drops": "coal_ore", "mat": { "gothic": "G_Rock", "color": "#4a4644", "tile": 1 } },
   "iron_ore":     { "n": "Iron Ore",      "hardness": 3.0, "tool": "pickaxe", "drops": "ironore", "mat": { "gothic": "G_Rock", "color": "#b08a70", "tile": 1 } },
   "gold_ore":     { "n": "Gold Ore",      "hardness": 3.0, "tool": "pickaxe", "drops": "gold_ore", "mat": { "gothic": "G_Rock", "color": "#d8b860", "tile": 1 } },

@@ -98,7 +98,7 @@ public partial class BlockWorld : Node3D
     {
         if (Area == null) return;
         foreach (var c in Area.Chunks.Values) FreeNodes(c);
-        Area.Chunks.Clear(); _dirty.Clear(); ClearStatus(); FluidReset();
+        Area.Chunks.Clear(); _dirty.Clear(); ClearLights(); ClearStatus(); FluidReset();
         SetCut(null); _cut = -1;
     }
     static void FreeNodes(BlockChunk c) { if (c.Node != null && IsInstanceValid(c.Node)) c.Node.QueueFree(); if (c.Body != null && IsInstanceValid(c.Body)) c.Body.QueueFree(); c.Node = null; c.Body = null; c.Shape = null; }
@@ -171,6 +171,7 @@ public partial class BlockWorld : Node3D
         {
             int n = 0; foreach (var c in _dirty.ToList()) { if (n++ >= 4) break; _dirty.Remove(c); if (c.State < 5) continue; Show(a, c, BlockMesher.Build(a, c)); }
         }
+        if (Blocks.HasLights) LightTick(a, p.GlobalPosition, (float)delta);
         _tick -= (float)delta;
         if (_tick <= 0) { _tick = Blocks.F("world.tick", .25f); if (!Net.IsClient) { FluidTick(a); FireTick(a, Blocks.F("world.tick", .25f)); } StatusTick(Blocks.F("world.tick", .25f)); FlushNet(a); }
         StatusFx();
@@ -203,6 +204,52 @@ public partial class BlockWorld : Node3D
         if (c.Body == null || !IsInstanceValid(c.Body)) { c.Body = new StaticBody3D { CollisionLayer = 1 }; c.Shape = new CollisionShape3D(); c.Body.AddChild(c.Shape); AddChild(c.Body); c.Body.SetMeta("blocks", true); }
         c.Shape!.Shape = md.Faces.Length > 0 ? new ConcavePolygonShape3D { Data = md.Faces } : null;
         c.MeshedVersion = md.Version; c.State = 5;
+        ScanLights(c);
+    }
+
+    // ---------------------------------------------------------------- light blocks (data "light": torch): real OmniLight3Ds, the nearest few
+    readonly Dictionary<long, List<Vector3I>> _lightBlocks = new();     // chunk key -> light block cells, made when the chunk is meshed
+    readonly Dictionary<Vector3I, Torch> _lightNodes = new();
+    float _lightT; const int MaxLights = 24;
+    void ScanLights(BlockChunk c)
+    {
+        long key = BlockArea.CKey(c.Cx, c.Cz); _lightBlocks.Remove(key);
+        if (!Blocks.HasLights) return;
+        List<Vector3I>? list = null; int S = c.S, x0 = c.Cx * S, z0 = c.Cz * S, top = Math.Min(c.Top + 1, c.MinY + c.H);
+        for (int y = c.MinY; y < top; y++)
+            for (int lz = 0; lz < S; lz++) for (int lx = 0; lx < S; lx++)
+            {
+                byte id = c.Id[c.Index(lx, y, lz)]; if (id == 0) continue;
+                if (Blocks.Def(id).LightRange > 0) (list ??= new()).Add(new Vector3I(x0 + lx, y, z0 + lz));
+            }
+        if (list != null) _lightBlocks[key] = list;
+    }
+    void LightTick(BlockArea a, Vector3 pp, float dt)
+    {
+        _lightT -= dt; if (_lightT > 0) return; _lightT = .3f;
+        var want = new List<(Vector3I p, float d)>();
+        foreach (var (k, list) in _lightBlocks.ToList())
+        {
+            if (!a.Chunks.TryGetValue(k, out var ch) || ch.State < 5) { _lightBlocks.Remove(k); continue; }
+            foreach (var p in list) { if (Blocks.Def(a.Get(p.X, p.Y, p.Z)).LightRange <= 0) continue; want.Add((p, pp.DistanceSquaredTo(new Vector3(p.X + .5f, p.Y, p.Z + .5f)))); }
+        }
+        want.Sort((m, n) => m.d.CompareTo(n.d));
+        if (want.Count > MaxLights) want.RemoveRange(MaxLights, want.Count - MaxLights);
+        var keep = new HashSet<Vector3I>(want.Select(w => w.p));
+        foreach (var p in _lightNodes.Keys.ToList())
+            if (!keep.Contains(p)) { if (IsInstanceValid(_lightNodes[p])) _lightNodes[p].QueueFree(); _lightNodes.Remove(p); }
+        foreach (var p in keep)
+        {
+            if (_lightNodes.ContainsKey(p)) continue;
+            var d = Blocks.Def(a.Get(p.X, p.Y, p.Z));
+            var t = new Torch { Col = d.LightCol, Range = d.LightRange, Energy = d.LightEnergy, Size = .5f, Position = new Vector3(p.X + .5f, p.Y + .62f, p.Z + .5f) };
+            AddChild(t); _lightNodes[p] = t;
+        }
+    }
+    void ClearLights()
+    {
+        foreach (var t in _lightNodes.Values) if (IsInstanceValid(t)) t.QueueFree();
+        _lightNodes.Clear(); _lightBlocks.Clear();
     }
 
     // ---------------------------------------------------------------- the cut-out square

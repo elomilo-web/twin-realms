@@ -101,14 +101,30 @@ public partial class Ui : CanvasLayer
         if (name != "pack") _scrapMode = false;   // Disassemble stays on only while you stay in the pack
         CloseNoUnpause(); _panelName = name; _rebuild = rebuild;
         var root = new Control { MouseFilter = Control.MouseFilterEnum.Stop, Theme = MakeTheme() }; root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        if (name == "title") root.AddChild(new ColorRect { Color = new Color(.005f, .02f, .05f, 0.85f), MouseFilter = Control.MouseFilterEnum.Ignore, AnchorRight = 1, AnchorBottom = 1 });
-        var bd = new TechBackdrop(); bd.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); root.AddChild(bd);
-        var pc = new TechPanel(); var ps = UiTheme.Box(UiTheme.Panel, UiTheme.AccentSoft, 1, 22, 14, UiTheme.GlowSize); pc.AddThemeStyleboxOverride("panel", ps);
+        bool left = name == "title" && title == "TWIN REALMS";   // title screen: narrow translucent panel on the left, 3D backdrop visible on the right
+        if (name == "title" && !left) root.AddChild(new ColorRect { Color = new Color(.005f, .02f, .05f, 0.85f), MouseFilter = Control.MouseFilterEnum.Ignore, AnchorRight = 1, AnchorBottom = 1 });
+        if (!left) { var bd = new TechBackdrop(); bd.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); root.AddChild(bd); }
+        var pc = new TechPanel(); var ps = UiTheme.Box(left ? UiTheme.Panel with { A = 0.72f } : UiTheme.Panel, UiTheme.AccentSoft, 1, 22, 14, UiTheme.GlowSize); pc.AddThemeStyleboxOverride("panel", ps);
         var vp = GetViewport().GetVisibleRect().Size; // never ask for more than the window has
+        if (left)
+        {
+            pc.CustomMinimumSize = new Vector2(Mathf.Min(620, vp.X - 80), 0);
+            pc.AnchorLeft = 0; pc.AnchorRight = 0; pc.AnchorTop = 0; pc.AnchorBottom = 1;
+            pc.OffsetLeft = 40; pc.OffsetRight = 40 + pc.CustomMinimumSize.X; pc.OffsetTop = 24; pc.OffsetBottom = -24;
+            root.AddChild(pc);
+        }
+        else
+        {
         pc.CustomMinimumSize = new Vector2(Mathf.Min(size.X, vp.X - 24), Mathf.Min(size.Y, vp.Y - 24)); pc.SetAnchorsPreset(Control.LayoutPreset.Center); pc.GrowHorizontal = Control.GrowDirection.Both; pc.GrowVertical = Control.GrowDirection.Both; root.AddChild(pc);
+        }
         var v = new VBoxContainer(); v.AddThemeConstantOverride("separation", 8); pc.AddChild(v);
         var hb = new HBoxContainer(); v.AddChild(hb); var t = Lbl(title.ToUpper(), 24, UiTheme.Title, hb); t.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         t.AddThemeColorOverride("font_outline_color", new Color(0.02f, 0.12f, 0.25f)); t.AddThemeConstantOverride("outline_size", 6);
+        if (left)
+        {
+            t.AddThemeFontSizeOverride("font_size", 44); t.AddThemeColorOverride("font_color", new Color(.78f, .62f, .30f)); t.AddThemeColorOverride("font_outline_color", new Color(.08f, .04f, .02f));
+            t.AddThemeFontOverride("font", new FontVariation { BaseFont = ThemeDB.FallbackFont, SpacingGlyph = 6 });
+        }
         if (name != "title") { var cb = Btn("X", Close); cb.CustomMinimumSize = new Vector2(38, 34); hb.AddChild(cb); }
         // decoration overlay sized to the panel; the header rule sits just under the title row
         pc.Resized += () => { pc.HeaderY = 14 + hb.Size.Y + 5; pc.PivotOffset = pc.Size / 2; pc.QueueRedraw(); };
@@ -523,8 +539,8 @@ public partial class Ui : CanvasLayer
         InGame = false; Input.MouseMode = Input.MouseModeEnum.Visible;
         if (!_slotInit) { _slotInit = true; Game.Slot = Game.File().Last; }
         var v = Frame("title", "TWIN REALMS", new Vector2(1060, 640), ShowTitle);
-        var top = new HBoxContainer(); v.AddChild(top); top.AddThemeConstantOverride("separation", 12);
-        Lbl("Two worlds. One hero. Press R to cross between Light and Shadow.", 16, Dim, top).SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        Row(v, "Two worlds. One hero. Press R to cross between Light and Shadow.", Dim, 15);
+        var top = new HBoxContainer(); v.AddChild(top); top.AddThemeConstantOverride("separation", 8);
         if (Game.Online) top.AddChild(Btn("Log out", () => { Net.I?.Logout(); ShowTitle(); }));
         else
         {
@@ -547,41 +563,36 @@ public partial class Ui : CanvasLayer
             Lbl("CHOOSE YOUR HERO", 18, UiTheme.Accent, v);
             Row(v, "Three heroes share this save. Click a hero to select it (Multiplayer brings the selected hero), Play to enter the world, or create a hero in an empty slot.", Dim, 14);
         }
-        var cards = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; cards.AddThemeConstantOverride("separation", 16); v.AddChild(cards);
+        var cardScroll = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; v.AddChild(cardScroll);
+        var cards = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; cards.AddThemeConstantOverride("separation", 10); cardScroll.AddChild(cards);
         for (int i = 0; i < Game.MaxSlots; i++)
         {
             int slot = i; var p = Game.Peek(slot); bool sel = slot == Game.Slot;
-            var card = new PanelContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, CustomMinimumSize = new Vector2(300, 400), MouseFilter = Control.MouseFilterEnum.Stop };
+            var card = new PanelContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, CustomMinimumSize = new Vector2(0, 0), MouseFilter = Control.MouseFilterEnum.Stop };
             card.AddThemeStyleboxOverride("panel", UiTheme.Box(sel ? UiTheme.ButtonHover : UiTheme.Button, sel ? UiTheme.Highlight : UiTheme.AccentSoft, sel ? 2 : 1, 16, 8, sel ? 8 : 0));
             card.GuiInput += e => { if (e is InputEventMouseButton mb && mb.Pressed && mb.ButtonIndex == MouseButton.Left && Game.Slot != slot) { Game.Slot = slot; _confirmDelete = -1; Sfx.Play("click"); ShowTitle(); } };
             cards.AddChild(card);
-            var c = new VBoxContainer(); c.AddThemeConstantOverride("separation", 6); card.AddChild(c);
-            Lbl($"SLOT {slot + 1}" + (sel ? "   - selected" : ""), 14, sel ? UiTheme.Highlight : Dim, c);
+            var c = new VBoxContainer(); c.AddThemeConstantOverride("separation", 4); card.AddChild(c);
+            Lbl($"SLOT {slot + 1}" + (sel ? "   - selected" : ""), 13, sel ? UiTheme.Highlight : Dim, c);
             if (p == null)
             {
-                Lbl("Empty", 26, Dim, c);
-                Row(c, "No hero here yet.", Dim, 14);
-                c.AddChild(new Control { SizeFlagsVertical = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Ignore });
-                var nb = Btn("Create a hero", () => { Game.Slot = slot; _confirmDelete = -1; ShowCreate(); }); nb.CustomMinimumSize = new Vector2(0, 46); c.AddChild(nb);
+                var er = new HBoxContainer(); er.AddThemeConstantOverride("separation", 10); c.AddChild(er);
+                Lbl("Empty", 22, Dim, er).SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+                var nb = Btn("Create a hero", () => { Game.Slot = slot; _confirmDelete = -1; ShowCreate(); }); nb.CustomMinimumSize = new Vector2(0, 40); er.AddChild(nb);
                 continue;
             }
-            Lbl(p.Name, 28, UiTheme.Title, c);
-            Lbl($"Level {p.Level} {Races.Get(p.Race).Name} {Classes.Get(p.Class).Name}", 17, Colors.White, c);
-            var bar = new ProgressBar { MinValue = 0, MaxValue = Math.Max(1, p.XpNeed()), Value = Math.Min(p.Xp, p.XpNeed()), ShowPercentage = false, CustomMinimumSize = new Vector2(0, 6), MouseFilter = Control.MouseFilterEnum.Ignore }; c.AddChild(bar);
-            Row(c, $"XP {p.Xp} / {p.XpNeed()}", Dim, 13);
-            Row(c, $"Gold {p.Gold}     Kills {p.Kills}", Colors.White, 15);
-            Row(c, $"Deepest dungeon floor {p.Deepest}     Best wave {p.BestWave}", Dim, 14);
-            Row(c, $"Weapon: {p.Weapon?.Name ?? "none"}", Dim, 14);
-            Row(c, $"Played {Game.Played(p)}", Dim, 14);
-            c.AddChild(new Control { SizeFlagsVertical = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Ignore });
-            var play = Btn("Play", () => { Game.Slot = slot; _confirmDelete = -1; CloseNoUnpause(); OnContinue?.Invoke(); }); play.CustomMinimumSize = new Vector2(0, 46); c.AddChild(play);
+            Lbl(p.Name, 22, UiTheme.Title, c);
+            Row(c, $"Level {p.Level} {Races.Get(p.Race).Name} {Classes.Get(p.Class).Name}", Colors.White, 15);
+            Row(c, $"Gold {p.Gold}  Kills {p.Kills}  Floor {p.Deepest}  Wave {p.BestWave}  Played {Game.Played(p)}", Dim, 13);
+            var br = new HBoxContainer(); br.AddThemeConstantOverride("separation", 10); c.AddChild(br);
+            var play = Btn("Play", () => { Game.Slot = slot; _confirmDelete = -1; CloseNoUnpause(); OnContinue?.Invoke(); }); play.CustomMinimumSize = new Vector2(0, 40); play.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; br.AddChild(play);
             var del = Btn(_confirmDelete == slot ? "Really delete " + p.Name + "?" : "Delete", () =>
             {
                 if (_confirmDelete != slot) { _confirmDelete = slot; ShowTitle(); return; }
                 _confirmDelete = -1; Game.DeleteSlot(slot); Note(p.Name + " was deleted", Dim); ShowTitle();
             }, true);
             if (_confirmDelete == slot) del.AddThemeColorOverride("font_color", new Color(1f, .5f, .45f));
-            c.AddChild(del);
+            br.AddChild(del);
         }
     }
 

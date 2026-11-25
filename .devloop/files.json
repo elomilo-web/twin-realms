@@ -189,6 +189,13 @@
         "summary":  "Genshin-Impact-style character shader for Godot 4 (Forward+, Mobile and Compatibility)."
     },
     {
+        "path":  "assets/shaders/sword_trail.gdshader",
+        "lines":  22,
+        "hash8":  "16c2bc46",
+        "system":  "world",
+        "summary":  "UV.x = age (0 fresh .. 1 old), UV.y = across the ribbon (0 hilt..."
+    },
+    {
         "path":  "assets/shaders/water_stylized.gdshader",
         "lines":  81,
         "hash8":  "86538026",
@@ -281,15 +288,15 @@
     },
     {
         "path":  "scripts/BlockMesher.cs",
-        "lines":  163,
-        "hash8":  "8335c719",
+        "lines":  180,
+        "hash8":  "92170b1b",
         "system":  "blockworld",
         "summary":  "A chunk\u0027s finished mesh: one surface per material, plus the faces for its collision shape...."
     },
     {
         "path":  "scripts/Blocks.cs",
-        "lines":  177,
-        "hash8":  "b95679c4",
+        "lines":  185,
+        "hash8":  "9f14b01e",
         "system":  "blockworld",
         "summary":  "One block type from data/blocks.json. Id 0 is always air."
     },
@@ -302,8 +309,8 @@
     },
     {
         "path":  "scripts/BlockWorld.cs",
-        "lines":  255,
-        "hash8":  "74504b29",
+        "lines":  302,
+        "hash8":  "23b36eb9",
         "system":  "blockworld",
         "summary":  "The block world (data/blocks.json, docs/DESIGN.md \"Block world\"). Around the player the ground is made of..."
     },
@@ -351,8 +358,8 @@
     },
     {
         "path":  "scripts/dev/DevCapture.cs",
-        "lines":  229,
-        "hash8":  "b19c36e5",
+        "lines":  235,
+        "hash8":  "20df9d20",
         "system":  "devtools",
         "summary":  "Dev loop eyes (autoload). Does nothing unless the game is started with the user arg..."
     },
@@ -547,8 +554,8 @@
     },
     {
         "path":  "scripts/ItemSlot.cs",
-        "lines":  131,
-        "hash8":  "d1ce220d",
+        "lines":  149,
+        "hash8":  "e44f67e4",
         "system":  "loot",
         "summary":  "One inventory cell: rarity frame, vector icon, level or count, hover glow. Raises Hover(on) and..."
     },
@@ -561,8 +568,8 @@
     },
     {
         "path":  "scripts/Kit.cs",
-        "lines":  155,
-        "hash8":  "832eaa6c",
+        "lines":  156,
+        "hash8":  "17fe635b",
         "system":  "animation",
         "summary":  "Environment models from the Quaternius kits (assets/models/env, listed in data/env.json)."
     },
@@ -862,8 +869,8 @@
     },
     {
         "path":  "scripts/TitleBackdrop.cs",
-        "lines":  124,
-        "hash8":  "8083df8b",
+        "lines":  125,
+        "hash8":  "bb32ff83",
         "system":  "core",
         "summary":  "Cheap moody dusk backdrop for the title screen: sky, fog, gothic silhouettes, embers, slow camera..."
     },
@@ -890,8 +897,8 @@
     },
     {
         "path":  "scripts/Ui.cs",
-        "lines":  827,
-        "hash8":  "b6056abd",
+        "lines":  838,
+        "hash8":  "52bffcb6",
         "system":  "ui",
         "summary":  "All menus and overlays, built in code: notes, banners, dialogue, shop, smith, pack, character, skill..."
     },
@@ -1002,8 +1009,8 @@
     },
     {
         "path":  "scripts/Vfx.cs",
-        "lines":  277,
-        "hash8":  "d0ce7037",
+        "lines":  304,
+        "hash8":  "91f0286e",
         "system":  "skills_vfx",
         "summary":  "Spell and combat visuals made in code: soft glowing particles, sword trails, fire explosions, frost..."
     },
@@ -1030,8 +1037,8 @@
     },
     {
         "path":  "scripts/World.cs",
-        "lines":  950,
-        "hash8":  "9f2d8f39",
+        "lines":  958,
+        "hash8":  "23de2017",
         "system":  "world",
         "summary":  "The overworld: heightfield terrain, sky and day/night, the Light/Shadow realm shift, vegetation and shared materials."
     }

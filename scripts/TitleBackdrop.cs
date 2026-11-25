@@ -100,6 +100,7 @@ public partial class TitleBackdrop : Node3D
 
         _cam = new Camera3D { Position = new Vector3(0, 6, 30), RotationDegrees = new Vector3(6, 0, 0), Fov = 60, Far = 800, Current = true };
         AddChild(_cam);
+        _cam.MakeCurrent();   // after entering the tree, so it wins over any other camera
     }
 
     void AddMesh(Mesh mesh, Material mat, Vector3 pos, Vector3? rotDeg = null)
@@ -117,7 +118,7 @@ public partial class TitleBackdrop : Node3D
         if (_cam == null) return;
         _t += delta;
         float a = (float)(_t * .6);
-        _cam.RotationDegrees = new Vector3(6 + Mathf.Sin(a * .5f) * .8f, Mathf.Sin(a) * 4f, 0);
+        _cam.RotationDegrees = new Vector3(8 + Mathf.Sin(a * .5f) * .8f, 14 + Mathf.Sin(a) * 4f, 0);   // yawed left so the skyline sits right of the UI panel
         _cam.Position = new Vector3(Mathf.Sin(a) * 4f, 6, 30 - (float)(Mathf.Sin(a * .7f) * 4f));
     }
 }
