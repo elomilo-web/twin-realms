@@ -697,7 +697,7 @@ public partial class Player : CharacterBody3D, IDamageable
             {
                 float k = Mathf.Clamp((fall - 1.2f) / 6f, 0, 1);
                 Fx.Dust(GlobalPosition, .5f + k * 1.1f); Rig?.Shake(.03f + k * .1f);
-                Sfx.Play("step_stone", .5f + k * .6f, .55f - k * .15f); _landT = .3f;
+                Sfx.Play("land_thud", .6f + k * .6f, 1f - k * .2f); _landT = .3f;
             }
         }
         if (floor) _peakY = GlobalPosition.Y;

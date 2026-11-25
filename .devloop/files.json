@@ -239,8 +239,8 @@
     },
     {
         "path":  "scripts/Ambient.cs",
-        "lines":  115,
-        "hash8":  "d65d55f4",
+        "lines":  144,
+        "hash8":  "4b2d3a50",
         "system":  "world",
         "summary":  "Scenery life that follows the player (no gameplay): butterflies over meadows by day, fireflies at..."
     },
@@ -267,8 +267,8 @@
     },
     {
         "path":  "scripts/Avatar.cs",
-        "lines":  842,
-        "hash8":  "d5a828ff",
+        "lines":  890,
+        "hash8":  "8b231ae3",
         "system":  "animation",
         "summary":  "A character built from the Quaternius universal rig (data/avatar.json): a plain base body (male or..."
     },
@@ -358,15 +358,15 @@
     },
     {
         "path":  "scripts/Combat.cs",
-        "lines":  74,
-        "hash8":  "7ee44397",
+        "lines":  92,
+        "hash8":  "6f0345bd",
         "system":  "combat",
         "summary":  "The blow staggers the hero: pushes them, plays the flinch and interrupts what they are..."
     },
     {
         "path":  "scripts/dev/DevCapture.cs",
         "lines":  256,
-        "hash8":  "c1035ceb",
+        "hash8":  "21132160",
         "system":  "devtools",
         "summary":  "Dev loop eyes (autoload). Does nothing unless the game is started with the user arg..."
     },
@@ -387,7 +387,7 @@
     {
         "path":  "scripts/Enemy.cs",
         "lines":  974,
-        "hash8":  "4572ac10",
+        "hash8":  "ff5f142c",
         "system":  "enemies",
         "summary":  "Data-driven enemy. Melee, ranged, summoning bosses and the dragon. Stats come from data/enemies.json."
     },
@@ -709,14 +709,14 @@
     {
         "path":  "scripts/Player.cs",
         "lines":  820,
-        "hash8":  "736e8a5c",
+        "hash8":  "f1f5aa04",
         "system":  "player",
         "summary":  "The hero: movement, roll, four weapon types (sword, bow, wand, staff), block/parry, four spells, potions,..."
     },
     {
         "path":  "scripts/PlayerBlocks.cs",
-        "lines":  185,
-        "hash8":  "47ff93cc",
+        "lines":  187,
+        "hash8":  "271f93fd",
         "system":  "blockworld",
         "summary":  "The hero and the block world: build mode (Inputs.BuildMode, N) with a crosshair target, hold..."
     },
@@ -806,8 +806,8 @@
     },
     {
         "path":  "scripts/Sfx.cs",
-        "lines":  260,
-        "hash8":  "e4fb05f1",
+        "lines":  262,
+        "hash8":  "868c3941",
         "system":  "audio",
         "summary":  "Sound effects, ambience and music."
     },
@@ -856,7 +856,7 @@
     {
         "path":  "scripts/Status.cs",
         "lines":  97,
-        "hash8":  "40cc96c4",
+        "hash8":  "a9264629",
         "system":  "combat",
         "summary":  "Damage types, resistances, penetration and status effects (League of Legends style mitigation)."
     },
@@ -904,8 +904,8 @@
     },
     {
         "path":  "scripts/Ui.cs",
-        "lines":  838,
-        "hash8":  "52bffcb6",
+        "lines":  843,
+        "hash8":  "db7af003",
         "system":  "ui",
         "summary":  "All menus and overlays, built in code: notes, banners, dialogue, shop, smith, pack, character, skill..."
     },

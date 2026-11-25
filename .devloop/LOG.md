@@ -1,5 +1,14 @@
 # Dev loop log (newest first; max 20 detailed entries, older ones rolled into History)
 
+## #6 (2026-11-24) audio, animation, mechanics, world, ui, tools
+- Audio: tools/kit_gen/sfx_synth.py synthesizes land_thud_1-3, splash_1-4, step_water_1-4 (ours; ASSETS.md); landing uses land_thud, wading uses step_water (Sfx.BlockStep FluidAt), splash on entering water (PlayerBlocks _wasWater).
+- Animation: HeadLook adds idle breathing (spine_03 + clavicles), weight shift every 6-10 s, idle glance (public Glance) every 8-14 s; fades on move/Busy/lock.
+- Mechanics: fast travel already existed (Game.D.Disc + map Travel); added 30 s cooldown and no travel while foes hunt within 20 m (Ui.OpenMap, tuning game.fastTravel). Small gain.
+- Shadow realm: Ambient.cs ash (225) + glowing motes (25) around the camera, cold back rim DirectionalLight 0.35*RealmT; off in Light/dungeons. Lead fix: CpuParticles3D has no Turbulence* (GPU only).
+- UI: FloatText smaller parchment numbers, amber crit pop, dark red hero damage, element tints (Status.Dmg.TypeColor), random x offset; nameplates 36->26 px, bosses gold.
+- Capture: foes cleared within 60 m.
+- Scores: audio feel 6->6.5, animation visuals 3->4, world (shadow) visuals +0.5, ui visuals 6.5->7. FPS ~unchanged.
+
 ## #5 (2026-11-24) full sweep + process review; world, shaders, ui, vfx, tools, perf
 - Shadow realm (WorldEnv.cs + look.json): cold blue-grey/violet palette, pale violet sun at ~1.05x, ambient >= 0.6x day, violet-grey fog .003, eclipse halo. Readable now, still dark.
 - Sea: rotated/irrational noise layers, normals fade to 0 by ~1200 m, macro albedo/roughness variation: grid pattern gone. Lead fix: inline shader `mat2 R1/R2` must be `const` (shader failed to compile).

@@ -517,6 +517,7 @@ public partial class Ui : CanvasLayer
     }
 
     // ---------------------------------------------------------------- map and fast travel
+    static float _travelAt;
     public void OpenMap()
     {
         // the map is square; size it to the window height left after the title and hint rows
@@ -524,7 +525,11 @@ public partial class Ui : CanvasLayer
         var v = Frame("map", "Map", new Vector2(side + 40, side + 110), OpenMap); var d = Game.D;
         Row(v, Dungeon.Active ? "This floor as far as you have explored it. Scroll to zoom, drag to pan." : "Click a discovered place to fast travel. Scroll to zoom, drag to pan.", Dim, 15);
         var mv = new MapView { CustomMinimumSize = new Vector2(side, side), SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter }; v.AddChild(mv);
-        mv.Travel = poi => { if (Dungeon.Active || Arenas.Active) { Note("You cannot travel from here", new Color(1, .6f, .5f)); return; } Close(); World.ForceRealm(0); Player.Instance?.Teleport(World.TravelPoint(poi), 0f); Ui.Flash(Colors.White); Ui.Note("Travelled to " + poi.Name, Gold); };
+        mv.Travel = poi => { if (Dungeon.Active || Arenas.Active) { Note("You cannot travel from here", new Color(1, .6f, .5f)); return; }
+            var warn = new Color(1, .6f, .5f); float cr = Tune.F("fastTravel.combatRange", 20f), wait = _travelAt - Time.GetTicksMsec() / 1000f;
+            if (wait > 0) { Note($"Fast travel ready in {Mathf.CeilToInt(wait)} s", warn); return; }
+            var me = Player.Instance; if (me != null) foreach (var n in me.GetTree().GetNodesInGroup("enemies")) if (n is Enemy ce && ce.Hunting && !ce.Dead && ce.GlobalPosition.DistanceTo(me.GlobalPosition) < cr) { Note("You cannot travel while enemies hunt you", warn); return; }
+            _travelAt = Time.GetTicksMsec() / 1000f + Tune.F("fastTravel.cooldown", 30f); Close(); World.ForceRealm(0); Player.Instance?.Teleport(World.TravelPoint(poi), 0f); Ui.Flash(Colors.White); Ui.Note("Travelled to " + poi.Name, Gold); };
     }
 
     // ---------------------------------------------------------------- pause and settings live in UiSystem.cs

@@ -764,13 +764,16 @@ public partial class HeadLook : SkeletonModifier3D
     int _head = -1, _neck = -1, _chest = -1, _sp1 = -1, _sp2 = -1; bool _init, _local;
     float _yaw, _pitch, _lean, _w, _scan, _lastY, _wanY, _wanP; bool _hasLast; Vector3 _lastPos;
     Vector3? _tgt;
+    /// <summary>Extra yaw (radians) added to the head target; driven by the idle glance.</summary>
+    public float Glance;
+    int _pelvis = -1, _clavL = -1, _clavR = -1; float _iw, _spd, _camY, _camQuiet, _wsT = 4f, _gT = 6f, _wsPh = 1f, _wsSide = 1f, _gHold, _gGoal, _bt; bool _hasSp, _enemyTgt;
 
     public override void _ProcessModificationWithDelta(double delta)
     {
         var sk = GetSkeleton(); if (sk == null || Av == null || !GodotObject.IsInstanceValid(Av)) return;
         if (!_init)
         {
-            _init = true; _head = sk.FindBone("Head"); _neck = sk.FindBone("neck_01"); _chest = sk.FindBone("spine_03"); _sp1 = sk.FindBone("spine_01"); _sp2 = sk.FindBone("spine_02");
+            _init = true; _head = sk.FindBone("Head"); _neck = sk.FindBone("neck_01"); _chest = sk.FindBone("spine_03"); _sp1 = sk.FindBone("spine_01"); _sp2 = sk.FindBone("spine_02"); _pelvis = sk.FindBone("pelvis"); _clavL = sk.FindBone("clavicle_l"); _clavR = sk.FindBone("clavicle_r");
             for (Node? n = Av; n != null; n = n.GetParent()) if (n is Player) { _local = true; break; }
         }
         if (_head < 0) return;
@@ -782,6 +785,7 @@ public partial class HeadLook : SkeletonModifier3D
         if (_hasLast)
         {
             float dy = Mathf.Wrap(y - _lastY, -Mathf.Pi, Mathf.Pi) / dt; float sp = new Vector2(pos.X - _lastPos.X, pos.Z - _lastPos.Z).Length() / dt;
+            _spd = sp; _hasSp = true;
             if (sp < 14f) lean = Mathf.Clamp(-dy * Mathf.Min(sp, 8f) * .008f, -.14f, .14f);
         }
         _lastY = y; _lastPos = pos; _hasLast = true;
@@ -792,7 +796,7 @@ public partial class HeadLook : SkeletonModifier3D
         _scan -= dt;
         if (_scan <= 0)
         {
-            _scan = .25f; _tgt = null;
+            _scan = .25f; _tgt = null; _enemyTgt = false;
             if (_local)
             {
                 var t = Targeting.Current; float best = 100f; Vector3 f = -Av.GlobalBasis.Z;
@@ -803,7 +807,8 @@ public partial class HeadLook : SkeletonModifier3D
                         var d = e.GlobalPosition - Av.GlobalPosition; d.Y = 0; float dd = d.LengthSquared();
                         if (dd < best && dd > .01f && f.Dot(d.Normalized()) > .34f) { best = dd; _tgt = e.GlobalPosition + Vector3.Up * 1.5f; }
                     }
-                if (_tgt == null) { var cam = GetViewport().GetCamera3D(); if (cam != null) _tgt = hw + (-cam.GlobalBasis.Z) * 6f; }
+                _enemyTgt = _tgt != null;
+                if (_tgt == null) { var cam =GetViewport().GetCamera3D(); if (cam != null) _tgt = hw + (-cam.GlobalBasis.Z) * 6f; }
             }
         }
         float wy = 0, wp = 0;
@@ -817,7 +822,50 @@ public partial class HeadLook : SkeletonModifier3D
                 wy = Mathf.Clamp(wy, -lim, lim); wp = Mathf.Clamp(wp, -Mathf.DegToRad(30f), Mathf.DegToRad(30f));
             }
         }
-        _yaw = Mathf.Lerp(_yaw, wy, k); _pitch = Mathf.Lerp(_pitch, wp, k);
+        _pitch = Mathf.Lerp(_pitch, wp, k);
+
+        // ---- idle life (local hero only): breathing, weight shift, glance; fades out in 0.2 s on movement / one-shots / targets / camera motion
+        if (_local)
+        {
+            float spd = _hasSp ? _spd : 99f; var cam2 = GetViewport().GetCamera3D(); float cy = cam2 != null ? cam2.GlobalRotation.Y : 0f;
+            float cdy = Mathf.Abs(Mathf.Wrap(cy - _camY, -Mathf.Pi, Mathf.Pi)) / dt; _camY = cy;
+            if (cdy > .15f) _camQuiet = 0f; else _camQuiet += dt;
+            bool locked = Targeting.Current != null && GodotObject.IsInstanceValid(Targeting.Current) && !Targeting.Current.Dead;
+            bool idle = spd < .3f && !Av.Busy && !locked;
+            _iw = Mathf.MoveToward(_iw, idle ? 1f : 0f, dt * 5f);
+            if (idle)
+            {
+                _wsT -= dt; _gT -= dt;
+                if (_wsT <= 0f) { _wsT = (float)GD.RandRange(6.0, 10.0); _wsPh = 0f; _wsSide = GD.Randf() < .5f ? -1f : 1f; }
+                if (_gT <= 0f)
+                {
+                    _gT = (float)GD.RandRange(8.0, 14.0);
+                    if (!_enemyTgt && _camQuiet > 1f) { _gHold = 1.2f; _gGoal = Mathf.DegToRad((float)GD.RandRange(40.0, 60.0)) * (GD.Randf() < .5f ? -1f : 1f); }
+                }
+            }
+            else { _gHold = 0f; }
+            if (_wsPh < 1f) _wsPh = Mathf.Min(1f, _wsPh + dt / 1.5f);
+            if (_gHold > 0f) _gHold -= dt;
+            float gGoal = (_gHold > 0f && idle) ? _gGoal : 0f;
+            Glance = Mathf.Lerp(Glance, gGoal, 1f - Mathf.Exp(-6f * dt));
+            if (_iw > .001f)
+            {
+                _bt += dt;
+                float br = Mathf.DegToRad(1.5f) * Mathf.Sin(_bt * Mathf.Tau * .25f) * _iw;
+                var bq = new Quaternion(Vector3.Right, br);
+                Set(sk, _chest, bq);
+                if (_clavL >= 0) Set(sk, _clavL, bq); if (_clavR >= 0) Set(sk, _clavR, bq);
+                if (_wsPh < 1f && _pelvis >= 0)
+                {
+                    float s = Mathf.Sin(_wsPh * Mathf.Pi); s = s * s * (3f - 2f * s) * _iw * _wsSide;   // eased in and out
+                    Set(sk, _pelvis, new Quaternion(Vector3.Back, Mathf.DegToRad(3f) * s));
+                    sk.SetBonePosePosition(_pelvis, sk.GetBonePosePosition(_pelvis) + new Vector3(.02f * s, 0, 0));
+                }
+            }
+        }
+        else Glance = 0f;
+        wy = Mathf.Clamp(wy + Glance, -Mathf.DegToRad(110f), Mathf.DegToRad(110f));
+        _yaw = Mathf.Lerp(_yaw, wy, k);
 
         float w = _w;
         if (w > .001f) { Apply(sk, _chest, .1f * w); Apply(sk, _neck, .3f * w); Apply(sk, _head, .6f * w); }

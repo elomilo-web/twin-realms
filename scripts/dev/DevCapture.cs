@@ -162,7 +162,7 @@ public partial class DevCapture : Node
                     P.Teleport(World.OnGround(place.X + 4, place.Z + place.R * .3f, .6f), Num(v, "yaw", Mathf.Pi * .8f)); await Secs(1.2f);
                 }
                 // wild foes near the hero spoil the pictures (hit flash, damage numbers): clear them before spawning the view's own foes
-                foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Enemy we && we.GlobalPosition.DistanceTo(P.GlobalPosition) < 30f) we.QueueFree();
+                foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Enemy we && we.GlobalPosition.DistanceTo(P.GlobalPosition) < 60f) we.QueueFree();
                 if (scene.StartsWith("dungeon:") || scene == "arena") { foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Enemy e && e.GlobalPosition.DistanceTo(P.GlobalPosition) < 10f) e.QueueFree(); }
                 Heal(); Hud(Flag(v, "hud", false));
                 if (v.TryGetProperty("foes", out var fs) && fs.ValueKind == JsonValueKind.Array)

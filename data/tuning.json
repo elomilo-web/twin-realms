@@ -10,6 +10,7 @@
   ],
 
   "game": {
+    "fastTravel": { "_help": "Map fast travel: seconds between jumps, and how close (metres) a hunting enemy blocks it.", "cooldown": 30, "combatRange": 20 },
     "player": {
       "_help": "Hero base stats. Max health = hpBase + level x hpPerLevel + Vitality x hpPerVit (+ gear, tree). Mana, stamina likewise. defensePerVit: armor per Vitality. critBase 0.05 = 5%. critDamage 1.8 = crits deal 180%. weaponBase: flat damage every weapon hit starts from (magicWeaponBase for wands and staves). spellPerMag / spellPerLevel: spell power per Magic / level. Regen per second. Potions heal this share of max health / mana. combatStanceSeconds: how long the hero keeps the guarded weapon stance after fighting (then stands relaxed).",
       "hpBase": 100, "hpPerLevel": 8, "hpPerVit": 7,

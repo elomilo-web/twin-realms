@@ -4,7 +4,6 @@ Categories: graphics shaders lighting animation feel combat mechanics ui menus w
 
 [4][S][world] Settlement walls still dark timber after #4 tint lift (plaster f0e8dc not visible in Hollowfrost): check which kit houses Hollowfrost uses and whether their walls are TR_Tex_planks; maybe swap some to plaster-walled models -> Lands.cs Cottages/Townhouses, data/env.json
 [3][S][feel] Feel.Impact "heavy" weapon ids guessed (greatsword, mace, axe, hammer): check data/weapons.json types -> Feel.cs, Player.cs ResolveMelee
-[3][S][audio] Landing thud reuses step_stone pitched down: add a CC0 body-fall/thud sound -> assets/audio/sfx, Player.cs landing
 [4][S][menus] Title backdrop now visible (#3) but the dusk is a flat saturated red; add sky gradient depth (violet top -> ember horizon), a moon, layered fog between skyline rows -> TitleBackdrop.cs
 [3][M][lighting] Dungeon better after #2 (3 lit torches in the entry room, cold ambient fill) but floors still very dark between pools: volumetric fog for glowing torch pools (World.SetDungeonLook, restore on exit) -> World.cs SetDungeonLook
 [3][M][perf] Foliage view still 35 fps / min 13 (Hollowfrost): flora already culled (#2 check). Profile lights/shadows/terrain: try shadow distance per view, omni shadow count, draw calls in report.json -> World.cs, Lands.cs
@@ -14,13 +13,10 @@ Categories: graphics shaders lighting animation feel combat mechanics ui menus w
 [3][S][ui] HUD ghost/vignette colours are hard-coded in Hud.SlantBar/GhostStep: move to data/ui_theme.json; add a "low_hp" viewpoint (hero at 20% HP) to judge the pulse -> Hud.cs, viewpoints.json
 [4][M][world] Village plaza is sparse: add market stalls, banners, crates, lanterns on posts, scattered hay/leaves decals -> Builder.cs, data/env.json
 [4][L][graphics] Sky in water view shows a smeared, tiled cloud texture: rebuild sky clouds as a procedural sky shader with layered fbm, sun disk and gothic overcast -> World.cs sky, new shaders/sky_gothic.gdshader
-[3][S][audio] No water splash sound exists: add a CC0 splash/wade set (record in assets/ASSETS.md) and map block "water" step to it -> assets/audio/sfx, Sfx.cs BlockStep
 [3][M][world] Grass hidden over block area (port limitation): scatter grass tufts on grass-top blocks in mesher -> BlockMesher.cs, Flora.cs
 [3][M][shaders] Water: add depth-based color, shoreline foam and refraction to block-world water faces -> BlockMesher.cs, assets water shader
 [3][S][audio] Normalise SFX/music levels (GOTHIC.md: levels not normalised) -> tools script + Sfx.cs volume table
-[3][M][ui] Floating damage numbers: gothic serif, crit scale-pop, color by element -> Hud.cs / Fx.cs
 [3][M][ui] Target lock reticle and enemy nameplate restyle (gothic frame, HP bar with level badge) -> Targeting.cs, Hud.cs
-[3][M][mechanics] Fast travel between discovered wayshrines -> MapMarks.cs, Ui.cs OpenMap
 [3][L][world] Trees as block-aware (fire spreads to trees): convert nearby trees to burnable wood/leaves blocks on hit -> Flora.cs, BlockSim.cs
 [3][M][perf] Greedy meshing for block chunks (fewer verts, faster remesh) -> BlockMesher.cs
 [3][S][perf] Player close-up min 20 fps: find first-frame spikes (shader compile?) -> report.json, Main.cs warmup
@@ -34,8 +30,10 @@ Categories: graphics shaders lighting animation feel combat mechanics ui menus w
 [3][S][ui] Inventory slots framed (#3); equipment paper-doll silhouette still missing; slot colours hard-coded in ItemSlot.Inset -> ItemSlot.cs, Ui.cs OpenPack
 [3][S][vfx] Sword trail restyled (#3): judge in a swing close-up; tune spark threshold 8 m/s -> Vfx.cs SwordTrail, assets/shaders/sword_trail.gdshader
 [2][M][mechanics] Ladders and doors as placeable blocks -> data/blocks.json, BlockMesher.cs shapes
-[4][M][world] Shadow realm still dark (#5): add drifting ash/ember motes near camera, cold rim light on characters, brighter violet sky band -> Ambient.cs, WorldEnv.cs
 [3][S][shaders] Frostmere lake shows white floe-like blotches (sea macro/foam on lakes): fine for frost, but check temperate lakes; gate by land biome -> WorldEnv.cs WaterShader
-[3][S][tools] Capture views torch_night/head_look get hit by wild foes (-40/-85): clear radius 30 -> 60 m and pause wildlife spawns during capture -> DevCapture.cs
 [3][S][world] Arena floor reads like planks (G_Rock tint stretched?): check triplanar scale; add a real sand/soil set -> Builder.cs ArenaMats
 [3][S][feel] Dodge/head-look/stagger views exist now: judge perfect-dodge flash, lean sign, stagger lean next cycle
+[3][S][tools] stagger view: the wolf is not in frame; spawn foe at 3 m and frame both -> viewpoints.json, DevCapture.cs foes distance
+[3][M][mechanics] Wayshrine visuals: discovered POIs get a glowing rune obelisk marker in the world -> Builder.cs/Lands.cs POI build, Hud.cs discovery
+[3][S][ui] Nameplate level badge colour (needs a 2nd Label3D or RichText) and show only when targeted or <15 m -> Enemy.cs nameplate
+[2][S][audio] Listen pass needed: synthesized thud/splash levels vs step_* (user ears) -> Sfx.cs volumes

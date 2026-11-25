@@ -68,8 +68,23 @@ public partial class Ambient : Node3D
         }
         _fireflies = Motes(nFire, box, new Color(1f, .9f, .4f), .14f, 4f);
         _spores = Motes(nSpore, sbox, new Color(.8f, .45f, 1f), .2f, 6f);
+        // shadow realm: slow falling ash / soul motes around the camera (soft grey-violet, alpha) plus a few faint additive glowers, and a weak cold rim light
+        {
+            var ag = new Gradient(); var ac = new Color(.62f, .6f, .74f); ag.SetColor(0, new Color(ac, 0)); ag.SetColor(1, new Color(ac, 0)); ag.AddPoint(.2f, new Color(ac, .55f)); ag.AddPoint(.8f, new Color(ac, .4f));
+            var amat = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, BillboardMode = BaseMaterial3D.BillboardModeEnum.Particles, VertexColorUseAsAlbedo = true, CullMode = BaseMaterial3D.CullModeEnum.Disabled };
+            _ash = new CpuParticles3D
+            {
+                Amount = 225, Lifetime = 14f, Emitting = false, Visible = false, LocalCoords = false, Preprocess = 14f, EmissionShape = CpuParticles3D.EmissionShapeEnum.Box, EmissionBoxExtents = new Vector3(20, 7.5f, 20),
+                Gravity = new Vector3(0, -.12f, 0), Direction = Vector3.Down, Spread = 180, InitialVelocityMin = .05f, InitialVelocityMax = .3f, TangentialAccelMin = -.15f, TangentialAccelMax = .15f,   // CpuParticles3D has no turbulence (GPU only): a little swirl instead
+                ColorRamp = ag, Mesh = new QuadMesh { Size = new Vector2(.07f, .07f), Material = amat }, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+            };
+            AddChild(_ash);
+            _soul = Motes(25, 20f, new Color(.7f, .6f, 1f), .12f, 9f); _soul.EmissionBoxExtents = new Vector3(20, 7.5f, 20); _soul.Visible = false;
+            _rim = new DirectionalLight3D { ShadowEnabled = false, LightEnergy = 0, LightColor = new Color(.78f, .74f, 1f), Visible = false, LightSpecular = .5f }; AddChild(_rim);
+        }
         foreach (var fl in _flies) Reseat(fl, Player.Instance?.GlobalPosition ?? Vector3.Zero, true);
     }
+    CpuParticles3D _ash = null!, _soul = null!; DirectionalLight3D _rim = null!;
 
     void Reseat(Fly f, Vector3 around, bool snap)
     {
@@ -77,10 +92,24 @@ public partial class Ambient : Node3D
         p.Y = World.GroundAt(p.X, p.Z) + _rg.RandfRange(.4f, 1.6f); f.Home = p; f.Target = p; if (snap) f.N.GlobalPosition = p;
     }
 
+    void SetRealmFx(float rt)
+    {
+        bool on = rt > .02f;
+        if (_ash.Visible != on) { _ash.Visible = _soul.Visible = _rim.Visible = on; _ash.Emitting = _soul.Emitting = on; }
+        if (!on) { _rim.LightEnergy = 0; return; }
+        var cam = GetViewport().GetCamera3D(); if (cam == null) return;
+        var cp = cam.GlobalPosition; _ash.GlobalPosition = cp + Vector3.Up * 2f; _soul.GlobalPosition = cp + Vector3.Up * 2f;
+        _ash.Color = new Color(1, 1, 1, rt);   // fades the whole emitter with the realm blend
+        _soul.Color = new Color(1, 1, 1, rt);
+        // rim: light travels from behind the subject toward the camera (opposite the view direction)
+        _rim.GlobalTransform = new Transform3D(cam.GlobalTransform.Basis.Orthonormalized().Rotated(Vector3.Up, Mathf.Pi), cp); _rim.LightEnergy = .35f * rt;
+    }
+
     public override void _Process(double delta)
     {
         float dt = (float)delta; var pl = Player.Instance; if (pl == null) return;
-        bool over = !Dungeon.Active && World.I != null && World.I.Over.Visible; Visible = over; if (!over) { _fireflies.Emitting = _spores.Emitting = false; return; }
+        bool over = !Dungeon.Active && World.I != null && World.I.Over.Visible; Visible = over; if (!over) { _fireflies.Emitting = _spores.Emitting = false; SetRealmFx(0); return; }
+        SetRealmFx(World.RealmT);
         var pp = pl.GlobalPosition; float t = (float)Time.GetTicksMsec() / 1000f;
         bool shadow = World.RealmT > .5f; float night = World.Night;
         // particles follow the player

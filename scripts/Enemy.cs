@@ -140,9 +140,9 @@ public partial class Enemy : CharacterBody3D, IDamageable
         float labelY = _mdl != null ? HeightM() + .1f : quad ? r * 2.6f : dragon ? 6.2f : 2.2f * s;
         _label = new Label3D
         {
-            Text = Summoned ? "" : (UpgradeLine() + Def.N + (DefOverride != null ? "" : $"  Lv{Level}")), FontSize = 36, OutlineSize = 8, PixelSize = 0.006f,
-            // like loot rarity: upgraded dungeon monsters are blue (one upgrade) or gold (two or more)
-            Modulate = Def.Boss ? new Color(1, 0.5f, 0.4f) : UpgradeCount() >= 2 ? new Color(1f, .82f, .3f) : UpgradeCount() == 1 ? new Color(.55f, .75f, 1f) : new Color(1, 0.88f, 0.7f),
+            Text = Summoned ? "" : (UpgradeLine() + Def.N + (DefOverride != null ? "" : $"  Lv{Level}")), FontSize = 26, OutlineSize = 6, PixelSize = 0.006f, OutlineModulate = new Color(.04f, .03f, .03f, .95f),
+            // parchment names; elites/bosses gold; upgraded dungeon monsters blue (one upgrade) or gold (two or more)
+            Modulate = Def.Boss ? new Color(1f, .8f, .3f) : UpgradeCount() >= 2 ? new Color(1f, .82f, .3f) : UpgradeCount() == 1 ? new Color(.55f, .75f, 1f) : new Color(.93f, .88f, .75f),
             // depth-tested (no names through walls or hills) and only within a fair distance, fading out
             Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, Position = new Vector3(0, labelY + 0.3f, 0), NoDepthTest = false,
             VisibilityRangeEnd = Def.Boss || dragon ? 90f : 26f, VisibilityRangeEndMargin = 5f, VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self,

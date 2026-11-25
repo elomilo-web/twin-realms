@@ -52,8 +52,8 @@ public static class Dmg
 
     public static Color TypeColor(string t) => t switch
     {
-        "fire" => new Color(1f, .6f, .25f), "frost" => new Color(.6f, .88f, 1f), "lightning" => new Color(.8f, .78f, 1f), "poison" => new Color(.55f, .9f, .35f),
-        "shadow" => new Color(.75f, .5f, 1f), "holy" => new Color(1f, .92f, .55f), "true" => new Color(1f, .45f, .5f), _ => Colors.White,
+        "fire" => new Color(1f, .5f, .15f), "frost" => new Color(.7f, .92f, 1f), "lightning" => new Color(.88f, .82f, 1f), "poison" => new Color(.55f, .8f, .25f),
+        "shadow" => new Color(.62f, .38f, .85f), "holy" => new Color(1f, .9f, .6f), "true" => new Color(1f, .45f, .5f), _ => Colors.White,
     };
 }
 

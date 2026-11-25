@@ -76,6 +76,7 @@ Gothic realism (2026-11-15): replaced with realistic CC0 recordings, all from Op
 | `ice_1..2.wav` | "Ice spells" — https://opengameart.org/content/ice-spells |
 | `heal_1..3.wav` | "Cure magic" — https://opengameart.org/content/cure-magic |
 | `click_*.ogg` | Kenney "Interface Sounds" — https://opengameart.org/content/interface-sounds |
+| `land_thud_1..3.wav`, `splash_1..4.wav`, `step_water_1..4.wav` | procedurally generated, tools/kit_gen/sfx_synth.py |
 
 Sounds with no file (level, portal, shift) use soft synthesised bells in `Sfx.cs`.
 

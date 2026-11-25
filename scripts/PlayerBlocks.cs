@@ -17,7 +17,7 @@ public partial class Player
     public static (Vector3I b, Vector3I n)? ForcedTarget;
     (Vector3I b, Vector3I n)? _bTarget; float _digT; Vector3I _digAt; float _placeCd; byte _rot;
     string _sel = ""; MeshInstance3D? _ghost, _crack; StandardMaterial3D? _ghostMat, _crackMat; ImageTexture[]? _cracks;
-    float _fluidSpeed = 1f, _accelMul = 1f; float _lavaT;
+    float _fluidSpeed = 1f, _accelMul = 1f; float _lavaT; bool _wasWater;
     public string BlockSelected => _sel;
 
     /// <summary>Water, lava and ice before this frame's movement: speed and acceleration factors, swimming, lava burns.</summary>
@@ -26,6 +26,8 @@ public partial class Player
         _fluidSpeed = 1f; _accelMul = 1f;
         if (!BlockWorld.Enabled) return;
         string body = BlockWorld.FluidAt(GlobalPosition + Vector3.Up * .9f), head = BlockWorld.FluidAt(GlobalPosition + Vector3.Up * 1.5f);
+        if (body == "water" && !_wasWater) Sfx.Play("splash", .8f, 1f);
+        _wasWater = body == "water";
         if (body != "")
         {
             // swimming: sink slowly, Jump rises; slower on the move

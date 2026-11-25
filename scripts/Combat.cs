@@ -57,17 +57,35 @@ public static class FloatText
         if (!GodotObject.IsInstanceValid(context) || !context.IsInsideTree()) return;
         var scene = context.GetTree().CurrentScene;
         if (scene == null) return;
+        bool isNum = Num.IsMatch(text), crit = isNum && text.EndsWith("!"), hurt = isNum && text.StartsWith("-");
+        if (isNum)
+        {
+            bool plain = col.R > .93f && col.G > .93f && col.B > .93f;   // white = physical
+            if (hurt) col = new Color(.75f, .13f, .1f);                  // damage taken by the hero
+            else if (crit) col = new Color(1f, .75f, .2f);               // amber-gold
+            else if (plain) col = new Color(.93f, .88f, .75f);           // parchment
+        }
+        float px = isNum ? 0.0045f : 0.006f;
         var l = new Label3D
         {
-            Text = text, Modulate = col, FontSize = (int)(48 * size), OutlineSize = 10, PixelSize = 0.006f,
+            Text = text, Modulate = col, FontSize = (int)(48 * size), OutlineSize = 10, PixelSize = px,
+            OutlineModulate = new Color(.05f, .03f, .03f, .95f),
             Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, NoDepthTest = true,
         };
         scene.AddChild(l);
-        l.GlobalPosition = pos;
+        float dx = isNum ? (GD.Randf() - .5f) * .9f : 0f;
+        l.GlobalPosition = pos + new Vector3(dx, 0, 0);
         var tw = l.CreateTween();
         tw.SetParallel(true);
-        tw.TweenProperty(l, "position:y", pos.Y + 1.3f, 0.9f);
-        tw.TweenProperty(l, "modulate:a", 0f, 0.9f).SetDelay(0.3f);
+        if (crit)
+        {
+            l.Scale = Vector3.One * 1.4f;
+            tw.TweenProperty(l, "scale", Vector3.One, 0.12f).SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
+            var shake = l.CreateTween();
+            for (int i = 0; i < 4; i++) shake.TweenProperty(l, "position:x", pos.X + dx + (i % 2 == 0 ? .04f : -.04f), 0.03f);
+        }
+        tw.TweenProperty(l, "position:y", pos.Y + (isNum ? 1.0f : 1.3f), 0.8f);
+        tw.TweenProperty(l, "modulate:a", 0f, 0.5f).SetDelay(0.3f);
         tw.Chain().TweenCallback(Callable.From(l.QueueFree));
     }
 }
