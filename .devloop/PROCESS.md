@@ -15,6 +15,9 @@
 - Subagents: one per item, sonnet model for S/M items, briefed with card line ranges. They must not run verify or git
   (the lead does that once per cycle, so parallel builds do not collide).
 
+- Windows PowerShell 5.1 reads BOM-less UTF-8 as ANSI: edit .devloop files with the Edit tool, or in PowerShell use
+  [IO.File]::ReadAllText/WriteAllText with UTF8Encoding($false). Never Get-Content | Set-Content them (mangles the separator dots).
+
 ## How a cycle runs (short)
 1 stop check; 2 DIRECTIVES, STATE, INDEX, top of BACKLOG/LOG, tools/reindex.ps1; 3 capture (full sweep every 5th
 cycle, else relevant views + 2 random) and contact sheet via tools/sheet.ps1; 4 pick 4-6 items, 3+ categories, 2+ visible;
