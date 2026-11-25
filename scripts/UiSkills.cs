@@ -30,6 +30,18 @@ public partial class Ui
         var l = new Label { Text = text, MouseFilter = Control.MouseFilterEnum.Ignore }; l.AddThemeFontSizeOverride("font_size", 15); l.AddThemeColorOverride("font_color", hot ? UiTheme.Highlight : UiTheme.Text); pc.AddChild(l); return l;
     }
 
+    /// <summary>Smoky gothic panel style shared by the skill menus.</summary>
+    internal static StyleBox GothPanel(Color? border = null, int pad = 10) => UiTheme.Box(new Color(.05f, .045f, .04f, .9f), border ?? UiTheme.AccentSoft, 1, 14, pad, 0);
+
+    /// <summary>A framed row/card with a coloured border; returns the HBox to fill.</summary>
+    internal static HBoxContainer CardRow(Control parent, Color band, bool sel = false)
+    {
+        var pc = new PanelContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        pc.AddThemeStyleboxOverride("panel", UiTheme.Box(new Color(.05f, .045f, .04f, .92f), sel ? UiTheme.Highlight : band with { A = .6f }, sel ? 2 : 1, 8, 5, 0));
+        var hb = new HBoxContainer(); hb.AddThemeConstantOverride("separation", 8); pc.AddChild(hb); parent.AddChild(pc); return hb;
+    }
+    static string Pips(int rank, int max) => string.Concat(Enumerable.Range(0, max).Select(i => i < rank ? "◆" : "◇"));
+
     static bool SkillShown(SkillDef k, string filter, string search)
     {
         var d = Game.D; bool known = d.Skills.ContainsKey(k.Id);
@@ -90,7 +102,8 @@ public partial class Ui
         // the search filters live (rebuilding the menu would take the focus off the search box)
         search.TextChanged += s => { _skillSearch = s; foreach (var (t, k) in tiles) t.Visible = SkillShown(k, _skillFilter, s); };
 
-        Lbl("HOTBAR   click a key to put the selected skill on it   ·   right-click a learned skill to remove a rank", 13, UiTheme.Accent, left);
+        Header("Hotbar", left);
+        Lbl("Click a key to put the selected skill on it. Right-click a learned skill to remove a rank.", 14, Dim, left).AutowrapMode = TextServer.AutowrapMode.WordSmart;
         var bar = new HBoxContainer(); bar.AddThemeConstantOverride("separation", 6); left.AddChild(bar);
         bool selKnown = d.Skills.ContainsKey(_selSkill);
         for (int i = 0; i < 6; i++)
@@ -138,7 +151,7 @@ public partial class Ui
     void SkillCard(VBoxContainer box)
     {
         var d = Game.D; var sk = Skills.Get(_selSkill)!; bool learned = d.Skills.TryGetValue(sk.Id, out var ss);
-        var card = new PanelContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; card.AddThemeStyleboxOverride("panel", UiTheme.Box(new Color(.02f, .06f, .12f, .7f), UiTheme.AccentSoft, 1, 14, 10, 0)); box.AddChild(card);
+        var card = new PanelContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; card.AddThemeStyleboxOverride("panel", GothPanel(Dmg.TypeColor(sk.Type) with { A = .6f })); box.AddChild(card);
         var v = new VBoxContainer(); v.AddThemeConstantOverride("separation", 7); card.AddChild(v);
 
         // header: icon, name, tags; learn / rank up on the right
@@ -155,14 +168,15 @@ public partial class Ui
         else
         {
             var rb = Btn(ss!.Rank >= Skills.MaxRank ? "Max rank" : $"Rank up  (1 pt)", () => Do(Skills.RankUp(sk.Id), sk.Name + " ranked up")); rb.Disabled = ss.Rank >= Skills.MaxRank || d.RankPts < 1; rb.CustomMinimumSize = new Vector2(170, 36); act.AddChild(rb);
-            Lbl($"Rank {ss.Rank}/{Skills.MaxRank}   +{Skills.RankP:0}% damage per rank", 12, UiTheme.Highlight, act);
+            Lbl(Pips(ss.Rank, Skills.MaxRank) + $"  {ss.Rank}/{Skills.MaxRank}", 16, UiTheme.Accent, act);
+            Lbl($"+{Skills.RankP:0}% damage per rank", 14, UiTheme.Highlight, act);
         }
         var desc = Row(v, sk.Desc, Colors.White, 15); desc.CustomMinimumSize = new Vector2(400, 0);
 
         // numbers: three label/value pairs per row
         var c = Skills.Compute(sk.Id);
         var grid = new GridContainer { Columns = 6 }; grid.AddThemeConstantOverride("h_separation", 12); grid.AddThemeConstantOverride("v_separation", 2); v.AddChild(grid);
-        void Stat(string n, string val) { Lbl(n, 12, Dim, grid); Lbl(val, 14, Colors.White, grid).CustomMinimumSize = new Vector2(78, 0); }
+        void Stat(string n, string val) { Lbl(n, 14, Dim, grid); Lbl(val, 14, Colors.White, grid).CustomMinimumSize = new Vector2(78, 0); }
         if (sk.Kind is not ("heal" or "buff" or "enchant" or "ward" or "resurrect")) Stat("Damage", $"{c.Dmg:0}" + (sk.Kind == "zone" ? "/tick" : c.Count > 1 ? $" x{c.Count}" : ""));
         if (sk.Kind == "heal") Stat("Heals", $"{c.Heal * 100:0}% hp");
         if (c.Mp > 0) Stat("Mana", $"{c.Mp:0}"); if (c.St > 0) Stat("Stamina", $"{c.St:0}");
@@ -182,10 +196,10 @@ public partial class Ui
 
         // modifier sockets
         var sh = new HBoxContainer(); v.AddChild(sh);
-        var mt = Lbl("MODIFIERS", 15, UiTheme.Accent, sh); mt.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        if (!learned) { Row(v, "Learn the skill to socket modifiers into it (1 socket, 2 at rank 2, 3 at rank 4).", Dim, 13); return; }
+        var mt = Header("Modifiers", sh).GetParent<Control>(); mt.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        if (!learned) { Row(v, "Learn the skill to socket modifiers into it (1 socket, 2 at rank 2, 3 at rank 4).", Dim, 14); return; }
         int open = Skills.Sockets(ss!.Rank); while (ss.Sup.Count < open) ss.Sup.Add("");
-        Lbl($"{ss.Sup.Count(s => s != "")}/{open} used", 13, Dim, sh);
+        Lbl($"{ss.Sup.Count(s => s != "")}/{open} used", 14, Dim, sh);
         var sockets = new HBoxContainer(); sockets.AddThemeConstantOverride("separation", 8); v.AddChild(sockets);
         for (int i = 0; i < 3; i++)
         {

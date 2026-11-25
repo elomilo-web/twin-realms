@@ -1,5 +1,15 @@
 # Dev loop log (newest first; max 20 detailed entries, older ones rolled into History)
 
+## #12 (2026-11-25) MENUS (user directive: improve all menus)
+- Capture: generic ui:<name>[:arg] action + 18 menu_* views (settings, controls, journal, map, tree, skills, attacks, macros, mods, shop, smith, craft, craft_blocks, valor, totals, multiplayer, stash, create); UiSmith.OpenSmith made public.
+- Ui.cs: CardBox/Empty/PriceStyle helpers, gold-underlined Tabs (shared by all menus), shop/valor price cards (muted red when unaffordable), journal records + quest cards, totals rows, tree side panel, map parchment frame + legend.
+- UiSkills/UiAttacks/UiMacros/UiMods: GothPanel/CardRow/Pips helpers, element-coloured skill cards, gold rank pips, macro chain of cards with arrows, framed attack chains.
+- UiSystem/UiControls: SettingsShell (tabs in a left column, gold marker), grouped option rows, gold sliders, < value > pickers; controls as key caps (gold when listening, red on conflict).
+- UiCraft/UiSmith: recipe rows with have/need, big result slot, Craft x5 (new), block cube swatches; smith anvil slot, current vs next stats with deltas, gold flash on upgrade.
+- UiNet/UiOnline/Home/Updater: host/join cards, session recent addresses, gold headers, launcher title + patch notes box + gold progress bar.
+- Lead fixes: duplicate Parch colour, using System.Collections.Generic, a bad string.Contains overload.
+- Seen: consistent and readable; skills/attacks/macros frames overflow the 1280x720 screen (title/left edge cut); the map interior still uses bright cartoon colours; character creation still plain.
+
 ## #11 (2026-11-25) feel, tools, shaders, ui, mechanics, perf
 - Camera (CameraRig.cs): look-ahead lead 0.8 m run / 1.2 m sprint (tau .4, off when locked), collision pull-in instant + .35 s ease-out, shoulder offset .35 (off sprinting/locked). Untested by eye (stills).
 - Capture: "spot": "auto:n" (FindSpot: dry, flat, >25 m from POIs, no collider in a 3.5 m sphere 5 m up); cast views auto:0-5; holy (smite), shadow (shadowbolt), poison (thornvolley) views; hero faces the foe. Trees seem to have no colliders: lightning/holy views still occluded.

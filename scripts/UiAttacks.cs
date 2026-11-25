@@ -27,26 +27,31 @@ public partial class Ui
 
         // ---- left: weapon classes
         var left = new VBoxContainer { CustomMinimumSize = new Vector2(200, 0) }; cols.AddChild(left);
-        Lbl("WEAPONS", 15, UiTheme.Accent, left);
+        Header("Weapons", left);
         foreach (var t in Weapons.Types.Where(Attacks.HasStyle))
         {
             string tt = t; var bt = Attacks.Build(t);
             var btn = Btn($"{Attacks.StyleName(t)}  r{bt.Rank}" + (d.WType() == t ? "  (equipped)" : ""), () => OpenAttacks(tt), true);
-            btn.Alignment = HorizontalAlignment.Left; btn.CustomMinimumSize = new Vector2(190, 30);
-            btn.AddThemeColorOverride("font_color", t == w ? UiTheme.Highlight : d.WType() == t ? Colors.White : Dim); left.AddChild(btn);
+            btn.Alignment = HorizontalAlignment.Left; btn.CustomMinimumSize = new Vector2(190, 34);
+            btn.AddThemeColorOverride("font_color", t == w ? UiTheme.Highlight : d.WType() == t ? Colors.White : Dim);
+            if (t == w) btn.AddThemeStyleboxOverride("normal", UiTheme.Box(UiTheme.ButtonHover, UiTheme.Highlight, 2, 10, 4, 0));
+            left.AddChild(btn);
         }
 
         // ---- middle: the chain
         var mid = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; mid.AddThemeConstantOverride("separation", 6); cols.AddChild(mid);
         var hdr = new HBoxContainer(); mid.AddChild(hdr);
-        var tl = Lbl($"{Attacks.StyleName(w)}   rank {b.Rank}/{Attacks.MaxRank}", 20, Colors.White, hdr); tl.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        var tl = Lbl($"{Attacks.StyleName(w).ToUpper()}   " + string.Concat(Enumerable.Range(0, Attacks.MaxRank).Select(i => i < b.Rank ? "◆" : "◇")) + $"  {b.Rank}/{Attacks.MaxRank}", 20, UiTheme.Title, hdr); tl.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         if (b.Rank < Attacks.MaxRank) hdr.AddChild(Btn($"Rank up (1 point): chain {Attacks.ChainLen(b.Rank + 1)}, sockets {Attacks.Sockets(b.Rank + 1)}", () => Did(Attacks.RankUp(w)), true));
-        Lbl($"CHAIN  {b.Chain.Count}/{Attacks.ChainLen(b.Rank)}", 15, UiTheme.Accent, mid);
+        Header($"Chain  {b.Chain.Count}/{Attacks.ChainLen(b.Rank)}", mid);
+        var chainScroll = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled, CustomMinimumSize = new Vector2(0, 200) }; mid.AddChild(chainScroll);
+        var chainBox = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; chainBox.AddThemeConstantOverride("separation", 5); chainScroll.AddChild(chainBox);
+        if (b.Chain.Count == 0) Lbl("No swings yet. Add a step from the right.", 14, Dim, chainBox);
         for (int i = 0; i < b.Chain.Count; i++)
         {
             int pos = i; var st = Attacks.Resolve(wd, i, false); var a = st.Def;
-            var row = new HBoxContainer(); mid.AddChild(row); row.AddThemeConstantOverride("separation", 8);
-            Lbl($"{i + 1}.", 16, UiTheme.Accent, row);
+            var row = CardRow(chainBox, UiTheme.Accent);
+            Lbl($"{i + 1}.", 18, UiTheme.Accent, row);
             string extra = (a.Finisher ? "  finisher" : "") + (st.Shots > 1 ? $"  {st.Shots} shots" : "") + (st.Pierce ? "  pierce" : "") + (st.Aoe > 0 ? $"  blast {st.Aoe:0.#}m" : "")
                 + (a.Stun > 0 ? $"  stun {a.Stun:0.##}s" : "") + (a.Up > 0 ? "  launch" : "") + string.Concat(st.Status.Select(s => $"  {Dmg.Status(s.id)?.Name ?? s.id} {s.chance * 100:0}%"));
             var l = Lbl($"{st.Name}\n" + $"x{a.Dmg:0.00} dmg  ·  speed x{st.Speed:0.00}" + (wd.Ranged ? "" : $"  ·  arc {a.Arc:0}°  ·  reach {a.Range:0.0} m") + extra.Replace("  ", "  ·  "), 15, Colors.White, row);
@@ -57,32 +62,32 @@ public partial class Ui
         }
         var pw = Attacks.Resolve(wd, 0, true);
         Lbl($"Heavy attack ({Inputs.KeyOf(Inputs.Heavy)}): x{pw.Def.Dmg:0.00} dmg" + (pw.Def.Stun > 0 ? $", stun {pw.Def.Stun:0.##}s" : ""), 14, Dim, mid);
-        Lbl($"MODIFIERS  {b.Mods.Count}/{Attacks.Sockets(b.Rank)}", 15, UiTheme.Accent, mid);
+        Header($"Modifiers  {b.Mods.Count}/{Attacks.Sockets(b.Rank)}", mid);
         if (b.Mods.Count == 0) Lbl("Empty: socket a modifier from the right.", 14, Dim, mid);
         foreach (var mid2 in b.Mods.ToList())
         {
             var m = Attacks.Mod(mid2); if (m == null) continue; string mm = mid2;
-            var row = new HBoxContainer(); mid.AddChild(row); var l = Lbl($"{m.Name}: {m.Desc}", 15, Gold, row); l.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            var row = CardRow(mid, Gold); var l = Lbl($"{m.Name}: {m.Desc}", 15, Gold, row); l.AutowrapMode = TextServer.AutowrapMode.WordSmart; l.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
             row.AddChild(Btn("Unsocket", () => Did(Attacks.Socket(w, mm)), true));
         }
 
         // ---- right: steps and modifiers
         var right = new VBoxContainer { CustomMinimumSize = new Vector2(330, 0) }; cols.AddChild(right);
         var sc = Scroll(right, 540); var list = Inner(sc);
-        Lbl("SWING STEPS", 15, UiTheme.Accent, list);
+        Header("Swing steps", list);
         foreach (var s in Attacks.Steps(w))
         {
             string sid = s.Id; bool known = Attacks.StepKnown(w, sid);
-            var row = new HBoxContainer(); list.AddChild(row);
+            var row = CardRow(list, known ? UiTheme.Accent : UiTheme.AccentSoft);
             var l = Lbl($"{s.Name}: {s.Desc}", 14, known ? Colors.White : d.Level < s.Req ? Dim.Darkened(.3f) : Dim, row); l.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; l.AutowrapMode = TextServer.AutowrapMode.WordSmart; l.CustomMinimumSize = new Vector2(220, 0);
             if (known) row.AddChild(Btn("Add", () => Did(Attacks.SetChain(w, b.Chain.Count, sid)), true));
             else row.AddChild(Btn(d.Level < s.Req ? $"Lv {s.Req}" : $"Learn {s.Cost}", () => Did(Attacks.UnlockStep(w, sid)), true));
         }
-        Lbl("MODIFIERS", 15, UiTheme.Accent, list);
+        Header("Modifiers", list);
         foreach (var m in Attacks.Mods)
         {
             if (!m.Fits(w)) continue; string mmid = m.Id; bool have = d.AtkMods.Contains(mmid), on = b.Mods.Contains(mmid);
-            var row = new HBoxContainer(); list.AddChild(row);
+            var row = CardRow(list, on ? Gold : have ? UiTheme.Accent : UiTheme.AccentSoft, on);
             var l = Lbl($"{m.Name}: {m.Desc}", 14, on ? Gold : have ? Colors.White : d.Level < m.Req ? Dim.Darkened(.3f) : Dim, row); l.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; l.AutowrapMode = TextServer.AutowrapMode.WordSmart; l.CustomMinimumSize = new Vector2(220, 0);
             if (have) row.AddChild(Btn(on ? "Unsocket" : "Socket", () => Did(Attacks.Socket(w, mmid)), true));
             else { var mn = ModTree.Get(ModTree.KeyOf(mmid, true)); var why = mn != null ? ModTree.Why(mn) : null; var ub = Btn(why == null ? $"Unlock {m.Cost}" : d.Level < m.Req ? $"Lv {m.Req}" : "Tree", () => { if (mn != null && ModTree.Why(mn) == null) Did(ModTree.Unlock(mn)); else OpenMods(); }, true); row.AddChild(ub); }

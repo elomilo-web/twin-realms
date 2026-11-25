@@ -365,8 +365,8 @@
     },
     {
         "path":  "scripts/dev/DevCapture.cs",
-        "lines":  299,
-        "hash8":  "27139b9f",
+        "lines":  323,
+        "hash8":  "fb4a0165",
         "system":  "devtools",
         "summary":  "Dev loop eyes (autoload). Does nothing unless the game is started with the user arg..."
     },
@@ -527,7 +527,7 @@
     {
         "path":  "scripts/Home.cs",
         "lines":  71,
-        "hash8":  "c0ad7135",
+        "hash8":  "67c3234f",
         "system":  "loot",
         "summary":  "Storage chest at the hero\u0027s home in Oakhaven. Opens the Home Storage window (pack on..."
     },
@@ -911,71 +911,71 @@
     },
     {
         "path":  "scripts/Ui.cs",
-        "lines":  892,
-        "hash8":  "80952795",
+        "lines":  944,
+        "hash8":  "02d8d10b",
         "system":  "ui",
         "summary":  "All menus and overlays, built in code: notes, banners, dialogue, shop, smith, pack, character, skill..."
     },
     {
         "path":  "scripts/UiAttacks.cs",
-        "lines":  92,
-        "hash8":  "6bcab45f",
+        "lines":  97,
+        "hash8":  "204665d1",
         "system":  "combat",
         "summary":  "Basic attacks menu (O, or Skills \u003e Basic attacks): build the chain of swings each..."
     },
     {
         "path":  "scripts/UiControls.cs",
-        "lines":  56,
-        "hash8":  "d3f16e3c",
+        "lines":  67,
+        "hash8":  "c1ed7e20",
         "system":  "ui",
         "summary":  "Settings \u003e Controls: every action with its key; click one, then press the new key..."
     },
     {
         "path":  "scripts/UiCraft.cs",
-        "lines":  176,
-        "hash8":  "be42bc2e",
+        "lines":  329,
+        "hash8":  "12f46472",
         "system":  "loot",
-        "summary":  "Pack extras: the pickup filter and crafting with disassembly scraps (recipes in data/loot.json \"crafting\")."
+        "summary":  "Framed recipe/ingredient cell: dark well, rarity-coloured frame, vector icon or a small coloured block cube,..."
     },
     {
         "path":  "scripts/UiMacros.cs",
-        "lines":  90,
-        "hash8":  "fcea3a53",
+        "lines":  99,
+        "hash8":  "8c57597a",
         "system":  "ui",
         "summary":  "Skills \u003e Macros: build the two skill chains for the Macro 1 / Macro 2..."
     },
     {
         "path":  "scripts/UiMods.cs",
-        "lines":  81,
-        "hash8":  "ec0ca829",
+        "lines":  83,
+        "hash8":  "0d362ff8",
         "system":  "ui",
         "summary":  "Modifier tree menu (U): every skill modifier and basic attack modifier, in lanes by family..."
     },
     {
         "path":  "scripts/UiNet.cs",
-        "lines":  205,
-        "hash8":  "d91a5bc4",
+        "lines":  223,
+        "hash8":  "ab0ce23e",
         "system":  "network",
         "summary":  "Multiplayer windows: host or join, the lobby (players, party, loot rules, duels), yes/no requests and..."
     },
     {
         "path":  "scripts/UiOnline.cs",
         "lines":  46,
-        "hash8":  "4e7e6f25",
+        "hash8":  "394b310f",
         "system":  "network",
         "summary":  "Play Online: log in or create an account on the online server, then pick a..."
     },
     {
         "path":  "scripts/UiSkills.cs",
-        "lines":  252,
-        "hash8":  "645e7d93",
+        "lines":  266,
+        "hash8":  "5f45d317",
         "system":  "ui",
         "summary":  "Skills menu (L). Left: every skill as an icon tile (rank pips, hotbar key, lock),..."
     },
     {
         "path":  "scripts/UiSmith.cs",
-        "lines":  167,
-        "hash8":  "3b320757",
+        "lines":  205,
+        "hash8":  "eda03d75",
         "system":  "loot",
         "summary":  "Dorrin the Smith: put any piece of gear (worn or in the pack) on the..."
     },
@@ -988,8 +988,8 @@
     },
     {
         "path":  "scripts/UiSystem.cs",
-        "lines":  226,
-        "hash8":  "39c50701",
+        "lines":  260,
+        "hash8":  "ef25f201",
         "system":  "ui",
         "summary":  "System menus: the pause menu (hero summary, quick links, save, quit with a confirm step)"
     },
@@ -1009,8 +1009,8 @@
     },
     {
         "path":  "scripts/Updater.cs",
-        "lines":  475,
-        "hash8":  "76a69144",
+        "lines":  484,
+        "hash8":  "d7ade8f6",
         "system":  "network",
         "summary":  "Launch check and auto update state. The launcher (below) asks the online server (OnlineCfg.Server, Railway)..."
     },

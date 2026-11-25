@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
@@ -206,19 +206,19 @@ public partial class Ui : CanvasLayer
     {
         var d = Game.D; if (_stockLvl != d.Level) { _stockLvl = d.Level; _stock.Clear(); for (int i = 0; i < 6; i++) _stock.Add(Items.Roll(d.Level + 1, .2f)); }
         var v = Frame("shop", "Brynn's Wares", new Vector2(720, 560), () => OpenShop(tab));
-        var top = new HBoxContainer(); v.AddChild(top); Tabs(top, tab, ("buy", "Buy", () => OpenShop("buy")), ("sell", "Sell", () => OpenShop("sell"))); Lbl($"   {d.Gold} gold", 20, Gold, top);
-        var sc = Scroll(v, 420); var list = Inner(sc);
+        var top = new HBoxContainer(); v.AddChild(top); Tabs(top, tab, ("buy", "Buy", () => OpenShop("buy")), ("sell", "Sell", () => OpenShop("sell"))); top.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }); Lbl($"{d.Gold} gold", 20, Gold, top);
+        var sc = Scroll(v, 420); var list = Inner(sc); list.AddThemeConstantOverride("separation", 6); sc.HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled;
         if (tab == "buy")
         {
             int hpc = Tune.I("shop.healthPotion", 30), mpc = Tune.I("shop.manaPotion", 35), hc = Tune.I("shop.horse", 350);
-            AddRow(list, "Health potion  (have " + d.HpPot + ")", Colors.White, $"Buy {hpc}g", () => { if (d.Gold < hpc) { Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= hpc; d.HpPot++; Sfx.Play("coin"); OpenShop(tab); });
-            AddRow(list, "Mana potion  (have " + d.MpPot + ")", Colors.White, $"Buy {mpc}g", () => { if (d.Gold < mpc) { Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= mpc; d.MpPot++; Sfx.Play("coin"); OpenShop(tab); });
-            if (!d.Horse) AddRow(list, "Horse (ride with T)", Colors.White, $"Buy {hc}g", () => { if (d.Gold < hc) { Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= hc; d.Horse = true; Sfx.Play("coin"); Note("You bought a horse. Press T to ride.", Gold); OpenShop(tab); });
-            for (int i = 0; i < _stock.Count; i++) { int k = i; var it = _stock[i]; ItemRow(list, it, BuyPrice(it) + "g", () => { int c = BuyPrice(it); if (d.Gold < c) { Note("Not enough gold", new Color(1, .5f, .5f)); return; } if (d.Inv.Count >= 28) { Note("Pack is full", new Color(1, .5f, .5f)); return; } d.Gold -= c; d.Inv.Add(it); _stock.RemoveAt(k); Sfx.Play("coin"); OpenShop(tab); }); }
+            AddRow(list, "Health potion  (have " + d.HpPot + ")", Colors.White, $"Buy {hpc}g", () => { if (d.Gold < hpc) { Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= hpc; d.HpPot++; Sfx.Play("coin"); OpenShop(tab); }, d.Gold >= hpc);
+            AddRow(list, "Mana potion  (have " + d.MpPot + ")", Colors.White, $"Buy {mpc}g", () => { if (d.Gold < mpc) { Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= mpc; d.MpPot++; Sfx.Play("coin"); OpenShop(tab); }, d.Gold >= mpc);
+            if (!d.Horse) AddRow(list, "Horse (ride with T)", Colors.White, $"Buy {hc}g", () => { if (d.Gold < hc) { Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= hc; d.Horse = true; Sfx.Play("coin"); Note("You bought a horse. Press T to ride.", Gold); OpenShop(tab); }, d.Gold >= hc);
+            for (int i = 0; i < _stock.Count; i++) { int k = i; var it = _stock[i]; ItemRow(list, it, BuyPrice(it) + "g", () => { int c = BuyPrice(it); if (d.Gold < c) { Note("Not enough gold", new Color(1, .5f, .5f)); return; } if (d.Inv.Count >= 28) { Note("Pack is full", new Color(1, .5f, .5f)); return; } d.Gold -= c; d.Inv.Add(it); _stock.RemoveAt(k); Sfx.Play("coin"); OpenShop(tab); }, d.Gold >= BuyPrice(it)); }
         }
         else
         {
-            if (d.Inv.Count == 0) Row(list, "Your pack is empty.");
+            if (d.Inv.Count == 0 && d.Mats.Count == 0) Empty(list, "Your pack is empty. Nothing here to sell.");
             // gathered materials sell by the stack
             // "sell all" keeps crafting scraps (sell those one stack at a time below)
             int matGold = 0; foreach (var kv in d.Mats) if (!GatherDb.Mat(kv.Key).Scrap) matGold += kv.Value * GatherDb.Mat(kv.Key).Value;
@@ -233,23 +233,52 @@ public partial class Ui : CanvasLayer
         }
     }
     /// <summary>An item as a shop row: its icon in a rarity frame, its name and stats, a button; hovering compares it with what you wear.</summary>
-    void ItemRow(Node parent, Item it, string btn, Action? a)
+    void ItemRow(Node parent, Item it, string btn, Action? a, bool ok = true)
     {
-        var d = Game.D; var h = new HBoxContainer(); h.AddThemeConstantOverride("separation", 10); parent.AddChild(h);
+        var d = Game.D; var h = new HBoxContainer(); h.AddThemeConstantOverride("separation", 10); CardBox(parent).AddChild(h);
         var cell = new ItemSlot { Item = it, CustomMinimumSize = new Vector2(46, 46) }; h.AddChild(cell);
         cell.Hover += on => ShowTip(on ? it : null, cell, d.Eq.GetValueOrDefault(it.Slot));
         var l = Lbl(it.Describe(), 16, it.Color, h); l.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; l.AutowrapMode = TextServer.AutowrapMode.WordSmart; l.VerticalAlignment = VerticalAlignment.Center;
-        if (a != null) { var b = Btn(btn, () => { HideTip(); a(); }, true); b.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter; h.AddChild(b); }
+        if (a != null) { var b = Btn(btn, () => { HideTip(); a(); }, true); PriceStyle(b, ok); h.AddChild(b); }
     }
-    /// <summary>A row of tab buttons with the current one marked.</summary>
+    /// <summary>Gold-underlined text tabs; the current one is gold with an underline.</summary>
     void Tabs(Node parent, string cur, params (string id, string label, Action open)[] tabs)
     {
-        foreach (var (id, label, open) in tabs) { var b = Btn(label, open); Mark(b, id == cur); parent.AddChild(b); }
+        foreach (var (id, label, open) in tabs)
+        {
+            var b = Btn(label, open); bool on = id == cur; b.AddThemeFontSizeOverride("font_size", 18);
+            StyleBoxFlat Sb(Color ul, int w) => new() { BgColor = new Color(0, 0, 0, 0), BorderColor = ul, BorderWidthBottom = w, ContentMarginLeft = 12, ContentMarginRight = 12, ContentMarginTop = 4, ContentMarginBottom = 4 };
+            var line = on ? Sb(Gold, 2) : Sb(new Color(0, 0, 0, 0), 2);
+            foreach (var s in new[] { "normal", "pressed", "focus", "disabled" }) b.AddThemeStyleboxOverride(s, line);
+            b.AddThemeStyleboxOverride("hover", Sb(Gold with { A = .5f }, 2));
+            var col = on ? Gold : Parch; b.AddThemeColorOverride("font_color", col); b.AddThemeColorOverride("font_pressed_color", col); b.AddThemeColorOverride("font_hover_color", Gold.Lightened(.2f));
+            parent.AddChild(b);
+        }
     }
 
-    void AddRow(Node parent, string text, Color col, string btn, Action a)
+    static readonly Color Muted = new(.72f, .34f, .30f), Parch = new(.89f, .83f, .70f);
+    /// <summary>Framed list row / card with a hover highlight. Returns the box to fill.</summary>
+    PanelContainer CardBox(Node parent, bool selected = false)
     {
-        var h = new HBoxContainer(); parent.AddChild(h); var l = Lbl(text, 16, col, h); l.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; l.AutowrapMode = TextServer.AutowrapMode.WordSmart; h.AddChild(Btn(btn, a, true));
+        var pc = new PanelContainer { MouseFilter = Control.MouseFilterEnum.Pass, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        StyleBoxFlat Sb(float a, Color b) => new() { BgColor = new Color(.05f, .045f, .04f, a), BorderColor = b, BorderWidthLeft = 1, BorderWidthRight = 1, BorderWidthTop = 1, BorderWidthBottom = 1, ContentMarginLeft = 10, ContentMarginRight = 10, ContentMarginTop = 6, ContentMarginBottom = 6, CornerRadiusTopLeft = 2, CornerRadiusTopRight = 2, CornerRadiusBottomLeft = 2, CornerRadiusBottomRight = 2 };
+        var norm = Sb(.7f, selected ? Gold : Line with { A = .5f }); var hov = Sb(.9f, Gold);
+        pc.AddThemeStyleboxOverride("panel", norm);
+        pc.MouseEntered += () => pc.AddThemeStyleboxOverride("panel", hov); pc.MouseExited += () => pc.AddThemeStyleboxOverride("panel", norm);
+        parent.AddChild(pc); return pc;
+    }
+    /// <summary>Italic-ish dim hint shown instead of blank space.</summary>
+    void Empty(Node parent, string t) { var l = Row(parent, t, Dim, 15); l.HorizontalAlignment = HorizontalAlignment.Center; l.CustomMinimumSize = new Vector2(0, 60); l.VerticalAlignment = VerticalAlignment.Center; }
+    /// <summary>Price/action button: gold when affordable, muted red when not.</summary>
+    static void PriceStyle(Button b, bool ok)
+    {
+        var c = ok ? UiTheme.Accent : Muted; b.AddThemeColorOverride("font_color", c); b.AddThemeColorOverride("font_hover_color", ok ? c.Lightened(.25f) : c); b.CustomMinimumSize = new Vector2(96, 32); b.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter; b.AddThemeFontSizeOverride("font_size", 15);
+    }
+
+    void AddRow(Node parent, string text, Color col, string btn, Action a, bool ok = true)
+    {
+        var h = new HBoxContainer(); h.AddThemeConstantOverride("separation", 10); CardBox(parent).AddChild(h); var l = Lbl(text, 16, col, h); l.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; l.AutowrapMode = TextServer.AutowrapMode.WordSmart; l.VerticalAlignment = VerticalAlignment.Center;
+        var b = Btn(btn, a, true); PriceStyle(b, ok); h.AddChild(b);
     }
     // ---------------------------------------------------------------- valor quartermaster (data/valor.json)
     static readonly List<Item> _lastPulls = new();
@@ -258,30 +287,34 @@ public partial class Ui : CanvasLayer
         var d = Game.D; var v = Frame("valor", "Sera, Valor Quartermaster", new Vector2(760, 580), () => OpenValor(tab));
         var top = new HBoxContainer(); v.AddChild(top);
         Tabs(top, tab, ("gacha", "Pulls", () => OpenValor("gacha")), ("gear", "Gear", () => OpenValor("gear")), ("gold", "Gold", () => OpenValor("gold")));
-        Lbl($"   {d.Valor} valor", 20, new Color(1f, .78f, .35f), top); Lbl($"   {d.Gold} gold", 18, Gold, top);
-        var sc = Scroll(v, 430); var list = Inner(sc);
+        top.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }); Lbl($"{d.Valor} valor", 20, new Color(1f, .78f, .35f), top); Lbl($"   {d.Gold} gold", 18, Gold, top);
+        var sc = Scroll(v, 430); var list = Inner(sc); list.AddThemeConstantOverride("separation", 6); sc.HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled;
         bool Pay(int c) { if (d.Valor < c) { Note("Not enough valor", new Color(1, .5f, .5f)); return false; } d.Valor -= c; return true; }
         bool Room(int n) { if (d.Inv.Count + n > 28) { Note("Pack is full", new Color(1, .5f, .5f)); return false; } return true; }
         if (tab == "gacha")
         {
-            Row(list, $"A sealed cache of arena spoils: one random item at your level. Every {Valor.Pity} pulls without an epic, the next is at least epic ({d.GachaPity}/{Valor.Pity}).", Colors.White, 16);
-            AddRow(list, "One pull", Colors.White, $"{Valor.PullCost} valor", () => { if (!Room(1) || !Pay(Valor.PullCost)) return; _lastPulls.Clear(); var it = Valor.Pull(); d.Inv.Add(it); _lastPulls.Add(it); Sfx.Play("level"); Game.Notify(); OpenValor(tab); });
-            AddRow(list, "Ten pulls", Colors.White, $"{Valor.PullTenCost} valor", () => { if (!Room(10) || !Pay(Valor.PullTenCost)) return; _lastPulls.Clear(); for (int i = 0; i < 10; i++) { var it = Valor.Pull(); d.Inv.Add(it); _lastPulls.Add(it); } Sfx.Play("level"); Game.Notify(); OpenValor(tab); });
-            if (_lastPulls.Count > 0) { Row(list, "You received:", Dim, 15); foreach (var it in _lastPulls) ItemRow(list, it, "", null); }
+            Row(list, $"A sealed cache of arena spoils: one random item at your level. Every {Valor.Pity} pulls without an epic, the next is at least epic ({d.GachaPity}/{Valor.Pity}).", Parch, 16); Header("Pulls", list);
+            AddRow(list, "One pull", Colors.White, $"{Valor.PullCost} valor", () => { if (!Room(1) || !Pay(Valor.PullCost)) return; _lastPulls.Clear(); var it = Valor.Pull(); d.Inv.Add(it); _lastPulls.Add(it); Sfx.Play("level"); Game.Notify(); OpenValor(tab); }, d.Valor >= Valor.PullCost);
+            AddRow(list, "Ten pulls", Colors.White, $"{Valor.PullTenCost} valor", () => { if (!Room(10) || !Pay(Valor.PullTenCost)) return; _lastPulls.Clear(); for (int i = 0; i < 10; i++) { var it = Valor.Pull(); d.Inv.Add(it); _lastPulls.Add(it); } Sfx.Play("level"); Game.Notify(); OpenValor(tab); }, d.Valor >= Valor.PullTenCost);
+            if (_lastPulls.Count > 0) { Header("You received", list); foreach (var it in _lastPulls) ItemRow(list, it, "", null); }
         }
         else if (tab == "gear")
         {
-            Row(list, "Pick a slot and a rarity: a new item at your level.", Colors.White, 16);
+            Row(list, "Pick a slot and a rarity: a new item at your level.", Parch, 16); Header("Gear", list);
             foreach (var slot in Valor.GearSlots)
                 for (int rar = 2; rar <= 4; rar++)
                 {
                     int c = Valor.GearCost(rar); if (c <= 0) continue; string s = slot; int r = rar;
-                    AddRow(list, $"{Items.RarityName(rar)} {slot}", Items.RarityColor(rar), $"{c} valor", () => { if (!Room(1) || !Pay(c)) return; var it = Valor.Gear(s, r); d.Inv.Add(it); Note("Received " + it.Name, it.Color); Sfx.Play("coin"); Game.Notify(); OpenValor(tab); });
+                    AddRow(list, $"{Items.RarityName(rar)} {slot}", Items.RarityColor(rar), $"{c} valor", () => { if (!Room(1) || !Pay(c)) return; var it = Valor.Gear(s, r); d.Inv.Add(it); Note("Received " + it.Name, it.Color); Sfx.Play("coin"); Game.Notify(); OpenValor(tab); }, d.Valor >= c);
                 }
         }
         else
+        {
+            Row(list, "Trade valor for gold.", Parch, 16); Header("Gold", list); int nTr = 0;
             foreach (var (val, gold) in Valor.GoldTrades())
-                AddRow(list, $"{gold} gold", Gold, $"{val} valor", () => { if (!Pay(val)) return; d.Gold += gold; Sfx.Play("coin"); Game.Notify(); OpenValor(tab); });
+            { nTr++; AddRow(list, $"{gold} gold", Gold, $"{val} valor", () => { if (!Pay(val)) return; d.Gold += gold; Sfx.Play("coin"); Game.Notify(); OpenValor(tab); }, d.Valor >= val); }
+            if (nTr == 0) Empty(list, "No trades on offer.");
+        }
         v.AddChild(Btn("Leave", Close));
     }
 
@@ -493,12 +526,24 @@ public partial class Ui : CanvasLayer
     public void OpenJournal()
     {
         var v = Frame("journal", "Journal", new Vector2(700, 560), OpenJournal); var d = Game.D;
-        Row(v, $"Best wave {d.BestWave}     Best duel streak {d.BestDuel}     Deepest dungeon depth {d.Deepest}     Kills {d.Kills}     Valor {d.Valor}", Gold);
-        var sc = Scroll(v, 440); var list = Inner(sc); var act = Quests.Active();
-        if (act.Count == 0) Row(list, "No active quests. Speak to Elder Maren, Guard Tomas or Kael.", Dim);
-        foreach (var q in act) { var s = Game.Q(q.Id); Row(list, q.Name + (s.S == 2 ? "  (ready to turn in)" : ""), s.S == 2 ? new Color(.5f, 1f, .5f) : Gold, 19); Row(list, q.Goal + (q.Need > 1 && s.S == 1 ? $"  ({s.N}/{q.Need})" : "") + (s.S == 2 ? "\nReturn to " + Quests.GiverName(q.Giver) + "." : ""), Colors.White); Row(list, "", Colors.White, 6); }
+        Header("Records", v);
+        var gr = new GridContainer { Columns = 3 }; gr.AddThemeConstantOverride("h_separation", 28); gr.AddThemeConstantOverride("v_separation", 2); v.AddChild(gr);
+        foreach (var (k, val) in new[] { ("Best wave", d.BestWave), ("Best duel streak", d.BestDuel), ("Deepest depth", d.Deepest), ("Kills", d.Kills), ("Valor", d.Valor) })
+        { var cell = new HBoxContainer(); cell.AddThemeConstantOverride("separation", 8); gr.AddChild(cell); Lbl(k, 15, Parch, cell); Lbl(val.ToString(), 17, Gold, cell); }
+        Header("Active quests", v);
+        var sc = Scroll(v, 400); var list = Inner(sc); var act = Quests.Active(); list.AddThemeConstantOverride("separation", 8); sc.HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled;
+        if (act.Count == 0) Empty(list, "No active quests. Speak to Elder Maren, Guard Tomas or Kael.");
+        foreach (var q in act)
+        {
+            var s = Game.Q(q.Id); bool rdy = s.S == 2; var card = CardBox(list, rdy); var cv = new VBoxContainer(); cv.AddThemeConstantOverride("separation", 4); card.AddChild(cv);
+            Row(cv, q.Name.ToUpperInvariant() + (rdy ? "   READY TO TURN IN" : ""), rdy ? new Color(.55f, 1f, .55f) : Gold, 17);
+            var ob = Row(cv, (rdy ? "[x] " : "[ ] ") + q.Goal + (q.Need > 1 && s.S == 1 ? $"  ({s.N}/{q.Need})" : ""), rdy ? Dim : Parch, 15);
+            if (q.Need > 1) cv.AddChild(new ProgressBar { MinValue = 0, MaxValue = q.Need, Value = rdy ? q.Need : Math.Min(s.N, q.Need), ShowPercentage = false, CustomMinimumSize = new Vector2(0, 5), MouseFilter = Control.MouseFilterEnum.Ignore });
+            if (rdy) Row(cv, "Return to " + Quests.GiverName(q.Giver) + ".", Parch, 15);
+            if (q.Gold > 0 || q.Xp > 0) Row(cv, $"Reward: {(q.Gold > 0 ? q.Gold + " gold" : "")}{(q.Gold > 0 && q.Xp > 0 ? ", " : "")}{(q.Xp > 0 ? q.Xp + " xp" : "")}", Gold with { A = .8f }, 14);
+        }
         int done = 0; foreach (var q in Quests.All) if (Game.Q(q.Id).S == 3) done++;
-        Row(list, $"Completed: {done}", Dim);
+        Row(list, $"Completed: {done}", Dim, 14);
     }
 
     // ---------------------------------------------------------------- skill tree
@@ -510,7 +555,7 @@ public partial class Ui : CanvasLayer
         var hb = new HBoxContainer(); v.AddChild(hb); hb.AddThemeConstantOverride("separation", 8);
         Chip(hb, $"Tree points  {d.SkillPts}", d.SkillPts > 0);
         var search = new LineEdit { Text = _treeSearch, PlaceholderText = "Find a bonus: crit, fire, mana...", CustomMinimumSize = new Vector2(240, 30), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; hb.AddChild(search);
-        var found = Lbl("", 13, new Color(.35f, .95f, 1f), hb); found.CustomMinimumSize = new Vector2(70, 0);
+        var found = Lbl("", 14, Gold, hb); found.CustomMinimumSize = new Vector2(70, 0);
         TreeView? tvRef = null;
         hb.AddChild(Btn("-", () => tvRef?.ZoomBy(1 / 1.3f), true)); hb.AddChild(Btn("+", () => tvRef?.ZoomBy(1.3f), true));
         hb.AddChild(Btn("My start", () => tvRef?.CenterOn(TreeDb.Get(TreeDb.StartFor(d.Class))!, 3.2f), true)); hb.AddChild(Btn("Whole tree", () => tvRef?.CenterOn(TreeDb.Nodes[0], 1f), true));
@@ -538,22 +583,26 @@ public partial class Ui : CanvasLayer
             Info(at, n.Name == "" ? "Passive" : n.Name, n.Type == "key" ? new Color(1f, .85f, .5f) : Colors.White, lines, 270);
         };
         // ---- right: what your tree gives you now
-        var side = new PanelContainer { CustomMinimumSize = new Vector2(250, 0) }; side.AddThemeStyleboxOverride("panel", UiTheme.Box(new Color(.02f, .06f, .12f, .7f), UiTheme.AccentSoft, 1, 10, 8, 0)); cols.AddChild(side);
+        var side = new PanelContainer { CustomMinimumSize = new Vector2(250, 0) }; side.AddThemeStyleboxOverride("panel", UiTheme.Box(new Color(.05f, .045f, .04f, .85f), UiTheme.AccentSoft, 1, 10, 8, 0)); cols.AddChild(side);
         var sv = new VBoxContainer(); sv.AddThemeConstantOverride("separation", 4); side.AddChild(sv);
-        Lbl($"YOUR BONUSES   {d.Tree.Count} nodes", 13, UiTheme.Accent, sv);
+        Header($"Your bonuses  -  {d.Tree.Count} nodes", sv);
         var ss = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; sv.AddChild(ss);
         var sl = new VBoxContainer(); ss.AddChild(sl);
         var keys = new List<string>(); foreach (var k in TreeDb.Known) if (Mathf.Abs(Game.TS[k]) > .001f) keys.Add(k); keys.Sort();
-        if (keys.Count == 0) Row(sl, "Nothing yet. Take nodes next to your start.", Dim, 13);
-        foreach (var k in keys) { var l = Row(sl, TreeDb.StatText(k, Game.TS[k]), new Color(.8f, .92f, 1f), 13); l.CustomMinimumSize = new Vector2(220, 0); }
-        Row(sv, "Click: take a node, or the whole path to it.  Right click: refund.  Drag: move.  Wheel: zoom.", Dim, 12).CustomMinimumSize = new Vector2(220, 0);
+        if (keys.Count == 0) Row(sl, "Nothing yet. Take nodes next to your start.", Dim, 14);
+        foreach (var k in keys) { var l = Row(sl, TreeDb.StatText(k, Game.TS[k]), Parch, 14); l.CustomMinimumSize = new Vector2(220, 0); }
+        Row(sv, "Click: take a node or the path to it. Right click: refund. Drag: move. Wheel: zoom.", Dim, 14).CustomMinimumSize = new Vector2(220, 0);
     }
     /// <summary>Panel listing every bonus you currently have, with where the numbers come from.</summary>
     public void OpenTotals()
     {
         var v = Frame("totals", "All bonuses", new Vector2(620, 600), OpenTotals);
-        Row(v, $"{Races.Get(Game.D.Race).Name} {Classes.Get(Game.D.Class).Name}: skill tree ({Game.D.Tree.Count} nodes) + race + class + active buffs", Dim, 14);
-        var sc = Scroll(v, 440); Row(Inner(sc), TreeTotals(), Colors.White, 15);
+        Header($"{Races.Get(Game.D.Race).Name} {Classes.Get(Game.D.Class).Name}", v);
+        Row(v, $"Skill tree ({Game.D.Tree.Count} nodes) + race + class + active buffs", Dim, 14);
+        var sc = Scroll(v, 440); sc.HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled; var tl = Inner(sc); tl.AddThemeConstantOverride("separation", 4);
+        var keys = new List<string>(); foreach (var k in TreeDb.Known) if (Mathf.Abs(Game.TS[k]) > .001f) keys.Add(k); keys.Sort();
+        if (keys.Count == 0) Empty(tl, "No bonuses yet. Spend points in the skill tree.");
+        foreach (var k in keys) { var h = new HBoxContainer(); CardBox(tl).AddChild(h); Row(h, TreeDb.StatText(k, Game.TS[k]), Parch, 15).SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; }
         v.AddChild(Btn("Back to tree", OpenTree));
     }
 
@@ -573,7 +622,10 @@ public partial class Ui : CanvasLayer
         var vp = GetViewport().GetVisibleRect().Size; float side = Mathf.Clamp(vp.Y - 150, 240, 680);
         var v = Frame("map", "Map", new Vector2(side + 40, side + 110), OpenMap); var d = Game.D;
         Row(v, Dungeon.Active ? "This floor as far as you have explored it. Scroll to zoom, drag to pan." : "Click a discovered place to fast travel. Scroll to zoom, drag to pan.", Dim, 15);
-        var mv = new MapView { CustomMinimumSize = new Vector2(side, side), SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter }; v.AddChild(mv);
+        var frame = new PanelContainer { SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter };
+        frame.AddThemeStyleboxOverride("panel", new StyleBoxFlat { BgColor = new Color(.03f, .028f, .025f), BorderColor = new Color(.62f, .52f, .32f), BorderWidthLeft = 3, BorderWidthRight = 3, BorderWidthTop = 3, BorderWidthBottom = 3, ContentMarginLeft = 4, ContentMarginRight = 4, ContentMarginTop = 4, ContentMarginBottom = 4, ShadowColor = new Color(0, 0, 0, .5f), ShadowSize = 6 }); v.AddChild(frame);
+        var mv = new MapView { CustomMinimumSize = new Vector2(side - 14, side - 14), SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter }; frame.AddChild(mv);
+        if (!Dungeon.Active) { var lg = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Center }; lg.AddThemeConstantOverride("separation", 10); v.AddChild(lg); Lbl("*", 18, Gold, lg); Lbl("Discovered place - click to travel", 14, Parch, lg); }
         mv.Travel = poi => { if (Dungeon.Active || Arenas.Active) { Note("You cannot travel from here", new Color(1, .6f, .5f)); return; }
             var warn = new Color(1, .6f, .5f); float cr = Tune.F("fastTravel.combatRange", 20f), wait = _travelAt - Time.GetTicksMsec() / 1000f;
             if (wait > 0) { Note($"Fast travel ready in {Mathf.CeilToInt(wait)} s", warn); return; }

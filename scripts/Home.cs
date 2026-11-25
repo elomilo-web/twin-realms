@@ -46,25 +46,25 @@ public partial class Ui
     {
         var d = Game.D; var v = Frame("stash", "Home Storage", new Vector2(1040, 600), OpenStash);
         var top = new HBoxContainer(); v.AddChild(top); top.AddThemeConstantOverride("separation", 16);
-        Lbl($"Pack {d.Inv.Count}/28", 16, d.Inv.Count >= 28 ? new Color(1, .6f, .5f) : Gold, top);
-        Lbl($"Storage {d.Stash.Count}/{StashChest.Capacity}", 16, d.Stash.Count >= StashChest.Capacity ? new Color(1, .6f, .5f) : Gold, top);
+        Lbl($"Pack {d.Inv.Count}/28", 16, d.Inv.Count >= 28 ? ErrRed : Gold, top);
+        Lbl($"Storage {d.Stash.Count}/{StashChest.Capacity}", 16, d.Stash.Count >= StashChest.Capacity ? ErrRed : Gold, top);
         Lbl("Click to move between pack and storage.", 14, Dim, top).SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         top.AddChild(Btn("Store all", () => { while (d.Inv.Count > 0 && d.Stash.Count < StashChest.Capacity) { d.Stash.Add(d.Inv[0]); d.Inv.RemoveAt(0); } Sfx.Play("click"); Game.Notify(); OpenStash(); }, true));
         top.AddChild(Btn("Sort storage", () => { d.Stash.Sort((a, b) => b.Rar != a.Rar ? b.Rar.CompareTo(a.Rar) : string.Compare(a.Slot, b.Slot, System.StringComparison.Ordinal)); Sfx.Play("click"); OpenStash(); }, true));
         var cols = new HBoxContainer(); cols.AddThemeConstantOverride("separation", 24); v.AddChild(cols);
-        GridContainer Grid(Node parent, string title, int columns) { var b = new VBoxContainer(); parent.AddChild(b); Lbl(title, 15, UiTheme.Accent, b); var g = new GridContainer { Columns = columns }; g.AddThemeConstantOverride("h_separation", 5); g.AddThemeConstantOverride("v_separation", 5); b.AddChild(g); return g; }
+        GridContainer Grid(Node parent, string title, int columns) { var b = new VBoxContainer(); parent.AddChild(b); Header(title, b); var g = new GridContainer { Columns = columns }; g.AddThemeConstantOverride("h_separation", 5); g.AddThemeConstantOverride("v_separation", 5); b.AddChild(g); return g; }
         var pg = Grid(cols, "PACK", 4); var sg = Grid(cols, "STORAGE", 8);
         for (int i = 0; i < 28; i++)
         {
             int k = i; var it = i < d.Inv.Count ? d.Inv[i] : null; var cell = new ItemSlot { Item = it, CustomMinimumSize = new Vector2(58, 58) }; pg.AddChild(cell); if (it == null) continue;
             cell.Hover += on => ShowTip(on ? it : null, cell, d.Eq.GetValueOrDefault(it.Slot));
-            cell.Clicked += _ => { HideTip(); if (d.Stash.Count >= StashChest.Capacity) { Note("Storage is full", new Color(1, .5f, .5f)); return; } d.Inv.RemoveAt(k); d.Stash.Add(it); Sfx.Play("click"); Game.Notify(); OpenStash(); };
+            cell.Clicked += _ => { HideTip(); if (d.Stash.Count >= StashChest.Capacity) { Note("Storage is full", ErrRed); return; } d.Inv.RemoveAt(k); d.Stash.Add(it); Sfx.Play("click"); Game.Notify(); OpenStash(); };
         }
         for (int i = 0; i < StashChest.Capacity; i++)
         {
             int k = i; var it = i < d.Stash.Count ? d.Stash[i] : null; var cell = new ItemSlot { Item = it, CustomMinimumSize = new Vector2(58, 58) }; sg.AddChild(cell); if (it == null) continue;
             cell.Hover += on => ShowTip(on ? it : null, cell, d.Eq.GetValueOrDefault(it.Slot));
-            cell.Clicked += _ => { HideTip(); if (d.Inv.Count >= 28) { Note("Pack is full", new Color(1, .5f, .5f)); return; } d.Stash.RemoveAt(k); d.Inv.Add(it); Sfx.Play("click"); Game.Notify(); OpenStash(); };
+            cell.Clicked += _ => { HideTip(); if (d.Inv.Count >= 28) { Note("Pack is full", ErrRed); return; } d.Stash.RemoveAt(k); d.Inv.Add(it); Sfx.Play("click"); Game.Notify(); OpenStash(); };
         }
     }
 }

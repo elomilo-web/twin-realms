@@ -38,25 +38,33 @@ public partial class Ui
         SliderRow(left, "Time between skills", "A pause after each skill finishes, before the next one starts.", mac.Gap, 0f, 2f, .05f, x => $"{x:0.00} s", x => { mac.Gap = x; Game.Save(); });
         SliderRow(left, "Wait for cooldowns", "On a single pass, how long to wait for a skill still on cooldown (or short on mana) before skipping it. Looping never waits.", mac.MaxWait, 0f, 6f, .25f, x => x <= 0 ? "Skip" : $"{x:0.00} s", x => { mac.MaxWait = x; Game.Save(); });
 
-        Lbl($"CHAIN   {mac.Steps.Count}/{MacroMaxSteps}   ·   plays top to bottom   ·   extra pause per step on the right", 13, UiTheme.Accent, left);
+        Header($"Chain  {mac.Steps.Count}/{MacroMaxSteps}", left);
+        Lbl("Plays left to right. The slider adds an extra pause after a step.", 14, Dim, left).AutowrapMode = TextServer.AutowrapMode.WordSmart;
         var sc = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, CustomMinimumSize = new Vector2(0, 200), HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; left.AddChild(sc);
-        var list = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; list.AddThemeConstantOverride("separation", 4); sc.AddChild(list);
+        var list = new HFlowContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; list.AddThemeConstantOverride("h_separation", 4); list.AddThemeConstantOverride("v_separation", 8); sc.AddChild(list);
         if (mac.Steps.Count == 0) Lbl("Empty. Click learned skills on the right to add them.", 14, UiTheme.Dim, list);
         for (int i = 0; i < mac.Steps.Count; i++)
         {
             int idx = i; var st = mac.Steps[i]; var k = Skills.Get(st.Skill); bool known = k != null && d.Skills.ContainsKey(st.Skill);
-            var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 8); list.AddChild(row);
-            Lbl($"{i + 1}.", 15, UiTheme.Dim, row).CustomMinimumSize = new Vector2(26, 0);
-            row.AddChild(new IconBox { Icon = k != null ? Icons.ForSkill(k) : "", CustomMinimumSize = new Vector2(34, 34) });
-            var nl = Lbl(k?.Name ?? st.Skill, 15, known ? Colors.White : new Color(1, .55f, .5f), row); nl.CustomMinimumSize = new Vector2(170, 0);
+            var tint = k != null ? Dmg.TypeColor(k.Type) : UiTheme.AccentSoft;
+            var pc = new PanelContainer { CustomMinimumSize = new Vector2(132, 0) };
+            pc.AddThemeStyleboxOverride("panel", UiTheme.Box(new Color(.05f, .045f, .04f, .92f), known ? tint with { A = .75f } : new Color(1, .55f, .5f, .6f), 1, 8, 6, 0)); list.AddChild(pc);
+            var cv = new VBoxContainer(); cv.AddThemeConstantOverride("separation", 3); pc.AddChild(cv);
+            cv.AddChild(new ColorRect { Color = tint with { A = known ? .85f : .4f }, CustomMinimumSize = new Vector2(0, 4) });
+            var head = new HBoxContainer(); head.AddThemeConstantOverride("separation", 6); cv.AddChild(head);
+            Lbl($"{i + 1}", 15, UiTheme.Accent, head);
+            head.AddChild(new IconBox { Icon = k != null ? Icons.ForSkill(k) : "", CustomMinimumSize = new Vector2(34, 34) });
+            var nl = Lbl(k?.Name ?? st.Skill, 14, known ? Colors.White : new Color(1, .55f, .5f), cv); nl.ClipText = true; nl.CustomMinimumSize = new Vector2(116, 0);
             if (!known) nl.TooltipText = "Not learned: skipped";
-            var sl = new HSlider { MinValue = 0, MaxValue = 3, Step = .05, Value = st.Delay, CustomMinimumSize = new Vector2(130, 24), SizeFlagsVertical = Control.SizeFlags.ShrinkCenter, FocusMode = Control.FocusModeEnum.None };
-            row.AddChild(sl);
-            var dl = Lbl(st.Delay > 0 ? $"+{st.Delay:0.00} s" : "no pause", 13, UiTheme.Accent, row); dl.CustomMinimumSize = new Vector2(70, 0);
+            var sl = new HSlider { MinValue = 0, MaxValue = 3, Step = .05, Value = st.Delay, CustomMinimumSize = new Vector2(116, 20), SizeFlagsVertical = Control.SizeFlags.ShrinkCenter, FocusMode = Control.FocusModeEnum.None };
+            cv.AddChild(sl);
+            var dl = Lbl(st.Delay > 0 ? $"+{st.Delay:0.00} s" : "no pause", 14, UiTheme.Accent, cv);
             sl.ValueChanged += x => { st.Delay = (float)x; dl.Text = x > 0 ? $"+{x:0.00} s" : "no pause"; Game.Save(); };
-            row.AddChild(Btn("▲", () => { if (idx > 0) { (mac.Steps[idx - 1], mac.Steps[idx]) = (mac.Steps[idx], mac.Steps[idx - 1]); Game.Save(); OpenMacros(); } }, true));
-            row.AddChild(Btn("▼", () => { if (idx < mac.Steps.Count - 1) { (mac.Steps[idx + 1], mac.Steps[idx]) = (mac.Steps[idx], mac.Steps[idx + 1]); Game.Save(); OpenMacros(); } }, true));
-            row.AddChild(Btn("✕", () => { mac.Steps.RemoveAt(idx); Game.Save(); OpenMacros(); }, true));
+            var bb = new HBoxContainer(); bb.AddThemeConstantOverride("separation", 2); cv.AddChild(bb);
+            bb.AddChild(Btn("◄", () => { if (idx > 0) { (mac.Steps[idx - 1], mac.Steps[idx]) = (mac.Steps[idx], mac.Steps[idx - 1]); Game.Save(); OpenMacros(); } }, true));
+            bb.AddChild(Btn("►", () => { if (idx < mac.Steps.Count - 1) { (mac.Steps[idx + 1], mac.Steps[idx]) = (mac.Steps[idx], mac.Steps[idx + 1]); Game.Save(); OpenMacros(); } }, true));
+            bb.AddChild(Btn("✕", () => { mac.Steps.RemoveAt(idx); Game.Save(); OpenMacros(); }, true));
+            if (i < mac.Steps.Count - 1) { var ar = Lbl("➜", 20, UiTheme.Accent, list); ar.VerticalAlignment = VerticalAlignment.Center; ar.CustomMinimumSize = new Vector2(0, 100); }
         }
         var bot = new HBoxContainer(); bot.AddThemeConstantOverride("separation", 8); left.AddChild(bot);
         bot.AddChild(Btn("Clear chain", () => { mac.Steps.Clear(); Game.Save(); OpenMacros(); }, true));
@@ -68,7 +76,8 @@ public partial class Ui
 
         // ---- right: learned skills to add (hotbar or not)
         var right = new VBoxContainer { CustomMinimumSize = new Vector2(400, 0) }; right.AddThemeConstantOverride("separation", 6); cols.AddChild(right);
-        Lbl("LEARNED SKILLS   click to add to the end of the chain", 13, UiTheme.Accent, right);
+        Header("Learned skills", right);
+        Lbl("Click to add to the end of the chain.", 14, Dim, right);
         var gs = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; right.AddChild(gs);
         var grid = new GridContainer { Columns = 6 }; grid.AddThemeConstantOverride("h_separation", 6); grid.AddThemeConstantOverride("v_separation", 6); gs.AddChild(grid);
         var learned = Skills.All.Where(k => d.Skills.ContainsKey(k.Id)).ToList();

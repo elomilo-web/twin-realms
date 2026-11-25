@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Godot;
 
 namespace TwinRealms;
@@ -113,39 +113,47 @@ public partial class Ui
     {
         _confirmQuit = false;
         if (_setTab == "controls") _setTab = "audio";
-        var v = Frame("settings", "Settings", new Vector2(760, 600), OpenSettings); var s = Game.Set;
-        SettingsTabs(v, _setTab);
+        var v = Frame("settings", "Settings", new Vector2(940, 600), OpenSettings); var s = Game.Set;
+        v = SettingsShell(v, _setTab);
         var sc = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled, CustomMinimumSize = new Vector2(0, 300) }; v.AddChild(sc);
-        var list = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; list.AddThemeConstantOverride("separation", 12); sc.AddChild(list);
+        var list = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; list.AddThemeConstantOverride("separation", 10); sc.AddChild(list);
         static string Pct(float x) => $"{x * 100:0}%";
         switch (_setTab)
         {
             case "display":
+                Header("Window", list);
                 Choice(list, "Window", "Fullscreen covers the screen; exclusive can run smoother on some PCs.", new[] { "Windowed", "Fullscreen", "Exclusive" }, s.WindowMode, i => s.WindowMode = i, true);
                 Choice(list, "VSync", "Matches the screen's refresh rate and stops tearing.", OffOn, s.VSync ? 1 : 0, i => s.VSync = i == 1, true);
                 Choice(list, "Frame limit", "Caps frames per second to save power.", new[] { "None", "30", "60", "120", "144" }, Math.Max(0, Array.IndexOf(FpsCaps, s.MaxFps)), i => s.MaxFps = FpsCaps[i], true);
+                Header("Quality", list);
                 SliderRow(list, "3D resolution", "Lower it for more speed. Menus and text stay sharp.", s.RenderScale, .5f, 1f, .05f, Pct, x => s.RenderScale = x, true);
                 Choice(list, "Graphics quality", "Lighting, shadows, smoothing and detail. Lower it for more frames per second.", new[] { "Low", "Medium", "High", "Ultra" }, s.Quality, i => s.Quality = i, true);
+                Choice(list, "Outlines", "Ink lines around shapes (a cartoon look).", OffOn, s.Outlines ? 1 : 0, i => s.Outlines = i == 1, true);
+                Header("Distance", list);
                 SliderRow(list, "View distance", "How far you can see. Trees and scenery fade out before it. Shorter is faster.", s.ViewDist, 300f, 3000f, 50f, x => $"{x:0} m", x => s.ViewDist = x, true);
                 SliderRow(list, "Grass", "How much grass grows around you. Lower it for more speed.", s.Grass, 0f, 1f, .05f, Pct, x => s.Grass = x, true);
-                Choice(list, "Outlines", "Ink lines around shapes (a cartoon look).", OffOn, s.Outlines ? 1 : 0, i => s.Outlines = i == 1, true);
+                Header("Interface", list);
                 Choice(list, "Show FPS", "Frames per second in the bottom-right corner.", OffOn, s.ShowFps ? 1 : 0, i => s.ShowFps = i == 1, true);
                 break;
             case "game":
+                Header("Camera", list);
                 SliderRow(list, "Mouse sensitivity", "How fast the camera turns.", s.Sens, .2f, 3f, .05f, x => $"x{x:0.00}", x => s.Sens = x);
                 Choice(list, "Invert mouse Y", "Push the mouse forward to look down.", OffOn, s.InvertY ? 1 : 0, i => s.InvertY = i == 1);
                 SliderRow(list, "Field of view", "How wide the camera sees.", s.Fov, 55f, 100f, 1f, x => $"{x:0}°", x => s.Fov = x);
                 SliderRow(list, "Camera shake", "Shake on heavy hits and spells.", s.Shake, 0f, 1.5f, .05f, Pct, x => s.Shake = x);
+                Header("Combat", list);
                 Choice(list, "Auto target", "With nothing locked on (Tab), attacks and spells aim at: the monster that hit you or that you hit, the nearest monster, or the one with the least health. A thin gold ring marks it; the camera stays free.", new[] { "Off", "Hit you", "Nearest", "Lowest HP" }, Math.Clamp(s.AutoTarget, 0, 3), i => s.AutoTarget = i);
                 static string PotPct(float x) => x <= 0 ? "Off" : $"{x * 100:0}%";
                 SliderRow(list, "Auto health potion", "Drink a health potion by itself when health falls below this. Off at 0.", s.AutoHp, 0f, .9f, .05f, PotPct, x => s.AutoHp = x);
                 SliderRow(list, "Auto mana potion", "Drink a mana potion by itself when mana falls below this. Off at 0.", s.AutoMp, 0f, .9f, .05f, PotPct, x => s.AutoMp = x);
                 SliderRow(list, "Auto potion delay", "Shortest time between two automatic potions of the same kind, so one bad moment does not empty your bag.", s.AutoPotDelay, 1f, 15f, .5f, x => $"{x:0.0} s", x => s.AutoPotDelay = x);
+                Header("Multiplayer", list);
                 Choice(list, "Friends' spell effects", "Multiplayer: see the spell and skill effects other players cast.", OffOn, s.OthersFx ? 1 : 0, i => s.OthersFx = i == 1);
                 Choice(list, "Friends' damage and healing", "Multiplayer: see the damage and healing numbers of other players (their hits, the hits they take, their heals).", OffOn, s.OthersNumbers ? 1 : 0, i => s.OthersNumbers = i == 1);
                 Choice(list, "Friends' status icons", "Multiplayer: see the statuses on other players (burning, poisoned, chilled...) above their names.", OffOn, s.OthersStatus ? 1 : 0, i => s.OthersStatus = i == 1);
                 break;
             default:
+                Header("Volumes", list);
                 SliderRow(list, "Master volume", "Everything at once.", s.Master, 0, 1, .05f, Pct, x => s.Master = x);
                 SliderRow(list, "Music", "Calm songs with long quiet gaps between them.", s.Music, 0, 1, .05f, Pct, x => s.Music = x);
                 if (Sfx.AmbienceOn) SliderRow(list, "Ambience", "Birds, crickets, wind and dungeon air.", s.Ambient, 0, 1, .05f, Pct, x => s.Ambient = x);
@@ -170,19 +178,36 @@ public partial class Ui
         var back = Btn(InGame ? "Back" : "Done", () => { if (InGame) OpenPause(); else ShowTitle(); }); back.CustomMinimumSize = new Vector2(140, 36); bot.AddChild(back);
     }
 
-    /// <summary>Tab row shared by Settings and Settings > Controls.</summary>
-    void SettingsTabs(VBoxContainer v, string cur)
+    static readonly Color GoldC = new(.78f, .62f, .30f);   // (Parch is shared, declared in Ui.cs)
+
+    /// <summary>Left column of tabs (gold marker on the active one) shared by Settings and Controls; returns the right-hand content column.</summary>
+    VBoxContainer SettingsShell(VBoxContainer v, string cur)
     {
-        var h = new HBoxContainer(); h.AddThemeConstantOverride("separation", 6); v.AddChild(h);
+        var h = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; h.AddThemeConstantOverride("separation", 18); v.AddChild(h);
+        var left = new VBoxContainer { CustomMinimumSize = new Vector2(170, 0) }; left.AddThemeConstantOverride("separation", 2); h.AddChild(left);
         foreach (var (id, label) in new[] { ("audio", "Audio"), ("display", "Display"), ("game", "Game"), ("controls", "Controls") })
         {
-            string t = id;
+            string t = id; bool on = id == cur;
             var b = Btn(label, () => { if (t == cur) return; if (t == "controls") OpenControls(); else { _setTab = t; OpenSettings(); } });
-            b.CustomMinimumSize = new Vector2(120, 36); Mark(b, id == cur); h.AddChild(b);
+            b.Alignment = HorizontalAlignment.Left; b.CustomMinimumSize = new Vector2(0, 34); b.AddThemeFontSizeOverride("font_size", 18);
+            b.AddThemeColorOverride("font_color", on ? GoldC : Parch); b.AddThemeColorOverride("font_hover_color", GoldC); b.AddThemeColorOverride("font_pressed_color", UiTheme.Highlight);
+            StyleBoxFlat Sb(Color mark, Color bg) => new() { BgColor = bg, BorderColor = mark, BorderWidthLeft = 2, ContentMarginLeft = 14, ContentMarginRight = 8, ContentMarginTop = 2, ContentMarginBottom = 2 };
+            var act = Sb(GoldC, new Color(GoldC, .10f)); var none = Sb(Colors.Transparent, Colors.Transparent);
+            b.AddThemeStyleboxOverride("normal", on ? act : none); b.AddThemeStyleboxOverride("focus", none); b.AddThemeStyleboxOverride("hover", act); b.AddThemeStyleboxOverride("pressed", act);
+            left.AddChild(b);
         }
-        var rule = new ColorRect { Color = UiTheme.AccentSoft, CustomMinimumSize = new Vector2(0, 1), MouseFilter = Control.MouseFilterEnum.Ignore }; v.AddChild(rule);
+        h.AddChild(new ColorRect { Color = UiTheme.AccentSoft, CustomMinimumSize = new Vector2(1, 0), MouseFilter = Control.MouseFilterEnum.Ignore });
+        var right = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; right.AddThemeConstantOverride("separation", 8); h.AddChild(right);
+        return right;
     }
 
+    /// <summary>Thin gold-filled slider with a dark track.</summary>
+    static void StyleSlider(HSlider sl)
+    {
+        sl.AddThemeStyleboxOverride("slider", new StyleBoxFlat { BgColor = new Color(.12f, .10f, .08f), BorderColor = UiTheme.AccentSoft, BorderWidthBottom = 1, BorderWidthTop = 1, BorderWidthLeft = 1, BorderWidthRight = 1, ContentMarginTop = 2, ContentMarginBottom = 2 });
+        var fill = new StyleBoxFlat { BgColor = GoldC with { A = .85f }, ContentMarginTop = 2, ContentMarginBottom = 2 };
+        sl.AddThemeStyleboxOverride("grabber_area", fill); sl.AddThemeStyleboxOverride("grabber_area_highlight", fill);
+    }
     /// <summary>Selected look for tabs and choice buttons.</summary>
     static void Mark(Button b, bool on)
     {
@@ -194,9 +219,9 @@ public partial class Ui
     HBoxContainer OptRow(Node parent, string name, string hint)
     {
         var h = new HBoxContainer(); h.AddThemeConstantOverride("separation", 14); parent.AddChild(h);
-        var left = new VBoxContainer { CustomMinimumSize = new Vector2(300, 0) }; left.AddThemeConstantOverride("separation", 0); h.AddChild(left);
-        Lbl(name, 17, Colors.White, left);
-        if (hint != "") { var l = Lbl(hint, 13, Dim, left); l.AutowrapMode = TextServer.AutowrapMode.WordSmart; l.CustomMinimumSize = new Vector2(300, 0); }
+        var left = new VBoxContainer { CustomMinimumSize = new Vector2(290, 0) }; left.AddThemeConstantOverride("separation", 0); h.AddChild(left);
+        Lbl(name, 16, Parch, left);
+        if (hint != "") { var l = Lbl(hint, 13, Dim, left); l.AutowrapMode = TextServer.AutowrapMode.WordSmart; l.CustomMinimumSize = new Vector2(290, 0); }
         return h;
     }
 
@@ -204,22 +229,32 @@ public partial class Ui
     {
         var h = OptRow(parent, name, hint);
         var sl = new HSlider { MinValue = min, MaxValue = max, Step = step, Value = val, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ShrinkCenter, CustomMinimumSize = new Vector2(200, 24), FocusMode = Control.FocusModeEnum.None };
-        h.AddChild(sl);
-        var vl = Lbl(fmt(val), 16, UiTheme.Accent, h); vl.CustomMinimumSize = new Vector2(64, 0); vl.HorizontalAlignment = HorizontalAlignment.Right;
+        StyleSlider(sl); h.AddChild(sl);
+        var vl = Lbl(fmt(val), 15, GoldC, h); vl.CustomMinimumSize = new Vector2(64, 0); vl.HorizontalAlignment = HorizontalAlignment.Right;
         sl.ValueChanged += x => { set((float)x); vl.Text = fmt((float)x); Game.SaveSettings(); if (display) Game.ApplyDisplay(); };
         if (sample != "") sl.DragEnded += _ => Sfx.Play(sample);
     }
 
+    /// <summary>Option picker: a check switch for Off/On, otherwise "< value >" arrows that wrap around.</summary>
     void Choice(Node parent, string name, string hint, string[] labels, int cur, Action<int> set, bool display = false)
     {
         var h = OptRow(parent, name, hint);
-        var seg = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ShrinkCenter }; seg.AddThemeConstantOverride("separation", 4); h.AddChild(seg);
-        var btns = new Button[labels.Length];
-        for (int i = 0; i < labels.Length; i++)
+        void Commit(int k) { set(k); Game.SaveSettings(); if (display) Game.ApplyDisplay(); }
+        if (labels.Length == 2 && labels[0] == "Off" && labels[1] == "On")
         {
-            int k = i;
-            var b = Btn(labels[i], () => { for (int j = 0; j < btns.Length; j++) Mark(btns[j], j == k); set(k); Game.SaveSettings(); if (display) Game.ApplyDisplay(); }, true);
-            b.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; b.CustomMinimumSize = new Vector2(0, 32); Mark(b, i == cur); btns[i] = b; seg.AddChild(b);
+            h.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Ignore });
+            var cb = new CheckButton { ButtonPressed = cur == 1, FocusMode = Control.FocusModeEnum.None, SizeFlagsVertical = Control.SizeFlags.ShrinkCenter, Text = cur == 1 ? "On" : "Off" };
+            cb.AddThemeColorOverride("font_color", Parch); cb.AddThemeFontSizeOverride("font_size", 15);
+            cb.Toggled += on => { cb.Text = on ? "On" : "Off"; Sfx.Play("click"); Commit(on ? 1 : 0); };
+            h.AddChild(cb); return;
         }
+        h.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Ignore });
+        var box = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ShrinkCenter }; box.AddThemeConstantOverride("separation", 6); h.AddChild(box);
+        int idx = Math.Clamp(cur, 0, labels.Length - 1);
+        var val = new Label { Text = labels[idx], HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, CustomMinimumSize = new Vector2(130, 0) };
+        val.AddThemeFontSizeOverride("font_size", 16); val.AddThemeColorOverride("font_color", GoldC);
+        void Step(int d) { idx = (idx + d + labels.Length) % labels.Length; val.Text = labels[idx]; Commit(idx); }
+        var l = Btn("<", () => Step(-1), true); l.CustomMinimumSize = new Vector2(32, 30); var r = Btn(">", () => Step(1), true); r.CustomMinimumSize = new Vector2(32, 30);
+        box.AddChild(l); box.AddChild(val); box.AddChild(r);
     }
 }

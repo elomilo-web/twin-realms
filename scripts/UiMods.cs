@@ -22,7 +22,7 @@ public partial class Ui
         var top = new HBoxContainer(); v.AddChild(top); top.AddThemeConstantOverride("separation", 10);
         Chip(top, $"Skill points  {d.RankPts}", d.RankPts > 0);
         Chip(top, $"Unlocked  {ModTree.Count(true)}/{ModTree.Count(false)}", false);
-        Lbl("Each lane unlocks left to right.  Click: details   Double-click: unlock", 13, Dim, top).SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        Lbl("Each lane unlocks left to right.  Click: details   Double-click: unlock", 14, Dim, top).SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         top.AddChild(Btn($"Skills ({Inputs.KeyOf(Inputs.SkillsUi)})", OpenSkills, true));
         top.AddChild(Btn($"Basic attacks ({Inputs.KeyOf(Inputs.AttacksUi)})", () => OpenAttacks(null), true));
 
@@ -44,29 +44,31 @@ public partial class Ui
         };
 
         // ---- right: the selected modifier
-        var right = new PanelContainer { CustomMinimumSize = new Vector2(300, 0) }; right.AddThemeStyleboxOverride("panel", UiTheme.Box(new Color(.02f, .06f, .12f, .7f), UiTheme.AccentSoft, 1, 14, 10, 0)); cols.AddChild(right);
+        var right = new PanelContainer { CustomMinimumSize = new Vector2(300, 0) }; right.AddThemeStyleboxOverride("panel", UiTheme.Box(new Color(.05f, .045f, .04f, .9f), (ModTree.Get(_modSel)?.Branch.Col ?? UiTheme.AccentSoft) with { A = .7f }, 1, 14, 10, 0)); cols.AddChild(right);
         var rv = new VBoxContainer(); rv.AddThemeConstantOverride("separation", 6); right.AddChild(rv);
         var sel = ModTree.Get(_modSel); if (sel == null) return;
         var b = sel.Branch; bool on = ModTree.Unlocked(sel); var why2 = ModTree.Why(sel);
-        Lbl(b.Name.ToUpper() + (sel.Attack ? "   ·   BASIC ATTACKS" : ""), 13, b.Col, rv);
+        Lbl(b.Name.ToUpper() + (sel.Attack ? "   ·   BASIC ATTACKS" : ""), 14, b.Col, rv);
+        rv.AddChild(new ColorRect { Color = b.Col with { A = .6f }, CustomMinimumSize = new Vector2(0, 2) });
         Lbl(sel.Name, 22, UiTheme.Title, rv);
         Row(rv, sel.Desc, Colors.White, 15).CustomMinimumSize = new Vector2(270, 0);
         Row(rv, sel.Attack ? "Weapons: " + string.Join(", ", sel.Tags) : "Fits every skill and combines with every other modifier.", UiTheme.Dim, 13).CustomMinimumSize = new Vector2(270, 0);
         Row(rv, $"Cost {sel.Cost} skill point" + (sel.Cost > 1 ? "s" : "") + $"   ·   level {sel.Req}" + (sel.Prev != null ? $"   ·   after {sel.Prev.Name}" : ""), UiTheme.Text, 13).CustomMinimumSize = new Vector2(270, 0);
-        if (on) Lbl("UNLOCKED", 15, UiTheme.Accent, rv);
+        Header("Status", rv);
+        if (on) Lbl("UNLOCKED", 16, UiTheme.Accent, rv);
         else
         {
             var ub = Btn(why2 == null ? $"Unlock  ({sel.Cost} pt)" : why2, () => ModUnlock(sel)); ub.Disabled = why2 != null; ub.CustomMinimumSize = new Vector2(0, 38); rv.AddChild(ub);
         }
         // where it can go
-        Lbl(sel.Attack ? "YOUR WEAPON STYLES" : "YOUR SKILLS IT FITS", 13, UiTheme.Accent, rv);
+        Header(sel.Attack ? "Your weapon styles" : "Your skills it fits", rv);
         var uses = new List<string>();
         if (sel.Attack) { var m = Attacks.Mod(sel.Id); foreach (var wt in Weapons.Types) if (Attacks.HasStyle(wt) && (m?.Fits(wt) ?? false)) uses.Add(Attacks.StyleName(wt) + (Attacks.Build(wt).Mods.Contains(sel.Id) ? "  (socketed)" : "")); }
         else { var sp = Skills.Sup(sel.Id); foreach (var kv in d.Skills) if (Skills.Get(kv.Key) is { } k && sp != null && Skills.Fits(sp, k)) uses.Add(k.Name + (kv.Value.Sup.Contains(sel.Id) ? "  (socketed)" : "")); }
         var us = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, CustomMinimumSize = new Vector2(0, 80) }; rv.AddChild(us);
         var ul = new VBoxContainer(); us.AddChild(ul);
-        if (uses.Count == 0) Row(ul, sel.Attack ? "No weapon style takes it." : "None of your learned skills fit it yet.", Dim, 13);
-        foreach (var u in uses) Lbl("•  " + u, 13, u.EndsWith("(socketed)") ? UiTheme.Highlight : UiTheme.Text, ul);
+        if (uses.Count == 0) Row(ul, sel.Attack ? "No weapon style takes it." : "None of your learned skills fit it yet.", Dim, 14);
+        foreach (var u in uses) Lbl("•  " + u, 14, u.EndsWith("(socketed)") ? UiTheme.Highlight : UiTheme.Text, ul);
         if (on) rv.AddChild(Btn(sel.Attack ? $"Socket it: Basic attacks ({Inputs.KeyOf(Inputs.AttacksUi)})" : $"Socket it: Skills ({Inputs.KeyOf(Inputs.SkillsUi)})", () => { if (sel.Attack) OpenAttacks(null); else OpenSkills(); }, true));
     }
 

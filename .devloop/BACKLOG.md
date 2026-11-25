@@ -1,3 +1,6 @@
+[5][M][menus] coverage (user directive): DONE title, pause, inventory, spellcraft, character, settings, controls, journal, shop, valor, totals, skills, attacks, macros, mods, craft, smith, multiplayer, online, stash, launcher. LEFT: character creation (Ui.ShowCreate), skill tree nodes (TreeView), map interior palette + wayshrine marks (MapView), dialogue window (Ui.Talk), death/respawn screen, loading/banners, tooltips (UiWidgets), party/lobby, bounty/quest board if any
+[5][S][menus] Skills, attacks and macros windows overflow 1280x720 (titles and left edges cut): clamp frame size to the viewport (Frame helper) and put content in ScrollContainers -> Ui.cs Frame, UiSkills.cs, UiAttacks.cs, UiMacros.cs
+[4][M][menus] Map interior is bright cartoon blue/green: gothic parchment palette (sepia land, dark ink coast lines, muted sea), wayshrine rune marks -> MapView (grep), Ui.cs OpenMap
 [3][S][tools] Auto-spot tree check misses trees (no colliders?): also reject spots within 6 m of Flora tree instances (query FloraField/Lands tree positions) so lightning/holy views aren't occluded -> DevCapture.cs FindSpot
 [3][S][tools] Capture hero has no buffs/quests: grant a buff (e.g. a potion/skill buff) and accept a quest for the hud view so the buff row + tracker get judged -> DevCapture.cs, viewpoints.json
 # Backlog (prioritized; one item per line)

@@ -11,12 +11,12 @@ public partial class Ui
     {
         InGame = false; Input.MouseMode = Input.MouseModeEnum.Visible; OnlineCfg.Load();
         if (!Updater.OnlineOk) { ShowTitle(); return; }   // only after the launch check confirmed this game matches the server
-        var v = Frame("title", "PLAY ONLINE", new Vector2(700, 500), ShowOnline);
-        Row(v, "Log in to the Twin Realms server to play in one shared world with everyone online. Your heroes are saved on the server, so you can play them from any computer.", Colors.White, 15).CustomMinimumSize = new Vector2(640, 0);
+        var v = Frame("title", "PLAY ONLINE", new Vector2(700, 520), ShowOnline);
+        Row(v, "Log in to the Twin Realms server to play in one shared world with everyone online. Your heroes are saved on the server, so you can play them from any computer.", new Color(.86f, .80f, .66f), 15).CustomMinimumSize = new Vector2(640, 0);
         bool busy = Net.OnlineState == "connecting";
         LineEdit Field(string label, string text, string hint, System.Action<string> set, bool secret = false)
         {
-            Lbl(label, 14, UiTheme.Accent, v);
+            Header(label, v);
             var e = new LineEdit { Text = text, PlaceholderText = hint, Secret = secret, CustomMinimumSize = new Vector2(0, 36), Editable = !busy }; v.AddChild(e);
             e.TextChanged += s => set(s); return e;
         }
@@ -29,8 +29,8 @@ public partial class Ui
         var reg = Btn("Create account", () => Go("register")); reg.Disabled = busy; reg.CustomMinimumSize = new Vector2(180, 44); row.AddChild(reg);
         row.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
         row.AddChild(Btn("Back", () => { if (busy) Net.I?.Logout(); ShowTitle(); }));
-        if (Net.AuthMsg != "") Row(v, Net.AuthMsg, busy ? UiTheme.Highlight : new Color(1f, .7f, .5f), 15).CustomMinimumSize = new Vector2(640, 0);
-        Row(v, "Create account makes a new account with this email and password. Passwords are stored only as a salted hash.", Dim, 13).CustomMinimumSize = new Vector2(640, 0);
+        if (Net.AuthMsg != "") Row(v, Net.AuthMsg, busy ? UiTheme.Highlight : new Color(.82f, .38f, .32f), 15).CustomMinimumSize = new Vector2(640, 0);
+        Row(v, "Create account makes a new account with this email and password. Passwords are stored only as a salted hash.", Dim, 14).CustomMinimumSize = new Vector2(640, 0);
         if (_olEmail == "") email.CallDeferred(Control.MethodName.GrabFocus); else pw.CallDeferred(Control.MethodName.GrabFocus);
     }
 

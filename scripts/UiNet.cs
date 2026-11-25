@@ -33,63 +33,81 @@ public partial class Ui
     {
         var sp = Game.Peek(Game.Slot);
         string who = sp != null && !InGame ? $"{sp.Name}, level {sp.Level} (slot {Game.Slot + 1}; pick another hero on the title screen)" : InGame ? $"{Game.D.Name}, level {Game.D.Level}" : $"a new {Races.Get(_pickRace).Name} {Classes.Get(_pickClass).Name} named {_pickName}";
-        Row(v, $"Play together with friends. You bring {who}.", Colors.White, 16);
+        Row(v, $"Play together with friends. You bring {who}.", Parchment, 16);
         if (Net.Status != "") Row(v, Net.Status, UiTheme.Highlight, 15);
-        if (Net.LastNote != "") Row(v, Net.LastNote, new Color(1f, .7f, .5f), 15);
-        // ---- host
-        Lbl("HOST YOUR WORLD", 15, UiTheme.Accent, v);
-        var hr = new HBoxContainer(); hr.AddThemeConstantOverride("separation", 8); v.AddChild(hr);
-        Lbl("Port", 15, Dim, hr); var port = new LineEdit { Text = _port, CustomMinimumSize = new Vector2(110, 34) }; hr.AddChild(port); port.TextChanged += s => _port = s;
-        hr.AddChild(Btn(InGame ? "Open my world to friends" : "Host a game", () =>
+        if (Net.LastNote != "") Row(v, Net.LastNote, ErrRed, 15);
+        var cards = new HBoxContainer(); cards.AddThemeConstantOverride("separation", 16); v.AddChild(cards);
+        // ---- host card
+        var hc = Card(cards); hc.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        var hv = new VBoxContainer(); hv.AddThemeConstantOverride("separation", 8); hc.AddChild(hv);
+        Header("Host your world", hv);
+        Row(hv, "Open your world so friends can join you. You get join codes to send them.", Parchment, 14);
+        var hr = new HBoxContainer(); hr.AddThemeConstantOverride("separation", 8); hv.AddChild(hr);
+        Lbl("Port", 14, Dim, hr); var port = new LineEdit { Text = _port, PlaceholderText = Net.DefaultPort.ToString(), CustomMinimumSize = new Vector2(110, 34) }; hr.AddChild(port); port.TextChanged += s => _port = s;
+        var hb = Btn(InGame ? "Open my world to friends" : "Host world", () =>
         {
             int p = int.TryParse(_port, out var x) ? x : Net.DefaultPort; Net.LastNote = "";
             if (InGame) { Net.I?.Host(p); OpenMultiplayer(); } else { CloseNoUnpause(); OnHost?.Invoke(p); }
-        }));
-        // ---- join
-        Lbl("JOIN A FRIEND", 15, UiTheme.Accent, v);
-        if (InGame) Row(v, "To join a friend's world, use Quit to title in the pause menu, then Multiplayer.", Dim, 14);
+        });
+        hb.CustomMinimumSize = new Vector2(0, 44); hb.AddThemeColorOverride("font_color", UiTheme.Highlight); hb.AddThemeFontSizeOverride("font_size", 18); hv.AddChild(hb);
+        // ---- join card
+        var jc = Card(cards); jc.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        var jv = new VBoxContainer(); jv.AddThemeConstantOverride("separation", 8); jc.AddChild(jv);
+        Header("Join a friend", jv);
+        if (InGame) Row(jv, "To join a friend's world, use Quit to title in the pause menu, then Multiplayer.", Dim, 14);
         else
         {
-            var jr = new HBoxContainer(); jr.AddThemeConstantOverride("separation", 8); v.AddChild(jr);
-            Lbl("Join code or address", 15, Dim, jr); var addr = new LineEdit { Text = _joinAddr, PlaceholderText = "e.g. 4K7QM-2XH9D or 192.168.1.20", CustomMinimumSize = new Vector2(280, 34) }; jr.AddChild(addr); addr.TextChanged += s => _joinAddr = s;
+            var jr = new HBoxContainer(); jr.AddThemeConstantOverride("separation", 8); jv.AddChild(jr);
+            var addr = new LineEdit { Text = _joinAddr, PlaceholderText = "Join code or address, e.g. 4K7QM-2XH9D", CustomMinimumSize = new Vector2(0, 34), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; jr.AddChild(addr); addr.TextChanged += s => _joinAddr = s;
             jr.AddChild(Btn("Paste", () => { _joinAddr = DisplayServer.ClipboardGet().Trim(); OpenMultiplayer(); }, true));
-            Lbl("Port", 15, Dim, jr); var jp = new LineEdit { Text = _port, CustomMinimumSize = new Vector2(90, 34) }; jr.AddChild(jp); jp.TextChanged += s => _port = s;
-            jr.AddChild(Btn("Join", () =>
+            var pr = new HBoxContainer(); pr.AddThemeConstantOverride("separation", 8); jv.AddChild(pr);
+            Lbl("Port", 14, Dim, pr); var jp = new LineEdit { Text = _port, PlaceholderText = Net.DefaultPort.ToString(), CustomMinimumSize = new Vector2(90, 34) }; pr.AddChild(jp); jp.TextChanged += s => _port = s;
+            var jb = Btn("Join", () =>
             {
                 int p = int.TryParse(_port, out var x) ? x : Net.DefaultPort; string a = _joinAddr.Trim(); Net.LastNote = "";
                 if (JoinCode.TryRead(a, out var ip, out var cp)) { a = ip; p = cp; }   // a join code carries the address and port
+                if (a != "") { _recentAddrs.Remove(_joinAddr.Trim()); _recentAddrs.Insert(0, _joinAddr.Trim()); if (_recentAddrs.Count > 4) _recentAddrs.RemoveAt(4); }
                 OnJoin?.Invoke(a, p); OpenMultiplayer();
-            }));
-            Row(v, "Paste the join code your friend copied from their Multiplayer menu (the port box is only needed when typing an address).", Dim, 13);
-            v.AddChild(Btn("Refresh status", OpenMultiplayer, true));
+            });
+            jb.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; jb.CustomMinimumSize = new Vector2(0, 40); jb.AddThemeColorOverride("font_color", UiTheme.Highlight); pr.AddChild(jb);
+            Row(jv, "The port box is only needed when typing an address; a join code already carries it.", Dim, 13);
+            if (_recentAddrs.Count > 0)
+            {
+                Header("Recent", jv);
+                foreach (var ra in _recentAddrs) { string r = ra; var rb = Btn(r, () => { _joinAddr = r; OpenMultiplayer(); }, true); rb.Alignment = HorizontalAlignment.Left; jv.AddChild(rb); }
+            }
         }
-        Row(v, HelpText, Dim, 13);
+        var rf = Btn("Refresh status", OpenMultiplayer, true); rf.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin; v.AddChild(rf);
+        Row(v, HelpText, Dim, 14);
     }
+
+    static readonly List<string> _recentAddrs = new();
+    static readonly Color Parchment = new(.86f, .80f, .66f), ErrRed = new(.82f, .38f, .32f), Amber = new(.85f, .66f, .3f);
 
     void LobbyPage(VBoxContainer v)
     {
         var net = Net.I!; var me = Net.MyId;
-        Row(v, Net.IsHost ? "You are hosting. The world, its enemies, loot, the party chest and duels run on your computer." : "You are in a friend's world. Your hero and pack are saved on your computer.", Colors.White, 15);
+        Row(v, Net.IsHost ? "You are hosting. The world, its enemies, loot, the party chest and duels run on your computer." : "You are in a friend's world. Your hero and pack are saved on your computer.", Parchment, 15);
         if (Net.IsHost)
         {
             var addrs = Net.LocalAddresses(); int port = Net.HostPort;
             // join codes: friends paste a short code instead of typing an address and port
-            Lbl("JOIN CODES (send one to your friend)", 15, UiTheme.Accent, v);
+            Header("Join codes (send one to your friend)", v);
             void CodeRow(string label, string ip)
             {
                 var h = new HBoxContainer(); h.AddThemeConstantOverride("separation", 10); v.AddChild(h);
                 Lbl(label, 15, Dim, h).CustomMinimumSize = new Vector2(250, 0);
                 string code = JoinCode.Make(ip, port); var cl = Lbl(code, 22, UiTheme.Highlight, h); cl.CustomMinimumSize = new Vector2(190, 0);
                 h.AddChild(Btn("Copy", () => { DisplayServer.ClipboardSet(code); Note("Copied " + code + ". Paste it to your friend.", Gold); }, true));
-                Lbl($"({ip}:{port})", 13, Dim, h);
+                Lbl($"({ip}:{port})", 14, Dim, h);
             }
             if (Net.PublicAddress != "") CodeRow("Over the internet:", Net.PublicAddress);
             else Row(v, "Finding your internet address ... press Refresh in a moment.", Dim, 14);
             foreach (var a in addrs) CodeRow("Same Wi-Fi / VPN:", a);
-            if (Net.UpnpStatus != "") Row(v, Net.UpnpStatus, Net.UpnpStatus.StartsWith("Router port") ? new Color(.6f, 1f, .7f) : new Color(1f, .8f, .55f), 14);
+            if (Net.UpnpStatus != "") Row(v, Net.UpnpStatus, Net.UpnpStatus.StartsWith("Router port") ? new Color(.55f, .8f, .55f) : Amber, 14);
         }
         // ---- players
-        Lbl($"PLAYERS ({net.Players.Count}/{Net.MaxPlayers})", 15, UiTheme.Accent, v);
+        Header($"Players ({net.Players.Count}/{Net.MaxPlayers})", v);
         var grid = new GridContainer { Columns = 5 }; grid.AddThemeConstantOverride("h_separation", 14); grid.AddThemeConstantOverride("v_separation", 4); v.AddChild(grid);
         var ids = new List<long>(net.Players.Keys); ids.Sort();
         foreach (var id in ids)
@@ -106,7 +124,7 @@ public partial class Ui
         }
         // ---- party
         var pt = net.MyParty;
-        Lbl("PARTY", 15, UiTheme.Accent, v);
+        Header("Party", v);
         if (pt == null) Row(v, "You are not in a party. Invite someone above. A party shares one dungeon (any dungeon door takes you to where your party is; monsters are the party's average level + 3), splits 90% of each kill's experience evenly between members nearby, finds slightly more loot, and splits gold.", Dim, 14);
         else
         {
@@ -120,7 +138,7 @@ public partial class Ui
             }
             v.AddChild(Btn("Leave party", () => net.LeaveParty(), true));
         }
-        Row(v, "Gold from party kills is split evenly. Drops reserved for someone become free for all after a minute. Personal loot is only visible to its owner. In party dungeons everyone always gets their own personal loot.", Dim, 13);
+        Row(v, "Gold from party kills is split evenly. Drops reserved for someone become free for all after a minute. Personal loot is only visible to its owner. In party dungeons everyone always gets their own personal loot.", Dim, 14);
         // ---- leave
         var bot = new HBoxContainer(); bot.AddThemeConstantOverride("separation", 8); v.AddChild(bot);
         bot.AddChild(Btn("Refresh", OpenMultiplayer, true));
@@ -129,14 +147,14 @@ public partial class Ui
             if (Net.IsHost) { Net.I!.Shutdown(); Note("You stopped hosting", Dim); OpenMultiplayer(); return; }
             Game.Save(); Net.I!.Shutdown(); GetTree().Paused = false; InGame = false; GetTree().ReloadCurrentScene();
         }, true));
-        if (Net.IsHost) Row(v, HelpText, Dim, 13);
+        if (Net.IsHost) Row(v, HelpText, Dim, 14);
     }
 
     /// <summary>A yes/no request (party invite, duel challenge). It never pauses the game.</summary>
     public void Ask(string text, string yes, string no, Action<bool> answer)
     {
         var v = Frame("ask", "Request", new Vector2(560, 250), () => { });
-        Row(v, text, Colors.White, 17).CustomMinimumSize = new Vector2(500, 0);
+        Row(v, text, Parchment, 17).CustomMinimumSize = new Vector2(500, 0);
         var h = new HBoxContainer(); h.AddThemeConstantOverride("separation", 12); v.AddChild(h);
         var y = Btn(yes, () => { Close(); answer(true); }); y.CustomMinimumSize = new Vector2(200, 42); h.AddChild(y);
         var n = Btn(no, () => { Close(); answer(false); }); n.CustomMinimumSize = new Vector2(200, 42); h.AddChild(n);
@@ -161,11 +179,11 @@ public partial class Ui
         var d = Game.D; var net = Net.I!; var chest = net.PartyChest;
         var v = Frame("partychest", "Party Chest", new Vector2(1040, 600), OpenPartyChest);
         var top = new HBoxContainer(); v.AddChild(top); top.AddThemeConstantOverride("separation", 16);
-        Lbl($"Pack {d.Inv.Count}/28", 16, d.Inv.Count >= 28 ? new Color(1, .6f, .5f) : Gold, top);
-        Lbl($"Party chest {chest.Count}/{Net.ChestCap}", 16, chest.Count >= Net.ChestCap ? new Color(1, .6f, .5f) : Gold, top);
+        Lbl($"Pack {d.Inv.Count}/28", 16, d.Inv.Count >= 28 ? ErrRed : Gold, top);
+        Lbl($"Party chest {chest.Count}/{Net.ChestCap}", 16, chest.Count >= Net.ChestCap ? ErrRed : Gold, top);
         Lbl(Net.Active ? "Everyone in the lobby can use this chest. The host keeps it." : "Solo, this is a spare chest. When you host, your friends share it.", 14, Dim, top).SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         var cols = new HBoxContainer(); cols.AddThemeConstantOverride("separation", 24); v.AddChild(cols);
-        GridContainer Grid(string title, int columns) { var b = new VBoxContainer(); cols.AddChild(b); Lbl(title, 15, UiTheme.Accent, b); var g = new GridContainer { Columns = columns }; g.AddThemeConstantOverride("h_separation", 5); g.AddThemeConstantOverride("v_separation", 5); b.AddChild(g); return g; }
+        GridContainer Grid(string title, int columns) { var b = new VBoxContainer(); cols.AddChild(b); Header(title, b); var g = new GridContainer { Columns = columns }; g.AddThemeConstantOverride("h_separation", 5); g.AddThemeConstantOverride("v_separation", 5); b.AddChild(g); return g; }
         var pg = Grid("PACK", 4); var sg = Grid("PARTY CHEST", 8);
         for (int i = 0; i < 28; i++)
         {

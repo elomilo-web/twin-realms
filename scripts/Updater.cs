@@ -53,8 +53,8 @@ public static class Updater
         {
             string l = raw.TrimEnd();
             if (l.StartsWith("### ")) sb.Append("\n[font_size=19][b][color=#ffd36a]").Append(Inline(l[4..])).Append("[/color][/b][/font_size]\n");
-            else if (l.StartsWith("## ")) sb.Append("[font_size=24][b]").Append(Inline(l[3..])).Append("[/b][/font_size]\n");
-            else if (l.StartsWith("# ")) sb.Append("[font_size=26][b]").Append(Inline(l[2..])).Append("[/b][/font_size]\n");
+            else if (l.StartsWith("## ")) sb.Append("[font_size=22][b][color=#c8a050]").Append(Inline(l[3..]).ToUpperInvariant()).Append("[/color][/b][/font_size]\n");
+            else if (l.StartsWith("# ")) sb.Append("[font_size=24][b][color=#c8a050]").Append(Inline(l[2..]).ToUpperInvariant()).Append("[/color][/b][/font_size]\n");
             else if (l.StartsWith("- ") || l.StartsWith("* ")) sb.Append("[indent]•  ").Append(Inline(l[2..])).Append("[/indent]\n");
             else if (l == "") sb.Append('\n');
             else sb.Append(Inline(l)).Append('\n');
@@ -133,7 +133,11 @@ public partial class Ui
         var top = new HBoxContainer(); top.AddThemeConstantOverride("separation", 12); main.AddChild(top);
         var logo = GD.Load<Texture2D>("res://assets/ui/art/logo.png");
         if (logo != null) top.AddChild(new TextureRect { Texture = logo, ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspect, CustomMinimumSize = new Vector2(380, 110) });
-        else { var t = Lbl("TWIN REALMS", 44, UiTheme.Title, top); t.AddThemeConstantOverride("outline_size", 8); }
+        else
+        {
+            var t = Lbl("TWIN REALMS", 48, new Color(.78f, .62f, .30f), top); t.AddThemeConstantOverride("outline_size", 8); t.AddThemeColorOverride("font_outline_color", new Color(.08f, .04f, .02f));
+            t.AddThemeFontOverride("font", new FontVariation { BaseFont = ThemeDB.FallbackFont, SpacingGlyph = 6 });
+        }
         top.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
         var vv = new VBoxContainer(); top.AddChild(vv);
         Lbl("Version " + Game.Version, 15, UiTheme.Dim, vv).HorizontalAlignment = HorizontalAlignment.Right;
@@ -143,9 +147,11 @@ public partial class Ui
         var mid = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; mid.AddThemeConstantOverride("separation", 16); main.AddChild(mid);
         var np = Card(mid); np.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; np.SizeFlagsStretchRatio = 1.7f;
         var nv = new VBoxContainer(); nv.AddThemeConstantOverride("separation", 8); np.AddChild(nv);
-        Lbl("PATCH NOTES", 18, UiTheme.Accent, nv);
+        Header("Patch notes", nv);
         _lnNotes = new RichTextLabel { BbcodeEnabled = true, ScrollActive = true, SizeFlagsVertical = Control.SizeFlags.ExpandFill, SelectionEnabled = true };
         _lnNotes.AddThemeFontSizeOverride("normal_font_size", 15); _lnNotes.AddThemeFontSizeOverride("bold_font_size", 15);
+        _lnNotes.AddThemeColorOverride("default_color", new Color(.86f, .80f, .66f));
+        _lnNotes.AddThemeStyleboxOverride("normal", UiTheme.Box(new Color(.03f, .025f, .02f, .7f), UiTheme.AccentSoft, 1, 10, 8));
         nv.AddChild(_lnNotes); ShowNotes();
         var ap = Card(mid); ap.CustomMinimumSize = new Vector2(380, 0);
         _lnAcct = new VBoxContainer(); _lnAcct.AddThemeConstantOverride("separation", 8); ap.AddChild(_lnAcct); BuildAccount();
@@ -156,6 +162,9 @@ public partial class Ui
         var sv = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, Alignment = BoxContainer.AlignmentMode.Center }; sv.AddThemeConstantOverride("separation", 6); bh.AddChild(sv);
         _lnStatus = Lbl("", 15, Colors.White, sv); _lnStatus.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         _lnBar = new ProgressBar { MinValue = 0, MaxValue = 100, CustomMinimumSize = new Vector2(0, 20), ShowPercentage = true }; sv.AddChild(_lnBar);
+        _lnBar.AddThemeStyleboxOverride("background", UiTheme.Box(new Color(.03f, .02f, .02f, .9f), new Color(.45f, .36f, .18f), 1, 2, 2));
+        _lnBar.AddThemeStyleboxOverride("fill", UiTheme.Box(new Color(.72f, .52f, .16f), new Color(.9f, .72f, .3f), 0, 2, 2));
+        _lnBar.AddThemeColorOverride("font_color", Colors.White); _lnBar.AddThemeFontSizeOverride("font_size", 14);
         _lnRetry = Btn("Try again", StartCheck); _lnRetry.Visible = false; bh.AddChild(_lnRetry);
         _lnOffline = Btn("PLAY OFFLINE", PlayOffline); _lnOffline.CustomMinimumSize = new Vector2(190, 60); _lnOffline.TooltipText = "Your heroes on this computer, and Multiplayer (host or join friends)."; bh.AddChild(_lnOffline);
         _lnOnline = Btn("PLAY ONLINE", PlayOnline); _lnOnline.CustomMinimumSize = new Vector2(230, 60); _lnOnline.AddThemeFontSizeOverride("font_size", 20); bh.AddChild(_lnOnline);
@@ -231,7 +240,7 @@ public partial class Ui
                                                   : $"this copy runs from source with network version {Net.Protocol}, the server runs {protocol}. Pull the newest code.";
         _lnStage = "ready";
         if (Updater.OnlineOk) Status($"Twin Realms is up to date (version {Game.Version}). Ready to play.", new Color(.6f, 1f, .7f));
-        else Status("Online play is locked: " + Updater.OnlineWhy + " You can still play offline.", new Color(1f, .7f, .5f));
+        else Status("Online play is locked: " + Updater.OnlineWhy + " You can still play offline.", new Color(.85f, .66f, .3f));
         RefreshLauncher(); BuildAccount();
         // Remember me + Log in automatically: log straight in with the saved login
         if (Updater.OnlineOk && !_lnLogged && !_lnTriedAuto && _lnAuto && _lnToken != "" && _lnEmail != "") { _lnTriedAuto = true; Login("resume"); }
@@ -241,7 +250,7 @@ public partial class Ui
     {
         GD.Print("[UPDATE] " + why);
         _lnStage = "ready"; Updater.OnlineOk = false; Updater.OnlineWhy = why;
-        Status(why + " Online play is locked; you can still play offline.", new Color(1f, .7f, .5f));
+        Status(why + " Online play is locked; you can still play offline.", new Color(.85f, .66f, .3f));
         RefreshLauncher(); BuildAccount();
     }
 
@@ -339,25 +348,25 @@ public partial class Ui
         var v = _lnAcct;
         if (_lnLogged)
         {
-            Lbl("ONLINE ACCOUNT", 18, UiTheme.Accent, v);
+            Header("Online account", v);
             Row(v, "Logged in as", UiTheme.Dim, 14);
             Row(v, _lnEmail, Colors.White, 18);
-            Row(v, _lnRemember ? (_lnAuto ? "Remembered on this computer. You are logged in automatically." : "Remembered on this computer.") : "Not remembered: you log in again next time.", UiTheme.Dim, 13);
+            Row(v, _lnRemember ? (_lnAuto ? "Remembered on this computer. You are logged in automatically." : "Remembered on this computer.") : "Not remembered: you log in again next time.", UiTheme.Dim, 14);
             v.AddChild(new Control { SizeFlagsVertical = Control.SizeFlags.ExpandFill });
             Row(v, "Press PLAY ONLINE to choose your hero and enter the shared world.", UiTheme.Highlight, 14);
             var lo = Btn("Log out", LogoutLauncher); lo.Disabled = _lnBusy; v.AddChild(lo);
-            if (_lnMsg != "") Row(v, _lnMsg, new Color(1f, .7f, .5f), 13);
+            if (_lnMsg != "") Row(v, _lnMsg, new Color(.82f, .38f, .32f), 14);
             return;
         }
-        Lbl("LOG IN TO PLAY ONLINE", 18, UiTheme.Accent, v);
+        Header("Log in to play online", v);
         bool can = _lnStage == "ready" && Updater.OnlineOk && !_lnBusy;
-        if (_lnStage != "ready") Row(v, "Online login unlocks after the update check.", UiTheme.Dim, 13);
-        else if (!Updater.OnlineOk) Row(v, "Online play is locked: " + Updater.OnlineWhy, new Color(1f, .7f, .5f), 13);
-        Lbl("EMAIL", 13, UiTheme.Dim, v);
+        if (_lnStage != "ready") Row(v, "Online login unlocks after the update check.", UiTheme.Dim, 14);
+        else if (!Updater.OnlineOk) Row(v, "Online play is locked: " + Updater.OnlineWhy, new Color(.82f, .38f, .32f), 14);
+        Lbl("EMAIL", 14, UiTheme.Dim, v);
         var email = new LineEdit { Text = _lnEmail, PlaceholderText = "you@example.com", Editable = can, CustomMinimumSize = new Vector2(0, 36) }; v.AddChild(email);
         email.TextChanged += s => _lnEmail = s.Trim();
         bool saved = _lnToken != "";
-        Lbl("PASSWORD", 13, UiTheme.Dim, v);
+        Lbl("PASSWORD", 14, UiTheme.Dim, v);
         var pw = new LineEdit { Secret = true, PlaceholderText = saved ? "saved login: leave empty" : $"at least {OnlineCfg.MinPassword} characters", Editable = can, CustomMinimumSize = new Vector2(0, 36) }; v.AddChild(pw);
         var rem = new CheckBox { Text = "Remember me", ButtonPressed = _lnRemember, Disabled = !can, FocusMode = Control.FocusModeEnum.None }; v.AddChild(rem);
         var auto = new CheckBox { Text = "Log in automatically", ButtonPressed = _lnAuto && _lnRemember, Disabled = !can || !_lnRemember, FocusMode = Control.FocusModeEnum.None }; v.AddChild(auto);
@@ -369,8 +378,8 @@ public partial class Ui
         var li = Btn("Log in", () => Go("login")); li.Disabled = !can; li.CustomMinimumSize = new Vector2(140, 42); row.AddChild(li);
         var rg = Btn("Create account", () => Go("register")); rg.Disabled = !can; rg.CustomMinimumSize = new Vector2(170, 42); row.AddChild(rg);
         string msg = _lnBusy ? Net.AuthMsg : _lnMsg;
-        if (msg != "") Row(v, msg, _lnBusy ? UiTheme.Highlight : new Color(1f, .7f, .5f), 14).CustomMinimumSize = new Vector2(340, 0);
-        Row(v, "New here? Type your email and a password, then Create account.", UiTheme.Dim, 12).CustomMinimumSize = new Vector2(340, 0);
+        if (msg != "") Row(v, msg, _lnBusy ? UiTheme.Highlight : new Color(.82f, .38f, .32f), 14).CustomMinimumSize = new Vector2(340, 0);
+        Row(v, "New here? Type your email and a password, then Create account.", UiTheme.Dim, 14).CustomMinimumSize = new Vector2(340, 0);
     }
 
     /// <summary>op: login / register (with the password) or resume (with the saved login token).</summary>

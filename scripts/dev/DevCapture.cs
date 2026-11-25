@@ -282,6 +282,30 @@ public partial class DevCapture : Node
             case "ui:skills": Ui.I?.OpenSkills(); await Secs(.4f); break;
             case "ui:map": Ui.I?.OpenMap(); await Secs(.4f); break;
             case "ui:pause": Ui.I?.OpenPause(); await Secs(.4f); break;
+            case var u when u.StartsWith("ui:"):
+                {
+                    var ui = Ui.I; if (ui == null) break;
+                    var arg = u.IndexOf(':', 3) >= 0 ? u[(u.IndexOf(':', 3) + 1)..] : "";
+                    var nm = u[3..]; if (arg.Length > 0) nm = nm[..(nm.Length - arg.Length - 1)];
+                    switch (nm)
+                    {
+                        case "settings": ui.OpenSettings(); break;
+                        case "controls": ui.OpenControls(); break;
+                        case "journal": ui.OpenJournal(); break;
+                        case "attacks": ui.OpenAttacks(null); break;
+                        case "macros": ui.OpenMacros(); break;
+                        case "mods": ui.OpenMods(); break;
+                        case "shop": ui.OpenShop(arg.Length > 0 ? arg : "buy"); break;
+                        case "smith": ui.OpenSmith(); break;
+                        case "craft": ui.OpenCraft(arg.Length > 0 ? arg : "gear"); break;
+                        case "valor": ui.OpenValor(arg.Length > 0 ? arg : "gacha"); break;
+                        case "totals": ui.OpenTotals(); break;
+                        case "multiplayer": ui.OpenMultiplayer(); break;
+                        case "stash": ui.OpenStash(); break;
+                        case "create": ui.ShowCreate(); break;
+                    }
+                    await Secs(.4f); break;
+                }
         }
     }
 
