@@ -68,3 +68,33 @@ Links: [[enemies]] [[combat]] [[arena]] [[ui]] [[loot]] [[player]]
 - For the duel/trade agent: build duel stats from `PetState.Stats()`, moves from `PetDb.Skill(id)` (power/acc/cost/priority/
   effect/turns), element wheel on `Elem()`; trade by `ToJson()`/`FromJson()` (give a new Id on receipt). Arena: PetWorld does not
   spawn pets while `Arenas.Active`.
+
+## Implemented (duels + trading) — 2026-11-26
+- data/pets.json "duel" (`_help`): damage formula numbers, element wheel (fire>poison>lightning>frost>fire, holy<->shadow; x1.5 /
+  x0.67, texts "Searing!"/"Resisted..."), statuses (dot/skip/spdMul/dmgMul/takenMul/noSwap), focus, items (Soul Draught x2, Ember of
+  Return x1), trainer names, species pool, 8 ladder ranks (size, lvl offset, valor/gold/petXp, cube+chance, gearChance, potions, smart),
+  "trader" (Odile fee/levelSpread/rarityFee), "trade" limits (maxPets 3, maxPetJson 4096, maxGold).
+- scripts/SoulDuel.cs: `DuelDb` (data access, `Elem(atk, def)`), `DuelPet`, `DuelSide`, `SoulDuel` (CanvasLayer; `Begin(teamIds, dev)`,
+  `Stop()`, `Active`, `Choose(kind, arg)`, `DevChoose(i)`, `Phase`). Turn = queued timed steps (Perform/Land per actor, EndOfTurn,
+  AfterKo). Order: swap/item first, skill priority, spd (chill halves). AI: potion/heal when low, swaps when out-matched, scores moves
+  by power x acc x element + status value; `smart` = chance it plays its best move. Models: Enemy PetBody per side facing each other,
+  own Camera3D (restored at end), hero frozen behind its pet (Player.Frozen), HUD hidden, trainer Npc. UI: cards (HP bar, focus pips,
+  statuses, team pips, items), message line, bottom command panel (2x2 skills with element arrows, Swap/Item/Forfeit, sub-lists, B/Esc back;
+  buttons take pad focus), result panel (Next duelist / Leave). Rewards (not in dev runs): valor, gold, pet xp (half for KO'd), cube,
+  pet gear; PlayerStats `DuelRank` (+1 per win, last rank repeats), `SoulWins`, `SoulLosses`; loss gives 25% xp.
+- Arenas.Start(mode, team, dev): mode "souls" (Tick skips it; End stops the duel). Entry: Kael's dialogue, "Soul Duels" button in the
+  Pets menu, pause menu entry -> `Ui.OpenSoulTeam()` (team picker, ladder preview). Totals shows the ladder.
+- scripts/PetTrade.cs: `PetTrade` (session state, `Pack`/`Unpack` = auction hook for F-37, `StartNpc`, `Toggle`, `SetGold`, `Confirm`,
+  `Cancel`, `Prepare` escrow, `Done`, `Cancelled`, `RestoreEscrow`), Net partial (host sessions; RPCs R_TradeReq/Ask/Answer/Open/Offer/
+  View/Ok/Prep/Ready/Done/Cancel/End; two-phase: both sides move their offer into PlayerStats.TradeEscrow, then each gets the other's;
+  any offer change bumps Rev and clears confirms; payload size-checked on the host), `Ui.OpenPetTrade()` two-sided window.
+  Entry: E on a friend -> "Offer a pet trade"; Pets menu shows "Trade: <name>" while one is open. Online: the server is the host, so
+  the same RPCs run there (it relays; it does not check offers against the stored account saves). Escrow comes back on cancel,
+  partner leaving, disconnect (Net.Shutdown) or on the next tick after a crash (PetWorld.Tick). Protocol 14.
+- Offline: Odile, Pet Trader (data/quests.json npc "odile", role "pettrader", by the arena): one pet for a pool pet of the same rarity,
+  level +-1, fixed per visit, fee; the given pet's gear returns to the pack.
+- Friends' pets: PeerInfo.Pet "species|level|nick" (roster, re-sent when it changes); RemoteHero spawns a PetBody follower behind the
+  friend (hidden while mounted/dead, name tag).
+- Captures: viewpoints "souls_duel" (DevCapture "souls:start") and "pet_trade" ("ui:pettrade", Odile with a pet offered).
+- Not done / untested: MP trade never run (no MP tests by user preference); a disconnect in the instant between "ready" and "done" could
+  leave a pet on both sides (escrow is returned on disconnect); auction listing (F-37) only has the Pack/Unpack hook.

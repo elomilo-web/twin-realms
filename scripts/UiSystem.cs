@@ -43,7 +43,7 @@ public partial class Ui
         Big("Multiplayer" + (Net.Active ? $"  ({Net.I!.Players.Count} online)" : ""), OpenMultiplayer);
         foreach (var (label, key, open) in new (string, string, Action)[] { ("Character", "", OpenCharacterPanel), ("Pack", K(Inputs.Pack), OpenPack), ("Journal", K(Inputs.Journal), OpenJournal),
                                                                              ("Map", K(Inputs.Map), OpenMap), ("Skill tree", K(Inputs.Tree), OpenTree), ("Skills", K(Inputs.SkillsUi), OpenSkills),
-                                                                             ("Attacks", K(Inputs.AttacksUi), () => OpenAttacks(null)), ("Modifiers", K(Inputs.ModsUi), OpenMods), ("Pets", K(Inputs.PetsUi), () => OpenPets(null)) })
+                                                                             ("Attacks", K(Inputs.AttacksUi), () => OpenAttacks(null)), ("Modifiers", K(Inputs.ModsUi), OpenMods), ("Pets", K(Inputs.PetsUi), () => OpenPets(null)), ("Soul Duels", "", OpenSoulTeam) })
             Big(key == "" ? label : $"{label}  [{key}]", open);
         Big("Settings", OpenSettings);
         // Unstuck: back to the world spawn point (Oakhaven). Asks once, then a short cooldown so it is not a free escape every few seconds

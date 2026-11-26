@@ -155,7 +155,7 @@ public partial class HudCanvas : Control
 
     public override void _Draw()
     {
-        var p = Player.Instance; if (p == null || LairIntro.Active) return;   // the HUD steps aside during the boss intro
+        var p = Player.Instance; if (p == null || LairIntro.Active || SoulDuel.Active) return;   // the HUD steps aside during the boss intro and Soul Duels
         var d = Game.D; var sz = Size; float u = sz.X / 100f; int fs(float k) => Mathf.Max(11, (int)(u * k));
         var pad = u * 1.4f;
         // hurt vignette: red edges flash when hit and pulse slowly below 35% health

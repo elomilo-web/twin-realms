@@ -30,7 +30,10 @@ public partial class Ui
             var b = Btn($"{Cubes.Count(c.Id)}", () => { Game.D.CubeSel = cd.Id; OpenPets(null); }, true); b.TooltipText = $"{c.Name}: x{c.Mul:0.#} catch (bosses x{c.BossMul:0.#}). Throw with {Inputs.KeyOf(Inputs.ThrowCube)}";
             b.AddThemeColorOverride("font_color", on ? Gold : c.Col.Lightened(.2f)); b.CustomMinimumSize = new Vector2(50, 30); cubes.AddChild(b);
         }
-        var ls = Scroll(left, 470); ls.HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled; var lv = Inner(ls); lv.AddThemeConstantOverride("separation", 4);
+        var duelRow = new HBoxContainer(); duelRow.AddThemeConstantOverride("separation", 4); left.AddChild(duelRow);
+        var sdb = Btn("Soul Duels", () => OpenSoulTeam(), true); sdb.TooltipText = $"Turn-based pet duels in the Crimson Arena. Ladder: {DuelDb.RankTitle(d.DuelRank)} next."; sdb.Disabled = d.Pets.Count == 0; duelRow.AddChild(sdb);
+        if (PetTrade.Open) duelRow.AddChild(Btn($"Trade: {PetTrade.PartnerName}", OpenPetTrade, true));
+        var ls = Scroll(left, 430); ls.HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled; var lv = Inner(ls); lv.AddThemeConstantOverride("separation", 4);
         if (d.Pets.Count == 0) Empty(lv, $"No bound souls yet. Weaken a monster and throw a Soul Cube ({Inputs.KeyOf(Inputs.ThrowCube)}). Brynn sells cubes; the craft bench makes them.");
         var act = d.Pets.Find(p => p.Id == d.ActivePet);
         if (act != null) { Header("Companion", lv); PetEntry(lv, act); }
@@ -80,6 +83,43 @@ public partial class Ui
         if (_petTab == "gear") PetGear(rv, cur);
         else if (_petTab == "orders") PetOrders(rv, cur);
         else PetSkills(rv, cur);
+    }
+
+    // ---- Soul Duels: pick up to three pets, see the next Duelist on the ladder, enter the pit (Arenas.Start("souls"))
+    readonly List<string> _duelTeam = new();
+    public void OpenSoulTeam()
+    {
+        var d = Game.D; _duelTeam.RemoveAll(id => !d.Pets.Exists(p => p.Id == id));
+        if (_duelTeam.Count == 0)
+        {   // default: the companion, then the highest levels
+            if (d.Pets.Exists(p => p.Id == d.ActivePet)) _duelTeam.Add(d.ActivePet);
+            foreach (var p in d.Pets.OrderByDescending(p => p.Level)) if (_duelTeam.Count < 3 && !_duelTeam.Contains(p.Id)) _duelTeam.Add(p.Id);
+        }
+        var v = Frame("soulteam", "Soul Duels", new Vector2(980, 600), OpenSoulTeam);
+        int rk = Math.Clamp(d.DuelRank, 0, DuelDb.RankCount - 1); var r = DuelDb.Rank(rk);
+        Row(v, $"Ladder: next up a {DuelDb.RankTitle(rk)} (rank {rk + 1}/{DuelDb.RankCount}) with {JsonUtil.F(r, "size", 1):0} pet(s), about {(JsonUtil.F(r, "lvl") >= 0 ? "+" : "")}{JsonUtil.F(r, "lvl"):0} levels over your team.   Won {d.SoulWins}, lost {d.SoulLosses}.", Parch, 16);
+        Row(v, $"Win: {JsonUtil.F(r, "valor"):0} valor, {JsonUtil.F(r, "gold"):0} gold, {JsonUtil.F(r, "petXp"):0} xp for each pet, maybe a {PetDb.Cube(JsonUtil.S(r, "cube", "iron")).Name} or pet gear. Elements: fire > venom > storm > frost > fire; holy and shadow sear each other.", Dim, 14);
+        Header($"Your team ({_duelTeam.Count}/3)", v);
+        var sc = Scroll(v, 360); sc.HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled; var lv = Inner(sc); lv.AddThemeConstantOverride("separation", 4);
+        foreach (var p in d.Pets.OrderByDescending(p => _duelTeam.Contains(p.Id)).ThenByDescending(p => p.Level))
+        {
+            var pp = p; bool on = _duelTeam.Contains(p.Id); var sp = p.Sp(); var st = p.Stats();
+            string mv = string.Join(", ", p.Skills.Select(s => PetDb.Skill(s)?.Name ?? s));
+            AddRow(lv, $"{(on ? $"[{_duelTeam.IndexOf(p.Id) + 1}]  " : "")}{p.Name()}  Lv{p.Level}  {(sp.Elem == "physical" ? "" : sp.Elem + " ")}{sp.Name}   HP {st.Hp} ATK {st.Atk} DEF {st.Def} MAG {st.Mag} SPD {st.Spd}\n{mv}",
+                on ? Gold : sp.Elem == "physical" ? Parch : Dmg.TypeColor(sp.Elem).Lerp(Parch, .4f), on ? "Remove" : "Add", () =>
+                {
+                    if (_duelTeam.Contains(pp.Id)) _duelTeam.Remove(pp.Id); else if (_duelTeam.Count < 3) _duelTeam.Add(pp.Id); else { Note("Three pets at most", new Color(1, .6f, .5f)); return; }
+                    OpenSoulTeam();
+                }, on || _duelTeam.Count < 3);
+        }
+        var bot = new HBoxContainer(); bot.AddThemeConstantOverride("separation", 12); v.AddChild(bot);
+        var go = Btn("Enter the pit", () =>
+        {
+            if (Dungeon.Active) { Note("Leave the dungeon first", new Color(1, .6f, .5f)); return; }
+            var team = new List<string>(_duelTeam); Close(); Arenas.Start("souls", team);
+        });
+        go.Disabled = _duelTeam.Count == 0 || Dungeon.Active; go.CustomMinimumSize = new Vector2(240, 42); bot.AddChild(go);
+        var back = Btn("Back to pets", () => OpenPets(null)); back.CustomMinimumSize = new Vector2(200, 42); bot.AddChild(back);
     }
 
     void PetEntry(Node parent, PetState p)

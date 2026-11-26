@@ -283,6 +283,7 @@ public static class PetWorld
     public static void Tick(Player p, float dt)
     {
         var d = Game.D;
+        if (!PetTrade.Open && (d.TradeEscrow.Count > 0 || d.TradeEscrowGold > 0)) PetTrade.RestoreEscrow();   // a trade cut off (crash, quit): its pets come home
         foreach (var pet in d.Pets) if (pet.KoT > 0) { pet.KoT -= dt; if (pet.KoT <= 0) { pet.KoT = 0; pet.HpFrac = 1; if (pet.Id == d.ActivePet) Ui.Note($"{pet.Name()} has recovered", new Color(.6f, 1f, .7f)); } }
         _heroFoeT -= dt; if (_heroFoeT <= 0) HeroFoe = null;
         var a = Active; bool valid = Out != null && GodotObject.IsInstanceValid(Out);

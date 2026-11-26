@@ -151,5 +151,53 @@
       { "slot": "pet_armor",  "rar": 2, "cost": { "hide": 6, "ironscrap": 5, "runeshard": 2 } },
       { "slot": "pet_charm",  "rar": 2, "cost": { "arcanedust": 6, "runeshard": 3, "crystal": 1 } }
     ]
+  },
+  "duel": {
+    "_help": [
+      "Soul Duels (scripts/SoulDuel.cs): turn-based pet fights in the Crimson Arena (Arenas.Start(\"souls\")). Pick up to 3 pets; face a generated Duelist of the Pit.",
+      "Each turn both sides pick: a skill (pets.json skills: power, acc, cost = focus, priority, effect/chance/turns), swap, an item, or forfeit.",
+      "Order: swaps and items first, then skill priority, then spd (chill halves spd). Damage = ((levelK x level + 2) x power x A / D / 50 + 2) x element x random(rollMin..1) x crit x buffs.",
+      "  A = atk for physical skills, mag for elemental ones; D = def (elemental: average of def and mag). Pet hp is stats.hp x hpMul so duels last a few turns.",
+      "Element wheel: \"wheel\" maps an element to the one it beats (x strong); the reverse is resisted (x weak); the same element (not physical) is resisted too. holy and shadow beat each other.",
+      "Statuses (\"status\"): dot = share of max hp lost at turn end; skip = chance to lose the action; spdMul; dmgMul (damage dealt); takenMul (damage taken); noSwap.",
+      "Focus: start, max, regen per turn. A pet with no affordable skill uses \"fallback\".",
+      "Ladder (\"ranks\"): PlayerStats.DuelRank is the rank you fight next; a win moves you up one (the last rank repeats). size = trainer team size, lvl = levels over your team's average,",
+      "  valor/petXp/gold rewards, cube = tier given with cubeChance, gearChance = pet gear roll, potions = items the trainer carries, smart 0..1 = how often the AI plays its best move.",
+      "Trainer names: first + last names, title from the rank. pool: species the Duelists bring (also the Pet Trader's stock).",
+      "Pet Trader (\"trader\", Odile by the arena; scripts/PetTrade.cs): swaps one pet for a random pool pet of the same rarity, level +-levelSpread, for fee = (feeBase + feePerLevel x level) x rarityFee.",
+      "Trading between players (\"trade\"): at most maxPets pets a side, each pet's JSON at most maxPetJson characters, gold at most maxGold."
+    ],
+    "hpMul": 0.6, "dmgDiv": 50, "levelK": 0.4, "critChance": 0.06, "critMul": 1.5, "rollMin": 0.85, "strong": 1.5, "weak": 0.67,
+    "strongText": "Searing!", "weakText": "Resisted...", "missText": "Missed",
+    "focusStart": 2, "focusMax": 6, "focusRegen": 1, "fallback": "strike",
+    "items": { "potion": { "name": "Soul Draught", "count": 2, "heal": 0.5 }, "revive": { "name": "Ember of Return", "count": 1, "heal": 0.5 } },
+    "wheel": { "fire": "poison", "poison": "lightning", "lightning": "frost", "frost": "fire", "holy": "shadow", "shadow": "holy" },
+    "status": {
+      "burn":   { "name": "Burning",  "dot": 0.07, "color": "#ff8040" },
+      "poison": { "name": "Poisoned", "dot": 0.09, "color": "#8fd14f" },
+      "bleed":  { "name": "Bleeding", "dot": 0.06, "color": "#d04040" },
+      "chill":  { "name": "Chilled",  "spdMul": 0.5, "color": "#8fd0ff" },
+      "stun":   { "name": "Stunned",  "skip": 1.0, "color": "#ffe070" },
+      "shock":  { "name": "Shocked",  "skip": 0.25, "color": "#c0a0ff" },
+      "root":   { "name": "Rooted",   "noSwap": true, "color": "#a0c060" },
+      "weaken": { "name": "Weakened", "dmgMul": 0.75, "color": "#a080a0" },
+      "judged": { "name": "Judged",   "takenMul": 1.2, "color": "#fff0b0" }
+    },
+    "pool": ["wolf", "boar", "giantSpider", "viper", "flameSkull", "ghost", "wraith", "myconid", "goleling", "kitsune", "raptor", "wyvern", "slime", "toxicBlob",
+             "giantWasp", "giantCrab", "skeleton", "darkMage", "archer", "yeti", "deer", "hound", "earthGolem", "cactusFiend", "giantRat", "spikeSlime"],
+    "firstNames": ["Vesna", "Corvin", "Ilse", "Hadrian", "Mora", "Tobiah", "Rook", "Sabeline", "Grisk", "Aldous", "Neve", "Bram", "Ottilie", "Jory", "Maelis", "Quill"],
+    "lastNames": ["Ashgrave", "of the Pit", "Hollowmere", "Blackwick", "Thornfield", "the Chained", "Duskwater", "Ironvein", "Gallowmark", "the Pale"],
+    "ranks": [
+      { "title": "Pit Novice",          "size": 1, "lvl": -2, "valor": 3,  "petXp": 40,  "gold": 30,  "cube": "iron",    "cubeChance": 0.6,  "gearChance": 0.05, "potions": 0, "smart": 0.3 },
+      { "title": "Sand Biter",          "size": 2, "lvl": -1, "valor": 4,  "petXp": 60,  "gold": 45,  "cube": "iron",    "cubeChance": 0.6,  "gearChance": 0.08, "potions": 0, "smart": 0.45 },
+      { "title": "Chain Keeper",        "size": 2, "lvl": 0,  "valor": 6,  "petXp": 90,  "gold": 60,  "cube": "silver",  "cubeChance": 0.5,  "gearChance": 0.1,  "potions": 1, "smart": 0.55 },
+      { "title": "Cage Warden",         "size": 3, "lvl": 0,  "valor": 8,  "petXp": 120, "gold": 80,  "cube": "silver",  "cubeChance": 0.5,  "gearChance": 0.14, "potions": 1, "smart": 0.65 },
+      { "title": "Bone Shepherd",       "size": 3, "lvl": 1,  "valor": 10, "petXp": 160, "gold": 110, "cube": "runed",   "cubeChance": 0.45, "gearChance": 0.18, "potions": 1, "smart": 0.75 },
+      { "title": "Soulbinder",          "size": 3, "lvl": 2,  "valor": 13, "petXp": 210, "gold": 150, "cube": "runed",   "cubeChance": 0.5,  "gearChance": 0.22, "potions": 2, "smart": 0.85 },
+      { "title": "Reliquary Lord",      "size": 3, "lvl": 3,  "valor": 17, "petXp": 270, "gold": 200, "cube": "abyssal", "cubeChance": 0.4,  "gearChance": 0.28, "potions": 2, "smart": 0.92 },
+      { "title": "Champion of the Pit", "size": 3, "lvl": 5,  "valor": 22, "petXp": 340, "gold": 260, "cube": "abyssal", "cubeChance": 0.5,  "gearChance": 0.35, "potions": 2, "smart": 1.0 }
+    ],
+    "trader": { "name": "Odile", "feeBase": 40, "feePerLevel": 8, "levelSpread": 1, "rarityFee": { "common": 1, "uncommon": 1.5, "rare": 2.5, "epic": 4, "boss": 8, "raid": 12 } },
+    "trade": { "maxPets": 3, "maxPetJson": 4096, "maxGold": 1000000 }
   }
 }

@@ -90,7 +90,8 @@ public partial class Ui
         var v = Frame("totals", "All bonuses", new Vector2(620, 600), OpenTotals);
         Header($"{Races.Get(Game.D.Race).Name} {Classes.Get(Game.D.Class).Name}", v);
         Row(v, $"Skill tree ({Game.D.Tree.Count} nodes) + race + class + active buffs", Dim, 14);
-        var sc = Scroll(v, 440); sc.HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled; var tl = Inner(sc); tl.AddThemeConstantOverride("separation", 4);
+        { var dd = Game.D; int rk = Math.Clamp(dd.DuelRank, 0, DuelDb.RankCount - 1); Row(v, $"Soul Duels ladder: rank {rk + 1}/{DuelDb.RankCount}, next a {DuelDb.RankTitle(rk)}   (won {dd.SoulWins}, lost {dd.SoulLosses})", GoldC, 14); }
+        var sc = Scroll(v, 420); sc.HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled; var tl = Inner(sc); tl.AddThemeConstantOverride("separation", 4);
         var keys = new List<string>(); foreach (var k in TreeDb.Known) if (Mathf.Abs(Game.TS[k]) > .001f) keys.Add(k); keys.Sort();
         if (keys.Count == 0) Empty(tl, "No bonuses yet. Spend points in the skill tree.");
         foreach (var k in keys) { var h = new HBoxContainer(); CardBox(tl).AddChild(h); Row(h, TreeDb.StatText(k, Game.TS[k]), Parch, 15).SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; }

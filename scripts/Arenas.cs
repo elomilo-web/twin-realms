@@ -28,18 +28,29 @@ public static class Arenas
     public static void Leave()
     {
         if (!Active) return;
-        string what = Mode == "waves" ? $"Left after wave {Wave - 1}" + (RunValor > 0 ? $", {RunValor} valor earned" : "") : $"Left the duel at round {Streak}";
+        string what = Mode == "waves" ? $"Left after wave {Wave - 1}" + (RunValor > 0 ? $", {RunValor} valor earned" : "") : Mode == "souls" ? $"Soul Duels: next up, a {DuelDb.RankTitle(Game.D.DuelRank)}" : $"Left the duel at round {Streak}";
         End(false); Ui.Banner("Crimson Arena", what);
     }
     static readonly Random Rn = new();
     static Vector3 Center => Builder.ArenaPos;
-    public static string Status => !Active ? "" : Mode == "waves" ? "Wave " + Wave + (_phase == "fight" ? "  -  foes left: " + Alive : "  -  get ready") : "Duel round " + Streak;
+    public static string Status => !Active ? "" : Mode == "souls" ? "Soul Duel" : Mode == "waves" ? "Wave " + Wave + (_phase == "fight" ? "  -  foes left: " + Alive : "  -  get ready") : "Duel round " + Streak;
 
-    public static void Start(string mode)
+    /// <summary>Starts a run: "waves", "duel" (the Shadow) or "souls" (Soul Duels: team = up to 3 pet ids; dev = a capture run, no rewards).</summary>
+    public static void Start(string mode, List<string>? team = null, bool dev = false)
     {
         var p = Player.Instance; if (p == null || Dungeon.Active) return;
+        if (Active) End(false);
         var at = World.OnGround(Center.X - 12, Center.Z, 0.5f);
-        if (p.GlobalPosition.DistanceTo(at) > 60f) LoadScreen.Cut("Crimson Arena", mode == "waves" ? "wave survival" : "shadow duel", "Raising the stands");   // from afar (a test, a bot): its blocks must stream in
+        if (p.GlobalPosition.DistanceTo(at) > 60f) LoadScreen.Cut("Crimson Arena", mode == "waves" ? "wave survival" : mode == "souls" ? "soul duels" : "shadow duel", "Raising the stands");   // from afar (a test, a bot): its blocks must stream in
+        if (mode == "souls")
+        {
+            World.ForceRealm(0); if (p.Mounted) p.ToggleMount(true);
+            Active = true; Mode = mode; Alive = 0; RunValor = 0; Builder.SetGate(false); PetWorld.Despawn();
+            p.Teleport(at, -Mathf.Pi / 2); p.Revive(p.GlobalPosition);
+            SoulDuel.Begin(team ?? new List<string>(), dev);
+            LoadScreen.Lift(() => { Ui.Banner("Soul Duels", "the Duelists of the Pit await"); Sfx.Play("roar"); }, .6f, 6f);
+            return;
+        }
         World.ForceRealm(0); if (p.Mounted) p.ToggleMount(true);
         Active = true; Mode = mode; Wave = 1; Streak = 1; Alive = 0; RunValor = 0; _phase = "prep"; _delay = 3f;
         Builder.SetGate(false);
@@ -52,6 +63,7 @@ public static class Arenas
     public static void End(bool died)
     {
         if (!Active) return;
+        SoulDuel.Stop();
         foreach (var n in Game.Root!.GetTree().GetNodesInGroup("enemies")) if (n is Enemy e && e.Arena) e.QueueFree();
         foreach (var n in Game.Root.GetTree().GetNodesInGroup("projectiles")) n.QueueFree();
         Active = false; Alive = 0; Builder.SetGate(true);
@@ -69,7 +81,7 @@ public static class Arenas
 
     public static void Tick(float dt)
     {
-        if (!Active) return; var p = Player.Instance; if (p == null || p.Dead) return;
+        if (!Active || Mode == "souls") return; var p = Player.Instance; if (p == null || p.Dead) return;   // Soul Duels run themselves (SoulDuel.cs)
         if (_phase == "prep")
         {
             _delay -= dt; if (_delay > 0) return;

@@ -170,6 +170,7 @@ public partial class Ui
         bool party = net.SameParty(Net.MyId, peer);
         var inv = Btn(party ? "Already in your party" : "Invite to party", () => { net.Invite(peer); Note("Invite sent", Gold); Close(); }); inv.Disabled = party; v.AddChild(inv);
         var du = Btn("Challenge to a duel", () => { net.Challenge(peer); Note("Challenge sent", Gold); Close(); }); du.Disabled = net.Duel != null; v.AddChild(du);
+        var tr = Btn(PetTrade.Open ? "Already trading" : "Offer a pet trade", () => { net.TradeRequest(peer); Note("Trade request sent", Gold); Close(); }); tr.Disabled = PetTrade.Open || Game.D.Pets.Count == 0 && Game.D.Gold <= 0; v.AddChild(tr);
         v.AddChild(Btn("Multiplayer menu", OpenMultiplayer));
     }
 

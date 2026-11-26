@@ -53,6 +53,10 @@ public class PlayerStats
     // Pets (Bound Souls, scripts/PetDb.cs): every bound soul (party + Soul Box), the one out in the world, Soul Cubes by tier and the tier thrown. Older saves load with none.
     public List<PetState> Pets = new(); public string ActivePet = "";
     public Dictionary<string, int> Cubes = new(); public string CubeSel = "iron";
+    // Soul Duels (scripts/SoulDuel.cs): the ladder rank fought next (index into pets.json duel.ranks), duels won and lost. Pet trading escrow
+    // (PetTrade.cs): pets taken out for a trade in flight (put back if it falls through). Older saves load with none.
+    public int DuelRank = 0, SoulWins = 0, SoulLosses = 0;
+    public List<PetState> TradeEscrow = new(); public int TradeEscrowGold = 0;
 
     // ---- derived stats (methods so they are not serialised)
     static TreeStats TS => Game.TS;

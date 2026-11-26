@@ -233,6 +233,11 @@ public partial class Ui : CanvasLayer
         {
             DlgOpt(v, ++k, "Wave Survival", () => { Close(); Arenas.Start("waves"); });
             DlgOpt(v, ++k, "Shadow Duel (fight your own double)", () => { Close(); Arenas.Start("duel"); });
+            if (!Arenas.Active) DlgOpt(v, ++k, $"Soul Duels (your pets against the Duelists of the Pit; next: {DuelDb.RankTitle(d.DuelRank)})", () => { if (d.Pets.Count == 0) Say(n, "No bound souls? Catch a monster in a Soul Cube first, then come back.", ("Back", () => Talk(n))); else OpenSoulTeam(); });
+        }
+        if (n.Role == "pettrader")
+        {
+            DlgOpt(v, ++k, "Trade a pet", () => { PetTrade.StartNpc(); OpenPetTrade(); });
         }
         DlgOpt(v, ++k, "Farewell", Close);
     }

@@ -77,6 +77,41 @@ public partial class RemoteHero : Node3D, IDamageable, IInteractable
         bool party = Net.I != null && Net.I.SameParty(Net.MyId, Peer), duel = Net.I?.Duel is { } d && (d.A == Peer || d.B == Peer);
         _tag.Text = $"{Titles.WithTitle(p.Name, p.Title)}  Lv {p.Level}" + (party ? "  [party]" : ""); _title = p.Title;
         _tag.Modulate = duel ? new Color(1f, .55f, .4f) : party ? new Color(.55f, 1f, .6f) : new Color(.75f, .9f, 1f);
+        SetPet(p.Pet);
+    }
+
+    // ---- the friend's companion: their pet's model (an Enemy PetBody, no AI) trotting behind them; from PeerInfo.Pet "species|level|nick"
+    string _petSig = ""; Node3D? _pet; Enemy? _petBody; Label3D? _petTag; float _petYaw, _petSide = 1;
+    void SetPet(string sig)
+    {
+        if (sig == _petSig) return; _petSig = sig;
+        if (_pet != null && IsInstanceValid(_pet)) _pet.QueueFree(); _pet = null; _petBody = null; _petTag = null;
+        var parts = sig.Split('|'); if (sig == "" || parts.Length < 2) return;
+        string species = parts[0]; int.TryParse(parts[1], out int lvl); string nick = parts.Length > 2 ? parts[2] : "";
+        var sp = PetDb.Species(species);
+        _pet = new Node3D { Name = "FriendPet", TopLevel = true }; AddChild(_pet); _pet.GlobalPosition = GlobalPosition - Basis.Z * -2f;
+        var vis = new Node3D { Scale = Vector3.One * sp.PetScale }; _pet.AddChild(vis);
+        _petBody = new Enemy { Type = species, PetBody = true, Level = Mathf.Max(1, lvl), AnyRealm = true }; vis.AddChild(_petBody);
+        _petTag = new Label3D { Text = $"{(nick != "" ? nick : sp.Name)}  Lv{lvl}", FontSize = 22, OutlineSize = 5, PixelSize = .005f, Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, Modulate = new Color(.65f, .95f, .7f), VisibilityRangeEnd = 30 };
+        _pet.AddChild(_petTag); _petTag.Position = new Vector3(0, Mathf.Max(.8f, _petBody.HeightM() * sp.PetScale) + .35f, 0);
+        _petSide = (Peer & 1) == 0 ? 1 : -1;
+    }
+    void PetFollow(float dt)
+    {
+        if (_pet == null || !IsInstanceValid(_pet) || _petBody == null) return;
+        _pet.Visible = Visible && !Dead && !(_p != null && _p[30] > .5f);
+        if (!_pet.Visible) return;
+        var f = new Vector3(-Mathf.Sin(_yaw), 0, -Mathf.Cos(_yaw)); var side = f.Cross(Vector3.Up) * _petSide;
+        var goal = GlobalPosition - f * 2.6f + side * 1.4f; goal.Y = World.GroundAt(goal.X, goal.Z);
+        if (Mathf.Abs(goal.Y - GlobalPosition.Y) > 3f) goal.Y = GlobalPosition.Y;   // a bridge, a dungeon floor: stay at the hero's height
+        var at = _pet.GlobalPosition; var to = goal - at; float dist = new Vector2(to.X, to.Z).Length();
+        if (dist > 25f) { _pet.GlobalPosition = goal; return; }
+        float sp = dist > .6f ? Mathf.Min(dist * 3f, 11f) : 0;
+        var mv = dist > .01f ? new Vector3(to.X, 0, to.Z) / dist * sp : Vector3.Zero;
+        _pet.GlobalPosition = new Vector3(at.X + mv.X * dt, Mathf.Lerp(at.Y, goal.Y, 1f - Mathf.Exp(-10f * dt)), at.Z + mv.Z * dt);
+        var face = sp > .1f ? mv : f; _petYaw = Mathf.LerpAngle(_petYaw, Util.YawTo(face.X, face.Z), 1f - Mathf.Exp(-8f * dt));
+        _pet.Rotation = new Vector3(0, _petYaw, 0);
+        _petBody.PetVel = mv / Mathf.Max(.25f, PetDb.Species(_petBody.Type).PetScale);
     }
 
     public void Push(float[] p)
@@ -91,7 +126,9 @@ public partial class RemoteHero : Node3D, IDamageable, IInteractable
         // drawn when we are both in the overworld or on the same floor of our party's dungeon (private dungeons and the arena are solo)
         bool show = _p != null && Zone == Net.MyZone && (Zone == 0 || Zone >= 1000);
         if (Visible != show) Visible = show;
+        if (_pet != null && IsInstanceValid(_pet) && !show) _pet.Visible = false;
         if (!show || _p == null) return;
+        PetFollow(dt);
         var p = _p; float k = 1f - Mathf.Exp(-14f * dt);
         var before = GlobalPosition; GlobalPosition = GlobalPosition.Lerp(_to, k);
         if (Titles.Get(_title)?.Feathers == true && !Dead) FeatherTrail.Tick(ref _featherT, GlobalPosition, new Vector2(GlobalPosition.X - before.X, GlobalPosition.Z - before.Z).Length() / Mathf.Max(dt, .001f), dt);   // Felled Angel

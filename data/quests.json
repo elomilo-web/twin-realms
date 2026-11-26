@@ -232,6 +232,16 @@
    ]
   },
   {
+   "id": "odile",
+   "name": "Odile, Pet Trader",
+   "x": 47,
+   "z": 30,
+   "role": "pettrader",
+   "lines": [
+    "Every cube hums with a different soul. Bring me one, I will find you another."
+   ]
+  },
+  {
    "id": "sera",
    "name": "Sera, Valor Quartermaster",
    "outfit": "arenaMaster",

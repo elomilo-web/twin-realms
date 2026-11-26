@@ -392,7 +392,9 @@ public partial class DevCapture : Node
             if (scene != "title") { Ui.I?.Close(); if (Ui.I != null) Ui.I.Visible = false; }
             RestoreKit(); Player.BuildMode = false;
             foreach (var sc in GetTree().GetNodesInGroup("soulcubes")) if (sc is Node scn) scn.QueueFree();   // a cube still shaking must not bind into the real save
+            if (PetTrade.Open) PetTrade.Cancel(false);
             if (_petsBak != null) { var dd = Game.D; dd.Pets = _petsBak.Value.pets; dd.ActivePet = _petsBak.Value.act; dd.Cubes = _petsBak.Value.cubes; _petsBak = null; PetWorld.Despawn(); }
+            if (Arenas.Active && Arenas.Mode == "souls") Arenas.Leave();   // after the real pets are back (leaving saves)
             if (action.StartsWith("padnav:")) Inputs.SetUsingPad(false);
         }
         _report.Add(entry);
@@ -449,6 +451,14 @@ public partial class DevCapture : Node
             await Secs(.6f); return;
         }
         if (action.StartsWith("padnav:")) { await PadNav(action[7..]); return; }
+        if (action == "souls:start")
+        {   // a Soul Duel with the view's pets (no rewards, no saving); the picture lands after the first turn's first attack
+            Arenas.Start("souls", Game.D.Pets.Take(3).Select(p => p.Id).ToList(), true); await LoadDone();
+            for (int i = 0; i < 300 && !(SoulDuel.I is { Phase: "command" }); i++) await Frames(2);
+            var sd = SoulDuel.I; if (sd == null) { Say("souls: no duel"); return; }
+            Say($"souls: {sd.Me.Active.Name} vs {sd.Foe.Active.Name} ({sd.Foe.Name}, {sd.Foe.Title})");
+            sd.DevChoose(0); await Secs(castWait); return;
+        }
         switch (action)
         {
             case "dodge": Input.ActionPress(Inputs.Roll); await Secs(.05f); Input.ActionRelease(Inputs.Roll); await Secs(.12f); break;
@@ -519,6 +529,7 @@ public partial class DevCapture : Node
                         case "stash": ui.OpenStash(); break;
                         case "create": ui.ShowCreate(); break;
                         case "pets": ui.OpenPets(null, arg.Length > 0 ? arg : "skills"); break;
+                        case "pettrade": PetTrade.DevStart(); ui.OpenPetTrade(); break;   // Odile's trade window with the first pet offered
                     }
                     await Secs(.4f); break;
                 }
