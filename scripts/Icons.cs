@@ -223,6 +223,7 @@ public static class Icons
             default:
             {
                 // scraps and other materials without a drawing: a cut gem in the material's colour
+                if (GemDb.IconColor(id) != null) { GemDb.Draw(ci, id[4..], c, size * 1.15f, alpha); break; }   // "gem:<key>" (Gems.cs)
                 var gc = GatherDb.ColorOfName(id) ?? UiTheme.Accent;
                 Poly(ci, P(c, s, 0, -.7f, .6f, 0, 0, .7f, -.6f, 0), A(gc), ol);
                 Poly(ci, P(c, s, 0, -.7f, .3f, -.1f, 0, .05f, -.3f, -.1f), A(gc.Lightened(.45f) with { A = .8f }));

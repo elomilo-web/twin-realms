@@ -9,7 +9,19 @@ public partial class ItemSlot : Control
 {
     public Item? Item; public string Empty = ""; public bool Wide; public string IconId = ""; public int Count; public Color Tint = Colors.White;
     public event Action<bool>? Hover; public event Action<bool>? Clicked;
+    // gems (F-10, Gems.cs): Gem = a loose gem key drawn in the cell (Count = stack size); Socket = an empty gem socket ring;
+    // Selected = picked for the click flow (gamepad: pick a gem, then a socket). Drag: DragGem makes the cell a drag source;
+    // DropGem makes it a drop target for a dragged gem key.
+    public string Gem = ""; public bool Socket, Selected; public string DragGem = ""; public Action<string>? DropGem;
     bool _over;
+    public override Variant _GetDragData(Vector2 atPosition)
+    {
+        if (DragGem == "") return default;
+        var pv = new ItemSlot { Gem = DragGem, Size = new Vector2(48, 48), CustomMinimumSize = new Vector2(48, 48), Modulate = new Color(1, 1, 1, .85f) };
+        SetDragPreview(pv); return "gem|" + DragGem;
+    }
+    public override bool _CanDropData(Vector2 atPosition, Variant data) => DropGem != null && data.VariantType == Variant.Type.String && data.AsString().StartsWith("gem|");
+    public override void _DropData(Vector2 atPosition, Variant data) { if (DropGem != null && data.VariantType == Variant.Type.String) DropGem(data.AsString()[4..]); }
     static Font F => ThemeDB.FallbackFont;
 
     public override void _Ready()
@@ -53,6 +65,31 @@ public partial class ItemSlot : Control
                 DrawString(F, new Vector2(4, r.Size.Y - 5), $"{Item.Lvl}", HorizontalAlignment.Left, -1, 11, UiTheme.Dim.Lightened(.3f));
                 if (Item.Up > 0) DrawString(F, new Vector2(0, 14), $"+{Item.Up}", HorizontalAlignment.Right, r.Size.X - 4, 11, UiTheme.Highlight);
             }
+            // gem sockets: a dot per socket down the right edge, filled in the gem's colour
+            for (int i = 0; i < Item.Sockets; i++)
+            {
+                var p = new Vector2(r.Size.X - 6, (Wide ? 8 : 20) + i * 8); var g = GemDb.At(Item, i);
+                DrawCircle(p, 3.2f, new Color(0, 0, 0, .85f));
+                if (g != "") DrawCircle(p, 2.4f, GemDb.Col(g)); else DrawArc(p, 2.4f, 0, Mathf.Tau, 10, new Color(.75f, .65f, .45f, .8f), 1f, true);
+            }
+        }
+        else if (Gem != "")
+        {
+            var gc = GemDb.Col(Gem); Inset(r, gc, GemDb.Tier(Gem), true);
+            GemDb.Draw(this, Gem, r.GetCenter() + new Vector2(0, -2), r.Size.Y * .7f);
+            if (Count > 1)
+            {
+                DrawStringOutline(F, new Vector2(0, r.Size.Y - 4), $"{Count}", HorizontalAlignment.Right, r.Size.X - 4, 12, 3, Colors.Black);
+                DrawString(F, new Vector2(0, r.Size.Y - 4), $"{Count}", HorizontalAlignment.Right, r.Size.X - 4, 12, Colors.White);
+            }
+            string tn = GemDb.TierNames[GemDb.Tier(Gem)]; if (r.Size.Y >= 50) { DrawStringOutline(F, new Vector2(3, 12), tn[..Math.Min(4, tn.Length)], HorizontalAlignment.Left, -1, 10, 3, Colors.Black); DrawString(F, new Vector2(3, 12), tn[..Math.Min(4, tn.Length)], HorizontalAlignment.Left, -1, 10, UiTheme.Dim.Lightened(.3f)); }
+        }
+        else if (Socket)
+        {
+            Inset(r, new Color(.55f, .46f, .3f), 0, false);
+            var c = r.GetCenter(); float rr = Mathf.Min(r.Size.X, r.Size.Y) * .28f;
+            DrawCircle(c, rr, new Color(0, 0, 0, .75f)); DrawArc(c, rr, 0, Mathf.Tau, 24, new Color(.75f, .62f, .38f, .8f), 2f, true);
+            DrawArc(c, rr * .6f, 0, Mathf.Tau, 18, new Color(.75f, .62f, .38f, .3f), 1f, true);
         }
         else if (IconId != "")
         {
@@ -74,6 +111,7 @@ public partial class ItemSlot : Control
         {
             var gold = UiTheme.Highlight; DrawRect(r.Grow(1), gold, false, 3f); DrawRect(r.Grow(-2), gold with { A = .5f }, false, 1f); DrawRect(r, gold with { A = .1f });
         }
+        if (Selected) { DrawRect(r.Grow(1), new Color("e07ad0"), false, 3f); DrawRect(r, new Color(.88f, .48f, .82f, .12f)); }
         if (_over) { DrawRect(r, UiTheme.Accent, false, 2f); DrawRect(r.Grow(-2), new Color(1f, .9f, .6f, .35f), false, 1f); DrawRect(r, UiTheme.Accent with { A = .08f }); }
     }
 
@@ -113,6 +151,28 @@ public partial class ItemTip : PanelContainer
     void Rule() { _v.AddChild(new ColorRect { Color = UiTheme.Accent with { A = .45f }, CustomMinimumSize = new Vector2(0, 1), MouseFilter = MouseFilterEnum.Ignore }); }
     Label L(string t, int size, Color c) { var l = new Label { Text = t, MouseFilter = MouseFilterEnum.Ignore }; l.AddThemeFontSizeOverride("font_size", size); l.AddThemeColorOverride("font_color", c); _v.AddChild(l); return l; }
 
+    /// <summary>A loose gem: name, tier, what it raises, how many you have, what fusing and breaking it give.</summary>
+    public void ShowGem(string key, int have, Rect2 anchor, Vector2 screen)
+    {
+        foreach (var c in _v.GetChildren()) { _v.RemoveChild(c); c.QueueFree(); }
+        var col = GemDb.Col(key); int t = GemDb.Tier(key);
+        L(GemDb.Name(key), 17, col.Lightened(.25f));
+        L($"{GemDb.TierNames[t]} gem   tier {t + 1} of {GemDb.MaxTier + 1}" + (have > 0 ? $"   x{have}" : ""), 13, col.Lerp(UiTheme.Dim, .45f));
+        Rule();
+        foreach (var kv in GemDb.Stats(key)) L(TreeDb.StatText(kv.Key, kv.Value), 14, new Color(.85f, .95f, 1f));
+        Rule();
+        if (t < GemDb.MaxTier) L($"Fuse 3 + {GemDb.FuseDust(key)} Gem Dust: {GemDb.Name(GemDb.Next(key))} ({GemDb.StatText(GemDb.Next(key))})", 12, UiTheme.Dim);
+        L($"Breaks into {GemDb.DustOf(key)} Gem Dust.  Taking it out of a socket costs {GemDb.RemoveGold(key)} G", 12, UiTheme.Dim);
+        L("Drag it onto a socket, or click it and then a socket", 12, new Color("e3b04b"));
+        Place(anchor, screen);
+    }
+    void Place(Rect2 anchor, Vector2 screen)
+    {
+        Visible = true; ResetSize();
+        var sz = GetCombinedMinimumSize(); var pos = new Vector2(anchor.End.X + 10, anchor.Position.Y);
+        if (pos.X + sz.X > screen.X - 8) pos.X = anchor.Position.X - sz.X - 10;
+        pos.Y = Mathf.Clamp(pos.Y, 8, screen.Y - sz.Y - 8); Position = pos;
+    }
     public void Show(Item it, Item? worn, Rect2 anchor, Vector2 screen)
     {
         foreach (var c in _v.GetChildren()) { _v.RemoveChild(c); c.QueueFree(); }
@@ -149,6 +209,23 @@ public partial class ItemTip : PanelContainer
             L($"{set.Name}  ({n}/{set.Pieces.Count} worn)", 14, set.Col);
             foreach (var (need, mods) in set.Bonuses)
                 L($"  {need}: " + string.Join(", ", System.Linq.Enumerable.Select(mods, kv => TreeDb.StatText(kv.Key, kv.Value))), 12, n >= need ? set.Col.Lightened(.3f) : UiTheme.Dim);
+        }
+        if (it.Sockets > 0)
+        {
+            // gem sockets (F-10): each gem's stats, then the item's whole bonus with its gems
+            Rule(); var pink = new Color("e07ad0");
+            L($"Sockets  {GemDb.Filled(it)}/{it.Sockets}", 13, pink);
+            for (int i = 0; i < it.Sockets; i++) { var g = GemDb.At(it, i); L(g == "" ? "  o  empty socket" : $"  *  {GemDb.Name(g)}: {GemDb.StatText(g)}", 12, g == "" ? UiTheme.Dim : GemDb.Col(g).Lightened(.35f)); }
+            if (GemDb.Filled(it) > 0)
+            {
+                var tot = new Dictionary<string, float>();
+                if (it.Mods != null) foreach (var kv in it.Mods) tot[kv.Key] = tot.GetValueOrDefault(kv.Key) + kv.Value;
+                foreach (var gt in it.Gems ?? new()) foreach (var kv in gt) tot[kv.Key] = tot.GetValueOrDefault(kv.Key) + kv.Value;
+                L("Item total with gems", 13, UiTheme.Title);
+                var bs = new List<string>(); if (it.Dmg > 0) bs.Add($"{it.Dmg} damage"); if (it.Def > 0) bs.Add($"{it.Def} defense"); if (it.Hp > 0) bs.Add($"{it.Hp} health"); if (it.Mp > 0) bs.Add($"{it.Mp} mana"); if (it.Sp > 0) bs.Add($"{it.Sp * 100:0}% spell power");
+                if (bs.Count > 0) L("  " + string.Join(", ", bs), 12, UiTheme.Text);
+                foreach (var kv in tot) L("  " + TreeDb.StatText(kv.Key, kv.Value), 12, new Color(.85f, .95f, 1f));
+            }
         }
         Rule();
         if (worn == null && it.Slot != "") L("Nothing worn in this slot", 12, UiTheme.Dim);

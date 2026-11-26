@@ -1,0 +1,43 @@
+{
+  "_help": "Gems (focus F-10, scripts/Gems.cs). sockets: every rolled or crafted gear piece gets 1-4 sockets; weights = chance weight of 1,2,3,4 sockets, rarityShift: socket count i (0-based) of an item of rarity r weighs weights[i] x (1 + rarityShift x r x i), so rarer gear rolls more sockets. tiers: names low to high; dust = Gem Dust from breaking one gem of that tier; fuseDust = Gem Dust to fuse 3 of that tier into 1 of the next; removeGold = gold to take a gem of that tier out of its socket (the gem always comes back). types: one gem kind each; stat = the stat-table key it raises (docs: .devloop/systems/stats.md; str/dex/vit/mag = core attributes; {arg} is filled from arg: 'skill' = a skill id from data/skills.json -> skill_<id> = levels of that skill, 'school' = a school from 'schools' -> school_<tag> = levels of every skill with that tag or damage type, 'life' = a life skill from 'lifeSkills' -> life_<id> (read by F-24 life skills)); values = the amount per tier; weight = how often it drops or is cut. maxRankBonus: most skill levels gems can add to one skill. drop: chance per monster kill (dungeonChance inside dungeons, + perDepth per floor, bossChance for bosses); tierWeights = Chipped..Radiant weights, each tier r weighs tierWeights[r] x (1 + tierPerDepth x floor x r) so deeper floors drop better gems. cutDust = Gem Dust to cut a random Chipped gem at Crafting > Gems.",
+  "sockets": { "weights": [45, 30, 18, 7], "rarityShift": 0.25 },
+  "tiers": {
+    "names": ["Chipped", "Flawed", "Normal", "Flawless", "Perfect", "Radiant"],
+    "dust": [1, 3, 8, 20, 45, 100],
+    "fuseDust": [2, 4, 8, 15, 30],
+    "removeGold": [0, 5, 15, 40, 90, 200]
+  },
+  "maxRankBonus": 3,
+  "cutDust": 10,
+  "schools": ["fire", "frost", "lightning", "shadow", "holy", "poison", "physical", "spell", "melee", "bow"],
+  "lifeSkills": ["mining", "herbalism", "woodcutting", "fishing", "smithing", "alchemy", "cooking"],
+  "drop": { "chance": 0.03, "dungeonChance": 0.07, "perDepth": 0.004, "bossChance": 0.6, "tierWeights": [62, 26, 9, 2.5, 0.5, 0], "tierPerDepth": 0.06 },
+  "types": {
+    "ruby":       { "n": "Ruby",              "color": "#d8343a", "stat": "str",       "values": [1, 2, 4, 6, 9, 13],        "weight": 6 },
+    "topaz":      { "n": "Topaz",             "color": "#e8b23a", "stat": "dex",       "values": [1, 2, 4, 6, 9, 13],        "weight": 6 },
+    "emerald":    { "n": "Emerald",           "color": "#3fbf62", "stat": "vit",       "values": [1, 2, 4, 6, 9, 13],        "weight": 6 },
+    "sapphire":   { "n": "Sapphire",          "color": "#3f6fe0", "stat": "mag",       "values": [1, 2, 4, 6, 9, 13],        "weight": 6 },
+    "bloodstone": { "n": "Bloodstone",        "color": "#9a2a2a", "stat": "physicalP", "values": [2, 4, 6, 9, 13, 18],       "weight": 3 },
+    "embergarnet":{ "n": "Ember Garnet",      "color": "#ff6a2a", "stat": "fireP",     "values": [2, 4, 6, 9, 13, 18],       "weight": 3 },
+    "rimegarnet": { "n": "Rime Garnet",       "color": "#7fdcff", "stat": "frostP",    "values": [2, 4, 6, 9, 13, 18],       "weight": 3 },
+    "stormgarnet":{ "n": "Storm Garnet",      "color": "#c8a8ff", "stat": "lightningP","values": [2, 4, 6, 9, 13, 18],       "weight": 3 },
+    "venomjade":  { "n": "Venom Jade",        "color": "#7ae05a", "stat": "poisonP",   "values": [2, 4, 6, 9, 13, 18],       "weight": 3 },
+    "onyx":       { "n": "Onyx",              "color": "#6a4a9a", "stat": "shadowP",   "values": [2, 4, 6, 9, 13, 18],       "weight": 3 },
+    "sunstone":   { "n": "Sunstone",          "color": "#ffe27a", "stat": "holyP",     "values": [2, 4, 6, 9, 13, 18],       "weight": 3 },
+    "ironagate":  { "n": "Iron Agate",        "color": "#a9b0b8", "stat": "res_physical", "values": [2, 3, 5, 7, 10, 14],   "weight": 2 },
+    "emberagate": { "n": "Ashward Agate",     "color": "#e08050", "stat": "res_fire",  "values": [3, 5, 8, 11, 15, 20],      "weight": 2 },
+    "rimeagate":  { "n": "Frostward Agate",   "color": "#a0d8f0", "stat": "res_frost", "values": [3, 5, 8, 11, 15, 20],      "weight": 2 },
+    "stormagate": { "n": "Stormward Agate",   "color": "#b8a0e0", "stat": "res_lightning", "values": [3, 5, 8, 11, 15, 20],  "weight": 2 },
+    "venomagate": { "n": "Venomward Agate",   "color": "#9ad080", "stat": "res_poison","values": [3, 5, 8, 11, 15, 20],      "weight": 2 },
+    "shadeagate": { "n": "Shadeward Agate",   "color": "#8a70b0", "stat": "res_shadow","values": [3, 5, 8, 11, 15, 20],      "weight": 2 },
+    "dawnagate":  { "n": "Dawnward Agate",    "color": "#f0e0a0", "stat": "res_holy",  "values": [3, 5, 8, 11, 15, 20],      "weight": 2 },
+    "diamond":    { "n": "Diamond",           "color": "#e8f4ff", "stat": "crit",      "values": [0.5, 1, 1.5, 2.5, 3.5, 5], "weight": 3 },
+    "blackdiamond":{"n": "Black Diamond",     "color": "#5a5a66", "stat": "critD",     "values": [3, 6, 10, 15, 22, 30],     "weight": 2 },
+    "citrine":    { "n": "Citrine",           "color": "#f0d040", "stat": "aspd",      "values": [1, 2, 3, 5, 7, 10],        "weight": 3 },
+    "moonstone":  { "n": "Moonstone",         "color": "#d8e0f0", "stat": "move",      "values": [1, 2, 3, 4, 6, 8],         "weight": 2 },
+    "lapis":      { "n": "Lapis",             "color": "#2f4fb0", "stat": "cdr",       "values": [1, 1.5, 2.5, 4, 5.5, 7.5], "weight": 2 },
+    "spellstone": { "n": "Spellstone",        "color": "#ff9a1f", "stat": "skill_{arg}",  "arg": "skill",  "values": [1, 1, 1, 2, 2, 3], "weight": 1 },
+    "sigil":      { "n": "Sigil Stone",       "color": "#b866f5", "stat": "school_{arg}", "arg": "school", "values": [1, 1, 1, 1, 2, 2], "weight": 1 },
+    "craftstone": { "n": "Craftsman's Stone", "color": "#b08454", "stat": "life_{arg}",   "arg": "life",   "values": [1, 2, 3, 4, 6, 8], "weight": 2 }
+  }
+}

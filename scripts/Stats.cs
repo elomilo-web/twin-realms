@@ -37,7 +37,8 @@ public class PlayerStats
     public Dictionary<string, QuestState> Quests = new();
     public List<string> Disc = new() { "village" };
     public Dictionary<string, int> Mats = new();   // gathered materials and disassembly scraps by id (data/gather.json); older saves load with an empty bag
-    public int Pick = 1;                                  // pickaxe tier (data/blocks.json "pickaxes": 1 Wooden .. 4 Runed); older saves load with the wooden one
+    public Dictionary<string, int> Gems = new();   // loose gems by key "type:tier" (Gems.cs, focus F-10); older saves load with an empty bag
+    public int Pick = 1;                                // pickaxe tier (data/blocks.json "pickaxes": 1 Wooden .. 4 Runed); older saves load with the wooden one
     public List<string> BuildBar = new();                 // build-mode hotbar: up to 9 block keys (PlayerBlocks.cs), filled from the blocks owned
     // pickup filter (Pack > Pickup filter): items below PickRar or of a slot in PickSkip are left on the ground (PickScrap: disassembled instead). Set pieces are always picked up.
     public int PickRar = 0; public List<string> PickSkip = new(); public bool PickScrap = false;

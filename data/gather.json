@@ -25,7 +25,8 @@
   "venomcore":    { "n": "Venom Core",     "value": 10, "color": "#7ae05a", "scrap": true },
   "holycore":     { "n": "Holy Core",      "value": 10, "color": "#ffe27a", "scrap": true },
   "shadowcore":   { "n": "Shadow Core",    "value": 10, "color": "#8a5ad8", "scrap": true },
-  "setfragment":  { "n": "Set Fragment",   "value": 40, "color": "#3fe0c0", "scrap": true }
+  "setfragment":  { "n": "Set Fragment",   "value": 40, "color": "#3fe0c0", "scrap": true },
+  "gemdust":      { "n": "Gem Dust",       "value": 4,  "color": "#e07ad0", "scrap": true }
  },
  "nodes": {
   "sunleaf":   { "shape": "herb",     "verb": "Gather", "mat": "sunleaf",   "amount": [1, 2], "count": 70, "where": "meadow",   "minH": 2,  "maxH": 22, "realm": 0,  "respawn": 150 },

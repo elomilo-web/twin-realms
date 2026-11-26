@@ -28,9 +28,14 @@ public class Item
     public bool Wings { get; set; }                  // Golden Wings (cape slot): the hero can fly (Wings.cs)
     public Dictionary<string, float>? Mods { get; set; }   // bonus stats in tree stat keys (TreeDb.Known), added to the stat table while worn (Affixes.cs)
     public string? Glow { get; set; }                // the smith's glow colour (hex); null = the element's or rarity's own
-    // Socketed gems (focus F-10 fills this): one stat table per gem, in tree stat keys. The stat pipeline's "gems" stage
-    // (StatPipeline.cs) adds them after gear and before passives. Null / empty until gems exist; not written when null.
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<Dictionary<string, float>>? Gems { get; set; }
+    // Gem sockets (focus F-10, Gems.cs): 1-4 rolled when the item drops or is crafted (0 on items from older saves).
+    // Socketed = the gem key in each socket ("" = empty); saved with the item, not written when null.
+    public int Sockets { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<string>? Socketed { get; set; }
+    // The socketed gems as stat tables (one per gem, in tree stat keys): the stat pipeline's "gems" stage (StatPipeline.cs)
+    // adds them after gear and before passives. Derived from Socketed, never saved.
+    [JsonIgnore] public List<Dictionary<string, float>>? Gems => GemDb.Tables(this);
+    [JsonIgnore] public int GemVer = -1; [JsonIgnore] public List<Dictionary<string, float>>? GemCache;
 
     [JsonIgnore] public int Value => Math.Max(1, (int)Math.Round((Dmg * 4 + Def * 4 + Hp * 0.6 + Mp * 0.6) * (1 + Rar * 0.8) * (Set != null ? 1.5 : 1) * (1 + .15 * (Mods?.Count ?? 0)) * (1 + .1 * Up)));
     [JsonIgnore] public Color Color => Set != null ? LootTables.SetColorOf(Set) : Items.RarityColor(Rar);
@@ -110,6 +115,7 @@ public static class Items
         if (slot != "trinket") it.Elem = elem == null ? GearFx.Roll(idx) : elem == "" ? null : elem;
         it.Name = _pre[idx] + " " + (GearFx.Get(it.Elem) is { } el ? el.Word + " " : "") + baseName + (idx == 4 ? " of the Rift" : "");
         Affixes.Roll(it);   // epic: 2-4 bonus stats, legendary: 3-5 (Affixes.cs)
+        it.Sockets = GemDb.RollSockets(idx);   // 1-4 gem sockets, more on rarer gear (data/gems.json)
         return it;
     }
 

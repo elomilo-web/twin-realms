@@ -136,7 +136,7 @@
       { "rar": 1, "levelBonus": 0, "cost": { "ironscrap": 6, "leatherstrip": 3, "arcanedust": 2 } },
       { "rar": 2, "levelBonus": 0, "cost": { "ironscrap": 10, "leatherstrip": 5, "arcanedust": 4, "runeshard": 3 } },
       { "rar": 3, "levelBonus": 1, "cost": { "ironscrap": 16, "leatherstrip": 8, "arcanedust": 8, "runeshard": 6, "voidessence": 2 } },
-      { "rar": 4, "levelBonus": 2, "cost": { "runeshard": 12, "voidessence": 5, "riftprism": 2 } }
+      { "rar": 4, "levelBonus": 2, "cost": { "runeshard": 12, "voidessence": 5, "riftprism": 2, "gemdust": 6 } }
     ],
     "elemental": { "rar": 3, "levelBonus": 1, "cores": 4, "cost": { "runeshard": 5, "arcanedust": 6 } },
     "potions": [

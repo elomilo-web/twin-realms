@@ -173,6 +173,7 @@ public static class LootTables
     /// <summary>Breaks an item into scraps and puts them in the material bag. Returns a short "+3 Iron Scrap, +1 Rune Shard".</summary>
     public static string Disassemble(Item it)
     {
+        GemDb.ReturnAll(Game.D, it);   // socketed gems are never lost
         var got = Scraps(it); var d = Game.D.Mats; var parts = new List<string>();
         foreach (var (id, n) in got) { d[id] = d.GetValueOrDefault(id) + n; parts.Add($"+{n} {GatherDb.Mat(id).Name}"); }
         Sfx.Play("hit"); Game.Notify();

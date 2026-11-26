@@ -349,7 +349,8 @@ public partial class Ui : CanvasLayer
             var pos = new Vector2(Mathf.Clamp(c0.X - Ds / 2, 0, DollW - Ds), Mathf.Clamp(c0.Y - Ds / 2, 0, DollH - Ds));
             var cell = new ItemSlot { Item = it, Empty = slot, CustomMinimumSize = new Vector2(Ds, Ds), Size = new Vector2(Ds, Ds), Position = pos, TooltipText = it == null ? Cap(slot) : "" }; doll.AddChild(cell);
             cell.Hover += on => ShowTip(on ? it : null, cell, null);
-            cell.Clicked += right => { if (it == null) return; if (d.Inv.Count >= 28) { Note("Pack is full", new Color(1, .5f, .5f)); return; } d.Eq[sl] = null; d.Inv.Add(it); Sfx.Play("click"); Game.Notify(); OpenPack(); };
+            if (it != null) cell.DropGem = key => SocketGem(it, -1, key);   // drop a gem on worn gear: its first empty socket (F-10)
+            cell.Clicked += right => { if (it == null) return; if (_packTab == 2 && _gemSel != "" && !right) { SocketGem(it, -1, _gemSel); return; } if (d.Inv.Count >= 28) { Note("Pack is full", new Color(1, .5f, .5f)); return; } d.Eq[sl] = null; d.Inv.Add(it); Sfx.Play("click"); Game.Notify(); OpenPack(); };
         }
         var stats = new GridContainer { Columns = 2 }; stats.AddThemeConstantOverride("h_separation", 16); stats.AddThemeConstantOverride("v_separation", 0); left.AddChild(stats);
         foreach (var (k, val) in new[] { ("Damage", $"{d.WpnDmg():0}"), ("Defense", $"{d.Defense()}"), ("Crit", $"{d.CritChance() * 100:0}%"), ("Spell power", $"x{d.SpellPow():0.00}"), ("Health", $"{d.MaxHp()}"), ("Mana", $"{d.MaxMp()}") })
@@ -360,7 +361,8 @@ public partial class Ui : CanvasLayer
         var tabs = new HBoxContainer(); tabs.AddThemeConstantOverride("separation", 4); right.AddChild(tabs);
         tabs.AddChild(GoldTab("Items", () => { if (_packTab == 0) return; _packTab = 0; OpenPack(); }, _packTab == 0));
         tabs.AddChild(GoldTab($"Materials ({kinds})", () => { if (_packTab == 1) return; _packTab = 1; OpenPack(); }, _packTab == 1));
-        PadTabs(new (Action, bool)[] { (() => { _packTab = 0; OpenPack(); }, _packTab == 0), (() => { _packTab = 1; OpenPack(); }, _packTab == 1) });
+        tabs.AddChild(GoldTab($"Gems ({GemDb.Total(d)})", () => { if (_packTab == 2) return; _packTab = 2; OpenPack(); }, _packTab == 2));
+        PadTabs(new (Action, bool)[] { (() => { _packTab = 0; OpenPack(); }, _packTab == 0), (() => { _packTab = 1; OpenPack(); }, _packTab == 1), (() => { _packTab = 2; OpenPack(); }, _packTab == 2) });
         int tab = _packTab;
         var sc = new ScrollContainer { CustomMinimumSize = new Vector2(CentreW, GridH + 2), HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; right.AddChild(sc);
         var grid = new GridContainer { Columns = 7 }; grid.AddThemeConstantOverride("h_separation", Gap); grid.AddThemeConstantOverride("v_separation", Gap); sc.AddChild(grid);
@@ -369,7 +371,8 @@ public partial class Ui : CanvasLayer
         void Restore() { if (GodotObject.IsInstanceValid(sc) && want > 0) sc.ScrollVertical = want; }
         vbar.Changed += Restore; vbar.ValueChanged += val => { _packScroll[tab] = (int)val; if (Mathf.Abs((float)val - want) > 1 && vbar.MaxValue - vbar.Page >= want) want = -1; };
         Callable.From(Restore).CallDeferred();
-        if (tab == 1)
+        if (tab == 2) { grid.Columns = 1; GemsPane(grid, Cell, Gap, GridW); }   // UiGems.cs
+        else if (tab == 1)
         {
             foreach (var kv in d.Mats) if (kv.Value > 0)
             {
@@ -398,21 +401,21 @@ public partial class Ui : CanvasLayer
         hdr.AddChild(GoldTab("Scrap commons", () =>
         {
             int n = 0; var parts = new Dictionary<string, int>();
-            foreach (var it in d.Inv.FindAll(x => x.Rar == 0 && x.Set == null && !x.Unique)) { foreach (var (id, c) in LootTables.Scraps(it)) { d.Mats[id] = d.Mats.GetValueOrDefault(id) + c; parts[id] = parts.GetValueOrDefault(id) + c; } d.Inv.Remove(it); n++; }
+            foreach (var it in d.Inv.FindAll(x => x.Rar == 0 && x.Set == null && !x.Unique)) { GemDb.ReturnAll(d, it); foreach (var (id, c) in LootTables.Scraps(it)) { d.Mats[id] = d.Mats.GetValueOrDefault(id) + c; parts[id] = parts.GetValueOrDefault(id) + c; } d.Inv.Remove(it); n++; }
             if (n > 0) { Note($"Scrapped {n} common items: " + string.Join(", ", parts.Select(kv => $"+{kv.Value} {GatherDb.Mat(kv.Key).Name}")), Dim); Sfx.Play("hit"); }
             Game.Notify(); OpenPack();
         }));
         hdr.AddChild(GoldTab("Pickup filter", OpenPickFilter));
-        hdr.AddChild(GoldTab("Crafting", () => OpenCraft("gear")));
+        hdr.AddChild(tab == 2 ? GoldTab("Fuse gems", () => OpenCraft("gems")) : GoldTab("Crafting", () => OpenCraft("gear")));
         string filt = d.PickRar > 0 || d.PickSkip.Count > 0 ? $"Pickup filter: {Items.RarityName(d.PickRar)} and better" + (d.PickSkip.Count > 0 ? $", skipping {string.Join(", ", d.PickSkip)}" : "") + (d.PickScrap ? " (the rest is scrapped)" : " (the rest stays on the ground)") : "Pickup filter: everything";
         var fl = Lbl(filt, 12, Dim, right); fl.ClipText = true; fl.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis; fl.TooltipText = filt; fl.MouseFilter = Control.MouseFilterEnum.Pass;
         // ---- one short help line at the bottom (clipped, so it can never widen the window)
-        var help = Lbl(_scrapMode ? "Disassemble ON: click an item to scrap it     Right-click: drop" : "Click: equip     Right-click: drop     Hover: compare     Click a worn slot: take off", 12, _scrapMode ? new Color(1, .7f, .45f) : Dim, v);
+        var help = Lbl(tab == 2 ? "Drag a gem onto a socket or worn item (or click a gem, then a socket)     Click a filled socket: take the gem out" : _scrapMode ? "Disassemble ON: click an item to scrap it     Right-click: drop" : "Click: equip     Right-click: drop     Hover: compare     Click a worn slot: take off", 12, _scrapMode ? new Color(1, .7f, .45f) : Dim, v);
         help.ClipText = true; help.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
     }
     const float PackW = 820, PackH = 560, DollW = 260, DollH = 300;
-    static int _packTab;                         // 0 = Items, 1 = Materials; kept across the reopen after every click
-    static readonly int[] _packScroll = new int[2];
+    static int _packTab;                         // 0 = Items, 1 = Materials, 2 = Gems; kept across the reopen after every click
+    static readonly int[] _packScroll = new int[3];
     static bool _scrapMode;
     /// <summary>Flat gold text tab with an underline (brighter when active or hovered).</summary>
     static Button GoldTab(string t, Action a, bool active = false)

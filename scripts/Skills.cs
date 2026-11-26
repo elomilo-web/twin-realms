@@ -48,6 +48,7 @@ public class SkillCalc
     public float SelfHeal;   // % of max health restored each time the skill goes off
     public float ManaBack;   // % of the mana and stamina cost refunded each time the skill goes off
     public int Count, Pierce, Chain, Echo; public bool Homing; public string Auto = "";
+    public int GemRank;      // extra ranks from gems (skill_<id>, school_<tag>; Gems.cs), capped by data/gems.json maxRankBonus
     // where a modifier has no natural meaning for a kind of skill it is turned into one that does (Skills.Compute):
     public float Range, Arc;        // melee and dash reach (area modifiers widen them)
     public float Delay;             // strikes: time before the hit lands (speed modifiers shorten it)
@@ -202,6 +203,8 @@ public static class Skills
         Load(); var d = Game.D; Func<string, float> K = StatPipeline.Key; var k = _s[id]; var st = d.Skills.GetValueOrDefault(stateOf ?? id) ?? new SkillState();
         var c = new SkillCalc { Def = k, Type = k.Type, Radius = k.Radius, Speed = k.Speed, Spread = k.Spread, Knock = k.Knock, Stun = k.Stun, Up = k.Up, Leech = k.Leech, Heal = k.Heal, Dur = k.Dur, Tick = k.Tick, Count = k.Count, Pierce = k.Pierce, Chain = k.Chain, Homing = k.Homing };
         int rank = Math.Clamp(st.Rank, 1, Math.Max(1, MaxRank));   // a rank 0 or past the max (old or edited saves) no longer scales damage down or past rank 5
+        // gems (F-10): levels of this one skill, plus levels of every school it belongs to (its tags and damage type); may pass the max rank, capped by data
+        { GemDb.Load(); float gb = K("skill_" + (stateOf ?? id)); foreach (var tag in k.Tags.Append(k.Type).Distinct()) gb += K("school_" + tag); c.GemRank = Math.Clamp((int)MathF.Round(gb), 0, GemDb.MaxRankBonus); rank += c.GemRank; }
         float more = 1 + RankP * (rank - 1) / 100f, aoe = 1 + K("aoeP") / 100f, spd = 1, cost = 1 + K("mcost") / 100f, cd = 1 - K("cdr") / 100f, cast = 1, knock = 1, dur = 1, tick = 1, heal = 1;
         float supMore = 1, supAoe = 1; bool off = false, offCrit = false;   // the modifiers' own share, for the stand-in effects below
         foreach (var kv in k.Status) c.Status.Add((kv.Key, kv.Value.Length > 0 ? kv.Value[0] : 1, kv.Value.Length > 1 ? kv.Value[1] : 1, kv.Value.Length > 2 ? kv.Value[2] : 0));

@@ -243,7 +243,18 @@ PHASE 1 - CAMERA AND CONTROLS
 PHASE 2 - GEMS AND GEAR SOCKETS
 ================================================================================
 
-[ ] F-10  GEM SYSTEM
+[x] F-10  GEM SYSTEM
+    NOTE 2026-11-26: done. data/gems.json (socket odds 45/30/18/7 + rarityShift, 6 tiers Chipped..Radiant with values,
+      26 gem kinds: str/dex/vit/mag, 7 damage types, 7 resists, crit, critD, aspd, move, cdr, skill_<id>, school_<tag>,
+      life_<id> for F-24; dust/fuse/remove-gold per tier; drops rarer-tiers-deeper). scripts/Gems.cs (GemDb: keys, sockets,
+      bag, fuse, break, cut, drops, drawing, dump). Item.Sockets + Item.Socketed saved with the item (old saves: 0 sockets),
+      Item.Gems now derived -> StatPipeline "gems" stage; attribute keys feed Attr steps; Skills.Compute adds gem ranks
+      (SkillCalc.GemRank, cap maxRankBonus). PlayerStats.Gems = loose gem bag; Gem Dust = material "gemdust" (also in the
+      legendary gear recipe). UI: pack Gems tab (UiGems.cs: sockets of worn gear + loose gems; drag gem -> socket/doll item,
+      or click gem then socket for pad; click a filled socket = gem back for its gold cost), ItemTip gem tooltip + sockets +
+      "Item total with gems", Crafting > Gems (fuse with result shown first, break, cut). Selling/scrapping returns gems.
+      /stats dump: [gems] section, gem stage sources, "rank N +K from gems". Views gems_tab, gem_socket, gem_fuse
+      (DevCapture "gems"/"gem_socket" kit options, ui:pack:<tab>, ui:gemtip).
     DONE WHEN:
       - SOCKETS: every gear piece rolls 1-4 sockets when it drops or is
         crafted. Odds come from data (for example 1=45%, 2=30%, 3=18%,

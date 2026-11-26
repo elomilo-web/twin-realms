@@ -98,6 +98,7 @@ public static class StatPipeline
         var h = new HashCode(); var ts = Game.TS;
         h.Add(RuntimeHelpers.GetHashCode(ts)); h.Add(ts.Ver); h.Add(Ver); h.Add(d.Level); h.Add(d.Str); h.Add(d.Dex); h.Add(d.Vit); h.Add(d.Mag); h.Add(d.Race); h.Add(d.Class);
         foreach (var kv in d.Eq) { var it = kv.Value; if (it == null) continue; h.Add(RuntimeHelpers.GetHashCode(it)); h.Add(it.Dmg); h.Add(it.Def); h.Add(it.Hp); h.Add(it.Mp); h.Add(it.Sp); h.Add(it.Wt); h.Add(it.Mods?.Count ?? 0); h.Add(it.Gems?.Count ?? 0); }
+        h.Add(GemDb.Version);
         return h.ToHashCode();
     }
     public static int Builds { get; private set; }   // how often a sheet was rebuilt (perf check in the dump)
@@ -128,6 +129,7 @@ public static class StatPipeline
             string P(float x) => x.ToString("0.###", CultureInfo.InvariantCulture);
             Step(l, StatStage.Base, $"5 {a} x {P(per)}", 5 * per); Step(l, StatStage.Race, $"{rb} {a} x {P(per)}", rb * per);
             Step(l, StatStage.Class, $"{cb} {a} x {P(per)}", cb * per); Step(l, StatStage.Level, $"{rest} {a} (points) x {P(per)}", rest * per);
+            Key(l, a.ToLower(), "flat", per);   // attribute keys (str/dex/vit/mag: gems, F-10) count like points of that attribute
         }
         void Gear(StatLine l, Func<Item, float> f, float scale = 1, string kind = "flat") { foreach (var kv in d.Eq) if (kv.Value != null && f(kv.Value) != 0) Step(l, StatStage.Gear, kv.Value.Name, f(kv.Value) * scale, kind); }
         // a stat-table key's contributions, stage by stage; whatever the table holds beyond them (a cap, a test edit) is one last step
@@ -218,6 +220,7 @@ public static class StatPipeline
             var cap = KeyCap(kv.Key); string capTxt = cap is { } c ? $" cap [{N(c.lo)}, {N(c.hi)}]" : "";
             sb.AppendLine($"    {kv.Key} = {N(kv.Value)}{capTxt}{(_clamped.TryGetValue(kv.Key, out var raw) ? $" (CAPPED from {N(raw)})" : "")}: {string.Join("; ", parts)}");
         }
+        sb.AppendLine(GemDb.DumpLines(d));   // F-10: what sits in each worn item's sockets
         // skills on the bar: the resolved numbers (Skills.Compute) next to their inputs
         sb.AppendLine("[skills] dmg = base x rank (1 + rankP x (rank-1)) x supports x (1 + skillP); spell base = (dmg + lvl x level) x spellPow, weapon base = mult x wpnDmg");
         foreach (var id in d.Bar.Where(b => !string.IsNullOrEmpty(b)).Distinct())
@@ -225,7 +228,7 @@ public static class StatPipeline
             var k = Skills.Get(id); if (k == null) continue; var stt = d.Skills.GetValueOrDefault(id); SkillCalc c;
             try { c = Skills.Compute(id); } catch (Exception e) { sb.AppendLine($"    {id}: compute failed {e.Message}"); continue; }
             string bas = k.Scale == "weapon" ? $"{N(k.Mult)} x wpnDmg {N(sh.Lines["wpnDmg"].Value)}" : $"({N(k.Dmg)} + {N(k.Lvl)} x {d.Level}) x spellPow {N(sh.Lines["spellPow"].Value)}";
-            sb.AppendLine($"    {id} rank {stt?.Rank ?? 1} [{string.Join(",", stt?.Sup.Where(x => x != "") ?? Enumerable.Empty<string>())}]: base {bas} -> dmg {N(c.Dmg)}; cd {N(k.Cd)}s -> {N(c.Cd)}s (cdr {N(Key("cdr"))}%); mana {N(k.Mp)} -> {N(c.Mp)} (mcost {N(Key("mcost"))}%); cast {N(k.Cast)}s -> {N(c.Cast)}s");
+            sb.AppendLine($"    {id} rank {stt?.Rank ?? 1}{(c.GemRank > 0 ? $" +{c.GemRank} from gems (skill_{id} / school_*)" : "")} [{string.Join(",", stt?.Sup.Where(x => x != "") ?? Enumerable.Empty<string>())}]: base {bas} -> dmg {N(c.Dmg)}; cd {N(k.Cd)}s -> {N(c.Cd)}s (cdr {N(Key("cdr"))}%); mana {N(k.Mp)} -> {N(c.Mp)} (mcost {N(Key("mcost"))}%); cast {N(k.Cast)}s -> {N(c.Cast)}s");
         }
         sb.AppendLine($"[xp] level {d.Level}: {d.Xp} / {d.XpNeed()}  (xpP {N(Key("xpP"))}%); next levels need " + string.Join(", ", Enumerable.Range(d.Level + 1, 4).Select(Progression.XpNeed)));
         sb.AppendLine($"[perf] sheets built so far: {Builds}, stage contributions: {_mods.Count}");

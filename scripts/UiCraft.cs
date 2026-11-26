@@ -120,7 +120,7 @@ public partial class Ui
         var d = Game.D; var v = Frame("craft", "Crafting", new Vector2(860, 640), () => OpenCraft(tab));
         var top = new HBoxContainer(); top.AddThemeConstantOverride("separation", 4); v.AddChild(top);
         var tabsHost = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; top.AddChild(tabsHost);
-        CraftTabs(tabsHost, tab, ("gear", "Gear", () => OpenCraft("gear")), ("elem", "Elemental", () => OpenCraft("elem")), ("sets", "Set pieces", () => OpenCraft("sets")), ("pots", "Potions", () => OpenCraft("pots")), ("blocks", "Blocks", () => OpenCraft("blocks")));
+        CraftTabs(tabsHost, tab, ("gear", "Gear", () => OpenCraft("gear")), ("elem", "Elemental", () => OpenCraft("elem")), ("sets", "Set pieces", () => OpenCraft("sets")), ("pots", "Potions", () => OpenCraft("pots")), ("gems", "Gems", () => OpenCraft("gems")), ("blocks", "Blocks", () => OpenCraft("blocks")));
         top.AddChild(Btn("Back to the pack", OpenPack, true));
         // scraps on hand
         var have = new HBoxContainer(); have.AddThemeConstantOverride("separation", 6); v.AddChild(have); int shown = 0;
@@ -243,6 +243,9 @@ public partial class Ui
                 }
                 break;
             }
+            case "gems":   // UiGems.cs: fuse, break, cut (F-10)
+                intro = "Fuse 3 gems of the same kind and tier into 1 of the next tier, break gems into Gem Dust, or cut new gems from dust. Socket gems in the pack's Gems tab.";
+                GemRecipes(recs); break;
             case "pots":
                 foreach (var e in c.GetProperty("potions").EnumerateArray())
                 {
