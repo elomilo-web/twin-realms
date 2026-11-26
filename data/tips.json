@@ -1,0 +1,31 @@
+{
+  "_comment": "Gameplay tips shown on the loading screens (scripts/LoadScreen.cs), one picked at random and rotated every few seconds.",
+  "tips": [
+    "A dodge roll leaves you untouchable for a heartbeat. Roll through a swing, not away from it.",
+    "Raise your guard just as a blow lands to parry it: the foe staggers and its stance breaks wide open.",
+    "Every foe has a stance. Keep the pressure on and it breaks, leaving it open to a heavy strike.",
+    "Heavy attacks are slow to start but stagger most foes. Save them for the opening after a parry.",
+    "Lock on to a single foe to circle it. Locking on keeps the camera steady when several close in.",
+    "Rolling, sprinting and swinging all spend stamina. An empty bar leaves you slow and open.",
+    "Wands fire quick bolts and cost little mana. Staves are slower, but their spells hit far harder.",
+    "Spellcraft lets you shape your own spells: pick a form, an element and the runes that change them.",
+    "Mana returns slowly in a fight. Carry blue potions into a dungeon and drink them between foes.",
+    "Equip a pickaxe and press the build key to raise and break blocks. Walls and stairs are only a few swings away.",
+    "Stone, ore and timber gathered in the wilds become blocks to build with, or the makings of better gear.",
+    "Craft at a forge or workbench in town. Better materials from deeper floors make stronger weapons.",
+    "Dungeons grow harder with every floor you descend, and so does their loot. Every fifth floor starts a new tier.",
+    "Set gear only drops deep in its own dungeon. Wear several pieces of one set for its bonus.",
+    "Raid lairs hold the cruellest bosses. Bring a party: a fallen ally can be raised where they lie.",
+    "Shift between the Light and the Shadow. Some foes, paths and treasures exist in only one realm.",
+    "Discovered places can be reached by fast travel from the map, as long as nothing is hunting you.",
+    "Call your mount for long journeys. You cannot fight from the saddle, so dismount before the battle.",
+    "The skill tree grows with every level. Points can be spent on raw power or on the passives that shape a build.",
+    "Status effects stack: burning, poison and bleeding wear a boss down while you keep out of reach.",
+    "On a gamepad, the menus follow the d-pad and both sticks; every screen can be played without a mouse.",
+    "Gamepad: hold the guard trigger to block and tap it on impact to parry. The right stick turns the camera.",
+    "The Crimson Arena pays in valor. Survive more waves for a richer reward, or leave between waves to keep it.",
+    "Your hero rests where you last saved. Die in the wilds and you wake there, gear intact.",
+    "Torches and lanterns placed as blocks light the dark. Dungeons are kinder with a light behind you.",
+    "Water slows you, ice sends you sliding and lava burns. Read the ground before you fight on it."
+  ]
+}

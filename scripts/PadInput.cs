@@ -46,19 +46,73 @@ public partial class PadInput : Node
         switch (e)
         {
             case InputEventJoypadButton jb:
-                if (jb.Pressed) { Inputs.SetUsingPad(true, jb.Device); if (!InGame) _menuHeld.Add("b:" + (int)jb.ButtonIndex); }
+                if (jb.Pressed) { Inputs.SetUsingPad(true, jb.Device); _padT = Now; if (!InGame) _menuHeld.Add("b:" + (int)jb.ButtonIndex); }
+                switch (jb.ButtonIndex)   // menu navigation reads the D-pad from events (every device, and injected test events)
+                {
+                    case JoyButton.DpadUp: _dU = jb.Pressed; break; case JoyButton.DpadDown: _dD = jb.Pressed; break;
+                    case JoyButton.DpadLeft: _dL = jb.Pressed; break; case JoyButton.DpadRight: _dR = jb.Pressed; break;
+                }
                 break;
             case InputEventJoypadMotion jm:
+                switch (jm.Axis) { case JoyAxis.LeftX: _lx = jm.AxisValue; break; case JoyAxis.LeftY: _ly = jm.AxisValue; break; case JoyAxis.RightX: _rx = jm.AxisValue; break; case JoyAxis.RightY: _ry = jm.AxisValue; break; }
                 if (Mathf.Abs(jm.AxisValue) > .5f)
                 {
-                    Inputs.SetUsingPad(true, jm.Device);
+                    Inputs.SetUsingPad(true, jm.Device); _padT = Now;
                     if (!InGame && jm.Axis is JoyAxis.TriggerLeft or JoyAxis.TriggerRight) _menuHeld.Add("a:" + (int)jm.Axis);
                 }
                 break;
             case InputEventKey { Pressed: true }: case InputEventMouseButton { Pressed: true }: Inputs.SetUsingPad(false); break;
-            case InputEventMouseMotion mm: if (mm.Relative.LengthSquared() > 25f) Inputs.SetUsingPad(false); break;
+            case InputEventMouseMotion mm:
+                // a window opening flips the mouse from captured to visible and the OS warps the cursor: that jump (or a nudged desk mouse)
+                // must not throw a pad player back to mouse mode (which dropped the menu focus). Real mouse use: 40 px within half a second.
+                if (Now - _warpT < .4f || Now - _padT < .4f) { _mouseAcc = 0; break; }
+                _mouseAcc += mm.Relative.Length();
+                if (_mouseAcc > 40f) { _mouseAcc = 0; Inputs.SetUsingPad(false); }
+                break;
         }
     }
+    static float Now => Time.GetTicksMsec() / 1000f;
+    float _padT = -10f, _warpT = -10f, _mouseAcc, _mouseDecay; Input.MouseModeEnum _lastMouseMode;
+    bool _dU, _dD, _dL, _dR; float _lx, _ly, _rx, _ry, _navT; Vector2I _navDir; int _navCheck; Control? _navFrom;
+
+    /// <summary>Menus: D-pad / left stick become ui_up/down/left/right presses (one per push, repeating while held), up/down scrolls the
+    /// list when the focus cannot move further, the right stick scrolls or pans. Runs while the game is paused (ProcessMode Always).</summary>
+    void MenuNav(float dt)
+    {
+        if (Input.MouseMode != _lastMouseMode) { _lastMouseMode = Input.MouseMode; _warpT = Now; }
+        _mouseDecay += dt; if (_mouseDecay > .5f) { _mouseDecay = 0; _mouseAcc = 0; }
+        bool menu = !InGame && !LoadScreen.Busy;
+        var vp = GetViewport();
+        if (_navCheck > 0 && --_navCheck == 0)
+        {   // the last up/down did not move the focus (a long text, the end of a list): scroll instead
+            var f = vp.GuiGetFocusOwner();
+            if (menu && f == _navFrom && f is not IPadFocus && Ui.I is Ui u0) u0.PadScroll(_navDir.Y * 90f);
+        }
+        var want = Vector2I.Zero;
+        if (menu)
+        {
+            if (_dU) want = new(0, -1); else if (_dD) want = new(0, 1); else if (_dL) want = new(-1, 0); else if (_dR) want = new(1, 0);
+            else
+            {
+                var s = new Vector2(_lx, _ly); float th = _navDir != Vector2I.Zero ? .35f : .55f;
+                if (s.Length() > th) want = Mathf.Abs(s.X) > Mathf.Abs(s.Y) ? new(Mathf.Sign(s.X), 0) : new(0, Mathf.Sign(s.Y));
+            }
+        }
+        if (want != _navDir)
+        {
+            if (_navDir != Vector2I.Zero) Emit(NavAction(_navDir), false);
+            _navDir = want;
+            if (want != Vector2I.Zero) { NavPress(want); _navT = .4f; }
+        }
+        else if (want != Vector2I.Zero) { _navT -= dt; if (_navT <= 0) { _navT = .085f; NavPress(want); } }
+        if (menu && new Vector2(_rx, _ry).Length() > .3f && Ui.I is Ui u) u.PadRightStick(new Vector2(_rx, _ry), dt);
+    }
+    void NavPress(Vector2I d)
+    {
+        _navFrom = GetViewport().GuiGetFocusOwner(); _navCheck = d.Y != 0 ? 2 : 0;
+        Emit(NavAction(d), true);
+    }
+    static string NavAction(Vector2I d) => d.Y < 0 ? "ui_up" : d.Y > 0 ? "ui_down" : d.X < 0 ? "ui_left" : "ui_right";
 
     bool Raw(string c)
     {
@@ -76,6 +130,7 @@ public partial class PadInput : Node
     {
         float dt = (float)delta;
         _refresh -= dt; if (_refresh <= 0) { _refresh = 2f; Refresh(); }
+        if (Inputs.IsSetup) MenuNav(dt);
         if (!Inputs.IsSetup || Inputs.Pads.Length == 0) return;
         bool game = InGame;
         float lta = Inputs.PadAxis(JoyAxis.TriggerLeft); _trigL = _trigL ? lta > .3f : lta > .5f; bool lt = _trigL;

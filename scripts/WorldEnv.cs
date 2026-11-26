@@ -203,18 +203,28 @@ void fragment(){
     {
         var s = Game.Set; int q = s.Quality; float dist = s.ViewDist;
         _env.SdfgiEnabled = q >= 2 && LF("gi", 1f) > 0; _env.SsilEnabled = q >= 3 && LF("ssil", 1f) > 0; _env.SsaoEnabled = q >= 1;
-        _env.VolumetricFogEnabled = q >= 2 && LF("volFog", .004f) > 0; _env.GlowEnabled = true;
-        Sun.DirectionalShadowMaxDistance = Mathf.Min(dist, q switch { 0 => 80f, 1 => 140f, 2 => 200f, _ => LF("shadowDistance", 260f) });
+        _env.VolumetricFogEnabled = q >= 2 && LF("volFog", .004f) > 0; _env.GlowEnabled = q >= 1;
+        // screen-space effects: half resolution below Ultra (project.godot sets the Ultra quality), volumetric fog froxels smaller on High
+        RenderingServer.EnvironmentSetSsaoQuality(q switch { <= 1 => RenderingServer.EnvironmentSsaoQuality.Low, 2 => RenderingServer.EnvironmentSsaoQuality.High, _ => RenderingServer.EnvironmentSsaoQuality.Ultra }, q <= 1, .5f, 2, 50f, 300f);
+        RenderingServer.EnvironmentSetSsilQuality(RenderingServer.EnvironmentSsilQuality.Ultra, false, .5f, 4, 50f, 300f);   // (SSIL is on Ultra only)
+        RenderingServer.EnvironmentSetVolumetricFogVolumeSize(128, 128);   // (volumetric fog is High/Ultra only)
+        Sun.DirectionalShadowMaxDistance = Mathf.Min(dist, q switch { 0 => 60f, 1 => 110f, 2 => 200f, _ => LF("shadowDistance", 260f) });
         Sun.DirectionalShadowMode = q == 0 ? DirectionalLight3D.ShadowMode.Parallel2Splits : DirectionalLight3D.ShadowMode.Parallel4Splits;
-        RenderingServer.DirectionalShadowAtlasSetSize(q switch { 0 => 2048, 1 => 4096, _ => 8192 }, true);
-        RenderingServer.DirectionalSoftShadowFilterSetQuality(q switch { 0 => RenderingServer.ShadowQuality.Hard, 1 => RenderingServer.ShadowQuality.SoftLow, 2 => RenderingServer.ShadowQuality.SoftMedium, _ => RenderingServer.ShadowQuality.SoftHigh });
+        Sun.DirectionalShadowSplit1 = q <= 1 ? .08f : .1f; Sun.DirectionalShadowSplit2 = q <= 1 ? .22f : .2f; Sun.DirectionalShadowSplit3 = q <= 1 ? .45f : .5f;
+        RenderingServer.DirectionalShadowAtlasSetSize(q switch { 0 => 2048, 1 => 2048, _ => 8192 }, true);
+        RenderingServer.DirectionalSoftShadowFilterSetQuality(q switch { 0 => RenderingServer.ShadowQuality.Hard, 1 => RenderingServer.ShadowQuality.SoftVeryLow, 2 => RenderingServer.ShadowQuality.SoftMedium, _ => RenderingServer.ShadowQuality.SoftHigh });
+        RenderingServer.PositionalSoftShadowFilterSetQuality(q switch { 0 => RenderingServer.ShadowQuality.Hard, 1 => RenderingServer.ShadowQuality.SoftVeryLow, 2 => RenderingServer.ShadowQuality.SoftMedium, _ => RenderingServer.ShadowQuality.SoftHigh });
         var vp = GetViewport();
-        vp.Msaa3D = q switch { 0 => Viewport.Msaa.Disabled, 1 or 2 => Viewport.Msaa.Msaa2X, _ => Viewport.Msaa.Msaa4X };
-        vp.UseTaa = q >= 2; vp.ScreenSpaceAA = q <= 1 ? Viewport.ScreenSpaceAAEnum.Fxaa : Viewport.ScreenSpaceAAEnum.Disabled;
-        vp.MeshLodThreshold = q switch { 0 => 4f, 1 => 2f, 2 => 1f, _ => .5f };
+        vp.PositionalShadowAtlasSize = q switch { 0 => 1024, 1 => 2048, _ => 8192 };
+        // upscaling (Game.ApplyDisplay): FSR 2 does its own temporal smoothing, so no MSAA or TAA on top; FSR 1 keeps FXAA only
+        bool fsr = GetTree().Root.Scaling3DMode is Viewport.Scaling3DModeEnum.Fsr or Viewport.Scaling3DModeEnum.Fsr2 && GetTree().Root.Scaling3DScale < .99f;
+        bool fsr2 = fsr && GetTree().Root.Scaling3DMode == Viewport.Scaling3DModeEnum.Fsr2;
+        vp.Msaa3D = fsr ? Viewport.Msaa.Disabled : q switch { 0 => Viewport.Msaa.Disabled, 1 or 2 => Viewport.Msaa.Msaa2X, _ => Viewport.Msaa.Msaa4X };
+        vp.UseTaa = q >= 2 && !fsr2; vp.ScreenSpaceAA = q <= 1 ? Viewport.ScreenSpaceAAEnum.Fxaa : Viewport.ScreenSpaceAAEnum.Disabled;
+        vp.MeshLodThreshold = q switch { 0 => 8f, 1 => 3f, 2 => 1f, _ => .5f };
         // view distance: the camera far plane, and tree/rock patches fade out before it (scaled from their own range)
         foreach (var c in GetTree().Root.FindChildren("*", "Camera3D", true, false)) if (c is Camera3D cam) cam.Far = Mathf.Max(dist + 200f, 600f);
-        float k = dist / 1200f;
+        float k = dist / 1200f * (q switch { 0 => .6f, 1 => .8f, _ => 1f });   // low presets pull scenery in too
         for (int i = Scenery.Count - 1; i >= 0; i--)
         {
             var (n, end) = Scenery[i]; if (!IsInstanceValid(n)) { Scenery.RemoveAt(i); continue; }

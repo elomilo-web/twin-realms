@@ -91,6 +91,9 @@ public static class Builder
         Kit.Add(g, P("lantern"), new Vector3(aDoor + 1.15f, y0 + 1.3f, D / 2f), 0, .55f);
         Box(g, new Vector3(1.8f, .3f, .9f), new Vector3(aDoor, .15f, D / 2f + .45f), Stone);   // door step
         var body = new StaticBody3D { Position = new Vector3(0, y0 + floors * S / 2f, 0), CollisionLayer = 1 }; body.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(W + .2f, floors * S + .6f, D + .2f) } }); g.AddChild(body);
+        // performance: the ~50 modules become one mesh (a surface per shared material), and the walls hide what stands behind them (occlusion culling)
+        Kit.MergeStatic(g);
+        if (!Net.Dedicated) g.AddChild(new OccluderInstance3D { Occluder = new BoxOccluder3D { Size = new Vector3(W - .5f, floors * S - .2f, D - .5f) }, Position = new Vector3(0, y0 + floors * S / 2f, 0) });
     }
 
     /// <summary>
@@ -333,6 +336,39 @@ public static class Builder
         _arBanner = Tint("G_Cloth", Cloth, new Color(.34f, .07f, .09f)); _arBanner.CullMode = BaseMaterial3D.CullModeEnum.Disabled;
         _arStain = new StandardMaterial3D { AlbedoColor = new Color(.06f, .045f, .035f, .38f), Transparency = BaseMaterial3D.TransparencyEnum.Alpha, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded };
         _arWorn = new StandardMaterial3D { AlbedoColor = new Color(.18f, .15f, .11f, .14f), Transparency = BaseMaterial3D.TransparencyEnum.Alpha, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded };
+        _arTrim = Tint("G_Stone", Stone, new Color(.74f, .71f, .66f));
+        // the colosseum is built from unit boxes scaled per MultiMesh instance: world triplanar keeps the stone texture at its real size
+        foreach (var m in new[] { _arStone, _arBase, _arTrim }) { m.Uv1Triplanar = true; m.Uv1WorldTriplanar = true; }
+        _arVoid = new StandardMaterial3D { AlbedoColor = new Color(.025f, .02f, .02f), Roughness = 1f };   // arch openings and niches in deep shadow
+        _arBanner.VertexColorUseAsAlbedo = true; _arBanner.AlbedoColor = new Color(.62f, .1f, .12f);   // banner colour per MultiMesh instance (crimson / black)
+        _arIron = Tint("G_Metal_Iron", Metal, new Color(.42f, .4f, .38f));
+        _arCrowd = new StandardMaterial3D { VertexColorUseAsAlbedo = true, Roughness = .95f };
+        _arFace = new StandardMaterial3D { AlbedoColor = new Color(.01f, .01f, .012f), Roughness = 1f };
+    }
+    static StandardMaterial3D _arTrim = null!, _arVoid = null!, _arIron = null!, _arCrowd = null!, _arFace = null!;
+
+    /// <summary>One MultiMesh (one draw call) for every repeated arena piece.</summary>
+    static MultiMeshInstance3D ArMulti(Node3D g, Mesh mesh, Material mat, List<Transform3D> xf, List<Color>? cols = null, bool shadow = true)
+    {
+        var mm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseColors = cols != null, Mesh = mesh };
+        mm.InstanceCount = xf.Count;
+        for (int i = 0; i < xf.Count; i++) { mm.SetInstanceTransform(i, xf[i]); if (cols != null) mm.SetInstanceColor(i, cols[i]); }
+        var mi = new MultiMeshInstance3D { Multimesh = mm, MaterialOverride = mat, CastShadow = shadow ? GeometryInstance3D.ShadowCastingSetting.On : GeometryInstance3D.ShadowCastingSetting.Off };
+        g.AddChild(mi); return mi;
+    }
+
+    /// <summary>A seated, hooded spectator (robe, shoulders, hood with its point falling back, knees): faces -Z. The face is a separate dark mesh.</summary>
+    static ArrayMesh HoodedFigure()
+    {
+        var st = new SurfaceTool(); st.Begin(Mesh.PrimitiveType.Triangles);
+        void Add(Mesh m, Basis b, Vector3 p) => st.AppendFrom(m, 0, new Transform3D(b, p));
+        Add(new CylinderMesh { TopRadius = .15f, BottomRadius = .27f, Height = .78f, RadialSegments = 8, Rings = 1 }, Basis.Identity, new Vector3(0, .39f, .02f));
+        Add(new SphereMesh { Radius = .22f, Height = .3f, RadialSegments = 8, Rings = 4 }, Basis.FromScale(new Vector3(1.15f, 1f, .8f)), new Vector3(0, .74f, .02f));
+        Add(new SphereMesh { Radius = .145f, Height = .34f, RadialSegments = 8, Rings = 5 }, Basis.Identity, new Vector3(0, .99f, .01f));
+        Add(new CylinderMesh { TopRadius = .005f, BottomRadius = .1f, Height = .22f, RadialSegments = 6, Rings = 1 }, new Basis(Vector3.Right, 1.0f), new Vector3(0, 1.08f, .12f));
+        Add(new BoxMesh { Size = new Vector3(.38f, .17f, .36f) }, Basis.Identity, new Vector3(0, .44f, -.2f));
+        Add(new CylinderMesh { TopRadius = .2f, BottomRadius = .26f, Height = .45f, RadialSegments = 8, Rings = 1 }, Basis.Identity, new Vector3(0, .2f, -.34f));   // robe over the shins
+        return st.Commit();
     }
     static void Arena(Node3D over)
     {
@@ -346,35 +382,84 @@ public static class Builder
             var sr = World.Rng(777u); float F(float a, float b) => a + sr() * (b - a);
             for (int i = 0; i < 9; i++) { float a = F(0, Tau), d = F(3f, 19f); Disc(Mathf.Cos(a) * d, Mathf.Sin(a) * d, F(.8f, 2.6f), _arStain, .09f + i * .002f); }
         }
+        // ---- gothic colosseum: podium wall with lancet niches, four stepped stone tiers with seat lips, a two-storey arcaded outer
+        // wall with a crenellated parapet, pylons with crimson banners and braziers. Every repeated piece is one MultiMesh of a
+        // scaled unit box (a draw call each); collisions are box shapes on a single StaticBody.
         const int SEG = 44; float gateA = Mathf.Pi; (float r, float h)[] tiers = { (25.6f, 3.4f), (27.8f, 5.2f), (30f, 7f), (32.2f, 9f) };
+        var unit = new BoxMesh { Size = Vector3.One };
+        var walls = new StaticBody3D { Name = "ArenaWalls", CollisionLayer = 1 }; g.AddChild(walls);
+        void Shape(Vector3 size, Transform3D t) => walls.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = size }, Transform = t });
+        Basis Seg(float a) => new Basis(Vector3.Up, -a + Mathf.Pi / 2);   // local X along the ring, +Z outward
+        Vector3 At(float a, float r, float y) => new(Mathf.Cos(a) * r, y, Mathf.Sin(a) * r);
+        Transform3D Xf(float a, float r, float y, Vector3 size, float tang = 0f, float roll = 0f)
+        {
+            var b = Seg(a); var o = At(a, r, y) + b.X * tang;
+            return new Transform3D(b * new Basis(Vector3.Back, roll) * Basis.FromScale(size), o);
+        }
+        bool NearGate(float a, float w) => Mathf.Abs(Util.AngDiff(a, gateA)) < w;
+        var stoneL = new List<Transform3D>(); var baseL = new List<Transform3D>(); var trim = new List<Transform3D>();
+        var voids = new List<Transform3D>(); var iron = new List<Transform3D>(); var banners = new List<Transform3D>(); var bannerC = new List<Color>();
+        Color crimson = new(1f, 1f, 1f), black = new Color(.16f, .14f, .15f).SrgbToLinear();   // instance colours are linear (no sRGB step)
+        // podium wall round the sand: dark brick, stone coping, a lancet niche (slot + diamond head) in every other bay, banners between
+        for (int i = 0; i < SEG; i++)
+        {
+            float a = i / (float)SEG * Tau; if (NearGate(a, .12f)) continue; float ch = Tau * 23.6f / SEG + .3f;
+            var sz = new Vector3(ch, 3f, 1.4f); stoneL.Add(Xf(a, 23.6f, 1.2f, sz)); Shape(sz, new Transform3D(Seg(a), At(a, 23.6f, 1.2f)));
+            trim.Add(Xf(a, 23.75f, 2.84f, new Vector3(ch + .1f, .28f, 1.9f)));
+            if (i % 2 == 0)
+            {
+                voids.Add(Xf(a, 22.86f, 1.05f, new Vector3(1.0f, 1.7f, .1f)));
+                voids.Add(Xf(a, 22.86f, 1.9f, new Vector3(.71f, .71f, .1f), 0, Mathf.Pi / 4));
+            }
+            else
+            {
+                banners.Add(Xf(a, 22.84f, 1.62f, new Vector3(.9f, 2.2f, .05f))); bannerC.Add(i % 4 == 1 ? crimson : black);
+                iron.Add(Xf(a, 22.8f, 2.74f, new Vector3(1.1f, .08f, .08f)));
+            }
+        }
+        // tiers: stepped stone seating, a pale seat lip along each front edge
         foreach (var t in tiers) for (int i = 0; i < SEG; i++)
         {
-            float a = i / (float)SEG * Tau; if (Mathf.Abs(Util.AngDiff(a, gateA)) < .17f) continue;
-            Solid(g, new Vector3(Tau * t.r / SEG + .35f, t.h, 2.3f), new Vector3(Mathf.Cos(a) * t.r, t.h / 2 - .3f, Mathf.Sin(a) * t.r), t.r < 26f ? _arBase : _arStone, -a + Mathf.Pi / 2);
+            float a = i / (float)SEG * Tau; if (NearGate(a, .17f)) continue; float ch = Tau * t.r / SEG + .35f;
+            var sz = new Vector3(ch, t.h, 2.3f); (t.r < 26f ? baseL : stoneL).Add(Xf(a, t.r, t.h / 2 - .3f, sz));
+            Shape(sz, new Transform3D(Seg(a), At(a, t.r, t.h / 2 - .3f)));
+            trim.Add(Xf(a, t.r - .98f, t.h - .22f, new Vector3(ch, .18f, .42f)));
         }
-        for (int i = 0; i < SEG; i++) { float a = i / (float)SEG * Tau; if (Mathf.Abs(Util.AngDiff(a, gateA)) < .12f) continue; Solid(g, new Vector3(Tau * 23.6f / SEG + .3f, 3f, 1.4f), new Vector3(Mathf.Cos(a) * 23.6f, 1.2f, Mathf.Sin(a) * 23.6f), _arBase,-a + Mathf.Pi / 2); }
-        for (int i = 0; i < 18; i++)   // gently hanging crimson cloth banners every 20 degrees (static)
+        // outer wall: solid ring, two storeys of pointed arches on the outside (pilasters, dark lancets, hood mouldings, string
+        // course, cornice), two merlons per bay on top
+        for (int i = 0; i < SEG; i++)
         {
-            float a = (10 + i * 20) * Mathf.Pi / 180f; bool nearPillar = false;
-            for (int k = 0; k < 10; k++) if (Mathf.Abs(Util.AngDiff(a, (k + .5f) / 10f * Tau)) < .1f) nearPillar = true;
-            if (nearPillar || Mathf.Abs(Util.AngDiff(a, gateA)) < .35f) continue;
-            Box(g, new Vector3(1.0f, 3.2f, .06f), new Vector3(Mathf.Cos(a) * 24.35f, 4.7f, Mathf.Sin(a) * 24.35f), _arBanner, -a + Mathf.Pi / 2);
-            Box(g, new Vector3(1.2f, .1f, .12f), new Vector3(Mathf.Cos(a) * 24.33f, 6.35f, Mathf.Sin(a) * 24.33f), Metal, -a + Mathf.Pi / 2);
+            float a = i / (float)SEG * Tau; if (NearGate(a, .17f)) continue; float ch = Tau * 34f / SEG + .3f;
+            var sz = new Vector3(ch, 12.6f, 1.6f); stoneL.Add(Xf(a, 34f, 6f, sz)); Shape(sz, new Transform3D(Seg(a), At(a, 34f, 6f)));
+            baseL.Add(Xf(a, 34.95f, 6f, new Vector3(.8f, 12.6f, .5f), ch / 2));   // pilaster between bays
+            foreach (float y0 in new[] { 1.0f, 6.0f })
+            {
+                voids.Add(Xf(a, 34.83f, y0 + 1.3f, new Vector3(1.9f, 2.6f, .08f)));
+                voids.Add(Xf(a, 34.83f, y0 + 2.6f, new Vector3(1.34f, 1.34f, .08f), 0, Mathf.Pi / 4));
+                trim.Add(Xf(a, 34.86f, y0 + 3.15f, new Vector3(1.0f, .22f, .14f), -.48f, .78f));
+                trim.Add(Xf(a, 34.86f, y0 + 3.15f, new Vector3(1.0f, .22f, .14f), .48f, -.78f));
+            }
+            trim.Add(Xf(a, 34.95f, 5.4f, new Vector3(ch, .35f, .45f))); trim.Add(Xf(a, 34.95f, 12.1f, new Vector3(ch, .4f, .5f)));
+            foreach (float s in new[] { -.25f, .25f }) stoneL.Add(Xf(a, 34f, 12.9f, new Vector3(1.05f, 1.2f, 1.5f), s * ch));
         }
-        for (int i = 0; i < 8; i++)   // braziers on the first wall tier so the bowl reads at night
-        {
-            float a = (i + .5f) / 8f * Tau; if (Mathf.Abs(Util.AngDiff(a, gateA)) < .3f) continue;
-            Vector3 bp = new Vector3(Mathf.Cos(a) * 25.2f, 3.1f, Mathf.Sin(a) * 25.2f);
-            Cyl(g, .1f, .7f, bp + new Vector3(0, .35f, 0), Metal);
-            g.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = .42f, BottomRadius = .2f, Height = .3f, RadialSegments = 10 }, MaterialOverride = Metal, Position = bp + new Vector3(0, .85f, 0), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
-            Fire(g, bp + new Vector3(0, 1.15f, 0), 1.5f, 10f);
-        }
+        // pylons on the podium: banners facing the sand; every other one carries a brazier, the rest a stone spire
+        var spires = new List<Transform3D>(); var bowls = new List<Transform3D>(); var stands = new List<Transform3D>();
         for (int i = 0; i < 10; i++)
         {
-            float a = (i + .5f) / 10f * Tau; if (Mathf.Abs(Util.AngDiff(a, gateA)) < .3f) continue;
-            Box(g, new Vector3(1.2f, 8.5f, 1.2f), new Vector3(Mathf.Cos(a) * 24.6f, 3.9f, Mathf.Sin(a) * 24.6f), Stone);
-            Box(g, new Vector3(1.1f, 3.4f, .08f), new Vector3(Mathf.Cos(a) * 23.8f, 6.2f, Mathf.Sin(a) * 23.8f), _arBanner, -a + Mathf.Pi / 2);
-            if (i % 2 == 0) Fire(g, new Vector3(Mathf.Cos(a) * 23.6f, 8.9f, Mathf.Sin(a) * 23.6f), 1.8f, 14f);
+            float a = (i + .5f) / 10f * Tau; if (NearGate(a, .3f)) continue;
+            stoneL.Add(Xf(a, 24.6f, 3.9f, new Vector3(1.2f, 8.5f, 1.2f))); trim.Add(Xf(a, 24.6f, 8.2f, new Vector3(1.45f, .25f, 1.45f)));
+            banners.Add(Xf(a, 23.96f, 5.9f, new Vector3(1.0f, 3.6f, .06f))); bannerC.Add(crimson);
+            iron.Add(Xf(a, 23.9f, 7.75f, new Vector3(1.25f, .09f, .09f)));
+            if (i % 2 == 0) { bowls.Add(new Transform3D(Basis.Identity, At(a, 24.6f, 8.55f))); Fire(g, At(a, 24.6f, 8.95f), 1.8f, 14f); }
+            else spires.Add(new Transform3D(Seg(a) * new Basis(Vector3.Up, Mathf.Pi / 4), At(a, 24.6f, 9.05f)));
+        }
+        // braziers on the first tier so the bowl reads at night
+        for (int i = 0; i < 8; i++)
+        {
+            float a = (i + .5f) / 8f * Tau; if (NearGate(a, .3f)) continue;
+            var bp = At(a, 25.2f, 3.1f);
+            stands.Add(new Transform3D(Basis.Identity, bp + new Vector3(0, .35f, 0))); bowls.Add(new Transform3D(Basis.Identity, bp + new Vector3(0, .85f, 0)));
+            Fire(g, bp + new Vector3(0, 1.15f, 0), 1.5f, 10f);
         }
         Solid(g, new Vector3(12, 1.6f, 7), new Vector3(-28, 6.2f, 0), Stone); Solid(g, new Vector3(12, 6, 1.2f), new Vector3(-27.5f, 2.7f, 3f), Stone); Solid(g, new Vector3(12, 6, 1.2f), new Vector3(-27.5f, 2.7f, -3f), Stone);
         _portcullis = new Node3D { Position = new Vector3(-24, 5.2f, 0) }; g.AddChild(_portcullis);
@@ -384,12 +469,79 @@ public static class Builder
             Kit.Add(g, Kit.Str("props", k), new Vector3(lx, World.GroundAt(ap.X + lx, ap.Z + lz) - H - .02f, lz), yw, 1f, true);
         g.AddChild(new ArenaExit { Position = new Vector3(-22.2f, 0, 0) });   // walk back to the gate and press E to leave a run
         GateBody = new StaticBody3D { Position = new Vector3(-24, 2.5f, 0), CollisionLayer = 1 }; GateBody.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(.5f, 5f, 5f) }, Disabled = true }); g.AddChild(GateBody);
-        // crowd (static)
-        var cm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseColors = true, Mesh = new CapsuleMesh { Radius = .28f, Height = 1.0f, RadialSegments = 6, Rings = 2 } };
-        var tf = new List<Transform3D>(); var tc = new[] { new Color(.69f, .23f, .23f), new Color(.23f, .35f, .69f), new Color(.29f, .54f, .29f), new Color(.79f, .64f, .23f), new Color(.54f, .29f, .69f), new Color(.88f, .88f, .88f) };
-        for (int ti = 0; ti < tiers.Length; ti++) { float rr = tiers[ti].r + .25f; int n = 26 + ti * 5; for (int i = 0; i < n; i++) { float a = (i + R(0, .6f)) / n * Tau; if (Mathf.Abs(Util.AngDiff(a, gateA)) < .22f) continue; tf.Add(new Transform3D(Basis.Identity, new Vector3(Mathf.Cos(a) * rr, tiers[ti].h + .35f, Mathf.Sin(a) * rr))); } }
-        cm.InstanceCount = tf.Count; for (int i = 0; i < tf.Count; i++) { cm.SetInstanceTransform(i, tf[i]); cm.SetInstanceColor(i, tc[i % tc.Length]); }
-        g.AddChild(new MultiMeshInstance3D { Multimesh = cm, MaterialOverride = new StandardMaterial3D { VertexColorUseAsAlbedo = true } });
+        // gatehouse: two square towers with merlons flank the passage; a pointed arch and a black-and-crimson banner over the gate
+        foreach (float s in new[] { -1f, 1f })
+        {
+            var tsz = new Vector3(4f, 15f, 3.4f); var tp = new Vector3(-25.6f, 7.2f, s * 4.7f);
+            stoneL.Add(new Transform3D(Basis.FromScale(tsz), tp)); Shape(tsz, new Transform3D(Basis.Identity, tp));
+            trim.Add(new Transform3D(Basis.FromScale(new Vector3(4.3f, .35f, 3.7f)), new Vector3(-25.6f, 14.6f, s * 4.7f)));
+            foreach (var (mx, mz) in new[] { (-1.4f, -1.1f), (1.4f, -1.1f), (-1.4f, 1.1f), (1.4f, 1.1f) })
+                stoneL.Add(new Transform3D(Basis.FromScale(new Vector3(.9f, 1.1f, .9f)), new Vector3(-25.6f + mx, 15.3f, s * 4.7f + mz)));
+            voids.Add(new Transform3D(Basis.FromScale(new Vector3(.08f, 1.8f, .7f)), new Vector3(-23.58f, 10.5f, s * 4.7f)));   // arrow slits
+            voids.Add(new Transform3D(new Basis(Vector3.Right, Mathf.Pi / 4) * Basis.FromScale(new Vector3(.08f, .5f, .5f)), new Vector3(-23.58f, 11.4f, s * 4.7f)));
+            // the arch: two slanted ribs meeting over the passage (in the YZ plane of the gate face)
+            trim.Add(new Transform3D(new Basis(Vector3.Right, s * .72f) * Basis.FromScale(new Vector3(.7f, .45f, 3.3f)), new Vector3(-22.75f, 5.6f, s * 1.25f)));
+            Fire(g, new Vector3(-22.6f, 4.4f, s * 3.4f), 1f, 8f);   // gate torches
+        }
+        var gw = new Vector3(1.2f, 7.4f, 6f); stoneL.Add(new Transform3D(Basis.FromScale(gw), new Vector3(-23.2f, 9.1f, 0))); Shape(gw, new Transform3D(Basis.Identity, new Vector3(-23.2f, 9.1f, 0)));
+        banners.Add(new Transform3D(Basis.FromScale(new Vector3(.06f, 3.2f, 2.0f)), new Vector3(-22.55f, 9.8f, 0))); bannerC.Add(black);
+        banners.Add(new Transform3D(Basis.FromScale(new Vector3(.07f, 2.4f, 1.2f)), new Vector3(-22.48f, 10.0f, 0))); bannerC.Add(crimson);
+        iron.Add(new Transform3D(Basis.FromScale(new Vector3(.1f, .1f, 2.4f)), new Vector3(-22.5f, 11.45f, 0)));
+        // royal box across from the gate: a platform on the tiers under a crimson canopy on iron posts
+        {
+            float a0 = 0f;
+            stoneL.Add(Xf(a0, 28.9f, 6.75f, new Vector3(6f, .3f, 4.4f))); trim.Add(Xf(a0, 26.75f, 7.05f, new Vector3(6f, .9f, .3f)));
+            foreach (var (tx, rr) in new[] { (-2.8f, 26.9f), (2.8f, 26.9f), (-2.8f, 30.9f), (2.8f, 30.9f) }) iron.Add(Xf(a0, rr, 8.6f, new Vector3(.14f, 3.6f, .14f), tx));
+            banners.Add(Xf(a0, 28.9f, 10.45f, new Vector3(6.2f, .14f, 4.6f))); bannerC.Add(crimson);
+            banners.Add(Xf(a0, 30.93f, 8.8f, new Vector3(5.2f, 3.2f, .06f))); bannerC.Add(black);
+            banners.Add(Xf(a0, 26.7f, 9.95f, new Vector3(6.2f, .9f, .06f))); bannerC.Add(crimson);   // valance
+        }
+        // crowd: seated hooded figures in muted cloth facing the sand (one MultiMesh + one for the shadowed faces); gaps where the
+        // hash says so. R() is drawn exactly as the old crowd did, so every later seeded placement in the world stays the same.
+        var crowd = new List<Transform3D>(); var crowdC = new List<Color>(); var faces = new List<Transform3D>();
+        var robes = new[] { new Color(.44f, .34f, .25f), new Color(.32f, .3f, .29f), new Color(.55f, .5f, .4f), new Color(.52f, .15f, .12f), new Color(.34f, .37f, .29f), new Color(.42f, .36f, .31f), new Color(.2f, .19f, .21f) };
+        for (int ti = 0; ti < tiers.Length; ti++)
+        {
+            float rr = tiers[ti].r - .2f; int n = 26 + ti * 5;
+            for (int i = 0; i < n; i++)
+            {
+                float a = (i + R(0, .6f)) / n * Tau; if (NearGate(a, .22f)) continue;
+                uint hsh = (uint)(i * 73856093 ^ ti * 19349663) * 2654435761u; float hf = (hsh >> 8 & 1023) / 1023f;
+                if (hf < .18f || (ti >= 1 && Mathf.Abs(Util.AngDiff(a, 0f)) < .12f)) continue;   // empty seats; the royal box stays clear
+                float sc = 1.08f + .14f * ((hsh >> 18 & 255) / 255f);
+                var p = At(a, rr, tiers[ti].h - .3f); var look = new Vector3(-p.X, 0, -p.Z).Normalized();
+                var b = Basis.LookingAt(look, Vector3.Up) * new Basis(Vector3.Up, (hf - .5f) * .6f) * Basis.FromScale(Vector3.One * sc);
+                crowd.Add(new Transform3D(b, p)); crowdC.Add(robes[(int)(hsh >> 4) % robes.Length]);
+                faces.Add(new Transform3D(b, p));
+                if ((hsh >> 12 & 7) == 0) { var p2 = At(a + .55f / rr, rr, tiers[ti].h - .3f); crowd.Add(new Transform3D(b, p2)); crowdC.Add(robes[(int)(hsh >> 7) % robes.Length]); faces.Add(new Transform3D(b, p2)); }   // pairs
+            }
+        }
+        var faceMesh = new SphereMesh { Radius = .1f, Height = .22f, RadialSegments = 8, Rings = 4 };
+        var faceShift = Transform3D.Identity.Translated(new Vector3(0, .97f, -.085f)) * new Transform3D(Basis.FromScale(new Vector3(.95f, 1f, .45f)), Vector3.Zero);
+        for (int i = 0; i < faces.Count; i++) faces[i] = faces[i] * faceShift;
+        for (int i = 0; i < crowdC.Count; i++) crowdC[i] = crowdC[i].SrgbToLinear();   // instance colours are linear: the robes stay dark and muted
+        ArMulti(g, HoodedFigure(), _arCrowd, crowd, crowdC);
+        ArMulti(g, faceMesh, _arFace, faces, null, false);
+        // a few real (hooded) people in the royal box: the character model, idle
+        if (Avatar.Available && !Net.Dedicated)
+        {
+            var hood = new Item { Name = "Hood", Slot = "head" }; var robe = new Item { Name = "Robe", Slot = "armor" }; var crown = new Item { Name = "Crown", Slot = "head" };
+            var boots = new Item { Name = "Boots", Slot = "feet" }; var surcoat = new Item { Name = "Surcoat", Slot = "armor" };
+            foreach (var (tx, lord, seed) in new[] { (-1.6f, false, "arena_a"), (0f, true, "arena_lord"), (1.6f, false, "arena_b") })
+            {
+                var av = new Avatar { Name = "Spectator" }; g.AddChild(av);
+                var p = At(0f, 28.4f, 6.9f) + Seg(0f).X * tx; av.Position = p; av.Basis = Basis.LookingAt(new Vector3(-1, 0, 0), Vector3.Up);
+                av.Build(new Appearance { Female = seed == "arena_b", Skin = new Color(.86f, .7f, .58f), Hair = new Color(.12f, .09f, .07f), Height = lord ? 1.02f : 1f, Bulk = 1f }, seed);
+                Item? Eq(string sl) => sl switch { "head" => lord ? crown : hood, "armor" => lord ? surcoat : robe, "feet" => boots, _ => null };
+                av.Dress(Eq, "none", lord ? new Color(.45f, .1f, .1f) : new Color(.2f, .17f, .15f), lord ? new Color(.4f, .12f, .1f) : new Color(.22f, .19f, .17f));
+                av.Play("idle");
+            }
+        }
+        ArMulti(g, unit, _arStone, stoneL); ArMulti(g, unit, _arBase, baseL); ArMulti(g, unit, _arTrim, trim);
+        ArMulti(g, unit, _arVoid, voids, null, false); ArMulti(g, unit, _arIron, iron); ArMulti(g, unit, _arBanner, banners, bannerC);
+        ArMulti(g, new CylinderMesh { TopRadius = .02f, BottomRadius = .75f, Height = 1.5f, RadialSegments = 4, Rings = 1 }, _arTrim, spires);
+        ArMulti(g, new CylinderMesh { TopRadius = .45f, BottomRadius = .2f, Height = .32f, RadialSegments = 10, Rings = 1 }, _arIron, bowls, null, false);
+        ArMulti(g, new CylinderMesh { TopRadius = .08f, BottomRadius = .14f, Height = .7f, RadialSegments = 8, Rings = 1 }, _arIron, stands, null, false);
         World.Lamp(g, new Vector3(0, 12, 0), new Color(1f, .8f, .55f), 40f, 1.2f);
         SetGate(true);
     }
@@ -518,9 +670,11 @@ void fragment(){
 
     // ---------------------------------------------------------------- camps and enemies
     static int _spawned;
-    static Enemy SpawnOW(Node3D over, string type, float x, float z, int lvl)
+    static Enemy SpawnOW(Node3D over, string type, float x, float z, int lvl, int pack = 0, bool leader = false, string prefix = "", bool anyRealm = false)
     {
-        var e = new Enemy { Type = type, Level = lvl, Position = World.OnGround(x, z, 0.3f) }; over.AddChild(e);
+        var e = new Enemy { Type = type, Level = lvl, PackId = pack, AnyRealm = anyRealm, Position = World.OnGround(x, z, 0.3f) };
+        if (leader) { e.Leader = true; e.Prefix = prefix == "" ? "" : prefix + " "; e.TierHp = Zones.LeaderHp; e.TierDmg = Zones.LeaderDmg; }
+        over.AddChild(e);
         // online server: building hundreds of monsters leaves a lot of temporary model data; collect it as we go so memory never spikes
         if (Net.Dedicated && ++_spawned % 40 == 0) { System.GC.Collect(); System.GC.WaitForPendingFinalizers(); }
         return e;
@@ -528,77 +682,96 @@ void fragment(){
 
     static void Spawns(Node3D over)
     {
-        // camp packs, from easy (near Oakhaven) to hard (far out); the 2026-11-11 monsters (slimes, orcs, ninjas, ghosts...) mixed in
-        string[][] k0 = { new[] { "slime", "slime", "slime", "spikeSlime" }, new[] { "bandit", "bandit", "bandit", "archer" }, new[] { "goblin", "goblin", "goblin", "goblin" }, new[] { "giantRat", "giantRat", "viper", "viper" }, new[] { "wolf", "wolf", "wolf", "wolf" },
-            new[] { "giantWasp", "giantWasp", "giantWasp" }, new[] { "brute", "goblin", "goblin" }, new[] { "hobgoblin", "hobgoblin", "orcWarrior" }, new[] { "bandit", "archer", "archer", "brute" }, new[] { "orcWarrior", "orcWarrior", "hobgoblin", "hobgoblin" } };
-        string[][] k1 = { new[] { "toxicBlob", "toxicBlob", "giantSpider" }, new[] { "skeleton", "skeleton", "skeleton", "wraith" }, new[] { "ghost", "ghost", "darkMage" }, new[] { "hound", "hound", "hound" }, new[] { "ninja", "ninja", "ninja" },
-            new[] { "wraith", "wraith", "wraith" }, new[] { "lesserDemon", "flameSkull", "flameSkull" }, new[] { "revenant", "skeleton", "skeleton" }, new[] { "kitsune", "ghost", "ghost" }, new[] { "skeleton", "wraith", "hound", "hound" } };
-        int[] cnt = { 0, 0 }, need = { Tune.I("world.lightCamps", 15), Tune.I("world.shadowCamps", 13) }; int tries = 0; var camps = new List<(float x, float z, int realm, string[] kind)>();
-        while ((cnt[0] < need[0] || cnt[1] < need[1]) && tries++ < 5000)
+        // monster packs per level zone (data/zones.json): every zone holds `density` packs (plus Shadow-realm packs on the home island),
+        // each a leader and its members in a loose ring around a camp point. Seeded per zone, so every machine places the same monsters
+        // in the same order (multiplayer: World.NetEnemies indices match the host's).
+        Zones.Load(); _packIds = 0; int total = 0;
+        // pack monsters are records (Zones.Slots), made into nodes only while a hero is near their camp (Zones.StreamTick)
+        Zones.ResetCamps(); over.AddChild(new CampStreamer { Name = "CampStreamer" });
+        var camps = new List<Vector2>(); float sp2 = Zones.PackSpacing * Zones.PackSpacing;
+        var clear = new List<(float x, float z, float r)>();   // keep Oakhaven, the arena, dungeon doors, the stones and the lands' towns calm
+        foreach (var p in World.Pois)
         {
-            float x = R(-World.Half + 36, World.Half - 36), z = R(-World.Half + 36, World.Half - 36), d = new Vector2(x, z).Length();
-            if (d < 62 || !World.FreeSpot(x, z, 8) || World.GroundAt(x, z) < 1.8f) continue;
-            bool bad = false; foreach (var c in camps) if (new Vector2(c.x - x, c.z - z).Length() < 48) { bad = true; break; } if (bad) continue;
-            int r = cnt[0] <= cnt[1] * 1.15f ? 0 : 1; if (cnt[r] >= need[r]) continue;
-            var kinds = r == 1 ? k1 : k0; var kind = kinds[Math.Min(kinds.Length - 1, ((int)(d / 70f + R(0, 2.2f))) % kinds.Length)];
-            camps.Add((x, z, r, kind)); cnt[r]++;
+            if (p.Icon is "village" or "arena" or "city" or "castle" or "stilts") clear.Add((p.X, p.Z, p.R + 22));
+            else if (p.Dun != null || p.Icon is "stones" or "dragon") clear.Add((p.X, p.Z, p.R + 10));
         }
-        foreach (var c in camps)
+        foreach (var L in Lands.All) foreach (var p in L.Places) if (p.Kind is "city" or "village" or "castle" or "stilts") clear.Add((p.X, p.Z, p.R + 45));
+        bool Ok(float x, float z)
         {
-            int lvl = Game.LevelAt(c.x, c.z, c.realm);
-            if (c.realm == 0) { Campfire(over, c.x, c.z); var tent = Group(over, c.x + 3, c.z + 2, R(0, Tau)); tent.AddChild(new MeshInstance3D { Mesh = new PrismMesh { Size = new Vector3(3, 2.2f, 3.4f) }, MaterialOverride = Cloth, Position = new Vector3(0, 1.1f, 0) });
-                if (Kit.Available) { Kit.Add(over, Kit.Str("props", "barrel"), World.OnGround(c.x - 2.4f, c.z - 2.6f, -.02f), c.x, 1.1f); Kit.Add(over, Kit.Str("props", "crate"), World.OnGround(c.x - 1.3f, c.z - 3.1f, -.02f), c.z, 1f); Kit.Add(over, Kit.Str("props", "bag"), World.OnGround(c.x + 1.2f, c.z - 2.4f, -.02f), c.x + c.z); } }
-            for (int i = 0; i < c.kind.Length; i++) { float a = i / (float)c.kind.Length * Tau + R(0, 1), rr = R(2.5f, 6f); SpawnOW(over, c.kind[i], c.x + Mathf.Cos(a) * rr, c.z + Mathf.Sin(a) * rr, lvl + (i == 0 && c.kind.Length < 4 ? 1 : 0)); }
+            foreach (var c in clear) if ((x - c.x) * (x - c.x) + (z - c.z) * (z - c.z) < c.r * c.r) return false;
+            foreach (var c in camps) if (c.DistanceSquaredTo(new Vector2(x, z)) < sp2) return false;
+            return true;
         }
-        for (int i = 0; i < 5; i++) SpawnOW(over, "wolf", -54 + R(-6, 6), 30 + R(-6, 6), 1 + (i % 2));
-        var sp = World.GetPoi("stones")!; string[] pack = { "wraith", "wraith", "wraith", "skeleton", "skeleton", "hound", "skeleton" };
-        for (int i = 0; i < 7; i++) { float a = i / 7f * Tau; SpawnOW(over, pack[i], sp.X + Mathf.Cos(a) * 13, sp.Z + Mathf.Sin(a) * 13, 2 + (i % 2)); }
-        for (int i = 0; i < 3; i++) SpawnOW(over, "bandit", 48 + R(-4, 4), -46 + R(-4, 4), 2);
-        var dr = World.GetPoi("drake")!; var dg = SpawnOW(over, "dragon", dr.X + 2, dr.Z + 2, 10); dg.NoLeash = true;
-        LandSpawns(over);
+        foreach (var zn in Zones.All)
+        {
+            var rg = World.Rng(Zones.Seed(zn.Id)); float Rr(float a, float b) => a + rg() * (b - a);
+            bool OnLand(float x, float z)
+            {
+                if (Zones.At(x, z) != zn || World.GroundAt(x, z) < 1.8f || !Ok(x, z)) return false;
+                bool home = Mathf.Abs(x) < World.Half - 20 && Mathf.Abs(z) < World.Half - 20;
+                return zn.Home ? home && World.FreeSpot(x, z, 6) : !home;
+            }
+            for (int realm = 0; realm < (zn.Home ? 2 : 1); realm++)
+            {
+                var pool = realm == 0 ? zn.Packs : zn.ShadowPacks; int want = realm == 0 ? zn.Density : zn.ShadowDensity;
+                if (pool.Length == 0) continue;
+                int placed = 0, tries = 0;
+                while (placed < want && tries++ < want * 80 && total < Zones.MaxEnemies)
+                {
+                    float a = Rr(0, Tau), d = zn.R * Mathf.Sqrt(rg()), x = zn.X + Mathf.Cos(a) * d, z = zn.Z + Mathf.Sin(a) * d;
+                    if (!OnLand(x, z)) continue;
+                    var id = pool[(int)(rg() * pool.Length) % pool.Length]; placed++;
+                    if (!Zones.Packs.TryGetValue(id, out var pk)) { GD.PushWarning($"zones.json: zone {zn.Id} names unknown pack '{id}'"); continue; }
+                    camps.Add(new Vector2(x, z));
+                    total += SpawnPack(over, pk, zn, x, z, realm, rg);
+                }
+            }
+            // a world boss holds a free spot in its zone (the dragon keeps its spire, below)
+            if (zn.Boss != "" && zn.Boss != "dragon")
+                for (int t = 0; t < 300; t++)
+                {
+                    float a = Rr(0, Tau), d = zn.R * .6f * Mathf.Sqrt(rg()), x = zn.X + Mathf.Cos(a) * d, z = zn.Z + Mathf.Sin(a) * d;
+                    if (!OnLand(x, z)) continue;
+                    camps.Add(new Vector2(x, z)); SpawnOW(over, zn.Boss, x, z, zn.MaxLvl + zn.BossLvl, 0, false, "", !zn.Home); break;
+                }
+        }
+        // the Whispering Stones keep their circle of restless dead (one pack)
+        var sp = World.GetPoi("stones")!; string[] pack = { "wraith", "wraith", "wraith", "skeleton", "skeleton", "hound", "skeleton" }; int sid = ++_packIds, sl = Game.LevelAt(sp.X, sp.Z, 0);
+        for (int i = 0; i < 7; i++) { float a = i / 7f * Tau; SpawnOW(over, pack[i], sp.X + Mathf.Cos(a) * 13, sp.Z + Mathf.Sin(a) * 13, sl + (i % 2), sid); }
+        var dr = World.GetPoi("drake")!; var dz = Zones.At(dr.X, dr.Z); int dl = dz != null && dz.Boss == "dragon" ? dz.MaxLvl + dz.BossLvl : 10;
+        var dg = SpawnOW(over, "dragon", dr.X + 2, dr.Z + 2, dl); dg.NoLeash = true;
     }
 
-    /// <summary>
-    /// The five lands across the bridges get monsters fitting their biome: packs at their caves, camps, ruins and tombs, plus wild packs
-    /// away from towns, and a world boss in two of them. Seeded per land, so every machine places the same monsters (multiplayer).
-    /// </summary>
-    static void LandSpawns(Node3D over)
+    static int _packIds;
+    /// <summary>One pack at a camp point: the leader near the middle (a level or two up, prefixed name, tougher), members in a loose ring. Returns how many monsters it placed.</summary>
+    static int SpawnPack(Node3D over, PackDef pk, ZoneDef zn, float x, float z, int realm, Func<float> rg)
     {
-        var pools = new Dictionary<string, string[][]>
+        float Rr(float a, float b) => a + rg() * (b - a);
+        int add = realm == 1 && zn.Home ? Zones.ShadowAdd : 0, pid = ++_packIds;
+        int lvl = Mathf.Clamp(Game.LevelAt(x, z, realm) + (rg() < .3f ? 1 : 0) - (rg() < .2f ? 1 : 0), zn.MinLvl + add, zn.MaxLvl + add);
+        bool any = !zn.Home;
+        if (pk.Camp)
         {
-            ["frost"] = new[] { new[] { "yeti", "goleling", "goleling" }, new[] { "earthGolem", "goleling" }, new[] { "wolf", "wolf", "yeti" }, new[] { "goleling", "goleling", "goleling" } },
-            ["sun"] = new[] { new[] { "cactusFiend", "cactusFiend", "viper" }, new[] { "raptor", "raptor", "raptor" }, new[] { "giantCrab", "giantCrab" }, new[] { "giantSpider", "viper", "viper" }, new[] { "bandit", "bandit", "raptor" } },
-            ["mire"] = new[] { new[] { "slime", "toxicBlob", "toxicBlob" }, new[] { "giantRat", "giantRat", "giantRat", "viper" }, new[] { "myconid", "myconid", "spikeSlime" }, new[] { "ghost", "ghost" }, new[] { "giantCrab", "slime", "slime" } },
-            ["ember"] = new[] { new[] { "lesserDemon", "flameSkull", "flameSkull" }, new[] { "oni", "hobgoblin", "hobgoblin" }, new[] { "orcWarrior", "orcWarrior", "hobgoblin" }, new[] { "kitsune", "kitsune" }, new[] { "flameSkull", "flameSkull", "flameSkull" } },
-            ["elder"] = new[] { new[] { "giantSpider", "giantSpider", "giantWasp" }, new[] { "myconid", "myconid", "myconid" }, new[] { "kitsune", "ghost" }, new[] { "ninja", "ninja" }, new[] { "giantWasp", "giantWasp", "giantWasp" } },
-        };
-        var bosses = new Dictionary<string, string> { ["ember"] = "wyvern", ["elder"] = "mushroomKing" };
-        foreach (var L in Lands.All)
-        {
-            if (!pools.TryGetValue(L.Id, out var pool)) continue;
-            var rg = World.Rng((uint)(Mathf.Abs(L.Seed) * 977 + 13)); float Rr(float a, float b) => a + rg() * (b - a);
-            var spots = new List<Vector2>();
-            foreach (var p in L.Places) if (p.Kind is "cave" or "camp" or "ruins" or "tombs" or "tomb") spots.Add(new Vector2(p.X + Rr(-6, 6), p.Z + Rr(-6, 6)));
-            bool Town(float x, float z) { foreach (var p in L.Places) if (p.Kind is "city" or "village" or "castle" or "stilts" && new Vector2(p.X - x, p.Z - z).Length() < p.R + 45) return true; return false; }
-            int want = spots.Count + 12, tries = 0;
-            while (spots.Count < want && tries++ < 600)
-            {
-                float x = L.Cx + Rr(-L.Half * .8f, L.Half * .8f), z = L.Cz + Rr(-L.Half * .8f, L.Half * .8f);
-                if (World.GroundAt(x, z) < 1.8f || Town(x, z)) continue;   // dry land, away from towns
-                bool near = false; foreach (var s in spots) if (s.DistanceTo(new Vector2(x, z)) < 45) { near = true; break; } if (near) continue;
-                spots.Add(new Vector2(x, z));
-            }
-            for (int si = 0; si < spots.Count; si++)
-            {
-                var s = spots[si]; var kind = pool[(int)(rg() * pool.Length) % pool.Length]; int lvl = Game.LevelAt(s.X, s.Y, 0);
-                for (int i = 0; i < kind.Length; i++) { float a = i / (float)kind.Length * Tau + Rr(0, 1), rr = Rr(2.5f, 6f); var e = SpawnOW(over, kind[i], s.X + Mathf.Cos(a) * rr, s.Y + Mathf.Sin(a) * rr, lvl); e.AnyRealm = true; }
-            }
-            if (bosses.TryGetValue(L.Id, out var boss) && spots.Count > 0)
-            {
-                // the boss holds the spot farthest from the land's middle
-                var far = spots[0]; foreach (var s in spots) if (s.DistanceTo(new Vector2(L.Cx, L.Cz)) > far.DistanceTo(new Vector2(L.Cx, L.Cz))) far = s;
-                var b = SpawnOW(over, boss, far.X + 8, far.Y + 8, Game.LevelAt(far.X, far.Y, 0) + 2); b.AnyRealm = true;
-            }
+            Campfire(over, x, z);
+            if (zn.Home && Kit.Available) { Kit.Add(over, Kit.Str("props", "barrel"), World.OnGround(x - 2.4f, z - 2.6f, -.02f), x, 1.1f); Kit.Add(over, Kit.Str("props", "crate"), World.OnGround(x - 1.3f, z - 3.1f, -.02f), z, 1f); }
         }
+        var types = new List<string>();
+        foreach (var m in pk.Members) { int n = Math.Min(m.max, m.min + (int)(rg() * (m.max - m.min + 1))); for (int i = 0; i < n; i++) types.Add(m.type); }
+        int count = 0; var camp = Zones.NewCamp(x, z);
+        void Slot(string type, float sx, float sz, int sl, bool leader, string prefix) =>
+            Zones.AddSlot(camp, new CampSlot { Type = type, Level = sl, PackId = pid, Leader = leader, Prefix = prefix, AnyRealm = any, Pos = World.OnGround(sx, sz, 0.3f) });
+        if (pk.Leader != "")
+        {
+            float la = Rr(0, Tau), lr = pk.Camp ? 2.2f : Rr(0, 1.5f);
+            int ll = lvl + Zones.LeaderLvlMin + (int)(rg() * (Zones.LeaderLvlMax - Zones.LeaderLvlMin + 1));
+            Slot(pk.Leader, x + Mathf.Cos(la) * lr, z + Mathf.Sin(la) * lr, ll, true, pk.Prefix); count++;
+        }
+        for (int i = 0; i < types.Count; i++)
+        {
+            float a = i / (float)types.Count * Tau + Rr(0, .8f), rr = Rr(2.8f, Mathf.Max(3.2f, pk.Spread));
+            Slot(types[i], x + Mathf.Cos(a) * rr, z + Mathf.Sin(a) * rr, Math.Min(lvl + (rg() < .25f ? 1 : 0), zn.MaxLvl + add), false, ""); count++;
+        }
+        return count;
     }
+
 }

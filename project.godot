@@ -43,6 +43,7 @@ wav={
 [physics]
 
 3d/physics_engine="Jolt Physics"
+common/physics_interpolation=true
 
 [rendering]
 
@@ -63,3 +64,4 @@ environment/volumetric_fog/volume_depth=128
 anti_aliasing/quality/use_taa=true
 mesh_lod/lod_change/threshold_pixels=0.5
 lights_and_shadows/positional_shadow/atlas_size=8192
+occlusion_culling/use_occlusion_culling=true

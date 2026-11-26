@@ -321,6 +321,9 @@ public partial class Avatar : Node3D
 
     /// <summary>Feathered wings on the upper back (Golden Wings, Scarletta's single angel wing). Each wing is a pivot that FlapWings moves.</summary>
     public Node3D? WingL, WingR;
+    readonly List<(MeshInstance3D mi, int surf, Material mat)> _feathers = new();
+    /// <summary>Puts the plain feather material back on the wing cards after the gear glow (GearFx) added its full-quad pass.</summary>
+    void RestoreFeathers() { foreach (var (mi, s, m) in _feathers) if (IsInstanceValid(mi)) { mi.SetSurfaceOverrideMaterial(s, m); mi.MaterialOverlay = null; } }
     public void AddWings(Color feather, Color edge, bool left = true, bool right = true, float span = 1f, float glow = .5f)
     {
         // gothic realism: a real feathered wing (tools/blender_gothic/armor.py wing_angel), mirrored for the other side
@@ -345,7 +348,13 @@ public partial class Avatar : Node3D
                 foreach (var n in w.FindChildren("*", "MeshInstance3D", true, false))
                     if (n is MeshInstance3D mi && mi.Mesh != null)
                         for (int i = 0; i < mi.Mesh.GetSurfaceCount(); i++)
-                            mi.SetSurfaceOverrideMaterial(i, (mi.Mesh.SurfaceGetMaterial(i)?.ResourceName ?? "").StartsWith("TR_Feather") ? fm : am);
+                        {
+                            bool fe = (mi.Mesh.SurfaceGetMaterial(i)?.ResourceName ?? "").StartsWith("TR_Feather");
+                            mi.SetSurfaceOverrideMaterial(i, fe ? fm : am);
+                            // feather cards are alpha-cut quads: the rim overlay and the gear-glow pass have no alpha test and draw the
+                            // WHOLE quad (white rectangles at grazing angles in flight), so the cards keep only their own material
+                            if (fe) { mi.SetMeta("norim", true); _feathers.Add((mi, i, fm)); }
+                        }
             }
             FlapWings(0, false);
             return;
@@ -384,7 +393,9 @@ public partial class Avatar : Node3D
         foreach (var (w, s) in new[] { (WingL, 1f), (WingR, -1f) })
         {
             if (w == null || !IsInstanceValid(w)) continue;
-            w.Rotation = flying ? new Vector3(0, -s * .1f, s * Mathf.Sin(t * 7f) * .55f) : new Vector3(.15f, -s * .9f, -s * .25f + s * Mathf.Sin(t * 1.3f) * .03f);
+            // in flight: spread, swept back and tilted so the fan of feathers reads from behind and from the side (an unswept flat
+            // wing is a single line side-on); the beat lifts and drops the whole wing about the shoulder
+            w.Rotation = flying ? new Vector3(-.28f, -s * .55f, s * (.12f + Mathf.Sin(t * 7f) * .45f)) :new Vector3(.15f, -s * .9f, -s * .25f + s * Mathf.Sin(t * 1.3f) * .03f);
         }
     }
     /// <summary>Shows the hair even under gear that would hide it (bosses who wear a helm-less plate but keep their hair).</summary>
@@ -431,7 +442,7 @@ public partial class Avatar : Node3D
     public void Dress(Func<string, Item?> eq, string wt, Color classTint, Color? outfitTint = null)
     {
         foreach (var s in new[] { "armor", "head", "hands", "feet", "weapon", "shield", "cape" }) Clear(s);
-        BladeBase = BladeTip = null; Cape = null; WingL = WingR = null; bool hideHair = false;
+        BladeBase = BladeTip = null; Cape = null; WingL = WingR = null; _feathers.Clear(); bool hideHair = false;
         // cape: an equipment slot (none when nothing is equipped)
         var cp = eq("cape");
         if (cp != null && Rule("cape", cp.Name) is { } cr)
@@ -441,6 +452,7 @@ public partial class Avatar : Node3D
             else if (S(cr, "proc") == "wings" || cp.Wings) AddWings(new Color(1f, .8f, .32f), new Color(1f, .93f, .6f));   // Golden Wings
             else if (S(cr, "proc") == "cape") AddCape(GearFx.ColorOf(cp));
             foreach (var n in SlotNodes("cape")) if (n is Node3D n3) GearFx.Apply(n3, cp, false);
+            RestoreFeathers();
         }
         foreach (var slot in new[] { "armor", "hands", "feet", "head" })
         {
@@ -527,6 +539,28 @@ public partial class Avatar : Node3D
         var pos = V(hold, "pos", Vector3.Zero); var rot = V(wc, "rot", V(hold, "rot", Vector3.Zero));
         if (model != "" && wc.TryGetProperty("models", out var ms) && ms.TryGetProperty(model, out var m)) { pos = V(m, "pos", pos); rot = V(m, "rot", rot); }
         return (pos, rot);
+    }
+
+    string? _tool;
+    /// <summary>
+    /// Build mode: a tool (kit model name in assets/models/kit/weapons, e.g. "pickaxe_iron") in the right hand instead of the weapon,
+    /// weapon and shield hidden; null puts the weapon and shield back. Cheap to call every frame; survives a re-dress.
+    /// </summary>
+    public void ShowTool(string? kitModel)
+    {
+        bool on = !string.IsNullOrEmpty(kitModel);
+        var have = SlotNodes("tool");
+        bool valid = have.Count > 0 && have.All(n => IsInstanceValid(n));
+        if (!on) { if (_tool != null) { Clear("tool"); _tool = null; } }
+        else if (_tool != kitModel || !valid)
+        {
+            Clear("tool"); _tool = kitModel;
+            var (hp, hr) = WeaponHold("axe", "");
+            var h = Holder("hand_r", hp, hr, "tool");
+            var turn = new Node3D { Rotation = new Vector3(0, Mathf.Pi, 0) }; h.AddChild(turn);   // kit models point -Z after BuildKit; the hold wants +Z
+            if (!Weapons.BuildTool(turn, kitModel!)) { Clear("tool"); _tool = null; }
+        }
+        foreach (var s in new[] { "weapon", "shield" }) foreach (var n in SlotNodes(s)) if (n is Node3D n3 && IsInstanceValid(n3)) n3.Visible = !on || _tool == null;
     }
 
     void HoldShield(Item it)
@@ -969,7 +1003,7 @@ public static partial class CharRim
     {
         if (Game.Set.Quality < 2) return;
         var m = Mat; var list = new List<GeometryInstance3D>();
-        void Walk(Node n) { foreach (var c in n.GetChildren()) { if (c is GeometryInstance3D g && g.MaterialOverlay == null) { g.MaterialOverlay = m; list.Add(g); } Walk(c); } }
+        void Walk(Node n) { foreach (var c in n.GetChildren()) { if (c is GeometryInstance3D g && g.MaterialOverlay == null && !g.HasMeta("norim")) { g.MaterialOverlay = m; list.Add(g); } Walk(c); } }   // norim: alpha-cut cards (wing feathers)
         Walk(root);
         if (list.Count > 0 && root is Node3D r3) root.AddChild(new RimLod { Root = r3, Meshes = list });
     }

@@ -22,7 +22,16 @@
  "dig": {
   "_help": "digging by hand: hold attack in build mode. time = hardness / speed; speed 1 by hand, 'toolSpeed' with the right tool. Weapons count as tools: 'tools' maps a tool to weapon types.",
   "toolSpeed": 4.0, "wrongToolSpeed": 1.0,
-  "tools": { "pickaxe": ["mace", "greatsword"], "axe": ["axe"], "shovel": ["spear"] }
+  "tools": { "pickaxe": ["mace", "greatsword"], "axe": ["axe"], "shovel": ["spear"] },
+  "pickaxes": {
+   "_help": "the hero's pickaxe (Game.D.Pick = tier 1..4, held in build mode): speed = dig speed on pickaxe blocks (shovel blocks get half the bonus over 1), maxHardness = the hardest block it can break (bedrock never). costs = alternative recipes (crafting > Blocks) that need the tier before; price = what Dorrin the smith asks.",
+   "tiers": [
+    { "n": "Wooden Pickaxe", "model": "pickaxe_wood",  "speed": 2.0, "maxHardness": 2.5 },
+    { "n": "Stone Pickaxe",  "model": "pickaxe_stone", "speed": 3.5, "maxHardness": 4.0,  "costs": [ { "cobblestone": 3, "planks": 2 } ], "price": 150 },
+    { "n": "Iron Pickaxe",   "model": "pickaxe_iron",  "speed": 5.5, "maxHardness": 10.0, "costs": [ { "ironscrap": 3, "planks": 2 }, { "ironore": 3, "planks": 2 } ], "price": 600 },
+    { "n": "Runed Pickaxe",  "model": "pickaxe_rune",  "speed": 8.0, "maxHardness": 40.0, "costs": [ { "runeshard": 3 } ], "price": 2000 }
+   ]
+  }
  },
  "power": {
   "_help": "How hits change the world. strength = damage x mul (enemyMul for monsters, basicMul for plain attacks). A block breaks when strength x falloff >= its hardness x hardnessCost; falloff goes from 1 at the centre to 1 - edgeLoss at the edge. Crater radius = the hit's area x areaMul (pointRadius for single-target hits) x clamp(strength / refStrength, minScale, maxScale), at most maxRadius; at most maxBlocks per hit. Monsters never break more than enemyMaxHardness, nor floors in dungeons; bosses at most bossMaxRadius. dropChance = chance a block broken by a hit drops.",
@@ -55,7 +64,7 @@
  },
  "build": {
   "_help": "blocks you can place in build mode cycle with the mouse wheel; the first owned one is chosen",
-  "order": ["dirt", "cobblestone", "stone", "planks", "log", "brick", "dark_stone", "glass", "sand", "gravel", "sandstone", "snow", "ice", "packed_ice", "leaves", "obsidian", "grass", "torch", "ladder", "door"]
+  "order": ["dirt", "cobblestone", "stone", "planks", "log", "torch", "glass", "planks_stairs", "cobble_stairs", "planks_slab", "cobble_slab", "fence", "brick", "dark_stone", "sand", "gravel", "sandstone", "snow", "ice", "packed_ice", "leaves", "obsidian", "grass", "ladder", "door"]
  },
  "recipes": {
   "_help": "crafting window, Blocks tab: what you get from what you pay (block ids from this file or materials from data/gather.json)",
@@ -68,7 +77,12 @@
   "dark_stone":  { "out": 2, "cost": { "cobblestone": 2, "coal_ore": 1 } },
   "torch":       { "out": 4, "cost": { "planks": 1, "coal_ore": 1 } },
   "ladder":      { "out": 4, "cost": { "planks": 3 } },
-  "door":        { "out": 1, "cost": { "planks": 4 } }
+  "door":        { "out": 1, "cost": { "planks": 4 } },
+  "planks_stairs": { "out": 4, "cost": { "planks": 3 } },
+  "cobble_stairs": { "out": 4, "cost": { "cobblestone": 3 } },
+  "planks_slab":   { "out": 2, "cost": { "planks": 1 } },
+  "cobble_slab":   { "out": 2, "cost": { "cobblestone": 1 } },
+  "fence":         { "out": 3, "cost": { "planks": 2, "log": 1 } }
  },
  "blocks": {
   "bedrock":      { "n": "Bedrock",       "hardness": -1, "mat": { "gothic": "G_Rock", "color": "#3a3438" } },
@@ -94,8 +108,13 @@
   "log":          { "n": "Log",           "hardness": 2.0, "tool": "axe", "drops": "log", "burn": 18, "burnsTo": "", "mat": { "top": { "gothic": "G_Wood", "color": "#9a7a58", "tile": 1 }, "side": { "gothic": "G_Bark", "color": "#7a6450", "tile": 1 }, "bottom": { "gothic": "G_Wood", "color": "#9a7a58", "tile": 1 } } },
   "planks":       { "n": "Planks", "step": "wood",        "hardness": 2.0, "tool": "axe", "drops": "planks", "burn": 10, "burnsTo": "", "mat": { "gothic": "G_Planks", "color": "#a88a66", "tile": 1.5 } },
   "leaves":       { "n": "Leaves",        "hardness": 0.2, "tool": "axe", "drops": "", "see": true, "burn": 3, "burnsTo": "", "rotsTo": "", "withersTo": "", "mat": { "gothic": "G_Leaves", "color": "#5a7040", "tile": 1 } },
-  "glass":        { "n": "Glass",         "hardness": 0.3, "drops": "", "see": true, "shatter": true, "mat": { "color": "#d8ecff", "alpha": 0.28, "rough": 0.05 } },
-  "torch":        { "n": "Torch",         "hardness": 0.1, "solid": false, "see": true, "shape": "post", "drops": "torch", "burn": 4, "burnsTo": "", "light": { "color": "ffa050", "range": 8, "energy": 1.6 }, "mat": { "color": "#d49a52", "glow": 1.4, "rough": 0.8 } },
+  "glass":        { "n": "Glass",         "hardness": 0.3, "drops": "glass", "see": true, "shatter": true, "mat": { "color": "#d8ecff", "alpha": 0.28, "rough": 0.05 } },
+  "torch":        { "n": "Torch", "step": "wood", "hardness": 0.1, "solid": false, "see": true, "shape": "post", "drops": "torch", "burn": 4, "burnsTo": "", "light": { "color": "ffa050", "range": 6, "energy": 1.6 }, "mat": { "top": { "color": "#ffb24a", "glow": 3.2, "rough": 1.0 }, "side": { "gothic": "G_Wood", "color": "#6a4a2c", "tile": 1 }, "bottom": { "gothic": "G_Wood", "color": "#6a4a2c", "tile": 1 } } },
+  "planks_stairs": { "n": "Plank Stairs", "step": "wood", "hardness": 2.0, "tool": "axe", "see": true, "shape": "stairs", "drops": "planks_stairs", "burn": 10, "burnsTo": "", "mat": { "gothic": "G_Planks", "color": "#a88a66", "tile": 1.5 } },
+  "cobble_stairs": { "n": "Cobblestone Stairs", "step": "stone", "hardness": 2.0, "tool": "pickaxe", "see": true, "shape": "stairs", "drops": "cobble_stairs", "mat": { "gothic": "G_Cobble", "color": "#9a958e", "tile": 1.5 } },
+  "planks_slab":  { "n": "Plank Slab", "step": "wood", "hardness": 2.0, "tool": "axe", "see": true, "shape": "slab", "drops": "planks_slab", "burn": 8, "burnsTo": "", "mat": { "gothic": "G_Planks", "color": "#a88a66", "tile": 1.5 } },
+  "cobble_slab":  { "n": "Cobblestone Slab", "step": "stone", "hardness": 2.0, "tool": "pickaxe", "see": true, "shape": "slab", "drops": "cobble_slab", "mat": { "gothic": "G_Cobble", "color": "#9a958e", "tile": 1.5 } },
+  "fence":        { "n": "Fence", "step": "wood", "hardness": 1.5, "tool": "axe", "see": true, "shape": "fence", "drops": "fence", "burn": 8, "burnsTo": "", "mat": { "gothic": "G_Planks", "color": "#8a6c4a", "tile": 1 } },
   "coal_ore":     { "n": "Coal Ore",      "hardness": 3.0, "tool": "pickaxe", "drops": "coal_ore", "mat": { "gothic": "G_Rock", "color": "#4a4644", "tile": 1 } },
   "iron_ore":     { "n": "Iron Ore",      "hardness": 3.0, "tool": "pickaxe", "drops": "ironore", "mat": { "gothic": "G_Rock", "color": "#b08a70", "tile": 1 } },
   "gold_ore":     { "n": "Gold Ore",      "hardness": 3.0, "tool": "pickaxe", "drops": "gold_ore", "mat": { "gothic": "G_Rock", "color": "#d8b860", "tile": 1 } },

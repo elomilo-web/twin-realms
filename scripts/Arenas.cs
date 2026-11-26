@@ -38,12 +38,15 @@ public static class Arenas
     public static void Start(string mode)
     {
         var p = Player.Instance; if (p == null || Dungeon.Active) return;
+        var at = World.OnGround(Center.X - 12, Center.Z, 0.5f);
+        if (p.GlobalPosition.DistanceTo(at) > 60f) LoadScreen.Cut("Crimson Arena", mode == "waves" ? "wave survival" : "shadow duel", "Raising the stands");   // from afar (a test, a bot): its blocks must stream in
         World.ForceRealm(0); if (p.Mounted) p.ToggleMount(true);
         Active = true; Mode = mode; Wave = 1; Streak = 1; Alive = 0; RunValor = 0; _phase = "prep"; _delay = 3f;
         Builder.SetGate(false);
-        var c = Center; p.Teleport(World.OnGround(c.X - 12, c.Z, 0.5f), -Mathf.Pi / 2);
+        p.Teleport(at, -Mathf.Pi / 2);
         p.Revive(p.GlobalPosition);
-        Ui.Banner(mode == "waves" ? "Wave Survival" : "Shadow Duel", "the crowd roars"); Sfx.Play("roar"); Ui.Flash(Colors.White);
+        LoadScreen.Lift(() => { Ui.Banner(mode == "waves" ? "Wave Survival" : "Shadow Duel", "the crowd roars"); Sfx.Play("roar"); Ui.Flash(Colors.White); }, .6f, 6f);
+        _delay += LoadScreen.Covering ? 1f : 0f;   // a moment more to get ready once the screen lifts
     }
 
     public static void End(bool died)
@@ -52,7 +55,7 @@ public static class Arenas
         foreach (var n in Game.Root!.GetTree().GetNodesInGroup("enemies")) if (n is Enemy e && e.Arena) e.QueueFree();
         foreach (var n in Game.Root.GetTree().GetNodesInGroup("projectiles")) n.QueueFree();
         Active = false; Alive = 0; Builder.SetGate(true);
-        if (!died && Player.Instance != null) { var c = Center; Player.Instance.Teleport(World.OnGround(c.X - 40, c.Z, 0.5f), Mathf.Pi / 2); }
+        if (!died && Player.Instance != null) { var c = Center; Player.Instance.Teleport(World.OnGround(c.X - 40, c.Z, 0.5f), Mathf.Pi / 2); }   // 28 m from the arena floor: its blocks are already there, no loading screen
         Game.Save();
     }
 

@@ -424,6 +424,10 @@ def finish(name, parts, out_path, ao=True):
     tris = sum(len(p.vertices) - 2 for p in me.polygons)
     if out_path:
         os.makedirs(os.path.dirname(out_path), exist_ok=True)
+        # export only this model: models built earlier stay in the scene (lined up along X) and the exporter picked them up
+        others = [x for x in bpy.context.scene.objects if x != o and not x.hide_viewport]
+        for x in others:
+            x.select_set(False); x.hide_viewport = True
         bpy.ops.object.select_all(action="DESELECT"); o.select_set(True)
         kw = dict(filepath=out_path, export_format="GLB", use_selection=True, export_yup=True, export_apply=True,
                   export_image_format="NONE", export_materials="EXPORT")
@@ -431,4 +435,6 @@ def finish(name, parts, out_path, ao=True):
             bpy.ops.export_scene.gltf(**kw, export_vertex_color="ACTIVE", export_all_vertex_colors=False)
         except TypeError:
             bpy.ops.export_scene.gltf(**kw)
+        for x in others:
+            x.hide_viewport = False
     return o, tris

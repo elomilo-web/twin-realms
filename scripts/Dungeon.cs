@@ -110,6 +110,9 @@ public static partial class Dungeon
     {
         var w = World.I; if (w == null || Player.Instance == null) return;
         var poi = World.GetPoi(key);
+        var th0 = Theme(key); string thName = th0.GetProperty("name").GetString() ?? (IsLair(key) ? "Lair" : "Dungeon");
+        // the loading screen in place of the old black flash: up (and drawn) before the floor is generated, lifted when its blocks are in
+        LoadScreen.Cut(thName, IsLair(key) ? "a raid boss waits within" : "depth " + depth, IsLair(key) ? "Waking the dead" : Active ? "Descending" : "Laying the stones");
         if (!Active) { if (!Net.Active) World.ForceRealm(0); if (Player.Instance.Mounted) Player.Instance.ToggleMount(true); if (IsLair(key)) _ret = LairReturn(key); else if (poi != null) { var dir = new Vector2(-poi.Door.X, -poi.Door.Z).Normalized(); _ret = World.OnGround(poi.Door.X + dir.X * 7f, poi.Door.Z + dir.Y * 7f, 0.6f); } else _ret = new Vector3(0, 3, 9); }
         else Teardown();
         Key = key; Depth = depth; Active = true;
@@ -122,10 +125,13 @@ public static partial class Dungeon
         var start = Origin + new Vector3((_rooms[0].Cx + .5f) * Tile, 1f, (_rooms[0].Cz + .5f) * Tile + 3f);
         Player.Instance.Teleport(start, 0f);
         int tier = Progression.Tier(depth);
-        if (IsLair(key)) { Ui.Banner(th.GetProperty("name").GetString() ?? "Lair", "a raid boss waits within"); Ui.Flash(Colors.Black); Game.Save(); return; }
-        Ui.Banner(th.GetProperty("name").GetString() ?? "Dungeon", "depth " + depth + (tier > 0 ? $"  -  tier {tier + 1}" : "")); Ui.Flash(Colors.Black);
-        if (tier > 0 && (depth - 1) % 5 == 0) Ui.Note($"Tier {tier + 1}: the monsters here are far stronger, and so is their loot", new Color(1f, .5f, .35f));
-        if (LootTables.SetMinDepth(key) is int sd && depth >= sd) Ui.Note($"Set gear of {LootTables.SetName(key)} can drop on this floor", LootTables.SetColor(key));
+        if (IsLair(key)) { LoadScreen.Lift(() => Ui.Banner(thName, "a raid boss waits within"), .6f, 6f); Game.Save(); return; }
+        LoadScreen.Lift(() =>
+        {   // the banner and notes once the screen lifts (under it they would be lost)
+            Ui.Banner(thName, "depth " + depth + (tier > 0 ? $"  -  tier {tier + 1}" : ""));
+            if (tier > 0 && (depth - 1) % 5 == 0) Ui.Note($"Tier {tier + 1}: the monsters here are far stronger, and so is their loot", new Color(1f, .5f, .35f));
+            if (LootTables.SetMinDepth(key) is int sd && depth >= sd) Ui.Note($"Set gear of {LootTables.SetName(key)} can drop on this floor", LootTables.SetColor(key));
+        }, .6f, 6f);
         Game.D.Deepest = Math.Max(Game.D.Deepest, depth - 1);
         Game.Save();
     }
@@ -133,12 +139,13 @@ public static partial class Dungeon
     public static void Leave(bool died)
     {
         if (!Active) return;
+        LoadScreen.Cut(World.GetPoi(Key)?.Name ?? "The Overworld", died ? "dragged back to the surface" : "back to the surface", "Raising the land");
         Teardown(); Active = false; Inst = 0; Owner = 0;
         BlockWorld.I?.UseOverworld();   // back to the overworld's blocks (the floor's changes are kept with the hero)
         var w = World.I; w?.SetDungeonLook(false); w?.SetOverworldActive(true);
         if (Net.Active && World.Realm != Net.I!.Realm) World.ForceRealm(Net.I.Realm);   // the lobby may have shifted while we were below
         if (Player.Instance != null) { if (died) Player.Instance.Revive(_ret); else Player.Instance.Teleport(_ret, 0f); }
-        if (!died) { Ui.Flash(Colors.White); Ui.Note("You emerge into daylight", new Color(.8f, .75f, .65f)); }
+        LoadScreen.Lift(() => { if (!died) { Ui.Flash(Colors.White); Ui.Note("You emerge into daylight", new Color(.8f, .75f, .65f)); } }, .6f, 8f);   // the overworld blocks restream around the door first
         Game.Save();
     }
 

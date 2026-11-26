@@ -176,9 +176,9 @@ public static class Attacks
         var rc = C.TryGetProperty("recovery", out var rv) ? rv : default; float R(string k, float d) => rc.ValueKind == JsonValueKind.Object ? JsonUtil.F(rc, k, d) : d;
         float rec = power ? R("power", .5f) : a.Finisher ? R("finisher", .32f) : R("light", .05f);
         if (has && raw.TryGetProperty("recover", out var ov) && ov.ValueKind == JsonValueKind.Number) rec = ov.GetSingle();
-        rec *= w.Ranged ? R("rangedMul", .6f) : w.Hands > 1 ? R("twoHandedMul", 1.6f) : w.Id == "dagger" ? R("daggerMul", .5f) : 1f;
+        rec *= w.Ranged ? R("rangedMul", .6f) : w.Hands > 1 ? R("twoHandedMul", 1.6f) : w.Id is "dagger" or "unarmed" ? R("daggerMul", .5f) : 1f;
         r.Recover = rec;
-        r.Rec = has && JsonUtil.S(raw, "rec") != "" ? JsonUtil.S(raw, "rec") : rc.ValueKind == JsonValueKind.Object ? JsonUtil.S(rc, w.Hands > 1 || power ? "recHeavy" : "recLight") : "";
+        r.Rec = has && JsonUtil.S(raw, "rec") != "" ? JsonUtil.S(raw, "rec") : w.Id == "unarmed" ? "" : rc.ValueKind == JsonValueKind.Object ? JsonUtil.S(rc, w.Hands > 1 || power ? "recHeavy" : "recLight") : "";   // fists: no sword follow-through
         r.Def = a; return r;
     }
     static JsonElement? _styleRaw(string wt) => C.GetProperty("styles").TryGetProperty(wt, out var s) ? s : null;

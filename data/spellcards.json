@@ -1,7 +1,7 @@
 {
- "_help": "Spellcraft: build your own skills from cards, in the spirit of Two Worlds II (read by scripts/Spellcraft.cs, menu B). A spell needs one CARRIER (how it is delivered) and one EFFECT (what it does); MODIFIER cards change it. Extra copies of the same card stack (boosters). A spell can have a second section that goes off where the first one ends (a missile that bursts into an area = a fireball). Carriers come in three families: spell (mana, spell power), martial (stamina, weapon damage) and archery (stamina, weapon damage, needs a bow), so every class can craft. A carrier copies its numbers from an existing skill in data/skills.json ('from'), with 'set' overriding some of them; the effect then replaces its damage type, statuses and (for enchant and ward carriers) its buffs. Modifier 'mods' use the same keys as supports in data/skills.json. Cards are found: kill drops, chests, bosses; every hero starts with a kit for their class.",
+ "_help": "Spellcraft: build your own skills from cards, in the spirit of Two Worlds II (read by scripts/Spellcraft.cs, menu B). A spell needs one CARRIER (how it is delivered) and one EFFECT (what it does); MODIFIER cards change it. Extra copies of the same card stack (boosters). A spell can chain up to three sections: each goes off where the one before it ends (a missile that bursts into an area = a fireball; add a third and the area calls down a strike). See 'sections'. Carriers come in three families: spell (mana, spell power), martial (stamina, weapon damage) and archery (stamina, weapon damage, needs a bow), so every class can craft. A carrier copies its numbers from an existing skill in data/skills.json ('from'), with 'set' overriding some of them; the effect then replaces its damage type, statuses and (for enchant and ward carriers) its buffs. Modifier 'mods' use the same keys as supports in data/skills.json. Cards are found: kill drops, chests, bosses; every hero starts with a kit for their class.",
  "maxSpells": 8,
- "slots": { "_help": "cards per spell (both sections together): base + 1 per perLevels levels + the class bonus for the spell's family, at most max", "base": 4, "perLevels": 5, "max": 10 },
+ "slots": { "_help": "cards per spell (all sections together; 'sections.cards' adds more once a section opens): base + 1 per perLevels levels + the class bonus for the spell's family, at most max", "base": 4, "perLevels": 5, "max": 10 },
  "mastery": { "_help": "copies of one card a spell may hold: base + 1 per perLevels levels (Two Worlds II magic mastery)", "base": 2, "perLevels": 6, "max": 6 },
  "stack": {
   "_help": "each extra copy of the spell's effect card: +effectP % damage and healing, +statusDurP % status duration, buffs +effectP %. Each extra copy of its carrier card: radius/speed/duration/range/count grow by these %. Every card past the first two raises the cost by costP %.",
@@ -9,9 +9,17 @@
   "carrier": { "radius": 12, "speed": 15, "dur": 20, "range": 12 }
  },
  "second": {
-  "_help": "the second section goes off where the first one ends: costs add up (costP % of its own cost), its cooldown adds cdP %. Only these carriers can be a second section.",
-  "costP": 60, "cdP": 30,
+  "_help": "only these carriers can be a chained section (section II or III, which goes off where the section before it ends).",
   "carriers": ["missile", "area", "chain", "strike", "trap", "wall", "vortex", "altar"]
+ },
+ "sections": {
+  "_help": "a spell has up to 'max' sections: I, then II goes off where I ends, then III where II ends. Each list is indexed by section (I, II, III). unlockLevel: hero level that opens the section (shown locked with the level in the menu). costP: % of the section's own mana/stamina cost added to the spell. cdP: % of the section's own cooldown added to the spell's. powerP: extra % damage and healing of that section (negative = weaker, applied before the spell tree's secondP). cards: extra card slots per spell once the section is open (so a three-section spell fits).",
+  "max": 3,
+  "unlockLevel": [1, 1, 12],
+  "costP": [0, 60, 75],
+  "cdP": [0, 30, 40],
+  "powerP": [0, 0, -15],
+  "cards": [0, 0, 2]
  },
  "classSlots": {
   "_help": "extra cards per spell by class and family",
@@ -34,13 +42,13 @@
   "archery": { "volley": 2, "rain": 1, "steel": 1, "venom": 1, "fire": 1, "spray": 1 }
  },
  "tree": {
-  "_help": "The spell tree (Spellcraft menu > Spell tree): its own points, 1 per perLevels hero levels, spent on nodes that only affect crafted spells. Each node: branch (column), n (name), max ranks, per (value per rank), stat (what it changes), req (a node that needs at least 1 rank first), at (spent points in this branch needed first), d (text, {v} = total at the current rank). Stats: dmgP damage %, effectP extra % per extra effect copy, secondP second-section damage %, costP cost % (negative = cheaper), cdP cooldown %, castP cast time %, aoeP area %, statusP status duration %, cards extra cards per spell, copies extra copies of one card, spells extra spell slots. Resetting is free.",
+  "_help": "The spell tree (Spellcraft menu > Spell tree): its own points, 1 per perLevels hero levels, spent on nodes that only affect crafted spells. Each node: branch (column), n (name), max ranks, per (value per rank), stat (what it changes), req (a node that needs at least 1 rank first), at (spent points in this branch needed first), d (text, {v} = total at the current rank). Stats: dmgP damage %, effectP extra % per extra effect copy, secondP damage % of chained sections (II and III), costP cost % (negative = cheaper), cdP cooldown %, castP cast time %, aoeP area %, statusP status duration %, cards extra cards per spell, copies extra copies of one card, spells extra spell slots. Resetting is free.",
   "perLevels": 2,
   "branches": { "power": "POWER", "flow": "EFFICIENCY", "mastery": "MASTERY" },
   "nodes": {
    "focus":     { "branch": "power",   "n": "Focused Weave",    "max": 5, "per": 6,   "stat": "dmgP",    "at": 0,                    "d": "Crafted spells deal +{v}% damage and healing." },
    "resonance": { "branch": "power",   "n": "Resonance",        "max": 3, "per": 6,   "stat": "effectP", "at": 3, "req": "focus",    "d": "Each extra copy of an effect card adds +{v}% more power." },
-   "cascade":   { "branch": "power",   "n": "Cascade",          "max": 3, "per": 12,  "stat": "secondP", "at": 5, "req": "resonance", "d": "Second sections deal +{v}% damage." },
+   "cascade":   { "branch": "power",   "n": "Cascade",          "max": 3, "per": 12,  "stat": "secondP", "at": 5, "req": "resonance", "d": "Chained sections (II and III) deal +{v}% damage." },
    "expanse":   { "branch": "power",   "n": "Wide Weave",       "max": 3, "per": 8,   "stat": "aoeP",    "at": 8, "req": "cascade",  "d": "Crafted spells cover +{v}% more area." },
    "thrift":    { "branch": "flow",    "n": "Thrift",           "max": 5, "per": -5,  "stat": "costP",   "at": 0,                    "d": "Crafted spells cost {v}% mana or stamina." },
    "quicken":   { "branch": "flow",    "n": "Quickening",       "max": 5, "per": -4,  "stat": "cdP",     "at": 3, "req": "thrift",   "d": "Crafted spells recover {v}% faster (cooldown)." },

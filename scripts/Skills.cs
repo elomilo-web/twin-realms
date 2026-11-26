@@ -90,6 +90,7 @@ public static class Skills
         if (_s.Count > 0) return;
         using var doc = JsonUtil.Load("res://data/skills.json"); var r = doc.RootElement;
         RankP = JsonUtil.F(r, "rankP", 15); MaxRank = (int)JsonUtil.F(r, "maxRank", 5);
+        if (r.TryGetProperty("sockets", out var so)) { SockBase = (int)JsonUtil.F(so, "base", 1); SockPer = Math.Max(1, (int)JsonUtil.F(so, "perRanks", 2)); MaxSockets = (int)JsonUtil.F(so, "max", 3); }
         foreach (var p in r.GetProperty("skills").EnumerateObject())
         {
             var e = p.Value; float F(string k, float d = 0) => JsonUtil.F(e, k, d); bool B(string k) => e.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.True;
@@ -122,7 +123,12 @@ public static class Skills
     }
 
     // ---------------------------------------------------------------- rules
-    public static int Sockets(int rank) => Math.Min(3, 1 + rank / 2);
+    static int SockBase = 1, SockPer = 2;
+    /// <summary>Most support sockets a skill can open (data/skills.json "sockets").</summary>
+    public static int MaxSockets = 3;
+    public static int Sockets(int rank) { Load(); return Math.Min(MaxSockets, SockBase + rank / SockPer); }
+    /// <summary>The rank at which socket i (0-based) opens.</summary>
+    public static int SocketRank(int i) { Load(); for (int r = 1; r <= Math.Max(MaxRank, 1) * 4; r++) if (Sockets(r) > i) return r; return MaxRank; }
     /// <summary>Every modifier fits every skill and they all combine (a support's tags only place it in the modifier tree).</summary>
     public static bool Fits(SupportDef s, SkillDef k) => true;
     public static bool Known(string id) => Game.D.Skills.ContainsKey(id);

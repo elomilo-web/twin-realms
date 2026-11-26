@@ -17,6 +17,13 @@ public partial class Enemy : CharacterBody3D, IDamageable
     public List<MobMod>? Mods;                 // dungeon gear tier and upgrades (data/progression.json); applied to a private copy of Def
     public float TierHp = 1f, TierDmg = 1f;    // dungeon tier multipliers (every 5 floors)
     public bool Ambusher;                      // spawned by Threat around our own hero: never networked, hunts only us
+    // overworld packs (data/zones.json, Builder.SpawnPack): packmates share a PackId and join each other's fights; the leader has a name prefix
+    public int PackId; public bool Leader; public string Prefix = "";
+    float _evadeT;                             // leashed and running home: ignores damage for a moment (zones.json rules.evadeTime)
+    string ShownName => Prefix + Def.N;
+    /// <summary>Overworld notice range: enemies.json aggro x zones.json rules.aggroMul (bosses, wildlife, dungeons and arenas keep theirs).</summary>
+    float AggroR => Overworld && !Def.Boss && !Ambusher && Def.Look == "" ? Def.Aggro * Zones.AggroMul : Def.Aggro;
+    bool OwLeash => Overworld && !Def.Boss && !Ambusher && !NoLeash;
     int _areaLvl = -1;                         // overworld: the level the area gave this monster (it follows the heroes from there)
     float _xpMul = 1f, _lootBonus; OmniLight3D? _aura;
     bool Overworld => !Arena && !FromDungeon && !Summoned && DefOverride == null;
@@ -41,12 +48,16 @@ public partial class Enemy : CharacterBody3D, IDamageable
         if (Summoned) { hpMul *= .6f; dmgMul *= .8f; }
         float ratio = keepRatio && MaxHp > 0 ? Mathf.Clamp(Hp / MaxHp, 0, 1) : 1;
         MaxHp = Mathf.Max(1, hp * hpMul); Damage = dmg * dmgMul; Hp = MaxHp * ratio;
-        if (_label != null && IsInstanceValid(_label) && !Summoned) { _label.Text = (UpgradeLine() + Def.N).TrimEnd('\n'); RefreshBadge(); }
+        if (_label != null && IsInstanceValid(_label) && !Summoned) { _label.Text = (UpgradeLine() + ShownName).TrimEnd('\n'); RefreshBadge(); }
     }
     public float Hp, MaxHp, Damage;
     public bool Dead => _state == State.Dead;
     public bool Active { get; private set; } = true;
     public float RespawnTime;
+    /// <summary>Camp streaming (Zones.StreamTick): made already dead this many seconds (a parked camp member still waiting to respawn); -1 = alive.</summary>
+    public float StartDead = -1;
+    /// <summary>Seconds since it died (camp parking keeps the respawn clock).</summary>
+    public float DeadFor => Dead ? _deadT : 0;
     public Enemy? Owner_;
     // ---- multiplayer: NetIdx = index in World.NetEnemies (overworld enemies, same order on every machine).
     // A puppet mirrors the host's copy and forwards hits to it; a proxy is the invisible stand-in for a duel opponent.
@@ -99,7 +110,9 @@ public partial class Enemy : CharacterBody3D, IDamageable
         else Rescale(false);
         if (Def.Reach <= 0) Def.Reach = 2.2f;
         _home = GlobalPosition;
-        _gravity = (float)ProjectSettings.GetSetting("physics/3d/default_gravity");
+        // moves on physics ticks, drawn interpolated every frame (the scene root has interpolation off: CameraRig)
+        PhysicsInterpolationMode = PhysicsInterpolationModeEnum.On; ResetPhysicsInterpolation();
+        _gravity =(float)ProjectSettings.GetSetting("physics/3d/default_gravity");
         AddToGroup("enemies");
         CollisionLayer = 2; CollisionMask = 1 | 2;
         _scale = Def.Scale <= 0 ? 1f : Def.Scale;
@@ -140,9 +153,9 @@ public partial class Enemy : CharacterBody3D, IDamageable
         float labelY = _mdl != null ? HeightM() + .1f : quad ? r * 2.6f : dragon ? 6.2f : 2.2f * s;
         _label = new Label3D
         {
-            Text = Summoned ? "" : (UpgradeLine() + Def.N).TrimEnd('\n'), FontSize = 26, OutlineSize = 6, PixelSize = 0.006f, OutlineModulate = new Color(.04f, .03f, .03f, .95f),
-            // parchment names; elites/bosses gold; upgraded dungeon monsters blue (one upgrade) or gold (two or more)
-            Modulate = Def.Boss ? new Color(1f, .8f, .3f) : UpgradeCount() >= 2 ? new Color(1f, .82f, .3f) : UpgradeCount() == 1 ? new Color(.55f, .75f, 1f) : new Color(.93f, .88f, .75f),
+            Text = Summoned ? "" : (UpgradeLine() + ShownName).TrimEnd('\n'), FontSize = 26, OutlineSize = 6, PixelSize = 0.006f, OutlineModulate = new Color(.04f, .03f, .03f, .95f),
+            // parchment names; elites/bosses gold; pack leaders amber; upgraded dungeon monsters blue (one upgrade) or gold (two or more)
+            Modulate = Def.Boss ? new Color(1f, .8f, .3f) : Leader ? new Color(1f, .68f, .38f) : UpgradeCount() >= 2 ? new Color(1f, .82f, .3f) : UpgradeCount() == 1 ? new Color(.55f, .75f, 1f) : new Color(.93f, .88f, .75f),
             // depth-tested (no names through walls or hills) and only within a fair distance, fading out
             Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, Position = new Vector3(0, labelY + 0.3f, 0), NoDepthTest = false,
             VisibilityRangeEnd = Def.Boss || dragon ? 90f : 26f, VisibilityRangeEndMargin = 5f, VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self,
@@ -162,6 +175,11 @@ public partial class Enemy : CharacterBody3D, IDamageable
         if (FromDungeon) AnyRealm = true;
         if (Ambusher) _state = State.Chase;
         _summonT = (float)GD.RandRange(5, 9);
+        if (StartDead >= 0)
+        {
+            _state = State.Dead; _deadT = StartDead; Hp = 0; CollisionLayer = 0; CollisionMask = 1; Visible = false; _label.Visible = false;
+            _fallAxis = Vector3.Right; _dustDone = true; _body.Visible = false;
+        }
     }
 
     // ---- nameplate: name + small level badge + thin hp bar; shown only for the target, hunters, bosses and anything close
@@ -499,7 +517,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
     public void Stun(float t) { ClearTele(); if (Dead) return; if (Duelist) { DuelParried(t); return; } _hitSerial++; if (Puppet) { if (DuelPeer == 0) Net.I?.SendEnemyStun(this, t); return; } _stun = Mathf.Max(_stun, t); if (_state != State.Sleep) _state = State.Stagger; }
     public void Ignite(float t, float dps) => Status.Add("burn", t / 3f, 1, dps);
     public void Slow(float t) => Status.Add("chill", t / 3f, 0, 0);
-    public void Wake() { if (Def.Flee && !Dead) { _state = State.Flee; return; } if (_state == State.Sleep || _state == State.Idle || _state == State.Return) { if (Overworld && !Puppet && Hp >= MaxHp - .5f) Rescale(false); _state = State.Chase; if (_state == State.Chase && Def.Kind == "dragon") Sfx.Play("roar"); } }
+    public void Wake() { if (Def.Flee && !Dead) { _state = State.Flee; return; } if (_evadeT > 0 && _state == State.Return) return; if (_state == State.Sleep || _state == State.Idle || _state == State.Return) { if (Overworld && !Puppet && Hp >= MaxHp - .5f) Rescale(false); _state = State.Chase; if (_state == State.Chase && Def.Kind == "dragon") Sfx.Play("roar"); } }
 
     // ------------------------------------------------------------------ defenses and statuses
     public readonly StatusSet Status = new();
@@ -573,6 +591,8 @@ public partial class Enemy : CharacterBody3D, IDamageable
         if (Dead) return;
         if (h.IsPlayer && !h.Remote) Targeting.NoteHostile(this);   // auto target "monsters you hit"
         if (Puppet) { PuppetHit(h); return; }
+        // leashed and running home: evades every blow for a moment (MMO style), so it cannot be kited and farmed from its camp
+        if (_evadeT > 0 && _state == State.Return) { if (!h.NoText) FloatText.Spawn(this, GlobalPosition + new Vector3(0, HeightM() + 0.3f, 0), "Evade", new Color(.75f, .75f, .8f), .8f); return; }
         if (h.Remote) _lastPeer = h.Peer; else if (h.IsPlayer) _lastPeer = Net.MyId;
         float dealt = Incoming(h); int dmg = Mathf.Max(1, Mathf.RoundToInt(dealt));
         if (Duelist && !DuelHit(h, ref dmg)) return;   // dodged, immune, or soaked by the Eclipse barrier
@@ -650,7 +670,11 @@ public partial class Enemy : CharacterBody3D, IDamageable
         if (dshared) RespawnTime = 1e9f;   // keep the dead body (hidden) so its index stays valid for friends who arrive later
         long killer = _lastPeer < 0 ? Net.MyId : _lastPeer;
         float lvlF = Level < D.Level - Tune.F("monsters.lowLevelGap", 4) ? Tune.F("monsters.lowLevelXp", .5f) : 1f;   // data/tuning.json "game.monsters"
-        int xp = Mathf.RoundToInt(Def.Xp * (1 + Tune.F("monsters.xpPerLevel", .12f) * (Level - 1)) * Tune.F("monsters.xpMul", 1f) * (netKill ? 1f : lvlF) * (Summoned ? Tune.F("monsters.summonedXp", .3f) : 1f) * _xpMul);
+        // level zone rewards (data/zones.json): xp / gold multipliers, loot bonus and item chance; pack leaders pay more
+        float zXp = 1f, zGold = 1f, zLoot = 0f, zItem = 0f;
+        if (Overworld && Zones.At(_home.X, _home.Z) is { } zn) { zXp = zn.XpMul; zGold = zn.GoldMul; zLoot = zn.LootBonus; zItem = zn.ItemChance; }
+        if (Leader) { zXp *= Zones.LeaderReward; zGold *= Zones.LeaderReward; zLoot += 1f; zItem += Zones.LeaderItemChance; }
+        int xp = Mathf.RoundToInt(Def.Xp * (1 + Tune.F("monsters.xpPerLevel", .12f) * (Level - 1)) * Tune.F("monsters.xpMul", 1f) * (netKill ? 1f : lvlF) * (Summoned ? Tune.F("monsters.summonedXp", .3f) : 1f) * _xpMul * zXp);
         if (DefOverride != null || Arena) xp = 0;   // no experience from Wave Survival or the Shadow Duel
         Fx.Burst(GlobalPosition + Vector3.Up, Def.Kind == "wraith" ? new Color(0.7f, 0.4f, 1f) : new Color(0.8f, 0.2f, 0.2f), 16, 5f, 0.6f, 0.12f, -6f, "magic");
         var mats = new System.Text.StringBuilder();
@@ -662,8 +686,8 @@ public partial class Enemy : CharacterBody3D, IDamageable
                 if (netKill) mats.Append(kv.Key).Append(':').Append(n).Append(';'); else GatherDb.Give(kv.Key, n, GlobalPosition);
             }
         bool lootable = !Summoned && DefOverride == null && !Def.NoLoot && !noDrops;
-        int gold = Mathf.RoundToInt(GD.RandRange(Tune.F("monsters.goldMin", 2) + Level * Tune.F("monsters.goldMinPerLevel", 1), Tune.F("monsters.goldMax", 6) + Level * Tune.F("monsters.goldMaxPerLevel", 2)) * (Def.Boss ? Tune.F("monsters.bossGoldMul", 12) : 1) * Tune.F("monsters.goldMul", 1));
-        float chance = Def.Boss ? 1f : Mathf.Min(1f, Tune.F("monsters.itemChance", .2f) + (Def.Realm == 1 ? Tune.F("monsters.shadowItemChance", .06f) : 0f) + Tune.F("monsters.upgradeItemChance", .06f) * UpgradeCount()), bonus = (Def.Boss ? Tune.F("monsters.bossLootBonus", 2) : 0) + (Def.Realm == 1 ? Tune.F("monsters.shadowLootBonus", 1) : 0) + _lootBonus;
+        int gold = Mathf.RoundToInt(GD.RandRange(Tune.F("monsters.goldMin", 2) + Level * Tune.F("monsters.goldMinPerLevel", 1), Tune.F("monsters.goldMax", 6) + Level * Tune.F("monsters.goldMaxPerLevel", 2)) * (Def.Boss ? Tune.F("monsters.bossGoldMul", 12) : 1) * Tune.F("monsters.goldMul", 1) * zGold);
+        float chance = Def.Boss ? 1f : Mathf.Min(1f, Tune.F("monsters.itemChance", .2f) + (Def.Realm == 1 ? Tune.F("monsters.shadowItemChance", .06f) : 0f) + Tune.F("monsters.upgradeItemChance", .06f) * UpgradeCount() + zItem), bonus = (Def.Boss ? Tune.F("monsters.bossLootBonus", 2) : 0) + (Def.Realm == 1 ? Tune.F("monsters.shadowLootBonus", 1) : 0) + _lootBonus + zLoot;
         if (dshared) { Net.I!.DunKill(this, xp, killer, mats.ToString(), lootable, gold, chance, bonus, Def.Boss ? Tune.F("monsters.bossPotionChance", .6f) : Tune.F("monsters.potionChance", .07f)); lootable = false; }
         else if (shared) Net.I!.KillRewards(this, xp, killer, mats.ToString());
         else { D.Kills++; if (xp > 0 && p != null) p.AddXp(xp, GlobalPosition); }
@@ -687,14 +711,15 @@ public partial class Enemy : CharacterBody3D, IDamageable
         else if (!netKill) Quests.OnKill(Type, Def.Realm, Def.Boss);
         if (!Arena && !netKill && !Summoned && !Def.NoLoot && !noDrops) Spellcraft.OnKill(GlobalPosition, Def.Boss, UpgradeCount() > 0);   // spell cards (shared kills: Net.LocalKill)
         if (Def.Boss) { Ui.Banner(Def.N, "has fallen"); Sfx.Play("level"); if (FromDungeon) Dungeon.OnBossDown(this); }
-        if (!Arena && !Summoned && !FromDungeon && !Ambusher && RespawnTime <= 0) RespawnTime = (Def.Boss ? Tune.F("monsters.bossRespawn", 600) : Tune.F("monsters.respawn", 260)) * Threat.RespawnMul;   // the land refills faster the longer you play
+        if (PackId > 0 && Overworld && !Def.Boss && !Ambusher) RespawnTime = Zones.RespawnRoll() * Threat.RespawnMul;   // packs refill quickly (zones.json rules.respawn)
+        else if (!Arena && !Summoned && !FromDungeon && !Ambusher && RespawnTime <= 0) RespawnTime = (Def.Boss ? Tune.F("monsters.bossRespawn", 600) : Tune.F("monsters.respawn", 260)) * Threat.RespawnMul;   // the land refills faster the longer you play
         Game.Save();
     }
 
     void Respawn()
     {
-        Hp = MaxHp; Rescale(false); GlobalPosition = _home; _state = Def.Kind == "dragon" ? State.Sleep : State.Idle; _deadT = 0; _stun = 0; Status.Clear();
-        CollisionLayer = 2; CollisionMask = 1 | 2; _label.Visible = true; _body.Rotation = Vector3.Zero; Velocity = Vector3.Zero; _flT = 0; if (_killT > 0) { _killT = 0; KillFlash(false); }
+        Hp = MaxHp; Rescale(false); GlobalPosition = _home; ResetPhysicsInterpolation(); _state = Def.Kind == "dragon" ? State.Sleep : State.Idle; _deadT = 0; _stun = 0; Status.Clear();
+        CollisionLayer = 2; CollisionMask = 1 | 2; _label.Visible = true; _body.Visible = true; _body.Rotation = Vector3.Zero; Velocity = Vector3.Zero; _flT = 0; if (_killT > 0) { _killT = 0; KillFlash(false); }
         _body.Position = Vector3.Zero; _body.Scale = Vector3.One; for (int i = 0; i < _mats.Count; i++) { _mats[i].Transparency = BaseMaterial3D.TransparencyEnum.Disabled; _mats[i].AlbedoColor = _baseCols[i]; }
     }
 
@@ -710,7 +735,9 @@ public partial class Enemy : CharacterBody3D, IDamageable
         var pl = _hero;
         float distP = pl == null ? 999f : (pl.GlobalPosition - GlobalPosition).Length();
         // far monsters are not drawn or run (small wildlife even sooner); Scarletta's chamber is a kilometre wide, so she never sleeps for distance
-        if (distP > (Def.Look != "" ? 100f : 150f) && !Arena && !Dead && !Scarletta) { Visible = false; if (_mdlAp != null) _mdlAp.Active = false; return; }
+        // active cap (zones.json rules.maxActive): beyond the nearest N idle overworld monsters the rest sleep too; fighting ones always run
+        bool capped = Overworld && !Def.Boss && !Ambusher && !Dead && Zones.Culled(distP) && (_state is State.Idle or State.Sleep);
+        if ((capped || distP > (Def.Look != "" ? 100f : 150f)) && !Arena && !Dead && !Scarletta) { Visible = false; if (_mdlAp != null) _mdlAp.Active = false; return; }
         if (!Visible && Active) { Visible = true; if (_mdlAp != null) _mdlAp.Active = true; }
         PlateTick(dt, distP);
 
@@ -762,7 +789,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
             if (_deadT > 8f)
             {
                 if (Puppet) Visible = false;   // the host decides when it comes back
-                else if (RespawnTime > 0) { Visible = false; if (_deadT > RespawnTime && distP > 95f) Respawn(); }
+                else if (RespawnTime > 0) { Visible = false; if (_deadT > RespawnTime && (PackId > 0 ? pl == null || (pl.GlobalPosition - _home).Length() > Zones.RespawnClear : distP > 95f)) Respawn(); }   // packs: once no hero is near the camp
                 else QueueFree();
             }
             Velocity = new Vector3(0, v.Y, 0); MoveAndSlide();
@@ -770,6 +797,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         }
         if (Puppet) { PuppetMove(dt); if (Scarletta) ScarPuppetTick(dt); _netAge += dt; if (StalePuppet) { Visible = false; CollisionLayer = 0; } else if (!Dead) CollisionLayer = 2; return; }
         AggroTick(dt);   // damage and taunt locks (EnemyAggro.cs)
+        if (_evadeT > 0) _evadeT -= dt;
         if (IsShade) ShadeTick(dt);
 
         // damage over time / slow
@@ -803,7 +831,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
             case State.Idle:
                 // notice a hero only when close enough and (indoors) in plain sight; then the pack nearby joins in.
                 // Shades in the lair need no line of sight: they sense the living from far off and come together
-                if (plOk && dist < Def.Aggro && (IsShade || Notices(pl!, dist, dt))) { Wake(); Alert(); break; }
+                if (plOk && dist < AggroR && (IsShade || Notices(pl!, dist, dt))) { Wake(); Alert(); break; }
                 {
                     // wander: amble to a spot near home, pause, pick another (wildlife grazes slower and closer)
                     bool wild = Def.Look != "";
@@ -823,7 +851,9 @@ public partial class Enemy : CharacterBody3D, IDamageable
                 break;
             }
             case State.Chase:
-                if (!plOk || (!NoLeash && !Arena && !Summoned && !FromDungeon && (dist > Def.Aggro * 2.5f || (GlobalPosition - _home).Length() > 90f))) { _state = State.Return; break; }
+                // overworld leash (zones.json rules): too far from the camp, or the hero got well away -> give up, evade and run home
+                if (OwLeash && plOk && ((GlobalPosition - _home).Length() > Zones.Leash || dist > Mathf.Max(AggroR * Zones.LeashHeroMul, Zones.LeashHeroMin))) { _state = State.Return; _evadeT = Zones.EvadeTime; DropAggro(); break; }
+                if (!plOk || (!OwLeash && !NoLeash && !Arena && !Summoned && !FromDungeon && (dist > Def.Aggro * 2.5f || (GlobalPosition - _home).Length() > 90f))) { _state = State.Return; break; }
                 // dungeon monsters give up when you get well away (or they are dragged too far from their room), and go back to wandering
                 if (FromDungeon && !Def.Boss && !Summoned && (dist > Def.Aggro * 3f || (GlobalPosition - _home).Length() > 45f)) { _state = State.Return; break; }
                 if (Def.Boss && CurrentBoss != this) CurrentBoss = this;
@@ -882,10 +912,10 @@ public partial class Enemy : CharacterBody3D, IDamageable
             {
                 var back = _home - GlobalPosition; back.Y = 0;
                 if (back.Length() < 2f) { _state = Def.Kind == "dragon" ? State.Sleep : State.Idle; Hp = MaxHp; break; }
-                Hp = Mathf.Min(MaxHp, Hp + MaxHp * 0.1f * dt);
+                Hp = Mathf.Min(MaxHp, Hp + MaxHp * (OwLeash ? Zones.ReturnRegen : 0.1f) * dt);
                 _yaw = Mathf.LerpAngle(_yaw, Util.YawTo(back.X, back.Z), 1f - Mathf.Exp(-8f * dt));
                 move = back.Normalized() * Def.Spd * 1.2f;
-                if (plOk && dist < Def.Aggro * 0.6f) _state = Def.Flee ? State.Flee : State.Chase;
+                if (plOk && _evadeT <= 0 && dist < AggroR * 0.6f) _state = Def.Flee ? State.Flee : State.Chase;
                 break;
             }
             case State.Breath:
@@ -1020,7 +1050,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         }
         if (!_netHas) return;   // no word from the host yet (too far away): stay where the world placed us
         var before = GlobalPosition;
-        GlobalPosition = before.DistanceTo(_netPos) > 8f ? _netPos : before.Lerp(_netPos, 1f - Mathf.Exp(-10f * dt));
+        if (before.DistanceTo(_netPos) > 8f) { GlobalPosition = _netPos; ResetPhysicsInterpolation(); } else GlobalPosition = before.Lerp(_netPos, 1f - Mathf.Exp(-10f * dt));
         _yaw = Mathf.LerpAngle(_yaw, _netYaw, 1f - Mathf.Exp(-10f * dt)); Rotation = new Vector3(0, _yaw, 0);
         if (_state == State.Wind) _timer = Mathf.Max(0, _timer - dt);
         if (_mdlAp != null) { Velocity = (GlobalPosition - before) / Mathf.Max(dt, .001f); AnimateModel(); }   // models animate from the host's movement

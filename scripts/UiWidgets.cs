@@ -29,7 +29,7 @@ public partial class InfoTip : PanelContainer
 }
 
 /// <summary>A square skill button: icon, rank pips, the hotbar key it is on, a lock when it cannot be learned yet.</summary>
-public partial class SkillTile : Control
+public partial class SkillTile : Control, IPadFocus
 {
     public string Icon = "", Corner = ""; public int Rank, MaxRank = 5, Key = -1; public bool Known, Locked, CanLearn, Selected; public Color Tint = UiTheme.Accent;
     public Action? Click, RightClick; public Action<bool, Vector2>? Hover;
@@ -40,16 +40,22 @@ public partial class SkillTile : Control
         MouseFilter = MouseFilterEnum.Stop; MouseDefaultCursorShape = CursorShape.PointingHand;
         MouseEntered += () => { _over = true; QueueRedraw(); Hover?.Invoke(true, GetGlobalMousePosition()); };
         MouseExited += () => { _over = false; QueueRedraw(); Hover?.Invoke(false, Vector2.Zero); };
+        // controller (UiPad makes the tile focusable on a pad): focus shows the card like hovering; A = click, Y / Triangle = right click
+        FocusEntered += () => { QueueRedraw(); if (!_over) Hover?.Invoke(true, GlobalPosition + new Vector2(Size.X, 0)); };
+        FocusExited += () => { QueueRedraw(); if (!_over) Hover?.Invoke(false, Vector2.Zero); };
     }
     public override void _GuiInput(InputEvent e)
     {
         if (e is InputEventMouseButton mb && mb.Pressed && mb.ButtonIndex == MouseButton.Left) { Sfx.Play("click"); Click?.Invoke(); AcceptEvent(); }
         else if (e is InputEventMouseButton rb && rb.Pressed && rb.ButtonIndex == MouseButton.Right && RightClick != null) { Sfx.Play("click"); RightClick(); AcceptEvent(); }
+        else if (HasFocus() && e is InputEventJoypadButton { Pressed: true, ButtonIndex: JoyButton.Y } && RightClick != null) { Sfx.Play("click"); RightClick(); AcceptEvent(); }
+        else if (HasFocus() && e.IsActionPressed("ui_accept") && !e.IsEcho()) { Sfx.Play("click"); Click?.Invoke(); AcceptEvent(); }
     }
     public override void _Draw()
     {
         var r = new Rect2(Vector2.Zero, Size);
         DrawRect(r, Known ? new Color(.03f, .1f, .18f, .92f) : new Color(.02f, .04f, .08f, .85f));
+        if (HasFocus()) DrawRect(r.Grow(2), UiTheme.Highlight, false, 2f);
         if (Known) DrawRect(r.Grow(-2), Tint with { A = .08f });
         var border = Selected ? UiTheme.Highlight : CanLearn ? UiTheme.Highlight with { A = .75f } : Known ? UiTheme.Accent with { A = .7f } : UiTheme.AccentSoft with { A = .3f };
         DrawRect(r, border, false, Selected ? 2.5f : 1.2f);
@@ -66,7 +72,7 @@ public partial class SkillTile : Control
 /// The modifier tree drawn as lanes: one row per family, modifiers left to right in unlock order, linked by a line that lights up as you
 /// unlock them. Grows to the right and down as modifiers are added, inside a scroll box.
 /// </summary>
-public partial class ModLanes : Control
+public partial class ModLanes : Control, IPadFocus
 {
     public const float LaneH = 70f, X0 = 176f, StepX = 118f, R = 18f;
     public string Sel = ""; public Action<ModTree.Node>? Select, Activate; public Action<ModTree.Node?, Vector2>? Hover;
@@ -140,5 +146,46 @@ public partial class ModLanes : Control
             if (mb.DoubleClick) Activate?.Invoke(n); else { Sfx.Play("click"); Select?.Invoke(n); }
             AcceptEvent();
         }
+        else if (HasFocus()) PadGui(e);
+    }
+
+    // ---- controller: the D-pad / stick walks a cursor along the lanes (left/right in a lane, up/down between lanes), A selects the
+    // node (A again on the selected one unlocks it), leaving past the first or last lane hands focus back to the buttons
+    public string PadCursor => _hover == "" ? "-" : _hover;
+    ModTree.Node? Find(string key) { foreach (var b in ModTree.Branches) foreach (var n in b.Nodes) if (n.Key == key) return n; return null; }
+    void PadShow(ModTree.Node n)
+    {
+        _hover = n.Key; QueueRedraw(); var p = Pos(n);
+        if (GetParent() is ScrollContainer sc)
+        {   // keep the cursor in view
+            var vis = new Rect2(new Vector2(sc.ScrollHorizontal, sc.ScrollVertical), sc.Size);
+            if (p.X - 70 < vis.Position.X) sc.ScrollHorizontal = (int)(p.X - 70); else if (p.X + 70 > vis.End.X) sc.ScrollHorizontal = (int)(p.X + 70 - sc.Size.X);
+            if (p.Y - 40 < vis.Position.Y) sc.ScrollVertical = (int)(p.Y - 40); else if (p.Y + 50 > vis.End.Y) sc.ScrollVertical = (int)(p.Y + 50 - sc.Size.Y);
+        }
+        Hover?.Invoke(n, GlobalPosition + p + new Vector2(R + 6, -R));
+    }
+    void PadGui(InputEvent e)
+    {
+        var cur = Find(_hover) ?? Find(Sel);
+        if (e.IsActionPressed("ui_accept") && !e.IsEcho())
+        {
+            if (cur == null) return; AcceptEvent();
+            if (cur.Key == Sel) Activate?.Invoke(cur); else { Sfx.Play("click"); Select?.Invoke(cur); }
+            return;
+        }
+        int dx = e.IsActionPressed("ui_left", true) ? -1 : e.IsActionPressed("ui_right", true) ? 1 : 0, dy = e.IsActionPressed("ui_up", true) ? -1 : e.IsActionPressed("ui_down", true) ? 1 : 0;
+        if (dx == 0 && dy == 0) return;
+        if (cur == null) { if (ModTree.Branches.Count > 0 && ModTree.Branches[0].Nodes.Count > 0) { PadShow(ModTree.Branches[0].Nodes[0]); AcceptEvent(); } return; }
+        int li = ModTree.Branches.IndexOf(cur.Branch), idx = cur.Branch.Nodes.IndexOf(cur);
+        if (dx != 0) { int ni = idx + dx; if (ni < 0 || ni >= cur.Branch.Nodes.Count) { AcceptEvent(); return; } PadShow(cur.Branch.Nodes[ni]); AcceptEvent(); return; }
+        int nl = li + dy;
+        while (nl >= 0 && nl < ModTree.Branches.Count && ModTree.Branches[nl].Nodes.Count == 0) nl += dy;
+        if (nl < 0 || nl >= ModTree.Branches.Count) { _hover = ""; QueueRedraw(); Hover?.Invoke(null, Vector2.Zero); return; }   // focus leaves the lanes
+        var lane = ModTree.Branches[nl].Nodes; PadShow(lane[Math.Min(idx, lane.Count - 1)]); AcceptEvent();
+    }
+    public override void _Notification(int what)
+    {
+        if (what == NotificationFocusEnter) { var n = Find(Sel) ?? (ModTree.Branches.Count > 0 && ModTree.Branches[0].Nodes.Count > 0 ? ModTree.Branches[0].Nodes[0] : null); if (n != null) Callable.From(() => { if (IsInstanceValid(this) && HasFocus()) PadShow(n); }).CallDeferred(); }
+        else if (what == NotificationFocusExit) { _hover = ""; QueueRedraw(); Hover?.Invoke(null, Vector2.Zero); }
     }
 }

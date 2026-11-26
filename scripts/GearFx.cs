@@ -67,14 +67,16 @@ public static class GearFx
         // the accent is a thin rim on top of the real material, never a coat of paint: capped so the steel, leather and cloth stay visible
         edge = Mathf.Min(edge, weapon ? EdgeCapWeapon : EdgeCapArmor);
         t.Pulse = Mathf.Min(t.Pulse, .35f);
-        if (edge <= 0.001f && t.Emit <= 0) return;
-        var edgeMat = EdgeMat(col, edge, t.Pulse);
+        bool noEdge = edge <= 0.001f;
+        if (noEdge && t.Emit <= 0 && weapon) return;
+        var edgeMat = noEdge ? null : EdgeMat(col, edge, t.Pulse);
         foreach (var mi in Meshes(root))
         {
             for (int s = 0; s < (mi.Mesh?.GetSurfaceCount() ?? 0); s++)
             {
                 if (mi.GetActiveMaterial(s) is ShaderMaterial gm && Genshin.Is(gm))
                 {   // character parts already use the Genshin shader: keep it, add the glow on top
+                    if (edgeMat == null) continue;
                     var g = Genshin.WithPass(gm, edgeMat);
                     if (mi.MaterialOverride != null) { mi.MaterialOverride = g; break; }
                     mi.SetSurfaceOverrideMaterial(s, g); continue;
@@ -83,7 +85,9 @@ public static class GearFx
                 var d = (BaseMaterial3D)b.Duplicate(); Toon.Apply(d);
                 // only parts that already glow (gems, runes: TR_Glow_* / emissive) get brighter; metal, wood and cloth keep their own colour
                 if (weapon && t.Emit > 0 && b.EmissionEnabled) d.EmissionEnergyMultiplier = b.EmissionEnergyMultiplier * (1f + t.Emit * 2f);
-                d.NextPass = edgeMat;
+                // worn gems (crown, circlet) are tiny HDR emitters: in daylight the world glow blooms them into an orange blob, so keep them at a glint
+                if (!weapon && b.EmissionEnabled) d.EmissionEnergyMultiplier = Mathf.Min(b.EmissionEnergyMultiplier, ArmorGemCap);
+                if (edgeMat != null) d.NextPass = edgeMat;
                 if (mi.MaterialOverride != null) { mi.MaterialOverride = d; break; } else mi.SetSurfaceOverrideMaterial(s, d);
             }
         }
@@ -120,6 +124,7 @@ void fragment() {
     float p = 1.0 + pulse * sin(TIME * 2.4);
     ALBEDO = col.rgb * f * strength * p;
 }" };
+    const float ArmorGemCap = .35f;
     const float EdgeCapWeapon = .75f, EdgeCapArmor = .35f;
 
     static GpuParticles3D Sparks(Color c, int rate, float from, float length)

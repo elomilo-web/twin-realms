@@ -3,6 +3,8 @@
  "extent": 1700,
  "home": "The Verdant Isle",
  "skyName": "The Skyreach",
+ "_skyFill": "faint light on the downward-facing rock under each sky island (terrain shader under_fill; 0 = only sun/moon/ambient, which leaves the underside a black shape at night)",
+ "skyFill": 0.4,
  "sea": "The Sundering Sea",
 
  "biomes": {

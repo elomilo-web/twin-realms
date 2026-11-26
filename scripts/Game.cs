@@ -18,6 +18,7 @@ public class Settings
     public float Fov = 70f;
     public bool Outlines = false;          // the ink lines around shapes (off: too cartoony; settings files from before version 1 are switched off once)
     public int Quality = 3;                // graphics preset: 0 low, 1 medium, 2 high, 3 ultra (lighting, shadows, anti-aliasing, detail)
+    public bool AutoQuality = true;        // "Auto": the preset and 3D resolution are picked from the screen size (Game.PickAuto)
     public float ViewDist = 1200f;         // metres: how far the camera draws, trees and scenery fade before it
     public float Grass = 1f;               // grass amount 0..1 (0 = none)
     public int SetVer = 0;
@@ -181,6 +182,7 @@ public static class Game
         Set.Binds ??= new(); Set.PadBinds ??= new();
         if (Set.SetVer < 1) { Set.Outlines = false; Set.SetVer = 1; }   // the outline look was retired (too cartoony)
         if (Set.SetVer < 2) { if (Set.MaxFps == 0) Set.MaxFps = 144; Set.SetVer = 2; }   // older files: the old "no limit" default becomes a cap once
+        if (Set.SetVer < 3) { Set.AutoQuality = true; Set.SetVer = 3; }   // the recalibrated presets: everyone starts on Auto once (pick a preset to leave it)
         Sfx.ApplyVolumes(); Inputs.ApplyBinds(); ApplyDisplay();
     }
 
@@ -188,12 +190,33 @@ public static class Game
     public static bool Background;
     public const int BackgroundFps = 15;
     public static void SetBackground(bool bg) { if (bg == Background) return; Background = bg; Engine.MaxFps = bg ? BackgroundFps : Math.Max(0, Set.MaxFps); }
+    /// <summary>
+    /// "Auto" quality: the preset and 3D resolution from the screen width (the pixel count is what costs): above 2560 px Medium at
+    /// 62% (FSR 1, about a 1440p load on a 4K screen), above 1920 px High at 77% (FSR 2), else High at full resolution.
+    /// </summary>
+    public static void PickAuto()
+    {
+        int w = 1920;
+        if (DisplayServer.GetName() != "headless")
+        {
+            var win = DisplayServer.WindowGetSize(); var scr = DisplayServer.ScreenGetSize(DisplayServer.WindowGetCurrentScreen());
+            w = Math.Max(win.X, Set.WindowMode != 0 ? scr.X : 0); if (w <= 0) w = scr.X;
+        }
+        (Set.Quality, Set.RenderScale) = w > 2560 ? (1, .62f) : w > 1920 ? (2, .77f) : (2, 1f);
+    }
     /// <summary>Window mode, vsync, frame cap, 3D resolution and outlines from the settings (field of view and shake are read live by CameraRig).</summary>
     public static void ApplyDisplay()
     {
+        if (Set.AutoQuality) PickAuto();
         Set.RenderScale = Mathf.Clamp(Set.RenderScale, .5f, 1f); Set.Fov = Mathf.Clamp(Set.Fov, 55f, 100f);
         Engine.MaxFps = Background ? BackgroundFps : Math.Max(0, Set.MaxFps);
-        if (Engine.GetMainLoop() is SceneTree tree) tree.Root.Scaling3DScale = Set.RenderScale;
+        if (Engine.GetMainLoop() is SceneTree tree)
+        {
+            // below full resolution the picture is upscaled with AMD FSR: FSR 2 (temporal, replaces TAA) on High/Ultra, the cheaper FSR 1 below
+            var root = tree.Root; root.Scaling3DScale = Set.RenderScale;
+            root.Scaling3DMode = Set.RenderScale > .99f ? Viewport.Scaling3DModeEnum.Bilinear : Set.Quality >= 2 ? Viewport.Scaling3DModeEnum.Fsr2 : Viewport.Scaling3DModeEnum.Fsr;
+            root.FsrSharpness = .25f;
+        }
         Toon.SetOutlines(Set.Outlines);
         Set.Quality = Math.Clamp(Set.Quality, 0, 3); Set.ViewDist = Mathf.Clamp(Set.ViewDist, 300f, 3000f); Set.Grass = Mathf.Clamp(Set.Grass, 0f, 1f);
         World.I?.ApplyQuality(); Flora.ApplyQuality();
@@ -215,5 +238,6 @@ public static class Game
     public static QuestState Q(string id) { if (!D.Quests.TryGetValue(id, out var s)) D.Quests[id] = s = new QuestState(); return s; }
 
     // ---- level helpers
-    public static int LevelAt(float x, float z, int realm) => Mathf.Clamp(1 + (int)(new Vector2(x, z).Length() / Tune.F("world.metresPerAreaLevel", 38)) + realm * Tune.I("world.shadowAreaBonus", 1), 1, Tune.I("world.maxAreaLevel", 12));   // data/tuning.json "game.world"
+    /// <summary>Area level: the level zone's fixed level there (data/zones.json); outside every zone the old distance formula.</summary>
+    public static int LevelAt(float x, float z, int realm) => Zones.At(x, z) is { } zn ? Zones.Level(zn, x, z, realm) : Mathf.Clamp(1 + (int)(new Vector2(x, z).Length() / Tune.F("world.metresPerAreaLevel", 38)) + realm * Tune.I("world.shadowAreaBonus", 1), 1, Tune.I("world.maxAreaLevel", 12));   // data/tuning.json "game.world"
 }

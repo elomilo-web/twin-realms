@@ -17,12 +17,17 @@ public partial class ItemSlot : Control
         MouseFilter = MouseFilterEnum.Stop;
         MouseEntered += () => { _over = true; QueueRedraw(); Hover?.Invoke(true); };
         MouseExited += () => { _over = false; QueueRedraw(); Hover?.Invoke(false); };
+        // controller: the cell takes focus (UiPad makes it focusable while playing on a pad); focus shows the tooltip like hovering
+        FocusEntered += () => { QueueRedraw(); if (!_over) Hover?.Invoke(true); };
+        FocusExited += () => { QueueRedraw(); if (!_over) Hover?.Invoke(false); };
     }
     /// <summary>Used by the observer to show the tooltip without a mouse.</summary>
     public void SimulateHover() { _over = true; QueueRedraw(); Hover?.Invoke(true); }
     public override void _GuiInput(InputEvent e)
     {
         if (e is InputEventMouseButton b && b.Pressed && (b.ButtonIndex == MouseButton.Left || b.ButtonIndex == MouseButton.Right)) { Clicked?.Invoke(b.ButtonIndex == MouseButton.Right); AcceptEvent(); }
+        else if (HasFocus() && e is InputEventJoypadButton { Pressed: true } jb && jb.ButtonIndex == JoyButton.Y) { Clicked?.Invoke(true); AcceptEvent(); }   // Y / Triangle = right click (drop)
+        else if (HasFocus() && e.IsActionPressed("ui_accept") && !e.IsEcho()) { Clicked?.Invoke(false); AcceptEvent(); }
     }
 
     public override void _Draw()
@@ -64,6 +69,10 @@ public partial class ItemSlot : Control
                 Icons.Draw(this, Icons.ForItem(Empty, "sword"), Wide ? new Vector2(r.Size.Y * .5f + 4, r.Size.Y * .5f) : r.GetCenter(), r.Size.Y * .5f, .18f);
                 if (Wide) DrawString(F, new Vector2(r.Size.Y + 6, r.Size.Y * .5f + 5), char.ToUpper(Empty[0]) + Empty[1..], HorizontalAlignment.Left, -1, 13, UiTheme.Dim);
             }
+        }
+        if (HasFocus())
+        {
+            var gold = UiTheme.Highlight; DrawRect(r.Grow(1), gold, false, 3f); DrawRect(r.Grow(-2), gold with { A = .5f }, false, 1f); DrawRect(r, gold with { A = .1f });
         }
         if (_over) { DrawRect(r, UiTheme.Accent, false, 2f); DrawRect(r.Grow(-2), new Color(1f, .9f, .6f, .35f), false, 1f); DrawRect(r, UiTheme.Accent with { A = .08f }); }
     }

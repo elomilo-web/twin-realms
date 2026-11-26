@@ -28,12 +28,14 @@ public static class Progression
     public static int PartyDungeonLevel(float avgLevel, int depth) { Load(); return Math.Max(1, (int)Math.Round(avgLevel) + PartyDunOffset + DunPerDepth * Math.Max(0, depth - 1) + _tierLevels * Tier(depth)); }
     static float _upBase = 1, _upPerDepth = .5f; static int _upMax = 4, _upBoss = 2;
     public static readonly List<MobMod> Gear = new(), Upgrades = new();
-    // monster curve and power floor (progression.json "scaling")
-    static float _hpLin = .2f, _hpExp = 1.045f, _dmgLin = .13f, _dmgExp = 1.04f;
-    static bool _powerOn = true; static float _refHp = 50, _hpHits = 5, _refDmg = 10, _hitPct = .06f, _shape = .75f, _defRespect = .5f, _maxHitPct = .45f;
+    // monster scaling (progression.json "scaling"): measured against a reference hero of the monster's level, so nothing compounds
+    static float _hit0 = 12, _hitPer = 7.5f, _hp0 = 110, _hpPer = 50;                       // the reference hero: weapon hit and max health by level
+    static float _refHp = 50, _hpHits = 4.5f, _shape = .7f, _bossFrom = 580, _refBossHp = 1500, _bossHits = 80, _bossShape = .35f;
+    static float _refDmg = 10, _hitPct = .065f, _dmgShape = .6f, _maxHitPct = .2f;
+    static bool _powerOn = true; static float _hpFloor = .6f, _dmgFloor = .5f;
     static float _armK = 14, _armPerLvl = 6;
     // overworld follow, party multiplier, dungeon tiers
-    static bool _owFollow = true; static float _owOffset, _owArea = .5f; static int _owBoss = 3;
+    static bool _owFollow; static float _owOffset, _owArea = .5f; static int _owBoss = 3;
     public static float PartyStatMul = 1.5f; static int _partyMin = 2;
     public static int DunMobMul = 3; static int _tierEvery = 5, _tierLevels = 2, _tierUps = 1; static float _tierHp = 1.7f, _tierDmg = 1.4f;
 
@@ -46,16 +48,21 @@ public static class Progression
         if (r.TryGetProperty("party", out var pa)) { PartyXpPool = JsonUtil.F(pa, "xpPool", .9f); PartyDropMul = JsonUtil.F(pa, "dropMul", 1.15f); PartyDunOffset = (int)JsonUtil.F(pa, "dungeonOffset", 3); PartyStatMul = JsonUtil.F(pa, "statMul", 1.5f); _partyMin = (int)JsonUtil.F(pa, "minPlayers", 2); }
         if (r.TryGetProperty("scaling", out var s))
         {
-            _hpLin = JsonUtil.F(s, "hpLin", _hpLin); _hpExp = JsonUtil.F(s, "hpExp", _hpExp); _dmgLin = JsonUtil.F(s, "dmgLin", _dmgLin); _dmgExp = JsonUtil.F(s, "dmgExp", _dmgExp);
+            if (s.TryGetProperty("hero", out var h)) { _hit0 = JsonUtil.F(h, "hit", _hit0); _hitPer = JsonUtil.F(h, "hitPerLevel", _hitPer); _hp0 = JsonUtil.F(h, "hp", _hp0); _hpPer = JsonUtil.F(h, "hpPerLevel", _hpPer); }
+            if (s.TryGetProperty("health", out var hh))
+            {
+                _refHp = JsonUtil.F(hh, "refHp", _refHp); _hpHits = JsonUtil.F(hh, "hits", _hpHits); _shape = JsonUtil.F(hh, "shape", _shape);
+                _bossFrom = JsonUtil.F(hh, "bossFrom", _bossFrom); _refBossHp = JsonUtil.F(hh, "refBossHp", _refBossHp); _bossHits = JsonUtil.F(hh, "bossHits", _bossHits); _bossShape = JsonUtil.F(hh, "bossShape", _bossShape);
+            }
+            if (s.TryGetProperty("damage", out var dd)) { _refDmg = JsonUtil.F(dd, "refDmg", _refDmg); _hitPct = JsonUtil.F(dd, "hitPct", _hitPct); _dmgShape = JsonUtil.F(dd, "shape", _dmgShape); _maxHitPct = JsonUtil.F(dd, "maxHitPct", _maxHitPct); }
             if (s.TryGetProperty("power", out var p))
             {
                 _powerOn = !p.TryGetProperty("on", out var on) || on.ValueKind != JsonValueKind.False;
-                _refHp = JsonUtil.F(p, "refHp", _refHp); _hpHits = JsonUtil.F(p, "hpHits", _hpHits); _refDmg = JsonUtil.F(p, "refDmg", _refDmg); _hitPct = JsonUtil.F(p, "hitPct", _hitPct);
-                _shape = JsonUtil.F(p, "shape", _shape); _defRespect = JsonUtil.F(p, "defenseRespect", _defRespect); _maxHitPct = JsonUtil.F(p, "maxHitPct", _maxHitPct);
+                _hpFloor = JsonUtil.F(p, "hpFloor", _hpFloor); _dmgFloor = JsonUtil.F(p, "dmgFloor", _dmgFloor);
             }
             if (s.TryGetProperty("armor", out var a)) { _armK = JsonUtil.F(a, "k", _armK); _armPerLvl = JsonUtil.F(a, "perLevel", _armPerLvl); }
         }
-        if (r.TryGetProperty("overworld", out var o)) { _owFollow = !o.TryGetProperty("follow", out var fo) || fo.ValueKind != JsonValueKind.False; _owOffset = JsonUtil.F(o, "offset"); _owArea = JsonUtil.F(o, "areaWeight", .5f); _owBoss = (int)JsonUtil.F(o, "bossBonus", 3); }
+        if (r.TryGetProperty("overworld", out var o)) { _owFollow = o.TryGetProperty("follow", out var fo) && fo.ValueKind == JsonValueKind.True; _owOffset = JsonUtil.F(o, "offset"); _owArea = JsonUtil.F(o, "areaWeight", .5f); _owBoss = (int)JsonUtil.F(o, "bossBonus", 3); }
         if (!r.TryGetProperty("dungeon", out var d)) return;
         DunOffset = (int)JsonUtil.F(d, "levelOffset", 2); DunPerDepth = (int)JsonUtil.F(d, "perDepth", 1); DunBoss = (int)JsonUtil.F(d, "bossBonus", 1);
         DunMobMul = Math.Max(1, (int)JsonUtil.F(d, "mobMul", 3));
@@ -99,22 +106,66 @@ public static class Progression
     public static float TierDmg(int depth) => Mathf.Pow(_tierDmg, Tier(depth));
     public static int TierUpgrades(int depth) => _tierUps * Tier(depth);
 
-    /// <summary>Health factor at a monster level: linear growth times a gentle exponential, so it keeps bending upward.</summary>
-    public static float HpCurve(int lvl) { Load(); float n = Math.Max(0, lvl - 1); return (1 + _hpLin * n) * Mathf.Pow(_hpExp, n); }
-    public static float DmgCurve(int lvl) { Load(); float n = Math.Max(0, lvl - 1); return (1 + _dmgLin * n) * Mathf.Pow(_dmgExp, n); }
+    // Monster health and damage are measured against a reference hero of the monster's level (progression.json scaling.hero: weapon hit and
+    // max health, both linear in level like a real hero's). Health = hits x reference hit; damage = share x reference health. The old rule
+    // (base x (1 + lin*n) x exp^n, then a floor of the hero's own power, then tier x gear x upgrades x party x threat) compounded: a level 49
+    // dragon had 368,245 health (1000+ hits) and hit for 28% of a hero's health.
+    /// <summary>The reference hero's weapon hit at a level.</summary>
+    public static float RefHit(int lvl) { Load(); return _hit0 + _hitPer * Math.Max(0, lvl - 1); }
+    /// <summary>The reference hero's max health at a level.</summary>
+    public static float RefHeroHp(int lvl) { Load(); return _hp0 + _hpPer * Math.Max(0, lvl - 1); }
+    /// <summary>Hits from the reference hero a monster of this base health takes: tougher kinds take more, bosses (base health from bossFrom up) on their own scale.</summary>
+    public static float Hits(float baseHp)
+    {
+        Load(); if (baseHp <= 0) return 0;
+        return baseHp >= _bossFrom ? _bossHits * Mathf.Pow(baseHp / _refBossHp, _bossShape) : _hpHits * Mathf.Pow(baseHp / _refHp, _shape);
+    }
+    /// <summary>Share of the reference hero's max health one blow deals (before the hero's armor).</summary>
+    public static float HitPct(float baseDmg) { Load(); return baseDmg <= 0 ? 0 : Mathf.Min(_maxHitPct, _hitPct * Mathf.Pow(baseDmg / _refDmg, _dmgShape)); }
+    public static float EnemyHp(float baseHp, int lvl) => Hits(baseHp) * RefHit(lvl);
+    public static float EnemyDmg(float baseDmg, int lvl) => HitPct(baseDmg) * RefHeroHp(lvl);
+    /// <summary>Growth factor with level (level 1 = 1): linear, like the hero's.</summary>
+    public static float HpCurve(int lvl) => RefHit(lvl) / RefHit(1);
+    public static float DmgCurve(int lvl) => RefHeroHp(lvl) / RefHeroHp(1);
 
     /// <summary>Share of a blow the hero takes through armor: K / (K + armor), K grows with the attacker's level.</summary>
     public static float ArmorTaken(float armor, int attackerLvl) { Load(); float k = _armK + _armPerLvl * Math.Max(1, attackerLvl); return k / (k + Math.Max(0, armor)); }
 
-    /// <summary>Health floor from the hero's power: at least hpHits x their weapon hit, more for tough monster types.</summary>
-    public static float PowerHp(float baseHp, float heroHit) { Load(); if (!_powerOn || baseHp <= 0) return 0; return _hpHits * heroHit * Mathf.Pow(baseHp / _refHp, _shape); }
-    /// <summary>Damage floor from the hero's health: every blow lands for a share of it after armor (armor is half credited back).</summary>
-    public static float PowerDmg(float baseDmg, float heroMaxHp, float heroTaken)
+    /// <summary>Health floor from the hero's own power: a far over-geared hero still needs hpFloor x the usual hits.</summary>
+    public static float PowerHp(float baseHp, float heroHit) { Load(); if (!_powerOn || baseHp <= 0) return 0; return _hpFloor * Hits(baseHp) * heroHit; }
+    /// <summary>Damage floor from the hero's own health: a hero with far more health than the reference still loses dmgFloor x the usual share per blow (armor applies on top).</summary>
+    public static float PowerDmg(float baseDmg, float heroMaxHp, float heroTaken) { Load(); if (!_powerOn || baseDmg <= 0) return 0; return _dmgFloor * HitPct(baseDmg) * heroMaxHp; }
+
+    /// <summary>
+    /// The scaling table (godot --headless --path . -- --scaling-table): a normal foe (skeleton, base 72 hp / 10 dmg), an elite (brute, 210 / 22) and a
+    /// boss (dragon, 4200 / 52) against the reference hero of the same level, in dungeons at depth 1, 5 and 10 (gear tier, tier multipliers and the
+    /// average upgrade health), plus the overworld dragon (Vorthrax). Hits = health / hero hit; dmg % = one blow / hero health before armor.
+    /// </summary>
+    public static string Table()
     {
-        Load(); if (!_powerOn || baseDmg <= 0) return 0;
-        float pct = Mathf.Min(_maxHitPct, _hitPct * Mathf.Pow(baseDmg / _refDmg, _shape));
-        return pct * heroMaxHp / Mathf.Pow(Mathf.Max(.05f, heroTaken), 1 - _defRespect);
+        Load(); var sb = new System.Text.StringBuilder();
+        sb.AppendLine("hero L | hit / hp   | where      | mon L | skeleton hp (hits) dmg% | brute hp (hits) dmg%  | dragon boss hp (hits) dmg%");
+        float avgUpHp = 0; foreach (var u in Upgrades) avgUpHp += u.HpP; avgUpHp = Upgrades.Count > 0 ? avgUpHp / Upgrades.Count : 0;
+        foreach (int L in new[] { 10, 25, 40, 50 })
+        {
+            float hit = RefHit(L), hp = RefHeroHp(L);
+            void Row(string where, int ml, float hpM, float dmM, float ups)
+            {
+                string C(float bh, float bd, float extraUps) { float upM = 1 + (ups + extraUps) * avgUpHp / 100f; float h = EnemyHp(bh * hpM * upM, ml) * TierMulHp, d = EnemyDmg(bd * dmM, ml) * TierMulDmg; return $"{h,8:0} ({h / hit,5:0.0}) {d / hp * 100,4:0.0}%"; }
+                sb.AppendLine($"{L,6} | {hit,4:0} / {hp,5:0} | {where,-10} | {ml,5} | {C(72, 10, 0)} | {C(210, 22, 0)} | {C(4200, 52, _upBoss)}");
+            }
+            Row("overworld", L, 1, 1, 0); TierMulHp = TierMulDmg = 1;
+            foreach (int dep in new[] { 1, 5, 10 })
+            {
+                var g = GearFor(dep); TierMulHp = TierHp(dep); TierMulDmg = TierDmg(dep);
+                float ups = Math.Min(_upMax, _upBase + _upPerDepth * (dep - 1)) + TierUpgrades(dep);
+                Row("depth " + dep, DungeonLevel(L, dep), 1 + (g?.HpP ?? 0) / 100f, 1 + (g?.DmgP ?? 0) / 100f, ups);
+                TierMulHp = TierMulDmg = 1;
+            }
+        }
+        return sb.ToString();
     }
+    static float TierMulHp = 1, TierMulDmg = 1;
 
     /// <summary>The level monsters measure against: your own, or in multiplayer the average of everyone in the world.</summary>
     public static float RefLevel()
@@ -122,7 +173,8 @@ public static class Progression
         if (Net.Active && Net.I!.Players.Count > 1) { float s = 0; foreach (var p in Net.I.Players.Values) s += p.Level; return s / Net.I.Players.Count; }
         return Game.D.Level;
     }
-    /// <summary>Overworld monster level: the area's level or the heroes' level (plus a little for remote areas), whichever is higher.</summary>
+    /// <summary>Overworld monster level: the level zone's own (data/zones.json), fixed. With progression.json overworld.follow on,
+    /// the old rule instead: the area's level or the heroes' level (plus a little for remote areas), whichever is higher.</summary>
     public static int OverworldLevel(int areaLvl, bool boss)
     {
         Load(); if (!_owFollow) return areaLvl;

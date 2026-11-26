@@ -49,6 +49,11 @@
 - Grep every cycle's diff for code swallowed into `//` comments (#18 attacks, 217a461 roll):
   `git diff | Select-String '^\+.*//[^/]*[a-z]\w* (=|\+=) [^;]+;\s*\w'`.
 
+## UI RULE (user directive #20, paste into every UI brief)
+Windows never stretch: Ui.Frame returns a VBox inside a ScrollContainer and the window is fixed at the requested size
+(clamped to the viewport - 48 px). Never put a window's content outside that body, never build a separate unbounded panel;
+long lists get their own ScrollContainer or rely on the body scroll. Verify with capture views filled with content (*_full).
+
 ## API GOTCHAS (paste into every brief)
 EDIT FILES ONLY WITH THE Edit/Write TOOLS: no PowerShell file rewrites (Set-Content/Add-Content/[IO.File] or helper
 functions): #15's Ui.cs split lost 342 lines to a PowerShell alias collision (`R` -> Invoke-History) and was reverted.

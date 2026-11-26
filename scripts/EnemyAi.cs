@@ -18,12 +18,18 @@ public partial class Enemy
         _saw = GetWorld3D().DirectSpaceState.IntersectRay(q).Count == 0;
         return _saw;
     }
-    /// <summary>This monster noticed a hero (or was struck): the idle pack around it (9 m) joins the fight.</summary>
+    /// <summary>This monster noticed a hero (or was struck): the idle monsters around it (9 m) join the fight, and so do its
+    /// packmates (same PackId) within zones.json rules.packAlert, even ones still walking home.</summary>
     void Alert()
     {
-        float r = IsShade ? Tune.F("raid.shadeAlert", 45f) : 9f;   // shades call every shade in the hall
+        float r = IsShade ? Tune.F("raid.shadeAlert", 45f) : 9f, pr = Zones.PackAlert;   // shades call every shade in the hall
         foreach (var n in GetTree().GetNodesInGroup("enemies"))
-            if (n is Enemy e && e != this && !e.Dead && !e.Puppet && e._state == State.Idle && !e.Def.Flee && e.FromDungeon == FromDungeon && e.GlobalPosition.DistanceSquaredTo(GlobalPosition) < r * r) e.Wake();
+        {
+            if (n is not Enemy e || e == this || e.Dead || e.Puppet || e.Def.Flee || e.FromDungeon != FromDungeon) continue;
+            float d2 = e.GlobalPosition.DistanceSquaredTo(GlobalPosition);
+            bool mate = PackId > 0 && e.PackId == PackId && d2 < pr * pr && (e._state is State.Idle or State.Return);
+            if (mate || (e._state == State.Idle && d2 < r * r)) e.Wake();
+        }
     }
 
     // ------------------------------------------------------------------ attack telegraph

@@ -120,7 +120,64 @@ public partial class World : Node3D
         float h0 = HG[i0], h1 = HG[i0 + 1], h2 = HG[i0 + N + 1], h3 = HG[i0 + N + 2];
         return u + v <= 1 ? h0 + u * (h1 - h0) + v * (h2 - h0) : h3 + (1 - u) * (h2 - h3) + (1 - v) * (h1 - h3);
     }
-    public static Vector3 OnGround(float x, float z, float up = 0f) => new Vector3(x, GroundAt(x, z) + up, z);
+    /// <summary>
+    /// A point on the ground the player sees: near the hero the ground is 1 m blocks (BlockGen: a column's top is round(smooth height), so up to
+    /// half a metre off the smooth ground, and a step can be a whole block), so this stands on the block column's top. A lift of half a metre or
+    /// more is a body's spawn point (hero, teleports): it stands on the highest column under a 0.45 m footprint so it never starts inside a block.
+    /// </summary>
+    public static Vector3 OnGround(float x, float z, float up = 0f)
+    {
+        float y = StandAt(x, z);
+        if (up >= .5f) foreach (var (dx, dz) in Foot) y = Mathf.Max(y, StandAt(x + dx, z + dz));
+        return new Vector3(x, y + up, z);
+    }
+    static readonly (float, float)[] Foot = { (.45f, 0), (-.45f, 0), (0, .45f), (0, -.45f), (.32f, .32f), (-.32f, .32f), (.32f, -.32f), (-.32f, -.32f) };
+    /// <summary>
+    /// Ground height to stand on at (x, z): the top of the block column (the overworld blocks, loaded or not: the generator's own rule, with the
+    /// hero's digging and building once the chunk is made), or the smooth ground where there are no blocks (online server, off the block world).
+    /// </summary>
+    public static float StandAt(float x, float z)
+    {
+        float h = GroundAt(x, z);
+        if (Net.Dedicated || h > Blocks.MaxY - 3 || h < Blocks.MinY + 3 || Mathf.Abs(x) > Lands.Extent || Mathf.Abs(z) > Lands.Extent) return h;
+        int bx = Mathf.FloorToInt(x), bz = Mathf.FloorToInt(z);
+        int top = Mathf.FloorToInt(GroundAt(bx + .5f, bz + .5f) + .5f);   // OverworldGen.Column
+        if (BlockWorld.StandTop(bx, bz, top) is int t) top = t;
+        return top;
+    }
+
+    // ---- characters that are not physics bodies (villagers) and monsters that started below the block surface: put back on the blocks when they appear
+    readonly List<(Node3D n, bool flat)> _snapNpcs = new(); bool _snapListed; float _snapT;
+    void GroundSnapTick(float dt)
+    {
+        if (Net.Dedicated || Dungeon.Active || BlockWorld.Cut == null) return;
+        _snapT -= dt; if (_snapT > 0) return; _snapT = .1f;
+        if (!_snapListed)
+        {
+            _snapListed = true;
+            foreach (var n in Over.FindChildren("*", "", true, false))
+                if (n is Npc npc) _snapNpcs.Add((npc, Mathf.Abs(npc.GlobalPosition.Y - GroundAt(npc.GlobalPosition.X, npc.GlobalPosition.Z)) < .25f));   // flat: stood on the smooth ground, not on a floor
+        }
+        foreach (var (n, flat) in _snapNpcs)
+        {
+            if (!flat || !IsInstanceValid(n)) continue; var p = n.GlobalPosition; if (!BlockWorld.Drawn(p.X, p.Z)) continue;
+            float y = StandAt(p.X, p.Z); if (Mathf.Abs(y - p.Y) > .02f) n.GlobalPosition = new Vector3(p.X, y, p.Z);
+        }
+        void Lift(Enemy e)
+        {
+            if (!IsInstanceValid(e) || e.Dead || e.Puppet || !e.Visible) return; var p = e.GlobalPosition; if (!BlockWorld.Drawn(p.X, p.Z)) return;
+            if (BlockWorld.StandTop(Mathf.FloorToInt(p.X), Mathf.FloorToInt(p.Z), Mathf.FloorToInt(p.Y + .05f)) is int t && t > p.Y + .02f && t - p.Y < 2.5f)
+            { e.GlobalPosition = new Vector3(p.X, t + .05f, p.Z); e.Velocity = e.Velocity with { Y = 0 }; }
+        }
+        foreach (var e in NetEnemies) Lift(e);
+        foreach (var e in NetExtra.Values) Lift(e);
+    }
+    /// <summary>For code that moves a body by hand (enemy leaps, knock-backs): the point on the drawn ground under p, never inside a block.</summary>
+    public static Vector3 SnapToBlocks(Vector3 p)
+    {
+        if (!BlockWorld.Drawn(p.X, p.Z)) return p;
+        return BlockWorld.StandTop(Mathf.FloorToInt(p.X), Mathf.FloorToInt(p.Z), Mathf.FloorToInt(p.Y + .05f)) is int t && t > p.Y ? new Vector3(p.X, t + .02f, p.Z) : p;
+    }
 
     // =================================================================== data
     static void LoadData()
@@ -141,17 +198,34 @@ public partial class World : Node3D
     }
 
     // =================================================================== build
+    /// <summary>Set by Main around AddChild: _Ready then leaves the build to <see cref="Stages"/>, which Main steps through behind the loading screen.</summary>
+    public static bool Staged;
+    bool _built;
     public override void _Ready()
     {
-        I = this; LoadData();
+        I = this;
         Lamps.RemoveAll(l => !IsInstanceValid(l.lt));   // lamps of a world freed by "Quit to title" (the list is static)
         Over = new Node3D { Name = "Overworld" }; AddChild(Over);
+        if (Staged) return;
+        foreach (var _ in Stages()) { }
+    }
+    /// <summary>The build, one big step at a time: each (progress 0..1, stage name) is yielded just before that step runs.</summary>
+    public IEnumerable<(float at, string stage)> Stages()
+    {
+        if (_built) yield break;
+        yield return (.02f, "Reading the old maps"); LoadData();
+        yield return (.12f, "Kindling the sky"); BuildEnvironment();
+        yield return (.18f, "Raising the land"); BuildTerrain(); BuildWater(); BuildBounds();
         // StripVisuals: only on the online server (it never draws), frees meshes after each big step
-        BuildEnvironment(); BuildTerrain(); BuildWater(); BuildBounds(); BuildVegetation(); Flora.Build(Over); StripVisuals(Over); Lands.Build(Over); StripVisuals(Over); BuildMapImage();
-        if (!Net.Dedicated) GatherDb.Spawn(Over);   // gathering is local to each player: the online server needs none
-        Builder.BuildAll(Over); StripVisuals(Over); Wildlife.Spawn(Over); IndexEnemies();
+        yield return (.34f, "Planting the forests"); BuildVegetation();
+        yield return (.48f, "Sowing the meadows"); Flora.Build(Over); StripVisuals(Over);
+        yield return (.58f, "Charting the far lands"); Lands.Build(Over); StripVisuals(Over); BuildMapImage();
+        yield return (.72f, "Seeding the ore and herbs"); if (!Net.Dedicated) GatherDb.Spawn(Over);   // gathering is local to each player: the online server needs none
+        yield return (.78f, "Laying the stones"); Builder.BuildAll(Over); StripVisuals(Over);
+        yield return (.92f, "Waking the dead"); Wildlife.Spawn(Over); IndexEnemies();
         Sfx.I?.SetRealmMix(0);
         TimeOfDay = Game.D.Time;
+        _built = true;
         UpdateVisuals(0, true);
         ApplyQuality();
     }
@@ -332,6 +406,8 @@ uniform float gravel_amount = 0.5;    // loose gravel patches in the open
 varying vec3 wpos;
 varying vec3 wnrm;
 global uniform vec4 vox_rect;   // the block world's square around the player (BlockWorld.SetCut): the blocks are drawn there instead
+uniform float vox_cut = 1.0;    // 0 on ground the blocks never replace (the sky islands float far above the block world's top)
+uniform float under_fill = 0.0; // faint light on faces that look down (the rock under a sky island, which no sun, moon or sky ambient reaches)
 float h21(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(h21(i), h21(i+vec2(1.0,0.0)), f.x), mix(h21(i+vec2(0.0,1.0)), h21(i+vec2(1.0,1.0)), f.x), f.y); }
 float fb(vec2 p){ return vn(p)*0.5 + vn(p*2.07)*0.25 + vn(p*4.13)*0.125 + vn(p*8.3)*0.0625 + 0.03; }
@@ -344,12 +420,14 @@ void vertex(){
   wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
   wnrm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
   // the terrain mesh has no tangents: build them from the world X/Z axes the textures are laid along
-  TANGENT = normalize(vec3(1.0, 0.0, 0.0) - NORMAL * NORMAL.x);
+  vec3 tg = vec3(1.0, 0.0, 0.0) - NORMAL * NORMAL.x;
+  if (dot(tg, tg) < 1e-4) tg = vec3(0.0, 0.0, 1.0) - NORMAL * NORMAL.z;   // a face looking along X (cliff walls, sky island sides): no NaN tangent (black)
+  TANGENT = normalize(tg);
   BINORMAL = normalize(cross(TANGENT, NORMAL));
 }
 void fragment(){
   vec2 p = wpos.xz;
-  if (p.x > vox_rect.x && p.y > vox_rect.y && p.x < vox_rect.z && p.y < vox_rect.w) discard;
+  if (vox_cut > 0.5 && p.x > vox_rect.x && p.y > vox_rect.y && p.x < vox_rect.z && p.y < vox_rect.w) discard;
   float k = smoothstep(0.35, 0.65, fb(p * 0.05 + 3.1));                 // which of the two texture reads shows
   float macro = fb(p * 0.012), patchy = fb(p * 0.06 + 11.0), grit = fb(p * 0.045 + 31.0);
   float slope = 1.0 - clamp(wnrm.y, 0.0, 1.0);
@@ -418,6 +496,7 @@ void fragment(){
   float vein = 1.0 - smoothstep(0.0, 0.03, abs(fb(p * 0.028 + vec2(5.0, -9.0)) - 0.5));
   sh = mix(sh, vec3(0.78, 0.22, 0.6), vein * 0.5 * step(2.0, wpos.y));
   ALBEDO = mix(c, sh, realm_t);
+  EMISSION = ALBEDO * under_fill * (0.35 + 0.65 * smoothstep(0.1, -0.7, wnrm.y));
   ROUGHNESS = clamp(mix(0.92, 0.6, wSnow) + 0.1 * (m37 - 0.5) + 0.12 * (m113 - 0.5), 0.5, 1.0); SPECULAR = 0.25;
 }";
 
@@ -627,12 +706,14 @@ void fragment(){
     // =================================================================== runtime
     public override void _Process(double delta)
     {
+        if (!_built) return;   // still being built behind the loading screen
         float dt = (float)delta;
         Clock += dt; ShiftCd = Mathf.Max(0, ShiftCd - dt);
         if (!Dungeon.Active) TimeOfDay = (TimeOfDay + dt / 720f) % 1f;
         float target = Realm; if (Mathf.Abs(RealmT - target) > 0.0005f) { RealmT = Mathf.MoveToward(RealmT, target, dt * 1.2f); Sfx.I?.SetRealmMix(RealmT); }
         else RealmT = target;
         UpdateVisuals(dt, false);
+        GroundSnapTick(dt);
     }
 
     // =================================================================== realm
@@ -652,7 +733,7 @@ void fragment(){
         Ui.Banner(Realm == 1 ? "The Shadow" : "The Light", Realm == 1 ? "the world turns violet" : "you return to the living world");
         Quests.OnRealmShift(Realm);
     }
-    public static void ForceRealm(int r) { Realm = r; RealmT = r; I?.UpdateVisuals(0, true); Sfx.I?.SetRealmMix(r); }
+    public static void ForceRealm(int r) { Realm = r; RealmT = r; if (I is { _built: true } w) w.UpdateVisuals(0, true); Sfx.I?.SetRealmMix(r); }
 
     /// <summary>Overworld enemies in build order: the same list on every machine, so a client's puppet and the host's enemy share an index.</summary>
     public static List<Enemy> NetEnemies = new();
@@ -670,7 +751,9 @@ void fragment(){
     {
         NetExtra.Clear();
         NetEnemies = new List<Enemy>();
-        foreach (var n in Over.FindChildren("*", "", true, false)) if (n is Enemy e && !e.Ambusher) { e.NetIdx = NetEnemies.Count; e.Puppet = Net.IsClient; NetEnemies.Add(e); }
+        TwinRealms.Zones.IndexSlots(NetEnemies);   // camp monsters first (records; an entry is null while its camp is parked), then the built ones
+        var slotted = new HashSet<Enemy>(); foreach (var s in TwinRealms.Zones.Slots) if (s.Node != null) slotted.Add(s.Node);
+        foreach (var n in Over.FindChildren("*", "", true, false)) if (n is Enemy e && !e.Ambusher && !slotted.Contains(e)) { e.NetIdx = NetEnemies.Count; e.Puppet = Net.IsClient; NetEnemies.Add(e); }
         GD.Print($"[WORLD] {NetEnemies.Count} overworld enemies, fingerprint {Fingerprint()}");
     }
     /// <summary>Host: every overworld enemy as the friends must have it (type; home x, y, z; level; flags 1 = any realm, 2 = no leash), in network order.</summary>
@@ -679,6 +762,7 @@ void fragment(){
         var t = new string[NetEnemies.Count]; var d = new float[NetEnemies.Count * 5];
         for (int i = 0; i < NetEnemies.Count; i++)
         {
+            if (i < TwinRealms.Zones.Slots.Count) { var s = TwinRealms.Zones.Slots[i]; t[i] = s.Type; d[i * 5] = s.Pos.X; d[i * 5 + 1] = s.Pos.Y; d[i * 5 + 2] = s.Pos.Z; d[i * 5 + 3] = s.Level; d[i * 5 + 4] = TwinRealms.Zones.SlotFlags(s); continue; }
             var e = NetEnemies[i]; bool ok = GodotObject.IsInstanceValid(e); var h = ok ? e.Home : Vector3.Zero;
             t[i] = ok ? e.Type : ""; d[i * 5] = h.X; d[i * 5 + 1] = h.Y; d[i * 5 + 2] = h.Z; d[i * 5 + 3] = ok ? e.Level : 1; d[i * 5 + 4] = ok ? (e.AnyRealm ? 1 : 0) + (e.NoLeash ? 2 : 0) : 0;
         }
@@ -692,9 +776,12 @@ void fragment(){
     public static (int matched, int made, int removed) Reconcile(string[] types, float[] d)
     {
         var byType = new Dictionary<string, List<Enemy>>();
-        foreach (var e in NetEnemies) if (GodotObject.IsInstanceValid(e)) { if (!byType.TryGetValue(e.Type, out var l)) byType[e.Type] = l = new(); l.Add(e); }
-        var list = new List<Enemy>(types.Length); int matched = 0, made = 0, removed = 0;
-        for (int i = 0; i < types.Length && i * 5 + 4 < d.Length; i++)
+        for (int k = TwinRealms.Zones.Slots.Count; k < NetEnemies.Count; k++) { var e = NetEnemies[k]; if (GodotObject.IsInstanceValid(e)) { if (!byType.TryGetValue(e.Type, out var l)) byType[e.Type] = l = new(); l.Add(e); } }
+        // the host's leading camp slots (flag 4) line up with ours as records (Zones.ReconcileSlots)
+        int ns = 0; while (ns < types.Length && ns * 5 + 4 < d.Length && ((int)d[ns * 5 + 4] & 4) != 0) ns++;
+        var list = new List<Enemy>(types.Length);
+        var (matched, made, removed) = TwinRealms.Zones.ReconcileSlots(types, d, ns, list);
+        for (int i = ns; i < types.Length && i * 5 + 4 < d.Length; i++)
         {
             var home = new Vector3(d[i * 5], d[i * 5 + 1], d[i * 5 + 2]); Enemy? pick = null; float best = 4f * 4f;
             if (byType.TryGetValue(types[i], out var cands))
@@ -716,7 +803,7 @@ void fragment(){
     public static int Fingerprint()
     {
         // (string.GetHashCode differs between runs in .NET, so hash the characters ourselves)
-        unchecked { int h = 17; foreach (var e in NetEnemies) { var p = e.Position; foreach (char c in e.Type) h = h * 31 + c; h = h * 31 + Mathf.RoundToInt(p.X) * 7 + Mathf.RoundToInt(p.Z); } return h; }
+        unchecked { int h = 17; for (int i = 0; i < NetEnemies.Count; i++) { var e = NetEnemies[i]; bool slot = i < TwinRealms.Zones.Slots.Count; if (!slot && !GodotObject.IsInstanceValid(e)) continue; var p = slot ? TwinRealms.Zones.Slots[i].Pos : e.Position; foreach (char c in slot ? TwinRealms.Zones.Slots[i].Type : e.Type) h = h * 31 + c; h = h * 31 + Mathf.RoundToInt(p.X) * 7 + Mathf.RoundToInt(p.Z); } return h; }
     }
 
     /// <summary>Overworld on/off, used when entering dungeons. A host keeps it running (hidden) so friends outside still have a living world.</summary>

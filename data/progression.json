@@ -3,15 +3,16 @@
   "xp": { "base": 40, "lin": 20, "quad": 6, "cube": 0.15 },
   "levelUp": { "attr": 2, "rank": 1, "tree": 2 },
   "scaling": {
-    "_help": "Monster health and damage by level: base x (1 + lin*(L-1)) x exp^(L-1), a smooth curve that keeps bending upward so monsters out-grow a hero's gear. power: a floor tied to the hero being fought, so gear never makes monsters trivial: health is at least hpHits x the hero's weapon hit x (monster base hp / refHp)^shape, and every blow deals at least hitPct of the hero's max health x (base dmg / refDmg)^shape before armor (armor still counts, to the power defenseRespect: 1 = fully, 0 = not at all). armor: the hero's physical (and, with half armor + magic resist, elemental) damage taken = K / (K + armor), K = k + perLevel x attacker level, so armor has to keep up with the monsters' level instead of stacking to immunity.",
-    "hpLin": 0.2, "hpExp": 1.045,
-    "dmgLin": 0.13, "dmgExp": 1.03,
-    "power": { "on": true, "refHp": 50, "hpHits": 5, "refDmg": 10, "hitPct": 0.06, "shape": 0.75, "defenseRespect": 0.5, "maxHitPct": 0.45 },
+    "_help": "Monster health and damage are measured against a REFERENCE HERO of the monster's level (hero: weapon hit = hit + hitPerLevel x (L-1), max health = hp + hpPerLevel x (L-1); linear, like a real hero's growth), so nothing compounds. health: a monster takes hits x (base hp / refHp)^shape reference hits (skeleton 72 hp = 5.8 hits, brute 210 = 12.3); bosses (base hp from bossFrom up; keep it above any normal monster's base hp with gear and upgrades) take bossHits x (base hp / refBossHp)^bossShape (mushroom king 67, golem 89, Vorthrax 116 hits, about 60-120 s). damage: one blow deals hitPct x (base dmg / refDmg)^shape of the reference hero's health before armor (wolf 5.4%, skeleton 6.5%, brute 10.4%, Vorthrax 17.5%; armor then takes its share), at most maxHitPct; skills and telegraphed attacks multiply it in Enemy.cs. Dungeon tiers, gear, upgrades, party and threat multiply on top (keep them small). power: floors from the hero actually fought: health at least hpFloor x the usual hits x their weapon hit (an over-geared hero still needs a few hits), damage at least dmgFloor x the usual share of their max health. armor: the hero's physical (and, with half armor + magic resist, elemental) damage taken = K / (K + armor), K = k + perLevel x attacker level. Print the table: godot --headless --path . -- --scaling-table",
+    "hero": { "hit": 12, "hitPerLevel": 7.5, "hp": 110, "hpPerLevel": 50 },
+    "health": { "refHp": 50, "hits": 4.5, "shape": 0.7, "bossFrom": 580, "refBossHp": 1500, "bossHits": 80, "bossShape": 0.35 },
+    "damage": { "refDmg": 10, "hitPct": 0.065, "shape": 0.6, "maxHitPct": 0.2 },
+    "power": { "on": true, "hpFloor": 0.6, "dmgFloor": 0.5 },
     "armor": { "k": 14, "perLevel": 6 }
   },
   "overworld": {
-    "_help": "Overworld monsters follow the hero: level = max(the area's level, hero level + offset + (area level - 1) x areaWeight). Bosses add bossBonus. In multiplayer the hero level is the average of everyone in the world.",
-    "follow": true, "offset": 0, "areaWeight": 0.5, "bossBonus": 3
+    "_help": "Overworld monster levels are FIXED by their level zone (data/zones.json). follow = true brings back the old rule: level = max(the area's level, hero level + offset + (area level - 1) x areaWeight), bosses add bossBonus, and in multiplayer the hero level is the average of everyone in the world. Default off.",
+    "follow": false, "offset": 0, "areaWeight": 0.5, "bossBonus": 3
   },
   "party": {
     "_help": "Multiplayer parties. xpPool: a party kill pays this share of the normal experience, split evenly between the party members nearby (or in the same dungeon). dropMul: item drop chance multiplier for party kills. dungeonOffset: a party's shared dungeon uses the average level of the party members + this (+ dungeon.perDepth per floor deeper). statMul: with minPlayers or more heroes in the world, every monster (overworld, dungeons, world bosses) gets this much more health and damage.",
@@ -37,16 +38,17 @@
     "mobMul": 3,
     "tiers": {
       "_help": "Every 'every' floors the dungeon jumps a tier (floors 1-5 tier 0, 6-10 tier 1, ...). Each tier compounds: health x hpMul, damage x dmgMul, +levels, +extraUpgrades rolled on every monster. The tier also raises item rarity (data/loot.json dungeonDrop.bonusPerTier).",
-      "every": 5, "hpMul": 1.7, "dmgMul": 1.4, "levels": 2, "extraUpgrades": 1
+      "every": 5, "hpMul": 1.15, "dmgMul": 1.1, "levels": 1, "extraUpgrades": 1
     },
+    "_gear": "Gear tiers multiply on top of the level scaling (scaling._help): keep hpP/dmgP small, or deep floors compound into sponges again (they were up to +150%).",
     "gear": [
-      { "depth": 1,  "name": "Iron-clad",   "hpP": 10,  "dmgP": 8,   "armor": 8,   "mr": 4,   "lootBonus": 0.5 },
-      { "depth": 2,  "name": "Steel-clad",  "hpP": 20,  "dmgP": 15,  "armor": 16,  "mr": 10,  "lootBonus": 1.0 },
-      { "depth": 4,  "name": "Runed",       "hpP": 35,  "dmgP": 25,  "armor": 26,  "mr": 20,  "lootBonus": 1.5 },
-      { "depth": 6,  "name": "Abyssal",     "hpP": 55,  "dmgP": 40,  "armor": 40,  "mr": 32,  "lootBonus": 2.0 },
-      { "depth": 11, "name": "Dread",       "hpP": 80,  "dmgP": 55,  "armor": 60,  "mr": 48,  "lootBonus": 2.5 },
-      { "depth": 16, "name": "Rift-touched","hpP": 110, "dmgP": 75,  "armor": 85,  "mr": 70,  "lootBonus": 3.0 },
-      { "depth": 21, "name": "Godforged",   "hpP": 150, "dmgP": 100, "armor": 120, "mr": 100, "lootBonus": 3.5 }
+      { "depth": 1,  "name": "Iron-clad",   "hpP": 4,   "dmgP": 3,   "armor": 4,   "mr": 2,   "lootBonus": 0.5 },
+      { "depth": 2,  "name": "Steel-clad",  "hpP": 8,   "dmgP": 6,   "armor": 8,   "mr": 5,   "lootBonus": 1.0 },
+      { "depth": 4,  "name": "Runed",       "hpP": 12,  "dmgP": 9,   "armor": 13,  "mr": 10,  "lootBonus": 1.5 },
+      { "depth": 6,  "name": "Abyssal",     "hpP": 15,  "dmgP": 10,  "armor": 20,  "mr": 16,  "lootBonus": 2.0 },
+      { "depth": 11, "name": "Dread",       "hpP": 25,  "dmgP": 16,  "armor": 30,  "mr": 24,  "lootBonus": 2.5 },
+      { "depth": 16, "name": "Rift-touched","hpP": 32,  "dmgP": 20,  "armor": 42,  "mr": 35,  "lootBonus": 3.0 },
+      { "depth": 21, "name": "Godforged",   "hpP": 40,  "dmgP": 25,  "armor": 60,  "mr": 50,  "lootBonus": 3.5 }
     ],
     "upgrades": {
       "base": 1, "perDepth": 0.5, "max": 4, "bossExtra": 2,
@@ -57,10 +59,10 @@
         { "id": "frostbound","name": "Frostbound","onHit": { "chill": 0.5 }, "dmgType": "frost", "xpP": 15 },
         { "id": "rending",   "name": "Rending",   "onHit": { "bleed": 0.4 }, "xpP": 15 },
         { "id": "cursed",    "name": "Cursed",    "onHit": { "weaken": 0.35 }, "dmgType": "shadow", "xpP": 15 },
-        { "id": "stalwart",  "name": "Stalwart",  "hpP": 35, "armor": 15, "xpP": 20 },
+        { "id": "stalwart",  "name": "Stalwart",  "hpP": 20, "armor": 10, "xpP": 20 },
         { "id": "warded",    "name": "Warded",    "mr": 20, "res": { "fire": 25, "frost": 25, "lightning": 25 }, "xpP": 15 },
         { "id": "swift",     "name": "Swift",     "spdP": 25, "xpP": 10 },
-        { "id": "brutal",    "name": "Brutal",    "dmgP": 25, "reach": 15, "xpP": 20, "lootBonus": 0.5 }
+        { "id": "brutal",    "name": "Brutal",    "dmgP": 15, "reach": 15, "xpP": 20, "lootBonus": 0.5 }
       ]
     }
   }

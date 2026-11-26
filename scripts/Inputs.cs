@@ -55,10 +55,12 @@ public static class Inputs
         InputMap.ActionAddEvent(Lock, new InputEventMouseButton { ButtonIndex = MouseButton.Middle });   // extra default, dropped once rebound
         // the analog stick arrives already dead-zoned and rescaled (PadInput), so the move actions keep only a tiny deadzone of their own
         foreach (var m in new[] { Left, Right, Forward, Back }) InputMap.ActionSetDeadzone(m, .05f);
-        // menus with a pad: D-pad and left stick move the focus, A presses, B backs out (Godot's built-in ui_* actions)
+        // menus with a pad: A presses, B backs out (Godot's built-in ui_* actions). The D-pad and left stick do NOT sit in ui_up/down/left/right:
+        // a real stick sends a stream of motion events and every one past the deadzone counted as a new press, so focus flew several rows
+        // per push (and jittered while held). PadInput turns D-pad + stick into clean ui_* presses with a hold-to-repeat instead.
         PadUi("ui_accept", Btn(JoyButton.A)); PadUi("ui_cancel", Btn(JoyButton.B));
-        PadUi("ui_up", Btn(JoyButton.DpadUp)); PadUi("ui_down", Btn(JoyButton.DpadDown)); PadUi("ui_left", Btn(JoyButton.DpadLeft)); PadUi("ui_right", Btn(JoyButton.DpadRight));
-        PadUi("ui_up", Ax(JoyAxis.LeftY, -1)); PadUi("ui_down", Ax(JoyAxis.LeftY, 1)); PadUi("ui_left", Ax(JoyAxis.LeftX, -1)); PadUi("ui_right", Ax(JoyAxis.LeftX, 1));
+        foreach (var ui in new[] { "ui_up", "ui_down", "ui_left", "ui_right" })
+            if (InputMap.HasAction(ui)) foreach (var ev in InputMap.ActionGetEvents(ui)) if (ev is InputEventJoypadButton or InputEventJoypadMotion) InputMap.ActionEraseEvent(ui, ev);
         ApplyBinds();
     }
 

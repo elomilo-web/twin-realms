@@ -6,12 +6,33 @@ using Godot;
 
 namespace TwinRealms;
 
-/// <summary>A spell the player built from cards (Spellcraft menu, B). A = the first section, B = the optional second section that
-/// goes off where the first one ends. Both hold card ids from data/spellcards.json; copies of a card appear more than once.</summary>
+/// <summary>A spell the player built from cards (Spellcraft menu, B). Secs[0] = section I; each later section (II, III) goes off where
+/// the one before it ends. Each holds card ids from data/spellcards.json; copies of a card appear more than once.</summary>
 public class CraftedSpell
 {
     public string Id = "", Name = "";
+    public List<List<string>> Secs = new();
+    /// <summary>Saves from before three sections (A = first, B = second): moved into <see cref="Secs"/> by <see cref="Migrate"/>.</summary>
     public List<string> A = new(), B = new();
+
+    /// <summary>Section i (0-based), created empty if missing.</summary>
+    public List<string> Sec(int i) { Migrate(); while (Secs.Count <= i) Secs.Add(new()); return Secs[i]; }
+    /// <summary>Old A/B saves become sections; null lists are mended. Safe to call any number of times.</summary>
+    public void Migrate()
+    {
+        Secs ??= new(); for (int i = 0; i < Secs.Count; i++) Secs[i] ??= new();
+        if ((A != null && A.Count > 0) || (B != null && B.Count > 0))
+        {
+            if (Secs.All(x => x.Count == 0)) { Secs.Clear(); Secs.Add(A ?? new()); if (B != null && B.Count > 0) Secs.Add(B); }
+            A = new(); B = new();
+        }
+        A ??= new(); B ??= new();
+    }
+    /// <summary>The sections up to the last one holding cards (trailing empty sections left off).</summary>
+    public List<List<string>> Used() { Migrate(); int n = Secs.Count; while (n > 0 && Secs[n - 1].Count == 0) n--; return Secs.Take(n).ToList(); }
+    public IEnumerable<string> AllCards { get { Migrate(); return Secs.SelectMany(x => x); } }
+    public int Count => AllCards.Count();
+    public CraftedSpell Copy() { Migrate(); return new CraftedSpell { Id = Id, Name = Name, Secs = Secs.Select(x => x.ToList()).ToList() }; }
 }
 
 public class CardDef
@@ -48,6 +69,29 @@ public static class Spellcraft
     static readonly HashSet<string> _registered = new();
     static JsonElement _root; static JsonDocument? _doc;
     public static int MaxSpells = 8;
+
+    // ---------------------------------------------------------------- sections (data/spellcards.json "sections")
+    /// <summary>Sections a spell may chain (I, II, III).</summary>
+    public static int MaxSections { get { Load(); return Math.Clamp((int)R("sections.max", 3), 1, 6); } }
+    /// <summary>The skill id of section i of a crafted spell: the spell's own id for section I, "id.2", "id.3" after it.</summary>
+    public static string SecId(string id, int i) => i == 0 ? id : id + "." + (i + 1);
+    public static bool IsSectionId(string id) => id.Length > 2 && id[^2] == '.' && char.IsDigit(id[^1]);
+    /// <summary>The crafted spell a section belongs to (its rank and sockets apply to every section).</summary>
+    public static string RootOf(string id) => IsSectionId(id) ? id[..^2] : id;
+    public static string Roman(int i) => i switch { 0 => "I", 1 => "II", 2 => "III", 3 => "IV", 4 => "V", _ => (i + 1).ToString() };
+    /// <summary>A per-section number from "sections" (a list indexed by section; the last entry repeats).</summary>
+    public static float SecNum(string key, int i, float def)
+    {
+        Load();
+        if (!_root.TryGetProperty("sections", out var s) || !s.TryGetProperty(key, out var a)) return def;
+        if (a.ValueKind == JsonValueKind.Number) return a.GetSingle();
+        if (a.ValueKind != JsonValueKind.Array || a.GetArrayLength() == 0) return def;
+        var e = a[Math.Min(i, a.GetArrayLength() - 1)]; return e.ValueKind == JsonValueKind.Number ? e.GetSingle() : def;
+    }
+    /// <summary>Hero level that opens section i.</summary>
+    public static int SectionLevel(int i) => (int)SecNum("unlockLevel", i, i < 2 ? 1 : 12);
+    /// <summary>How many sections this hero can chain now.</summary>
+    public static int SectionsOpen(PlayerStats d) { int n = 1; while (n < MaxSections && d.Level >= SectionLevel(n)) n++; return n; }
 
     static void Load()
     {
@@ -157,12 +201,13 @@ public static class Spellcraft
     public static string FxOf(string id) => _fx.TryGetValue(id, out var b) ? b : id;
 
     // ---------------------------------------------------------------- rules
-    /// <summary>Cards a spell of this family may hold (both sections together).</summary>
+    /// <summary>Cards a spell of this family may hold (all sections together; open sections add "sections.cards").</summary>
     public static int MaxCards(PlayerStats d, string family)
     {
         Load(); float per = Mathf.Max(1, R("slots.perLevels", 5));
-        int bonus = (int)R($"classSlots.{d.Class}.{family}", 0), tree = (int)TreeStat(d, "cards");
-        return Math.Min((int)R("slots.max", 10) + tree, (int)R("slots.base", 4) + (int)(d.Level / per) + bonus + tree);
+        int bonus = (int)R($"classSlots.{d.Class}.{family}", 0), tree = (int)TreeStat(d, "cards"), sec = 0;
+        for (int i = 0; i < SectionsOpen(d); i++) sec += (int)SecNum("cards", i, 0);
+        return Math.Min((int)R("slots.max", 10) + tree + sec, (int)R("slots.base", 4) + (int)(d.Level / per) + bonus + tree + sec);
     }
     /// <summary>Copies of one card a spell may hold (magic mastery, plus the spell tree).</summary>
     public static int MaxCopies(PlayerStats d) { Load(); int tree = (int)TreeStat(d, "copies"); return Math.Min((int)R("mastery.max", 6) + tree, (int)R("mastery.base", 2) + (int)(d.Level / Mathf.Max(1, R("mastery.perLevels", 6))) + tree); }
@@ -172,39 +217,53 @@ public static class Spellcraft
     public static int Free(PlayerStats d, string card, string skip = "")
     {
         int n = d.Cards.GetValueOrDefault(card);
-        foreach (var s in d.Spells) if (s.Id != skip) n -= s.A.Count(x => x == card) + s.B.Count(x => x == card);
+        foreach (var s in d.Spells) if (s.Id != skip) n -= s.AllCards.Count(x => x == card);
         return n;
     }
-    public static string FamilyOf(CraftedSpell s) { var c = s.A.Select(Card).FirstOrDefault(x => x?.Type == "carrier"); return c?.Family ?? "spell"; }
+    public static string FamilyOf(CraftedSpell s) { var c = s.Sec(0).Select(Card).FirstOrDefault(x => x?.Type == "carrier"); return c?.Family ?? "spell"; }
 
-    /// <summary>Why the cards in a section cannot make a spell, or null when they can.</summary>
-    static string? CheckSection(List<string> cards, bool second)
+    /// <summary>Why the cards in section idx cannot make a spell, or null when they can.</summary>
+    public static string? CheckSection(List<string> cards, int idx)
     {
         var defs = cards.Select(Card).ToList(); if (defs.Any(x => x == null)) return "Unknown card";
         var car = defs.Where(x => x!.Type == "carrier").Select(x => x!.Id).Distinct().ToList();
         var eff = defs.Where(x => x!.Type == "effect").Select(x => x!.Id).Distinct().ToList();
-        string sec = second ? "The second section" : "A spell";
+        string sec = $"Section {Roman(idx)}";
         if (car.Count == 0) return $"{sec} needs a carrier card (how it is delivered)";
         if (car.Count > 1) return $"{sec} can hold only one kind of carrier (more copies of it are fine)";
         if (eff.Count == 0) return $"{sec} needs an effect card (what it does)";
         if (eff.Count > 1) return $"{sec} can hold only one kind of effect (more copies of it are fine)";
-        if (second && !SecondCarriers.Contains(car[0])) return $"{Card(car[0])!.Name} cannot be a second section (use {string.Join(", ", SecondCarriers.Select(x => Card(x)?.Name ?? x))})";
+        if (idx > 0 && !SecondCarriers.Contains(car[0])) return $"{Card(car[0])!.Name} cannot be a chained section (use {string.Join(", ", SecondCarriers.Select(x => Card(x)?.Name ?? x))})";
+        return null;
+    }
+    /// <summary>Why the sections themselves do not make a spell (empty gaps, too many sections, a bad section), ignoring the hero.</summary>
+    static string? CheckShape(CraftedSpell s)
+    {
+        var used = s.Used();
+        if (used.Count == 0) return "Put a carrier and an effect card in section I";
+        if (used.Count > MaxSections) return $"A spell holds at most {MaxSections} sections";
+        for (int i = 0; i < used.Count; i++)
+        {
+            if (used[i].Count == 0) return $"Section {Roman(i)} is empty: fill it or empty the sections after it";
+            var err = CheckSection(used[i], i); if (err != null) return err;
+        }
         return null;
     }
     /// <summary>Everything that stops this spell from being forged by this hero, or null.</summary>
     public static string? Check(PlayerStats d, CraftedSpell s)
     {
         Load();
-        var err = CheckSection(s.A, false); if (err != null) return err;
-        if (s.B.Count > 0 && (err = CheckSection(s.B, true)) != null) return err;
-        string fam = FamilyOf(s); int max = MaxCards(d, fam), n = s.A.Count + s.B.Count;
+        var err = CheckShape(s); if (err != null) return err;
+        var used = s.Used();
+        if (used.Count > SectionsOpen(d)) return $"Section {Roman(SectionsOpen(d))} opens at level {SectionLevel(SectionsOpen(d))}";
+        string fam = FamilyOf(s); int max = MaxCards(d, fam), n = s.Count;
         if (n > max) return $"Too many cards: {n} of {max} for a {fam} spell at your level";
         int mc = MaxCopies(d);
-        foreach (var g in s.A.Concat(s.B).GroupBy(x => x))
+        foreach (var g in s.AllCards.GroupBy(x => x))
         {
             var c = Card(g.Key)!; int need = g.Count();
             if (c.Req > d.Level) return $"{c.Name} needs level {c.Req}";
-            if (s.A.Count(x => x == g.Key) > mc || s.B.Count(x => x == g.Key) > mc) return $"At most {mc} copies of one card per section at your level";
+            if (used.Any(sec => sec.Count(x => x == g.Key) > mc)) return $"At most {mc} copies of one card per section at your level";
             if (Free(d, g.Key, s.Id) < need) return $"Not enough {c.Name} cards (you have {Free(d, g.Key, s.Id)} free)";
         }
         return null;
@@ -216,8 +275,9 @@ public static class Spellcraft
             var car = l.Select(Card).FirstOrDefault(x => x?.Type == "carrier"); var eff = l.Select(Card).FirstOrDefault(x => x?.Type == "effect");
             return car == null ? "" : (eff != null ? eff.Adj + " " : "") + car.Name;
         }
-        string a = Part(s.A), b = Part(s.B);
-        return a == "" ? "New spell" : b == "" ? a : $"{a} + {b}";
+        var parts = s.Used().Select(Part).ToList();
+        if (parts.Count == 0 || parts[0] == "") return "New spell";
+        return string.Join(" + ", parts.Where(x => x != ""));
     }
 
     // ---------------------------------------------------------------- building skills
@@ -232,7 +292,7 @@ public static class Spellcraft
     static readonly string[] Elements = { "fire", "frost", "lightning", "poison", "holy", "shadow", "arcane" };
 
     /// <summary>One section as a skill: the carrier's skill with the effect laid over it, stacking bonuses and the modifier cards.</summary>
-    static SkillDef BuildSection(string id, List<string> cards, out string fxId)
+    static SkillDef BuildSection(string id, List<string> cards, int sec, out string fxId)
     {
         Load(); var defs = cards.Select(x => _c[x]).ToList();
         var car = defs.First(x => x.Type == "carrier"); var eff = defs.First(x => x.Type == "effect");
@@ -261,7 +321,7 @@ public static class Spellcraft
         // ---- cost: every card past the first two raises it
         float cm = 1 + R("stack.costP", 10) / 100f * Mathf.Max(0, cards.Count - 2); k.Mp *= cm; k.St *= cm;
         // ---- the spell tree (Spellcraft menu > Spell tree)
-        float tp = 1 + (T("dmgP") + (id.EndsWith(Second) ? T("secondP") : 0)) / 100f;
+        float tp = Mathf.Max(.1f, 1 + (T("dmgP") + (sec > 0 ? T("secondP") : 0) + SecNum("powerP", sec, 0)) / 100f);
         k.Dmg *= tp; k.Lvl *= tp; k.Mult *= tp; if (bless || k.Kind == "ward") k.Heal *= tp; if (k.X.ContainsKey("hot")) k.X["hot"] *= tp;
         float tc = Mathf.Max(.2f, 1 + T("costP") / 100f); k.Mp *= tc; k.St *= tc;
         k.Cd *= Mathf.Max(.2f, 1 + T("cdP") / 100f); k.Cast *= Mathf.Max(.2f, 1 + T("castP") / 100f);
@@ -288,38 +348,42 @@ public static class Spellcraft
         }
     }
 
-    /// <summary>Builds a crafted spell into skills (its second section as a hidden skill "id.2") and registers them. Returns null if the cards do not make a spell.</summary>
+    /// <summary>Builds a crafted spell into skills (sections II and III as hidden skills "id.2", "id.3", each one's Then naming the next)
+    /// and registers them. Returns null if the cards do not make a spell.</summary>
     public static SkillDef? Register(CraftedSpell s, bool listed = true)
     {
-        Load(); if (CheckSection(s.A, false) != null || (s.B.Count > 0 && CheckSection(s.B, true) != null)) return null;
-        var k = BuildSection(s.Id, s.A, out var bid);
-        if (s.B.Count > 0)
+        Load(); if (CheckShape(s) != null) return null;
+        var used = s.Used();
+        var k = BuildSection(s.Id, used[0], 0, out var bid); var prev = k;
+        for (int i = 1; i < used.Count; i++)
         {
-            var f = BuildSection(s.Id + Second, s.B, out var fb); f.Name = k.Name + " (second section)";
-            k.Then = f.Id; k.Mp += f.Mp * R("second.costP", 60) / 100f; k.St += f.St * R("second.costP", 60) / 100f; k.Cd += f.Cd * R("second.cdP", 30) / 100f;
-            k.Desc += $"  Where it ends: {f.Desc}"; k.Req = Math.Max(k.Req, f.Req);
-            Skills.Register(f, false); _fx[f.Id] = fb; _registered.Add(f.Id);
+            var f = BuildSection(SecId(s.Id, i), used[i], i, out var fb); f.Name = k.Name + $" (section {Roman(i)})";
+            prev.Then = f.Id; float cp = SecNum("costP", i, 60) / 100f;
+            k.Mp += f.Mp * cp; k.St += f.St * cp; k.Cd += f.Cd * SecNum("cdP", i, 30) / 100f;
+            k.Desc += (i == 1 ? "  Where it ends: " : "  Then: ") + f.Desc; k.Req = Math.Max(k.Req, f.Req);
+            Skills.Register(f, false); _fx[f.Id] = fb; _registered.Add(f.Id); prev = f;
         }
-        else { Skills.Unregister(s.Id + Second); _base.Remove(s.Id + Second); _fx.Remove(s.Id + Second); }
+        prev.Then = "";
+        for (int i = used.Count; i < 6; i++) { var x = SecId(s.Id, i); Skills.Unregister(x); _base.Remove(x); _fx.Remove(x); _registered.Remove(x); }
         k.Name = s.Name != "" ? s.Name : AutoName(s);
         Skills.Register(k, listed); _fx[k.Id] = bid; _registered.Add(k.Id);
         return k;
     }
     public static void Unregister(string id)
     {
-        foreach (var x in new[] { id, id + Second }) { Skills.Unregister(x); _base.Remove(x); _fx.Remove(x); _registered.Remove(x); }
+        for (int i = 0; i < 6; i++) { var x = SecId(id, i); Skills.Unregister(x); _base.Remove(x); _fx.Remove(x); _registered.Remove(x); }
     }
 
     /// <summary>A hero was loaded or made: their crafted spells become skills (anyone else's are dropped), and new heroes get their starter cards.</summary>
     public static void Sync(PlayerStats d)
     {
         Load(); _hero = d; d.CraftTree ??= new();
-        foreach (var id in _registered.ToList()) if (!id.EndsWith(Second) && id != EditId && !d.Spells.Exists(s => s.Id == id)) Unregister(id);
+        foreach (var id in _registered.ToList()) if (!IsSectionId(id) && id != EditId && !d.Spells.Exists(s => s.Id == id)) Unregister(id);
         d.Cards ??= new(); d.Spells ??= new();
         if (!d.CardsGiven) { GiveStart(d); d.CardsGiven = true; }
         foreach (var s in d.Spells)
         {
-            s.A ??= new(); s.B ??= new();
+            s.Migrate();   // saves from before three sections (A, B) load as sections I and II
             if (Register(s) == null) { GD.PrintErr($"[SPELLCRAFT] {s.Id} no longer makes a spell; left off"); continue; }
             if (!d.Skills.ContainsKey(s.Id)) d.Skills[s.Id] = new SkillState();
         }
@@ -342,7 +406,7 @@ public static class Spellcraft
     /// <summary>The menu's working copy as a hidden skill, so its numbers can be shown with Skills.Compute. Null if it is not a spell yet.</summary>
     public static SkillDef? Preview(CraftedSpell s)
     {
-        var tmp = new CraftedSpell { Id = EditId, Name = s.Name, A = s.A, B = s.B };
+        var tmp = s.Copy(); tmp.Id = EditId;
         Unregister(EditId); return Register(tmp, false);
     }
 
@@ -352,10 +416,10 @@ public static class Spellcraft
         var s = editing == "" ? new CraftedSpell { Id = "" } : d.Spells.FirstOrDefault(x => x.Id == editing);
         if (s == null) return "That spell is gone";
         if (editing == "" && d.Spells.Count >= SpellCap(d)) return $"Your amulet holds {SpellCap(d)} spells: dismantle one first (Wider Amulet in the spell tree holds more)";
-        var test = new CraftedSpell { Id = editing, Name = work.Name, A = work.A.ToList(), B = work.B.ToList() };
+        var test = work.Copy(); test.Id = editing; test.Secs = test.Used();
         var err = Check(d, test); if (err != null) return err;
         if (editing == "") { int n = d.SpellSeq; do n++; while (d.Spells.Exists(x => x.Id == Prefix + n)); d.SpellSeq = n; s.Id = Prefix + n; d.Spells.Add(s); }
-        s.Name = work.Name.Trim() == "" || work.Name == AutoName(work) ? "" : work.Name.Trim(); s.A = test.A; s.B = test.B;
+        s.Name = work.Name.Trim() == "" || work.Name == AutoName(work) ? "" : work.Name.Trim(); s.Secs = test.Secs; s.A = new(); s.B = new();
         if (Register(s) == null) return "Those cards do not make a spell";
         if (!d.Skills.ContainsKey(s.Id)) { d.Skills[s.Id] = new SkillState(); d.Forgot.Remove(s.Id); for (int i = 0; i < d.Bar.Length; i++) if (string.IsNullOrEmpty(d.Bar[i])) { d.Bar[i] = s.Id; break; } }
         work.Id = s.Id; return null;

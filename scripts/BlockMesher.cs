@@ -73,18 +73,45 @@ public static class BlockMesher
                     var jit = new Color(bright * (1f + (r2 - .5f) * .10f), bright, bright * (1f + (r3 - .5f) * .10f));
                     if (def.Shape == "post")
                     {
-                        // a small standing post (torch): 0.2 x 0.65 x 0.2 m in the middle of its cell, no collision
-                        var size = new Vector3(.2f, .65f, .2f); var bas = new Vector3(x + .4f, y, z + .4f);
-                        for (int f = 0; f < 6; f++)
+                        // a torch: a thin stick (side material) with a flame block on top (top material, glowing), no collision
+                        Box(id, new Vector3(x + .45f, y, z + .45f), new Vector3(.1f, .55f, .1f), jit.G, false, 1);
+                        Box(id, new Vector3(x + .43f, y + .53f, z + .43f), new Vector3(.14f, .07f, .14f), jit.G * .8f, false, 2);   // charred wrap
+                        Box(id, new Vector3(x + .435f, y + .6f, z + .435f), new Vector3(.13f, .16f, .13f), 1.4f, false, 0);
+                        Box(id, new Vector3(x + .465f, y + .76f, z + .465f), new Vector3(.07f, .07f, .07f), 1.4f, false, 0);
+                        continue;
+                    }
+                    if (def.Shape is "stairs" or "slab" or "fence")
+                    {
+                        float l0 = jit.G;
+                        if (def.Shape == "slab")
                         {
-                            var ps = Surf(Slot(id, f, meta)); int pb = ps.V.Count; float l = Shade[f] * jit.G;
-                            for (int k = 0; k < 4; k++)
+                            float sy = (meta & 4) != 0 ? .5f : 0f;   // meta & 4 = the upper half of the cell
+                            Box(id, new Vector3(x, y + sy, z), new Vector3(1, .5f, 1), l0, true);
+                        }
+                        else if (def.Shape == "stairs")
+                        {
+                            // a half-height step plus the upper half on the side it rises towards (meta & 3: 0 +X, 1 -X, 2 +Z, 3 -Z)
+                            Box(id, new Vector3(x, y, z), new Vector3(1, .5f, 1), l0, true);
+                            var (mn, sz) = (meta & 3) switch { 0 => (new Vector3(.5f, .5f, 0), new Vector3(.5f, .5f, 1)), 1 => (new Vector3(0, .5f, 0), new Vector3(.5f, .5f, 1)),
+                                                              2 => (new Vector3(0, .5f, .5f), new Vector3(1, .5f, .5f)), _ => (new Vector3(0, .5f, 0), new Vector3(1, .5f, .5f)) };
+                            Box(id, new Vector3(x, y, z) + mn, sz, l0, true);
+                        }
+                        else
+                        {
+                            // fence: a post with two rails to each neighbouring fence or solid block
+                            Box(id, new Vector3(x + .375f, y, z + .375f), new Vector3(.25f, 1f, .25f), l0, true);
+                            for (int f = 2; f < 6; f++)
                             {
-                                int su = k == 1 || k == 2 ? 1 : 0, sv = k >= 2 ? 1 : 0; var u = U[f]; var v = Vv[f];
-                                var o = new Vector3(P0[f].X + su * u.X + sv * v.X, P0[f].Y + su * u.Y + sv * v.Y, P0[f].Z + su * u.Z + sv * v.Z);
-                                ps.V.Add(bas + o * size); ps.N.Add(new Vector3(Nrm[f].X, Nrm[f].Y, Nrm[f].Z)); ps.C.Add(new Color(l, l, l));
+                                var n = Nrm[f]; byte nb = At(x + n.X, y, z + n.Z);
+                                if (nb == 0 || nb >= defs.Count || !(defs[nb].Shape == "fence" || defs[nb].Opaque)) continue;
+                                for (int r = 0; r < 2; r++)
+                                {
+                                    float ry = r == 0 ? .3f : .7f;
+                                    Vector3 mn = n.X > 0 ? new(.625f, ry, .44f) : n.X < 0 ? new(0, ry, .44f) : n.Z > 0 ? new(.44f, ry, .625f) : new(.44f, ry, 0);
+                                    Vector3 sz = n.X != 0 ? new(.375f, .12f, .12f) : new(.12f, .12f, .375f);
+                                    Box(id, new Vector3(x, y, z) + mn, sz, l0 * .95f, true);
+                                }
                             }
-                            Tri(ps, pb);
                         }
                         continue;
                     }
@@ -184,12 +211,12 @@ public static class BlockMesher
         d.Faces = faces.ToArray();
         return d;
 
-        // an axis-aligned box (min corner + size) as 6 faces; coll adds it to the collision faces
-        void Box(byte id, Vector3 bas, Vector3 size, float lit, bool coll)
+        // an axis-aligned box (min corner + size) as 6 faces; coll adds it to the collision faces; face >= 0 = every face uses that material (0 top, 1 side, 2 bottom)
+        void Box(byte id, Vector3 bas, Vector3 size, float lit, bool coll, int face = -1)
         {
             for (int f = 0; f < 6; f++)
             {
-                var ps = Surf(Slot(id, f, 0)); int pb = ps.V.Count; float l = Shade[f] * lit; var q = new Vector3[4];
+                var ps = Surf(face >= 0 ? id * 3 + face : Slot(id, f, 0)); int pb = ps.V.Count; float l = Shade[f] * lit; var q = new Vector3[4];
                 for (int k = 0; k < 4; k++)
                 {
                     int su = k == 1 || k == 2 ? 1 : 0, sv = k >= 2 ? 1 : 0; var u = U[f]; var v = Vv[f];

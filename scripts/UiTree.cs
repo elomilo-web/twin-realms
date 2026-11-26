@@ -11,7 +11,7 @@ namespace TwinRealms;
 /// one that nothing else depends on. Hovering shows the node in a card by the mouse and the path to it. Search lights up matches.
 /// The view (zoom and pan) is kept while the menu stays open, so taking a node does not throw you back to your start.
 /// </summary>
-public partial class TreeView : Control
+public partial class TreeView : Control, IPadFocus
 {
     public Action? Changed; public Action<int, Vector2>? HoverAt;
     public static bool HasSaved; static float _sZoom; static Vector2 _sPan;
@@ -123,21 +123,63 @@ public partial class TreeView : Control
             else if (mb.ButtonIndex == MouseButton.Middle) { _drag = mb.Pressed; }
             else if (mb.ButtonIndex == MouseButton.Left && mb.Pressed)
             {
-                int id = Pick(mb.Position); var d = Game.D;
+                int id = Pick(mb.Position);
                 if (id < 0) { _drag = true; return; }
-                var path = PathTo(id);
-                if (path == null || path.Count == 0) { Sfx.Play("click"); return; }
-                if (path.Count > d.SkillPts) { Ui.Note($"That path takes {path.Count} skill tree points; you have {d.SkillPts}", new Color(1f, .6f, .5f)); Sfx.Play("click"); return; }
-                foreach (var pid in path) { var set = new HashSet<int>(d.Tree); var pn = TreeDb.Nodes[pid]; if (!TreeDb.CanAlloc(pn, set, d.SkillPts, _start)) break; d.Tree.Add(pid); d.SkillPts--; }
-                Sfx.Play("level"); _path = null; Changed?.Invoke();
+                Take(id);
             }
             else if (mb.ButtonIndex == MouseButton.Left && !mb.Pressed) _drag = false;
-            else if (mb.ButtonIndex == MouseButton.Right && mb.Pressed)
-            {
-                int id = Pick(mb.Position); if (id < 0) return; var n = TreeDb.Nodes[id]; var set = new HashSet<int>(Game.D.Tree);
-                if (TreeDb.CanDealloc(n, set, _start)) { Game.D.Tree.Remove(id); Game.D.SkillPts++; Sfx.Play("click"); Changed?.Invoke(); }
-                else if (set.Contains(id)) Ui.Note("Refund the nodes further out first: everything you take must stay connected to your start", new Color(1f, .6f, .5f));
-            }
+            else if (mb.ButtonIndex == MouseButton.Right && mb.Pressed) { int id = Pick(mb.Position); if (id >= 0) Refund(id); }
         }
+        else if (HasFocus()) PadGui(e);
+    }
+    void Take(int id)
+    {
+        var d = Game.D; var path = PathTo(id);
+        if (path == null || path.Count == 0) { Sfx.Play("click"); return; }
+        if (path.Count > d.SkillPts) { Ui.Note($"That path takes {path.Count} skill tree points; you have {d.SkillPts}", new Color(1f, .6f, .5f)); Sfx.Play("click"); return; }
+        foreach (var pid in path) { var set = new HashSet<int>(d.Tree); var pn = TreeDb.Nodes[pid]; if (!TreeDb.CanAlloc(pn, set, d.SkillPts, _start)) break; d.Tree.Add(pid); d.SkillPts--; }
+        Sfx.Play("level"); _path = null; PadKeep = id; Changed?.Invoke();
+    }
+    void Refund(int id)
+    {
+        var n = TreeDb.Nodes[id]; var set = new HashSet<int>(Game.D.Tree);
+        if (TreeDb.CanDealloc(n, set, _start)) { Game.D.Tree.Remove(id); Game.D.SkillPts++; Sfx.Play("click"); PadKeep = id; Changed?.Invoke(); }
+        else if (set.Contains(id)) Ui.Note("Refund the nodes further out first: everything you take must stay connected to your start", new Color(1f, .6f, .5f));
+    }
+
+    // ---- controller: a node cursor. D-pad / left stick step to the node in that direction (linked nodes first), A takes it (or the path
+    // to it), Y / Triangle refunds, the right stick pans. The cursor survives the rebuild after taking a node (PadKeep).
+    static int PadKeep = -1;
+    public string PadCursor => _hover >= 0 ? "node" + _hover : "-";
+    void PadSet(int id)
+    {
+        _hover = id; _path = id >= 0 ? PathTo(id) : null; QueueRedraw();
+        if (id < 0) { HoverAt?.Invoke(-1, Vector2.Zero); return; }
+        var p = ToScreen(TreeDb.Nodes[id]); var inner = new Rect2(Vector2.Zero, Size).Grow(-70);
+        if (!inner.HasPoint(p)) { _pan += Size / 2 - p; Save(); p = ToScreen(TreeDb.Nodes[id]); }
+        HoverAt?.Invoke(id, GlobalPosition + p + new Vector2(14, -10));
+    }
+    public void PadPan(Vector2 v) { _pan -= v * 700f; Save(); QueueRedraw(); }
+    void PadGui(InputEvent e)
+    {
+        if (e.IsActionPressed("ui_accept") && !e.IsEcho()) { if (_hover >= 0) Take(_hover); AcceptEvent(); return; }
+        if (e is InputEventJoypadButton { Pressed: true, ButtonIndex: JoyButton.Y }) { if (_hover >= 0) Refund(_hover); AcceptEvent(); return; }
+        var dir = e.IsActionPressed("ui_left", true) ? Vector2.Left : e.IsActionPressed("ui_right", true) ? Vector2.Right : e.IsActionPressed("ui_up", true) ? Vector2.Up : e.IsActionPressed("ui_down", true) ? Vector2.Down : Vector2.Zero;
+        if (dir == Vector2.Zero) return;
+        if (_hover < 0) { AcceptEvent(); PadSet(_start); return; }
+        var cur = TreeDb.Nodes[_hover]; var p0 = ToScreen(cur); int best = -1; float bs = 1e9f;
+        foreach (var n in TreeDb.Nodes)
+        {
+            if (n.Id == cur.Id) continue; var dv = ToScreen(n) - p0; float along = dv.Dot(dir); if (along < 3f) continue;
+            float perp = Mathf.Abs(dv.Cross(dir)); if (perp > along * 1.3f) continue;
+            float s = (along + perp * 2f) * (cur.Adj.Contains(n.Id) ? .45f : 1f);
+            if (s < bs) { bs = s; best = n.Id; }
+        }
+        if (best >= 0) { AcceptEvent(); Sfx.UiHover(); PadSet(best); }   // nothing that way: the focus leaves the tree for the toolbar
+    }
+    public override void _Notification(int what)
+    {
+        if (what == NotificationFocusEnter) Callable.From(() => { if (IsInstanceValid(this) && HasFocus()) PadSet(PadKeep >= 0 && PadKeep < TreeDb.Nodes.Count ? PadKeep : _hover >= 0 ? _hover : _start); }).CallDeferred();
+        else if (what == NotificationFocusExit) { _hover = -1; _path = null; HoverAt?.Invoke(-1, Vector2.Zero); QueueRedraw(); }
     }
 }

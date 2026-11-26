@@ -7,7 +7,7 @@ namespace TwinRealms;
 public partial class Hud : CanvasLayer
 {
     HudCanvas _c = null!;
-    string? _region; float _regT;
+    string? _region, _zone; float _regT;
     static Hud? _inst;
     /// <summary>Dev capture: zeroes the hurt flash, low-HP vignette and damage ghosts.</summary>
     public static void ResetFx() { _inst?._c.ResetFx(); }
@@ -22,7 +22,15 @@ public partial class Hud : CanvasLayer
         if (!Dungeon.Active && !Arenas.Active)
         {
             _regT -= (float)delta;
-            if (_regT <= 0) { _regT = .5f; var reg = Lands.RegionAt(p.GlobalPosition); if (_region != null && reg != _region) Ui.Banner(reg, "entering"); _region = reg; }
+            if (_regT <= 0)
+            {
+                _regT = .5f; var reg = Lands.RegionAt(p.GlobalPosition);
+                // entering a new level zone (data/zones.json) names it with its level range; that banner wins over the land's
+                var zn = Zones.At(p.GlobalPosition.X, p.GlobalPosition.Z); string zid = zn?.Id ?? "";
+                if (_zone != null && zid != _zone && zn != null) Ui.Banner(zn.Name, Zones.RangeText(zn, World.Realm));
+                else if (_region != null && reg != _region) Ui.Banner(reg, "entering");
+                _region = reg; _zone = zid;
+            }
         }
     }
 }
@@ -121,7 +129,7 @@ public partial class HudCanvas : Control
     void DrawInfoLine(Player p, float cx, float y, int fz, float hrs)
     {
         _infoT -= (float)GetProcessDeltaTime(); int gold = Game.D.Gold;
-        if (_infoT <= 0 || gold != _lastGold) { _infoT = .4f; _lastGold = gold; _tStr = $"{(int)hrs:00}:{(int)((hrs - (int)hrs) * 60):00}"; _pStr = Dungeon.Active ? $"Depth {Dungeon.Depth}" : PlaceName(p.GlobalPosition); _gStr = gold.ToString(); }
+        if (_infoT <= 0 || gold != _lastGold) { _infoT = .4f; _lastGold = gold; _tStr = $"{(int)hrs:00}:{(int)((hrs - (int)hrs) * 60):00}"; _pStr = Dungeon.Active ? $"Depth {Dungeon.Depth}" : PlaceName(p.GlobalPosition) + (Zones.At(p.GlobalPosition.X, p.GlobalPosition.Z) is { } zn ? "  Lv " + Zones.RangeText(zn, World.Realm).Substring(6) : ""); _gStr = gold.ToString(); }
         bool shadow = World.Realm == 1; var dim = new Color(UiTheme.Dim.Lightened(.15f), .85f);
         float iw = fz, gap = fz * .7f, tw = F.GetStringSize(_tStr, HorizontalAlignment.Left, -1, fz).X, pw = F.GetStringSize(_pStr, HorizontalAlignment.Left, -1, fz).X, gw = F.GetStringSize(_gStr, HorizontalAlignment.Left, -1, fz).X;
         float total = iw + gap + tw + gap + pw + gap + iw + 4 + gw, x = cx - total / 2, r = fz * .36f; var ic = new Vector2(x + iw / 2, y - fz * .32f);
@@ -247,10 +255,15 @@ public partial class HudCanvas : Control
             // interaction prompt in a glass pill: [E] key chip + action
             string ek = Inputs.KeyOf(Inputs.Use), pre = "[" + ek + "] ";
             string act = p.Prompt.StartsWith(pre) ? p.Prompt[pre.Length..] : p.Prompt; int pf = fs(1.25f);
-            float aw = F.GetStringSize(act, HorizontalAlignment.Left, -1, pf).X, kw = Mathf.Max(pf * 1.6f, F.GetStringSize(ek, HorizontalAlignment.Left, -1, pf).X + pf * .6f), tot = kw + 10 + aw + 24, x0 = sz.X / 2 - tot / 2, y0 = sz.Y * .62f - pf;
+            bool glyph = Inputs.UsingPad && Inputs.PadCode(Inputs.Use) != ""; float gh = pf * 1.2f;
+            float aw = F.GetStringSize(act, HorizontalAlignment.Left, -1, pf).X, kw = glyph ? PadGlyphs.Width(ek, gh) + 6 : Mathf.Max(pf * 1.6f, F.GetStringSize(ek, HorizontalAlignment.Left, -1, pf).X + pf * .6f), tot = kw + 10 + aw + 24, x0 = sz.X / 2 - tot / 2, y0 = sz.Y * .62f - pf;
             Glass(new Rect2(x0, y0, tot, pf * 1.7f));
-            DrawRect(new Rect2(x0 + 6, y0 + 5, kw, pf * 1.7f - 10), UiTheme.Accent with { A = .85f });
-            Txt(new Vector2(x0 + 6, y0 + pf * 1.2f), ek, pf, new Color("04111f"), HorizontalAlignment.Center, kw);
+            if (glyph) PadGlyphs.Draw(this, new Rect2(x0 + 9, y0 + (pf * 1.7f - gh) / 2, kw, gh), ek, Inputs.PadStyle);
+            else
+            {
+                DrawRect(new Rect2(x0 + 6, y0 + 5, kw, pf * 1.7f - 10), UiTheme.Accent with { A = .85f });
+                Txt(new Vector2(x0 + 6, y0 + pf * 1.2f), ek, pf, new Color("04111f"), HorizontalAlignment.Center, kw);
+            }
             Txt(new Vector2(x0 + kw + 16, y0 + pf * 1.2f), act, pf, Colors.White);
         }
         // hotbar bottom-left: 6 skills (keys 1-6, set in the Skills menu, L) + 2 potions
@@ -261,7 +274,7 @@ public partial class HudCanvas : Control
         if (unspent > 0 && _ptsShowT > 0)
         {
             float ux = hx + 8 * (ss + u * .5f) + u;
-            Txt(new Vector2(ux, hy + ss * .62f),$"Unspent: {d.AttrPts} attribute (Esc > Character), {d.RankPts} skill (L), {d.SkillPts} skill tree (K)", fs(1f), UiTheme.Highlight, HorizontalAlignment.Left, Mathf.Max(100, sz.X - ux - pad));
+            Txt(new Vector2(ux, hy + ss * .62f),$"Unspent: {d.AttrPts} attribute ({(Inputs.UsingPad ? Inputs.KeyOf(Inputs.Pause) : "Esc")} > Character), {d.RankPts} skill ({Inputs.KeyOf(Inputs.SkillsUi)}), {d.SkillPts} skill tree ({Inputs.KeyOf(Inputs.Tree)})", fs(1f), UiTheme.Highlight, HorizontalAlignment.Left, Mathf.Max(100, sz.X - ux - pad));
         }
         for (int i = 0; i < 8; i++)
         {
@@ -284,7 +297,10 @@ public partial class HudCanvas : Control
                 Txt(r.Position + new Vector2(0, ss * .62f), cd >= 1 ? $"{Mathf.CeilToInt(cd)}" : $"{cd:0.0}", fs(1.05f), Colors.White, HorizontalAlignment.Center, ss);
             }
             else if (!dim && i < 6 && icon != "") DrawRect(r, UiTheme.Accent with { A = .35f }, false, 1f);
-            Txt(r.Position + new Vector2(4, fs(.95f) + 1), key, fs(.95f), UiTheme.Accent); Txt(r.Position + new Vector2(0, ss - 4), cnt, fs(.85f), i == 6 ? new Color("ff8f86") : i == 7 ? new Color("8fb8ff") : UiTheme.Dim.Lightened(.3f), HorizontalAlignment.Right, ss - 4);
+            string kact = i < 6 ? "spell" + (i + 1) : i == 6 ? Inputs.PotHp : Inputs.PotMp;
+            if (Inputs.UsingPad && Inputs.PadCode(kact) != "") PadGlyphs.Draw(this, new Rect2(r.Position + new Vector2(3, 3), new Vector2(ss - 6, Mathf.Max(12, ss * .3f))), key, Inputs.PadStyle);
+            else Txt(r.Position + new Vector2(4, fs(.95f) + 1), key, fs(.95f), UiTheme.Accent);
+            Txt(r.Position + new Vector2(0, ss - 4), cnt, fs(.85f), i == 6 ? new Color("ff8f86") : i == 7 ? new Color("8fb8ff") : UiTheme.Dim.Lightened(.3f), HorizontalAlignment.Right, ss - 4);
         }
         // hero statuses and skill buffs: icons with seconds left, just above the hotbar
         float isz = Mathf.Max(22, u * 2.1f);

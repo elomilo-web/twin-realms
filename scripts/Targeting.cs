@@ -114,6 +114,18 @@ public static class Targeting
     /// <summary>The auto target by the chosen rule (Settings > Game > Auto target).</summary>
     static Enemy? PickAuto(Player p, int mode)
     {
+        if (Inputs.UsingPad && p.Rig?.Camera is { } cam)
+        {
+            // pad aim assist: the foe nearest the screen centre within ~12 degrees wins
+            var fwd = -cam.GlobalTransform.Basis.Z; Enemy? ab = null; float aa = Mathf.DegToRad(12f);
+            foreach (var n in p.GetTree().GetNodesInGroup("enemies"))
+            {
+                if (n is not Enemy e || !Valid(e, p, AutoRange) || e.Proxy) continue;
+                float ang = fwd.AngleTo((e.GlobalPosition + Vector3.Up - cam.GlobalPosition).Normalized());
+                if (ang < aa) { aa = ang; ab = e; }
+            }
+            if (ab != null) return ab;
+        }
         if (mode == 1)
         {
             // the monster that last hit us or that we last hit, while the fight is fresh; otherwise the nearest one that is chasing us

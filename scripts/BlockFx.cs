@@ -153,4 +153,11 @@ public static class BlockFx
         if (!w.Change(x, y, z, id, meta)) return false;
         Sfx.Play("click", .6f); return true;
     }
+    /// <summary>The feel of setting a block down by hand: a soft thud and a small dust puff round its foot in the block's colour.</summary>
+    public static void PlacePuff(int x, int y, int z, byte id)
+    {
+        var col = Blocks.Tint(Blocks.Def(id)).Lerp(new Color(.55f, .5f, .45f), .5f); var g = new Gradient(); g.SetColor(0, new Color(col, .55f)); g.SetColor(1, new Color(col, 0));
+        Vfx.Sparks(new Vector3(x + .5f, y + .08f, z + .5f), g, 8, 1.1f, .45f, .4f, -1f, false, 180f, null, .22f, "dirt");
+        Sfx.Play("hit", .3f, .75f);
+    }
 }

@@ -1202,3 +1202,79 @@ def skull_staff():
         p.append(spike("thorn", b, (0.07 * math.cos(a), cy + 0.1, 0.075 * math.sin(a)), 0.006, IRON, sides=4))
     p.append(ring("crown", (0, cy + 0.03, -0.002), 0.048, 0.004, IRON, axis="y", seg=20, sides=5))
     return p
+
+
+# ------------------------------------------------------------------ pickaxes (build mode tools, data/blocks.json dig.pickaxes)
+def _pick_head(mat, y=0.6, half=0.27, droop=0.11, r0=0.026, tip=0.004, sides=8, flat=None, name="pick"):
+    """A pick head across the haft top along X: an arc drooping towards both ends, thick at the eye, tapering to
+    a point on +X; flat = width of a chisel end on -X (None = a second point)."""
+    parts = []
+    for s in (1, -1):
+        pts, radii = [], []
+        N = 12
+        for i in range(N + 1):
+            t = i / N
+            x = s * half * t
+            pts.append((x, y - droop * t * t, 0.0))
+            end = tip if (s > 0 or flat is None) else r0 * 0.55
+            radii.append(r0 + (end - r0) * t ** 1.3)
+        parts.append(tube(name + ("_point" if s > 0 else "_tail"), pts, r0, mat, sides=sides, radii=radii))
+        if s < 0 and flat:
+            ex, ey = -half, y - droop
+            parts.append(slab(name + "_chisel", [(ex + 0.02, ey + 0.018), (ex - 0.03, ey + flat / 2 - 0.01), (ex - 0.035, ey - flat / 2),
+                                                 (ex + 0.02, ey - 0.02)], mat, 0.004, 0.02, inset=0.008, bevel=0.001))
+    return parts
+
+
+@weapon
+def pickaxe_wood():
+    # a hardened-wood pick lashed on with rawhide: crude and dark
+    p = haft(-0.16, 0.62, 0.017, WOOD, bands=(), grip_at=(-0.14, 0.06), butt=False)
+    p += _pick_head(BARK, y=0.6, half=0.23, droop=0.08, r0=0.03, tip=0.008, sides=6)
+    for k in range(3):   # lashing round the eye
+        p.append(ring("lash", (0, 0.57 + k * 0.025, 0), 0.022, 0.004, LEATHER, axis="y", seg=12, sides=4))
+    for sx in (-1, 1):   # the lashing crossing over the head
+        p.append(tube("lash_x", [(sx * 0.035, 0.63, 0.012), (0, 0.6, 0.026), (-sx * 0.035, 0.56, 0.012)], 0.004, LEATHER, sides=4))
+    return p
+
+
+@weapon
+def pickaxe_stone():
+    # knapped stone head bound into a split haft
+    p = haft(-0.16, 0.64, 0.018, WOOD, bands=(), grip_at=(-0.14, 0.07), butt=False)
+    p += _pick_head(ROCK, y=0.61, half=0.25, droop=0.09, r0=0.034, tip=0.007, sides=5)
+    p.append(ball("knap", (0, 0.61, 0), 0.042, ROCK, sx=1.2, sy=0.9, sz=0.8, seg=7, rings_=5))
+    for k in range(4):
+        p.append(ring("bind", (0, 0.53 + k * 0.022, 0), 0.021, 0.0045, LEATHER, axis="y", seg=12, sides=4))
+    p.append(spike("haft_top", (0, 0.64, 0), (0, 0.67, 0), 0.016, WOOD, sides=6))
+    return p
+
+
+@weapon
+def pickaxe_iron():
+    # a forged miner's pick: socketed iron head, point and chisel, banded haft
+    p = haft(-0.18, 0.64, 0.017, WOOD, bands=(0.5,), grip_at=(-0.16, 0.08))
+    p += _pick_head(IRON, y=0.62, half=0.28, droop=0.1, r0=0.024, tip=0.003, sides=8, flat=0.05)
+    p.append(lathe("socket", [(0.024, 0.0), (0.028, 0.012), (0.028, 0.07), (0.024, 0.082)], IRON, seg=8, y0=0.58, sz=1.25, bevel=0.002))
+    for sx in (-1, 1):   # langets riveted down the haft
+        p.append(slab("langet", [(-0.006, 0.47), (0.006, 0.47), (0.006, 0.59), (-0.006, 0.59)], IRON, 0.004, 0.004, pos=(0, 0, sx * 0.0175)))
+    p += rivets([(0, 0.5, 0.021), (0, 0.555, 0.021), (0, 0.5, -0.021), (0, 0.555, -0.021)], r=0.005)
+    return p
+
+
+@weapon
+def pickaxe_rune():
+    # dark steel with a glowing rune channel along the point and a blue stone in the eye
+    p = haft(-0.18, 0.66, 0.017, WOOD, bands=(0.1, 0.5), band_mat=BRASS, grip_at=(-0.16, 0.08))
+    p += _pick_head(STEEL, y=0.64, half=0.3, droop=0.11, r0=0.025, tip=0.003, sides=8, flat=0.055)
+    p.append(lathe("socket", [(0.025, 0.0), (0.03, 0.012), (0.03, 0.075), (0.025, 0.088)], BRASS, seg=8, y0=0.6, sz=1.25, bevel=0.002))
+    for sz_ in (1, -1):   # rune inlay on both faces of the point
+        pts = []
+        for i in range(9):
+            t = 0.12 + 0.7 * i / 8; x = 0.3 * t
+            pts.append((x, 0.64 - 0.11 * t * t, sz_ * (0.025 + (0.003 - 0.025) * t ** 1.3 + 0.0015)))
+        p.append(tube("rune", pts, 0.0022, glow("6f9bff"), sides=4))
+    p.append(ball("gem", (0, 0.645, 0.03), 0.012, glow("5b86ff"), sz=0.5, seg=10, rings_=6))
+    p.append(ball("gem_b", (0, 0.645, -0.03), 0.012, glow("5b86ff"), sz=0.5, seg=10, rings_=6))
+    p.append(spike("top", (0, 0.69, 0), (0, 0.75, 0), 0.014, STEEL, sides=4))
+    return p

@@ -66,7 +66,9 @@ public partial class Ui
         var top = new HFlowContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; v.AddChild(top); top.AddThemeConstantOverride("h_separation", 8); top.AddThemeConstantOverride("v_separation", 6);
         Chip(top, $"Skill points  {d.RankPts}", d.RankPts > 0);
         top.AddChild(new Control { CustomMinimumSize = new Vector2(8, 0) });
-        foreach (var (id, label) in new[] { ("all", "All"), ("spell", "Spells"), ("attack", "Weapon skills"), ("learned", "Learned"), ("learn", "Can learn") })
+        var filters = new[] { ("all", "All"), ("spell", "Spells"), ("attack", "Weapon skills"), ("learned", "Learned"), ("learn", "Can learn") };
+        PadTabs(filters.Select(f => ((Action)(() => { _skillFilter = f.Item1; OpenSkills(); }), _skillFilter == f.Item1)));   // LB / RB step through the filters
+        foreach (var (id, label) in filters)
         {
             string fid = id; var b = Btn(label, () => { _skillFilter = fid; OpenSkills(); }, true); b.CustomMinimumSize = new Vector2(0, 30);
             if (_skillFilter == id) { b.AddThemeColorOverride("font_color", UiTheme.Highlight); b.AddThemeStyleboxOverride("normal", UiTheme.Box(UiTheme.ButtonHover, UiTheme.Highlight, 1, 10, 4, 0)); }
@@ -197,15 +199,15 @@ public partial class Ui
         // modifier sockets
         var sh = new HBoxContainer(); v.AddChild(sh);
         var mt = Header("Modifiers", sh).GetParent<Control>(); mt.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        if (!learned) { Row(v, "Learn the skill to socket modifiers into it (1 socket, 2 at rank 2, 3 at rank 4).", Dim, 14); return; }
+        if (!learned) { Row(v, $"Learn the skill to socket modifiers into it ({string.Join(", ", Enumerable.Range(0, Skills.MaxSockets).Select(i => i == 0 ? "1 socket" : $"{i + 1} at rank {Skills.SocketRank(i)}"))}).", Dim, 14); return; }
         int open = Skills.Sockets(ss!.Rank); while (ss.Sup.Count < open) ss.Sup.Add("");
         Lbl($"{ss.Sup.Count(s => s != "")}/{open} used", 14, Dim, sh);
         var sockets = new HBoxContainer(); sockets.AddThemeConstantOverride("separation", 8); v.AddChild(sockets);
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < Skills.MaxSockets; i++)
         {
             int sock = i; bool locked = i >= open; var sp = !locked && i < ss.Sup.Count ? Skills.Sup(ss.Sup[i]) : null;
             var mn = sp != null ? ModTree.Get(ModTree.KeyOf(sp.Id, false)) : null;
-            string label = locked ? $"Opens at rank {(i == 1 ? 2 : 4)}" : sp != null ? sp.Name : "+  Empty socket";
+            string label = locked ? $"Opens at rank {Skills.SocketRank(i)}" : sp != null ? sp.Name : "+  Empty socket";
             var b = Btn(label, () => { _openSocket = _openSocket == sock ? -1 : sock; OpenSkills(); }, true);
             b.CustomMinimumSize = new Vector2(0, 40); b.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; b.Disabled = locked; b.ClipText = true;
             var col = mn?.Branch.Col ?? UiTheme.Accent;

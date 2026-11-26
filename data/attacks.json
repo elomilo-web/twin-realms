@@ -12,6 +12,18 @@
     "recLight": "recA", "recHeavy": "recHook"
   },
   "styles": {
+    "unarmed": {
+      "name": "Fist Forms",
+      "start": ["jab", "cross", "hook"],
+      "powerAnim": "slam",
+      "steps": {
+        "jab": { "anim": "jab", "n": "Jab", "d": "A quick straight punch.", "base": 0 },
+        "cross": { "anim": "bash", "n": "Cross", "d": "The rear hand, a little harder.", "base": 1, "dmg": 1.05 },
+        "hook": { "anim": "hook", "n": "Hook", "d": "A swinging finisher that staggers.", "base": 2, "finisher": true },
+        "flurry": { "anim": "jab", "n": "Flurry", "d": "Rapid jabs: weaker, much quicker.", "base": 0, "dmg": 0.7, "speed": 1.5, "stamina": 0.6, "cost": 1, "req": 2 },
+        "haymaker": { "anim": "hook", "n": "Haymaker", "d": "A wild swing that stuns.", "base": 2, "dmg": 1.5, "stun": 0.6, "speed": 0.85, "finisher": true, "cost": 2, "req": 5 }
+      }
+    },
     "sword": {
       "name": "Sword Forms",
       "start": ["cut", "backcut", "thrust"],

@@ -325,7 +325,7 @@ public partial class Player : CharacterBody3D, IDamageable
         if (Dead || _atkT > 0 || _rollT > 0 || _stagger > 0 || _castT > 0 || _recT > 0) return false;   // _recT: still recovering from a heavy swing
         if (Mounted) { Ui.Note("Dismount to fight (T)", new Color(0.7f, 0.8f, 1)); return false; }
         var w = W; bool ranged = w.Ranged;
-        float cost = ranged ? (power ? Tune.F("stamina.heavyRanged", 16) : Tune.F("stamina.lightRanged", 7)) : (power ? Tune.F("stamina.heavyMelee", 26) : Tune.F("stamina.lightMelee", 9)) * (w.Hands > 1 ? Tune.F("stamina.twoHandedMul", 1.25f) : w.Id == "dagger" ? Tune.F("stamina.daggerMul", .6f) : 1f);   // data/tuning.json "game.stamina"
+        float cost = ranged ? (power ? Tune.F("stamina.heavyRanged", 16) : Tune.F("stamina.lightRanged", 7)) : (power ? Tune.F("stamina.heavyMelee", 26) : Tune.F("stamina.lightMelee", 9)) * (w.Hands > 1 ? Tune.F("stamina.twoHandedMul", 1.25f) : w.Id == "dagger" ? Tune.F("stamina.daggerMul", .6f) : w.Id == "unarmed" ? Tune.F("stamina.unarmedMul", .55f) : 1f);   // data/tuning.json "game.stamina"
         if (St < 4f)
         {   // one message at a time: queued and repeated presses used to stack several on top of each other
             if (Time.GetTicksMsec() - _noStMsg > 1000) { _noStMsg = Time.GetTicksMsec(); FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.2f, 0), "Out of stamina", new Color(0.6f, 0.8f, 1f), 0.8f); }
@@ -359,7 +359,8 @@ public partial class Player : CharacterBody3D, IDamageable
             }
         }
         if (_magnet != null && _magnet.GlobalPosition.DistanceTo(GlobalPosition) - _magnet.Def.R * _magnet.ScaleF() > _atk.Range + 2.4f) _magnet = null;
-        _modelYaw = face; _spinBase = face; Sfx.Play("swing");
+        _modelYaw = face; _spinBase = face;
+        if (w.Id == "unarmed") Sfx.Play("punch_swing", .6f); else Sfx.Play("swing");   // fists: a short soft cloth whoosh, not the blade's
         return true;
     }
 
@@ -410,7 +411,7 @@ public partial class Player : CharacterBody3D, IDamageable
             if (crit) CritFx(e, hitPt, new Vector3(d.X, 0, d.Z).Normalized());
             hits++;
         }
-        if (hits > 0) { Rig?.Shake(_atkPower ? Tune.F("heavy.shake", .32f) : fin ? 0.15f : 0.08f); Sfx.Play("hit"); if (_atkPower) Fx.Dust(GlobalPosition + GlobalTransform.Basis.Z * -1.2f, Tune.F("heavy.dust", 1.4f)); }   // a connecting heavy blow kicks up dust
+        if (hits > 0) { Rig?.Shake(_atkPower ? Tune.F("heavy.shake", .32f) : fin ? 0.15f : 0.08f); if (W.Id == "unarmed") Sfx.Play("punch_hit"); else Sfx.Play("hit"); if (_atkPower) Fx.Dust(GlobalPosition + GlobalTransform.Basis.Z * -1.2f, Tune.F("heavy.dust", 1.4f)); }   // a connecting heavy blow kicks up dust
         if (fin && hits > 0 && !_atkPower)
         {   // finisher lands: gold shockwave + dust + low thump
             var gp = GlobalPosition + Vector3.Up * .08f;
@@ -543,8 +544,11 @@ public partial class Player : CharacterBody3D, IDamageable
     }
 
     // ------------------------------------------------------------------ main loop
+    /// <summary>Held still (no gravity, no movement) while the loading screen covers a long teleport (LoadScreen.cs).</summary>
+    public static bool Frozen;
     public override void _PhysicsProcess(double delta)
     {
+        if (Frozen) { Velocity = Vector3.Zero; _walkV = Vector3.Zero; return; }
         float dt = (float)delta; var D = Game.D; var TS = Game.TS;
         var v = Velocity; v.X = _walkV.X; v.Z = _walkV.Z;   // steer the walking velocity only; pushes are added for the move below
         if (!IsOnFloor()) v.Y -= _gravity * dt;
@@ -586,7 +590,7 @@ public partial class Player : CharacterBody3D, IDamageable
         var dir = new Vector3(input.X, 0, input.Y).Rotated(Vector3.Up, camYaw);
 
         // ---- hotkeys
-        SkillKeys(captured, dt);   // press casts, or hold to aim (ground spells) / charge (projectiles), release casts
+        if (!(BuildMode && BlockWorld.Enabled)) SkillKeys(captured, dt);   // (build mode: keys 1-9 pick hotbar blocks instead, PlayerBlocks.cs) press casts, or hold to aim (ground spells) / charge (projectiles), release casts
         if (captured && _mRun >= 0 && (Input.IsActionJustPressed(Inputs.Roll) || _holdSlot >= 0)) StopMacro();   // dodging or using a hotbar skill stops a macro
         MacroKeys(captured, dt);   // Macro 1 / 2: chains of skills (PlayerMacros.cs)
         AutoPotions(dt);
@@ -839,7 +843,7 @@ public partial class Player : CharacterBody3D, IDamageable
         _rig.Cape.Rotation = new Vector3(_capeX + spineLean, 0, 0);
         if (_av?.Cape != null) _av.Cape.Rotation = new Vector3(-_capeX * .8f, 0, 0);   // the model's back is +Z of the old rig's
         // swing trail during the cutting part of a melee attack: weapon colour, gold for power attacks, hot orange for finishers
-        if (atk && !w.Ranged)
+        if (atk && !w.Ranged && w.Id != "unarmed")   // fists leave no swing trail
         {
             _trail.Emit = prog > _atk!.Wind * .9f && prog < Mathf.Min(.95f, _atk.Hit + .3f);
             int ts = _atkPower ? 0 : Mathf.Max(0, _combo);
@@ -860,6 +864,7 @@ public partial class Player : CharacterBody3D, IDamageable
         if (Mounted) { a.Play("sit"); return; }
         if (rolling) { a.Play("roll", .06f, RollTime, rollStart); return; }
         if (_stagger > 0) { bool fresh = _hurtSerial != _avHurt; _avHurt = _hurtSerial; a.Play("hit", .04f, 0, fresh); return; }   // every blow restarts the flinch
+        if (BuildSwing(a)) return;   // build mode: the pickaxe swing (PlayerBlocks.cs)
         if (atk)
         {
             bool fresh = _atkSerial != _avAtk; _avAtk = _atkSerial;

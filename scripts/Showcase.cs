@@ -59,7 +59,7 @@ public partial class Showcase : Node
     async Task Tour()
     {
         // best looks: Ultra, far view, full grass, a 1080p window
-        var s = Game.Set; s.Quality = 3; s.RenderScale = 1f; s.ViewDist = 3000f; s.Grass = 1f; Game.ApplyDisplay();
+        var s = Game.Set; s.AutoQuality = false; s.Quality = 3; s.RenderScale = 1f; s.ViewDist = 3000f; s.Grass = 1f; Game.ApplyDisplay();
         DisplayServer.WindowSetSize(new Vector2I(1920, 1080));
         await Wait(3f);
         if (Player.Instance == null) { GD.PrintErr("[SHOWCASE] no player"); return; }

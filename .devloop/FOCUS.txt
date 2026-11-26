@@ -1,0 +1,486 @@
+================================================================================
+TWIN REALMS - FOCUS POINTS
+================================================================================
+
+This is the work list for Claude Code. Work through it from top to bottom.
+An item is finished only when every line under its "DONE WHEN" is true and has
+been checked in game.
+
+
+--------------------------------------------------------------------------------
+HOW TO WORK THROUGH THIS FILE (instructions for Claude Code)
+--------------------------------------------------------------------------------
+
+1. Read .devloop/INDEX.md first if it exists, then this file. Use the info web
+   (system cards, files.json) to find code instead of browsing folders.
+2. Find the first item marked [ ]. Phases are in dependency order, so don't
+   skip ahead unless the item is blocked.
+3. You may do 2-4 items from the same phase together if they touch different
+   files.
+4. For each item:
+   a. Before writing new code, check whether the feature partly exists
+      already. Extend it rather than duplicating it.
+   b. Build, test, and fix errors.
+   c. Check every DONE WHEN line. Take screenshots of anything visual.
+   d. Change [ ] to [x] and add a note under the item:
+        NOTE (date): what changed, main files touched
+   e. If blocked, change [ ] to [!] and add:
+        BLOCKED: reason
+      Then move on to the next item.
+5. Make a git commit after each finished item:
+     git commit -m "focus F-XX: <title>"
+6. Keep the art style consistent: anime fantasy, block-built world. Anything
+   placed in the world must match the block style.
+7. If something is unclear, make the most reasonable choice, write it under
+   the item as "ASSUMPTION: ...", and keep going.
+
+STATUS KEY:   [ ] to do     [x] done     [!] blocked
+
+
+================================================================================
+PHASE 0 - BUGS AND FIXES (do these first)
+================================================================================
+
+[ ] F-01  ECHO AND RESONATE COOLDOWNS
+    Problem: Echo and Resonate do not put skills on cooldown. Find out why
+    (for example, is the cooldown skipped when a skill is triggered
+    indirectly?) and fix the root cause.
+    DONE WHEN:
+      - Every way of casting a skill (hotbar, Echo, Resonate, spell chain,
+        combo) goes through one shared cooldown/resource function.
+      - Echo/Resonate repeats respect cooldowns, or follow their own
+        documented cooldown rule.
+      - A test or debug log shows the cooldown starting for every cast path.
+
+[ ] F-02  FULL MATH AUDIT: STATS, SKILLS, LEVELS, PASSIVES
+    Check the math for every stat source and the order bonuses are applied in.
+    DONE WHEN:
+      - There is one stat pipeline:
+          base > race > class > level > gear > gems > passives > buffs
+        Flat bonuses apply before percent bonuses unless a rule says
+        otherwise.
+      - Every formula is written down in .devloop/systems/stats.md (damage,
+        resist, crit, cooldown reduction, spell/skill level scaling, XP curve).
+      - A debug command (/stats dump) prints each step of the calculation for
+        the current player.
+      - No stat can go negative, divide by zero, or go past its intended cap
+        (for example resist and cooldown reduction).
+      - Every bug found is listed in the item's note with how it was fixed.
+
+[ ] F-03  PLAYER MODEL LIMBS AND HEAD DETACHED
+    The head and limbs look separated from the body and look odd.
+    DONE WHEN:
+      - All body parts are skinned or parented to the correct bones, with no
+        gaps at the neck, shoulders, or hips.
+      - Checked in idle, run, jump, attack, cast, and swim poses.
+
+[ ] F-04  HAIR AND BODY PARTS FLASH OPAQUE WHITE WHEN THE CAMERA MOVES
+    Likely causes: transparency sorting, depth or alpha problems in a shader,
+    LOD switching, or a rim light that blows out.
+    DONE WHEN:
+      - The cause is found and written in the item's note.
+      - Turning the camera fast around the player shows no flashing.
+
+[ ] F-05  WEAPON SOUNDS PER WEAPON TYPE
+    The sword sound plays for weapons that are not swords.
+    DONE WHEN:
+      - Every weapon type (sword, axe, mace, dagger, spear, staff, bow,
+        pistol/gun, fists, etc.) has its own swing, hit, and miss sounds,
+        set in the weapon's data rather than hard-coded.
+      - A fallback sound plays only when a type has no sounds, and a warning
+        is logged when that happens.
+
+[ ] F-06  BOW RAISE AND DRAW ANIMATION
+    The bow uses the pistol animation.
+    DONE WHEN:
+      - The bow has its own raise, draw/hold, release, and lower animations,
+        and the animation tree picks them by weapon type.
+      - Arrows leave from the bow, not from the pistol's hand position.
+
+[ ] F-07  RETICLE MATCHES DIGGING AND PLACING
+    DONE WHEN:
+      - Digging and placing both use the same raycast, from the camera
+        through the center of the reticle.
+      - The targeted block gets an outline, and a ghost preview shows where
+        a placed block will go.
+      - Tested at close range, far range, at angles, and in first person.
+
+[ ] F-08  REMOVE THE FLYING BOTTLE FROM SPELL EFFECTS
+    A flying bottle is used as the effect for every spell.
+    DONE WHEN:
+      - The bottle is removed from all spell visuals. Only thrown potions may
+        still use it.
+      - Every spell uses an effect from F-12 instead. Nothing falls back to
+        the bottle.
+
+
+================================================================================
+PHASE 1 - CAMERA AND CONTROLS
+================================================================================
+
+[ ] F-09  FIRST-PERSON VIEW (MINECRAFT STYLE)
+    ASSUMPTION: "pushing" means pressing a key. Add a key (default V, can be
+    rebound) that switches between third person and first person.
+    DONE WHEN:
+      - First person shows the arms and the held item, hides the head and
+        hair (no clipping), and keeps the reticle centered.
+      - Digging, placing, combat, bow aiming, and casting all work in both
+        views.
+      - The view choice is saved in settings.
+
+
+================================================================================
+PHASE 2 - GEMS AND GEAR SOCKETS
+================================================================================
+
+[ ] F-10  GEM SYSTEM
+    DONE WHEN:
+      - SOCKETS: every gear piece rolls 1-4 sockets when it drops or is
+        crafted. Odds come from data (for example 1=45%, 2=30%, 3=18%,
+        4=7%, and higher rarity can improve them). Sockets are saved with
+        the item.
+      - ANY STAT: a gem can raise any stat in the game: core stats, damage
+        by type, resist by type, crit, attack speed, move speed, cooldown
+        reduction, the level of one spell or skill, the level of a whole
+        spell school, and life skill levels. Gems use the F-02 stat pipeline.
+      - TIERS: for example Chipped > Flawed > Normal > Flawless > Perfect >
+        Radiant, with values in a data file.
+      - INVENTORY: the inventory has its own GEMS tab.
+      - EQUIP AND REMOVE: drag a gem into a socket on the gear screen.
+        Removing it gives the gem back. No gem is lost; a gold cost is
+        optional.
+      - FUSE: 3 gems of the same type and tier make 1 gem of the next tier.
+        The result is shown before the player confirms.
+      - DISASSEMBLE: a gem breaks down into gem dust or shards, which are
+        used for crafting and fusing.
+      - Tooltips show the gem's stats and the item's total stats with its
+        gems.
+      - Gem stats show correctly in /stats dump.
+
+
+================================================================================
+PHASE 3 - HOTBAR, ICONS, AND SPELLCRAFTING
+================================================================================
+
+[ ] F-11  HOTBAR NAMES AND ICONS
+    DONE WHEN:
+      - Each hotbar slot shows the spell or skill name (short label, with
+        the full name in the tooltip), the icon, the keybind, and a cooldown
+        sweep.
+      - Every built-in spell and skill has a UNIQUE icon in the game's art
+        style, saved as an asset. No shared placeholder icons.
+      - CUSTOM ICONS: players can pick icons for spells and skills they make:
+          * from a built-in icon library,
+          * with a simple icon editor (shape, symbol, colors, border), or
+          * by importing a PNG from the user://icons/ folder.
+      - Custom icons are saved with the spell and work online (sent as data,
+        with a size limit).
+
+[ ] F-12  SPELL AND SKILL EFFECTS
+    DONE WHEN:
+      - Every spell element and shape has its own effect: projectiles, beams,
+        novas, AoE circles, buffs, debuffs, heals, summons, and impacts.
+        Use GPU particles and shaders in the anime style.
+      - Lingering AoEs have a ground effect that shows their radius and how
+        much time is left (for example, the ring fades out over time).
+      - Effects scale with spell power and size, so stronger spells look
+        stronger.
+      - With 10 effects active, FPS stays within 15% of the FPS before.
+
+[ ] F-13  LINGERING AOE IN SPELLCRAFTING (AOE + DURATION)
+    A chain with AoE + Duration should make a lingering zone.
+    DONE WHEN:
+      - The zone repeats ITS OWN PART OF THE CHAIN AND EVERYTHING AFTER IT
+        on a tick (for example every 1 second) until the duration ends.
+        Cards before the AoE are not repeated.
+      - Tick rate, radius, and duration come from the spell's cards and stats.
+      - Safety limits: a maximum number of active zones per caster, and zones
+        cannot create more lingering zones unless a rule allows it.
+      - The spellcraft UI highlights which cards will repeat.
+      - Uses the effects from F-12.
+
+
+================================================================================
+PHASE 4 - BUILDING BLOCKS AND PROTECTED AREAS
+================================================================================
+
+[ ] F-14  CRAFTABLE DOORS
+    DONE WHEN: doors can be crafted and placed. Interacting opens and closes
+    them, with an animation and a sound. There are several block-style
+    materials. The owner can lock a door, and NPCs can use doors.
+
+[ ] F-15  CRAFTABLE CHESTS
+    DONE WHEN: chests can be crafted and placed. They have their own storage
+    window, save their contents, and can be lockpicked (see F-25). Optional:
+    two chests side by side merge into one large chest.
+
+[ ] F-16  STAIRS (AND SLABS)
+    DONE WHEN: stairs can be crafted and placed facing any of 4 directions,
+    and upside down. Players and NPCs walk up stairs smoothly without
+    jumping.
+
+[ ] F-17  PLACEABLE TORCHES
+    DONE WHEN: torches can be crafted and placed on floors and walls. They
+    give real, flickering light and have a small flame particle.
+
+[ ] F-18  PROTECTED TOWN ZONES
+    DONE WHEN: each main town has a protected radius (set in data). Inside
+    it, players cannot mine or place blocks, and trying shows a clear
+    message. The zone border can be shown on the map. Admins can bypass it.
+
+[ ] F-19  ALL STRUCTURES IN BLOCK STYLE
+    DONE WHEN: every structure not built from game blocks (houses, walls,
+    towers, bridges, ruins) is replaced with a block-built version in the
+    same style, and the log has a screenshot of each town and structure type.
+
+
+================================================================================
+PHASE 5 - WATER, FISHING, AND LIFE SKILLS
+================================================================================
+
+[ ] F-20  SWIMMABLE WATER
+    DONE WHEN: players can swim on the surface and dive, with a breath meter.
+    There is an underwater camera effect. Items dropped in water float and
+    drift.
+
+[ ] F-21  BOATS
+    DONE WHEN: boats can be crafted, placed on water, boarded, and steered.
+    They carry the player across water and can be picked back up.
+
+[ ] F-22  FISH IN THE WATER
+    DONE WHEN: fish swim in the water, in schools and alone. Fish types
+    differ by biome and depth. Fish swim away when the player gets close and
+    never leave the water.
+
+[ ] F-23  FISHING
+    DONE WHEN:
+      - The fishing rod has cast, wait, bite, and reel steps, and a small
+        timing minigame decides the catch.
+      - Fishing loot tables are in data and vary by biome, water type, time
+        of day, weather, and fishing level. Loot includes common fish, rare
+        fish, junk, treasure, and the occasional gem.
+      - Fishing gives fishing skill XP.
+
+[ ] F-24  LIFE SKILLS: MINING, FISHING, COOKING
+    DONE WHEN:
+      - Each life skill has levels, XP, and perks (for example faster
+        mining, rarer catches, stronger food buffs).
+      - Cooking uses a fire or cooking station and recipes. Food heals or
+        gives buffs.
+      - Recipes are in data, and learned recipes are listed in a cooking
+        book.
+
+[ ] F-25  EVERYTHING YOU DO LEVELS A SKILL
+    DONE WHEN:
+      - These actions are skills that level as you use them: jumping,
+        walking, running, swimming, sneaking, creeping, lockpicking,
+        climbing, mining, fishing, cooking, plus any other common action
+        found in the code.
+      - Each level gives a small but real bonus (for example jump height,
+        stamina cost, sneak noise), applied through the F-02 stat pipeline.
+      - Lockpicking works on locked doors and chests and has a short
+        minigame.
+      - XP is tuned so a skill cannot be leveled by spamming a key while
+        standing still.
+      - Skills show on the character screen with levels and progress bars.
+
+[ ] F-26  EVERY ITEM HAS A PURPOSE
+    DONE WHEN:
+      - A script lists every item in the game and what it is used for (eat,
+        cook, craft, sell, quest, equip, place, fuse, etc.), saved to
+        .devloop/item_uses.md.
+      - Every item with no use gets one (for example berries can be eaten or
+        cooked into recipes) or is removed.
+
+
+================================================================================
+PHASE 6 - NPCS AND A LIVING WORLD
+================================================================================
+
+[ ] F-27  ABOUT 100 NPCS ACROSS THE WORLD
+    DONE WHEN: about 100 named NPCs are placed in towns, on roads, and in the
+    wilderness. Each has:
+      - a role (merchant, guard, farmer, blacksmith, hunter, traveller, quest
+        giver, etc.),
+      - a home,
+      - a daily schedule (work, eat, sleep, socialize), and
+      - a personality in data (traits, likes, dislikes, speech style).
+
+[ ] F-28  NPC MEMORY AND REPUTATION
+    DONE WHEN:
+      - NPCs remember the player: whether they have met, quests done, gifts,
+        insults, crimes they saw, and trades.
+      - Greetings and dialog change based on what the NPC remembers.
+      - Reputation with each NPC and each town changes prices and dialog.
+      - Memory is saved and is still there after reloading.
+
+[ ] F-29  NPCS ROAM AND INTERACT WITH EACH OTHER
+    DONE WHEN: NPCs walk around on their schedules and use doors and stairs.
+    They stop to talk to each other and react to weather, time of day, the
+    player, and other NPCs (they wave, gossip, argue, and trade).
+
+[ ] F-30  FLOATING NPC DIALOG
+    DONE WHEN: short lines (greetings, chatter, reactions) appear as speech
+    bubbles above NPC heads. The bubbles fade with distance and don't block
+    the view. Full conversations still use the dialog window.
+
+[ ] F-31  COMPLEX STORY QUESTS AND MISSIONS
+    DONE WHEN:
+      - The quest system supports multiple stages, branching choices,
+        conditions (reputation, items, skills, time), failure states, and
+        consequences that change the world or NPC behaviour.
+      - Quests are written in data files, not hard-coded.
+      - There are several main story arcs plus side quests spread across the
+        100 NPCs. Each quest giver has their own motives and personality.
+      - A quest journal shows active, finished, and failed quests.
+    NOTE: this is a big item. Split it into several commits.
+
+[ ] F-32  ATTACKING NPCS SPAWNS GUARDS
+    DONE WHEN: attacking or stealing from an NPC is a crime if someone sees
+    it. Guards come, and the player can pay a fine, fight, or run. Each town
+    keeps a bounty that goes down over time. NPCs needed for quests can't be
+    killed; they get knocked down instead.
+
+[ ] F-33  MORE STRUCTURES BETWEEN TOWNS
+    DONE WHEN: the roads and wilderness between towns have block-style
+    places to find: camps, farms, watchtowers, ruins, shrines, small
+    dungeons, bridges, and inns, with NPCs and loot where it makes sense.
+
+
+================================================================================
+PHASE 7 - CHARACTERS
+================================================================================
+
+[ ] F-34  MORE CLASSES
+    DONE WHEN: new classes are added, each with its own skills, passives,
+    starting gear, and spellcraft cards. The full class list is written in
+    the item's note.
+
+[ ] F-35  MORE RACES
+    DONE WHEN: new races are added. Each has stat bonuses, a racial passive,
+    and its own model or body proportion options.
+
+[ ] F-36  FULL CHARACTER CREATOR
+    DONE WHEN: the character creator includes:
+      - race and class,
+      - body (height, build, proportions),
+      - face (shape, eyes, eye color, brows, mouth),
+      - hair style and color, skin tone, markings, and voice,
+      - a live preview with camera rotate and zoom, and
+      - random and reset buttons.
+    Choices are saved and work online.
+
+
+================================================================================
+PHASE 8 - ECONOMY AND PETS
+================================================================================
+
+[ ] F-37  AUCTION HOUSE
+    DONE WHEN: players can list items (price, buyout, duration), search and
+    filter, bid, and buy. Unsold items come back to the seller, and there is
+    a listing fee or tax. It works offline with NPC buyers and online as a
+    shared auction house run by the server.
+
+[ ] F-38  PET TRADING
+    DONE WHEN: pets can be traded safely through a two-sided trade window
+    where both players must confirm. Pets keep their stats and level, and can
+    also be listed on the auction house.
+
+
+================================================================================
+PHASE 9 - AUDIO AND MUSIC
+================================================================================
+
+[ ] F-39  MORE RELAXING MUSIC AND A MUSIC SETTINGS MENU
+    DONE WHEN: more relaxing tracks are added for towns, exploring, night,
+    and the player's home. The settings menu lets the player turn each track
+    or category on and off. There are volume sliders for music, effects,
+    ambient sound, and voice.
+
+[ ] F-40  PLAYABLE INSTRUMENTS
+    DONE WHEN: instruments (for example lute, flute, drum, harp) can be
+    crafted or bought. With one equipped, the player plays notes on the
+    keyboard: a row of keys maps to a scale, and Shift plays an octave up.
+    Other players hear it online, and nearby NPCs can react.
+
+
+================================================================================
+PHASE 10 - UI
+================================================================================
+
+[ ] F-41  COMPACT MENUS
+    DONE WHEN: the inventory, character, skills, gems, crafting, quest
+    journal, and settings menus are tighter: less padding, tabs instead of
+    extra windows, and no wasted space. Everything stays readable at
+    1280x720 and at 4K. Before and after screenshots are in the log.
+
+
+================================================================================
+PHASE 11 - ADMIN TOOLS AND ONLINE SERVER
+================================================================================
+
+[ ] F-42  IN-GAME COMMAND BAR
+    DONE WHEN:
+      - A key (for example / or ~) opens a command bar with autocomplete,
+        command history (up and down arrows), and /help.
+      - It has at least these commands:
+          /spawn <mob|item|npc> [amount]   /give      /tp <player|x y z>
+          /heal    /god    /fly    /noclip /time      /weather
+          /setlevel        /setskill       /kill      /clear
+          /stats dump      /debug <system> /kick      /ban
+          /mute    /whois  /blocklog       /rollback  /deadmin
+      - Commands are simple to type, give clear error messages, and are easy
+        to add to (one class or entry per command).
+
+[ ] F-43  ADMIN ACCESS
+    DONE WHEN:
+      - Typing the admin password into the command bar once gives that
+        player PERMANENT admin access, offline and online.
+        The password is:  /NavinaLoca
+      - All commands except the password entry work only for admins.
+      - SECURITY:
+          * Do not store the password as plain text in the client. Store a
+            hash only.
+          * Online, the SERVER checks the password and saves the admin flag
+            on the player's account, so a modified client cannot make itself
+            admin.
+          * Failed attempts are rate-limited and logged.
+      - /deadmin <player> removes admin access.
+
+[ ] F-44  ONLINE SERVER RULES AND BLOCK AUDIT
+    DONE WHEN:
+      - Players on the online server CANNOT mine the world. Mobs drop
+        different block types instead (drop tables by mob and biome), so
+        players still get building blocks.
+      - Placing blocks online is allowed, except in protected town zones
+        (F-18).
+      - The server records every block placed and removed: who, which block,
+        where, and when. The log is capped or rotated so it doesn't grow
+        forever.
+      - Admins can look up the record with /blocklog (for the block they are
+        aiming at, for a radius, or for a player), and can undo a player's
+        blocks with /rollback <player> [time].
+      - Admin commands run on the server and are checked against the
+        server's admin flag.
+      - Tested with at least 2 clients connected.
+
+
+================================================================================
+FINAL CHECK (after all phases)
+================================================================================
+
+[ ] F-45  FULL PLAYTHROUGH CHECK
+    DONE WHEN: a new character can do all of the following with no errors in
+    the log:
+      - create the character and play the start of the game,
+      - fish, cook, and mine (offline),
+      - build a house with doors, stairs, chests, and torches,
+      - socket and fuse gems,
+      - craft a lingering AoE spell,
+      - finish a quest and make a trade, and
+      - use admin commands online.
+    Any problems found are added to this file as new items.
+
+================================================================================
+END OF FILE
+================================================================================

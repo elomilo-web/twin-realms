@@ -24,14 +24,14 @@ public static partial class Dungeon
     }
 
     /// <summary>
-    /// The lair grid is 8 m a cell (Dungeon.Tile): an entry hall, two halls haunted by shades of the party, 8 m passages between them,
+    /// The lair grid is 8 m a cell (Dungeon.Tile): an entry hall, one hall haunted by shades of the party straight south of it, 8 m passages,
     /// and the great chamber, 1080 x 1000 m. Rooms are joined in this order; the chamber is the farthest, so it is the boss room.
+    /// (It used to wind through two halls far to the west and east, about 1.5 km before the chamber; now about 400 m.)
     /// </summary>
     static void LairRooms()
     {
         _rooms.Add(new Room { X = 68, Z = 176, W = 10, H = 8, Cx = 73, Cz = 180 });    // entry hall (the exit pad)
-        _rooms.Add(new Room { X = 30, Z = 156, W = 16, H = 12, Cx = 38, Cz = 162 });   // the first hall of shades
-        _rooms.Add(new Room { X = 100, Z = 136, W = 18, H = 12, Cx = 109, Cz = 142 }); // the second hall of shades
+        _rooms.Add(new Room { X = 62, Z = 146, W = 22, H = 14, Cx = 73, Cz = 153 });   // the hall of shades
         _rooms.Add(new Room { X = 8, Z = 4, W = 135, H = 125, Cx = 75, Cz = 66 });     // the great chamber
     }
     /// <summary>The lair's boss on this machine (the owner's real one, or a friend's mirrored copy).</summary>
@@ -168,9 +168,13 @@ void fragment() {
         }
         Gfx.MergeChildren(deco);
         // a sickly green haze of light over the fighting ground and across the vault
-        Root.AddChild(new OmniLight3D { Position = new Vector3(cx, WallH - 6, cz), LightColor = new Color(.55f, .9f, .45f), OmniRange = 260f, LightEnergy = 1.1f, ShadowEnabled = false });
+        // (an omni light falls off with distance (OmniAttenuation 1 = 1/d): hung 38 m up under the vault these gave the floor almost nothing, and the
+        // scene's GI finds no light to bounce in a sealed cave, so the floor was a black void and Scarletta a black shape. A low attenuation spreads
+        // the haze evenly, and a shadowless directional fill (the vault would shadow everything) lights the floor, the mushrooms and her from above.)
+        Root.AddChild(new OmniLight3D { Position = new Vector3(cx, WallH - 6, cz), LightColor = new Color(.55f, .9f, .45f), OmniRange = 260f, OmniAttenuation = .2f, LightEnergy = .9f, ShadowEnabled = false });
         foreach (var (dx, dz) in new[] { (-350f, -300f), (350f, -300f), (-350f, 300f), (350f, 300f) })
-            Root.AddChild(new OmniLight3D { Position = new Vector3(cx + dx, WallH - 8, cz + dz), LightColor = new Color(.5f, .8f, .5f), OmniRange = 300f, LightEnergy = .6f, ShadowEnabled = false });
+            Root.AddChild(new OmniLight3D { Position = new Vector3(cx + dx, WallH - 8, cz + dz), LightColor = new Color(.5f, .8f, .5f), OmniRange = 300f, OmniAttenuation = .2f, LightEnergy = .5f, ShadowEnabled = false });
+        Root.AddChild(new DirectionalLight3D { Name = "LairFill", LightColor = new Color(.62f, .78f, .62f), LightEnergy = Tune.F("raid.lairFill", .4f), ShadowEnabled = false, Rotation = new Vector3(-1.05f, .5f, 0), SkyMode = DirectionalLight3D.SkyModeEnum.LightOnly });
     }
 
     /// <summary>
@@ -179,7 +183,7 @@ void fragment() {
     /// </summary>
     static void SpawnShades(Room h, int hall, List<PlayerStats> heroes)
     {
-        var rnd = new Random(Seed + 101 * hall); int n = hall == 1 ? 14 : 16;
+        var rnd = new Random(Seed + 101 * hall); int n = 18;   // one hall now (it was 14 + 16 over two)
         for (int i = 0; i < n; i++)
         {
             float x = (h.X + 1.5f + (float)rnd.NextDouble() * (h.W - 3)) * Tile, z = (h.Z + 1.5f + (float)rnd.NextDouble() * (h.H - 3)) * Tile;

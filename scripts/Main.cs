@@ -5,14 +5,16 @@ namespace TwinRealms;
 /// <summary>Game root: shows the title screen, then builds the world, player, camera and HUD.</summary>
 public partial class Main : Node3D
 {
-    float _autosave; bool _started; static int QuitTestRuns;
+    float _autosave; bool _started, _live; static int QuitTestRuns;
 
     public override void _Ready()
     {
         if (System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--list-anims") >= 0) { Avatar.ListSources(); GetTree().Quit(); return; }
+        if (System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--scaling-table") >= 0) { GD.Print(Progression.Table()); GetTree().Quit(); return; }   // tools: monster health/damage vs the reference hero (data/progression.json)
         if (System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--bake-anims") >= 0) { Avatar.Bake(); GetTree().Quit(); return; }   // tools: rebuild assets/models/anim/clips.res
         if (AnimTool.Wanted()) { Game.Root = this; AddChild(new AnimTool { Name = "AnimTool" }); return; }   // tools: measure attack clips (impact timing)
-        GD.Print("[MAIN] scene start"); Inputs.Setup(); Game.Root = this; Dungeon.Active = false; Arenas.Active = false; Threat.Reset(); World.Realm = 0; World.RealmT = 0; Ui.InGame = false;
+        GD.Print("[MAIN] scene start"); GetTree().Root.PhysicsInterpolationMode = PhysicsInterpolationModeEnum.Off;   // only hero and monster bodies interpolate (CameraRig, Enemy)
+        Inputs.Setup(); Game.Root = this; Dungeon.Active = false; Arenas.Active = false; Threat.Reset(); World.Realm = 0; World.RealmT = 0; Ui.InGame = false;
         // "Quit to title" reloads this scene: forget the nodes of the old world, which are freed by now (applying the settings below touched the old sun and crashed)
         World.I = null; FloraField.I = null; Player.Instance = null; Enemy.CurrentBoss = null; Player.BuildMode = false;
         BlockWorld.InitGlobals();   // the terrain, water and grass shaders read the block world's cut-out square
@@ -26,26 +28,29 @@ public partial class Main : Node3D
             // test bots: no sound; the gameplay bots (bot, mp) also run on the lowest graphics so they render fast.
             // The picture bots (observe, shots, fit) keep full graphics, since their screenshots are the point. Nothing is saved.
             var s = Game.Set; s.Master = 0;
-            if (Bot.Wanted() || MpBot.Wanted() != null) { s.Quality = 0; s.RenderScale = .5f; s.ViewDist = 300f; s.Grass = 0f; s.VSync = false; s.Outlines = false; }
+            if (Bot.Wanted() || MpBot.Wanted() != null) { s.AutoQuality = false; s.Quality = 0; s.RenderScale = .5f; s.ViewDist = 300f; s.Grass = 0f; s.VSync = false; s.Outlines = false; }
             Sfx.ApplyVolumes(); Game.ApplyDisplay();
         }
         AddChild(new Sfx { Name = "Sfx" });
         AddChild(new Flag { Name = "Flag" });   // F8: playtest flag (screenshot + report in user://playtest/)
         AddChild(new Net { Name = "Net" });
         var ui = new Ui { Name = "Ui" }; AddChild(ui);
+        // loading screens (LoadScreen.cs): not for the test bots, whose timings and pictures expect the world at once (the dev capture loop keeps them)
+        Player.Frozen = false; LoadScreen.On = !testing || DevCapture.Wanted();
+        AddChild(new LoadScreen { Name = "LoadScreen" });
         // logged in to the online server: the hero goes into the shared world instead of a private one
-        Ui.OnNew = (cls, name, race) => { Game.NewGame(cls, name, race); Game.D.Body = Ui.PickedBody; Game.D.PosX = 0; Game.D.PosZ = 9; if (Game.Online) Net.I!.EnterOnline(JoinWorld); else Begin(); };
-        Ui.OnContinue = () => { if (!Game.Load()) Game.NewGame("warrior", "Hero"); if (Game.Online) Net.I!.EnterOnline(JoinWorld); else Begin(); };   // plays the hero in Game.Slot (chosen on the character select screen)
+        Ui.OnNew = (cls, name, race) => { Game.NewGame(cls, name, race); Game.D.Body = Ui.PickedBody; Game.D.PosX = 0; Game.D.PosZ = 9; if (Game.Online) Net.I!.EnterOnline(JoinWorld); else BeginStaged(); };
+        Ui.OnContinue = () => { if (!Game.Load()) Game.NewGame("warrior", "Hero"); if (Game.Online) Net.I!.EnterOnline(JoinWorld); else BeginStaged(); };   // plays the hero in Game.Slot (chosen on the character select screen)
         // multiplayer from the title: bring the saved hero (or the one picked on the title screen)
         void Hero() { if (!Game.HasSave() || !Game.Load()) { Game.NewGame(Ui.PickedClass, Ui.PickedName, Ui.PickedRace); Game.D.Body = Ui.PickedBody; Game.D.PosX = 0; Game.D.PosZ = 9; } }
-        Ui.OnHost = port => { Hero(); Begin(); Net.I!.Host(port); };
+        Ui.OnHost = port => { Hero(); BeginStaged(() => Net.I!.Host(port)); };
         Ui.OnJoin = (addr, port) => { Hero(); Net.I!.Join(addr, port, JoinWorld); };
         if (Observer.Wanted() || Bot.Wanted() || Shots.Wanted() || Showcase.Wanted() || DevCapture.Wanted()) Game.SavePath = "user://test_save.json";
         if (DevCapture.Wanted())
         {
             // dev loop eyes (scripts/dev/DevCapture.cs): default graphics, title screen first, then a fresh hero on its cue
             Game.Set = new Settings { Master = 0 }; Sfx.ApplyVolumes(); Game.ApplyDisplay();
-            DevCapture.StartGame = () => { Ui.I?.Close(); Game.NewGame("warrior", "Capture"); Game.D.PosX = 0; Game.D.PosZ = 9; Begin(); };
+            DevCapture.StartGame = () => { Ui.I?.Close(); Game.NewGame("warrior", "Capture"); Game.D.PosX = 0; Game.D.PosZ = 9; BeginStaged(); };
         }
         if (Showcase.Wanted()) { Game.NewGame("warrior", "Showcase"); Begin(); AddChild(new Showcase { Name = "Showcase" }); return; }   // a few pretty pictures
         if (FitBot.Wanted()) { AddChild(new FitBot { Name = "FitBot" }); return; }   // gear fit studio: no world, no title
@@ -77,9 +82,9 @@ public partial class Main : Node3D
     {
         var at = Net.I!.WelcomePos; Game.D.Time = Net.I.WelcomeTime;
         if (!Game.Online) { Game.D.PosX = at.X + 2.5f; Game.D.PosZ = at.Z + 2.5f; }
-        Ui.I?.Close(); Begin();
-        if (Game.Online) { Net.OnlineState = "in"; Ui.Banner("Twin Realms Online", $"{Net.I.Players.Count} heroes in the world"); }
-        else Ui.Banner("Joined", $"{Net.I.NameOf(1)}'s world");
+        Ui.I?.Close(); Begin();   // in one go: we are inside the host's welcome message, and its next messages expect the world
+        if (Game.Online) { Net.OnlineState = "in"; int n = Net.I.Players.Count; LoadScreen.After(() => Ui.Banner("Twin Realms Online", $"{n} heroes in the world")); }
+        else { string host = Net.I.NameOf(1); LoadScreen.After(() => Ui.Banner("Joined", $"{host}'s world")); }
     }
 
     // ---- online server: godot --headless --path . -- --server   (port: PORT environment variable, else data/online.json)
@@ -110,14 +115,52 @@ public partial class Main : Node3D
         return $"memory {me.WorkingSet64 >> 20} MB, engine {OS.GetStaticMemoryUsage() >> 20} MB, .NET {System.GC.GetTotalMemory(false) >> 20} MB, textures {(long)Performance.GetMonitor(Performance.Monitor.RenderTextureMemUsed) >> 20} MB, objects {(long)Performance.GetMonitor(Performance.Monitor.ObjectCount)}";
     }
 
+    /// <summary>The world built in one go (server, bots, joining a host from inside the welcome message): the loading screen,
+    /// when there is one, is drawn by hand between the build steps since no frame runs until this returns.</summary>
     void Begin(bool server = false)
     {
         if (_started) return; _started = true;
+        bool cover = !server && LoadScreen.On;
+        if (cover) { LoadScreen.Show(PlaceName(), StartSub(), null, true); LoadScreen.Draw(); }
+        ulong t0 = Time.GetTicksMsec(); var world = MakeWorld(server);
+        foreach (var (at, stage) in world.Stages()) if (cover) { LoadScreen.SetProgress(at, stage); LoadScreen.Draw(); }
+        GD.Print($"[MAIN] world built in {(Time.GetTicksMsec() - t0) / 1000f:0.0} s");   // a joining game is silent on the network this long
+        FinishBegin(server);
+    }
+    /// <summary>The world built a step a frame behind the loading screen (playing from the title, hosting): the window stays alive and the progress moves.</summary>
+    async void BeginStaged(System.Action? built = null)
+    {
+        if (_started) return;
+        if (!LoadScreen.On) { Begin(); built?.Invoke(); return; }
+        _started = true;
+        LoadScreen.Show(PlaceName(), StartSub());
+        ulong ts = Time.GetTicksMsec();   // the fade in (.25 s, at least two frames) so the screen is really up before the first hitch
+        for (int f = 0; f < 2 || Time.GetTicksMsec() - ts < 260; f++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        ulong t0 = Time.GetTicksMsec(); var world = MakeWorld(false);
+        foreach (var (at, stage) in world.Stages()) { LoadScreen.SetProgress(at, stage); await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame); }
+        GD.Print($"[MAIN] world built in {(Time.GetTicksMsec() - t0) / 1000f:0.0} s (staged)");
+        FinishBegin(false); built?.Invoke();
+    }
+    static string PlaceName()
+    {   // the place the hero wakes in (the points of interest are known from the second world on; the first is the village)
+        if (World.Pois.Count == 0) return new Vector2(Game.D.PosX, Game.D.PosZ).Length() < 60f ? "Oakhaven" : "Twin Realms";
+        Poi? best = null; float bd = 1e9f;
+        foreach (var p in World.Pois) { float d = new Vector2(p.X - Game.D.PosX, p.Z - Game.D.PosZ).Length() - p.R; if (d < bd) { bd = d; best = p; } }
+        return best != null && bd < 150f ? best.Name : "Twin Realms";
+    }
+    static string StartSub() => Net.Active && !Net.IsHost ? (Game.Online ? "entering the shared world" : $"joining {Net.I!.NameOf(1)}'s world") : $"{Game.D.Name}, the realm awakens";
+    World MakeWorld(bool server)
+    {
         GetNodeOrNull("TitleCam")?.QueueFree(); GetNodeOrNull("TitleEnv")?.QueueFree();
         Game.RecalcTree();
         if (!server) AddChild(new Toon { Name = "Toon" });   // first, so every mesh built after it gets the toon look
-        ulong t0 = Time.GetTicksMsec(); var world = new World { Name = "World" }; AddChild(world);
-        GD.Print($"[MAIN] world built in {(Time.GetTicksMsec() - t0) / 1000f:0.0} s");   // a joining game is silent on the network this long
+        var world = new World { Name = "World" }; World.Staged = true;
+        try { AddChild(world); } finally { World.Staged = false; }
+        return world;
+    }
+    void FinishBegin(bool server)
+    {
+        _live = true;
         float px = Game.D.PosX, pz = Game.D.PosZ; var pos = World.OnGround(px, pz, 0.6f);
         var player = new Player { Name = "Player", Position = pos };
         var rig = new CameraRig { Name = "CameraRig", Target = player, Position = pos + new Vector3(0, 1.6f, 0) };
@@ -127,9 +170,17 @@ public partial class Main : Node3D
         AddChild(new Hud { Name = "Hud" });
         AddChild(new Ambient { Name = "Ambient" }); AddChild(new Weather { Name = "Weather" });
         Ui.InGame = true; Input.MouseMode = Input.MouseModeEnum.Captured;
+        if (LoadScreen.Busy) LoadScreen.SetProgress(.97f, "Lighting the lamps");
         Warmup.Run(this);   // fire each lazily-built effect once so the first real use does not hitch (Warmup.cs)
-        Ui.Banner(World.GetPoi("village")?.Name ?? "Oakhaven", $"{Inputs.KeyOf(Inputs.Pack)} pack, {Inputs.KeyOf(Inputs.Tree)} skill tree, {Inputs.KeyOf(Inputs.SkillsUi)} skills, {Inputs.KeyOf(Inputs.Journal)} quests, {Inputs.KeyOf(Inputs.Lock)} lock on");
-        if (Game.TreeRefunded) { Game.TreeRefunded = false; Ui.Note("The skill tree has grown five times larger. Your tree points were refunded: press K.", new Color(1f, .85f, .4f)); }
+        if (LoadScreen.I != null) MoveChild(LoadScreen.I, -1);   // last child: its _Input sees (and swallows) keys before the hero and the HUD
+        string keys = $"{Inputs.KeyOf(Inputs.Pack)} pack, {Inputs.KeyOf(Inputs.Tree)} skill tree, {Inputs.KeyOf(Inputs.SkillsUi)} skills, {Inputs.KeyOf(Inputs.Journal)} quests, {Inputs.KeyOf(Inputs.Lock)} lock on";
+        bool refunded = Game.TreeRefunded; Game.TreeRefunded = false;
+        // the loading screen stays until the blocks around the hero exist (or 20 s), then the welcome banner
+        LoadScreen.Lift(() =>
+        {
+            Ui.Banner(World.GetPoi("village")?.Name ?? "Oakhaven", keys);
+            if (refunded) Ui.Note("The skill tree has grown five times larger. Your tree points were refunded: press K.", new Color(1f, .85f, .4f));
+        }, 0f, 20f);
         Game.Save();
     }
 
@@ -142,7 +193,7 @@ public partial class Main : Node3D
     }
     public override void _Process(double delta)
     {
-        if (!_started || Net.Dedicated) return;
+        if (!_live || Net.Dedicated) return;
         float dt = (float)delta; Game.PlayTime += dt; Game.D.Played += dt; Arenas.Tick(dt); Threat.Tick(dt);
         if (Dungeon.Active) Dungeon.LairTick();   // raid lair: the boss room intro (DungeonLair.cs)
         _autosave += dt; if (_autosave > (Game.Online ? OnlineCfg.SaveEvery : 60f) && !Arenas.Active) { _autosave = 0; Game.Save(); }

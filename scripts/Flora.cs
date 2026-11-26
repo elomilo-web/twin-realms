@@ -307,10 +307,11 @@ void fragment(){
     public static void ApplyQuality()
     {
         if (Layers.Count == 0) return;
-        int q = Game.Set.Quality; float amt = Game.Set.Grass, dens = q switch { 0 => .45f, 1 => .65f, 2 => .85f, _ => 1f }, reach = q switch { 0 => .55f, 1 => .7f, 2 => .85f, _ => 1f };
+        int q = Game.Set.Quality; float amt = Game.Set.Grass, dens = q switch { 0 => .3f, 1 => .55f, 2 => .85f, _ => 1f }, reach = q switch { 0 => .5f, 1 => .65f, 2 => .85f, _ => 1f };
+        float other = q switch { 0 => .55f, 1 => .8f, _ => 1f };   // ferns, bushes and stones thin out on the low presets too
         foreach (var l in Layers)
         {
-            l.Per = l.Grass ? (int)(l.BasePer * amt * dens) : l.BasePer; l.Range = l.BaseRange * reach;
+            l.Per = l.Grass ? (int)(l.BasePer * amt * dens) : (int)(l.BasePer * other); l.Range = l.BaseRange * (l.Grass ? reach : Mathf.Max(reach, other));
             if (l.Mat is ShaderMaterial sm && l.Grass) sm.SetShaderParameter("range", l.Range);
         }
         FloraField.I?.Reset();

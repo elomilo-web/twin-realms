@@ -57,6 +57,7 @@ public partial class Ui
     void CraftTabs(Node parent, string cur, params (string id, string label, Action open)[] tabs)
     {
         var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 16); parent.AddChild(row);
+        PadTabs(tabs.Select(t => (t.open, t.id == cur)));   // LB / RB switch them (UiPad.cs)
         foreach (var (id, label, open) in tabs)
         {
             bool on = id == cur; var col = new VBoxContainer(); col.AddThemeConstantOverride("separation", 0); row.AddChild(col);
@@ -163,6 +164,28 @@ public partial class Ui
                         },
                     });
                 }
+                // the pickaxe (data/blocks.json dig.pickaxes): each tier is made from the one before; the next tier only, as alternatives
+                if (Blocks.Node("dig.pickaxes.tiers") is { ValueKind: JsonValueKind.Array } tiers)
+                    for (int ti = 2; ti <= tiers.GetArrayLength(); ti++)
+                    {
+                        if (ti != d.Pick + 1 || !tiers[ti - 1].TryGetProperty("costs", out var alts) || alts.ValueKind != JsonValueKind.Array) continue;
+                        int tier = ti; string pn = Blocks.PickName(tier); var tj = tiers[ti - 1];
+                        foreach (var alt in alts.EnumerateArray())
+                        {
+                            var cost = new Dictionary<string, int>(); foreach (var k in alt.EnumerateObject()) cost[Blocks.DropItem(k.Name)] = k.Value.GetInt32();
+                            recs.Add(new CraftRec
+                            {
+                                Group = "Pickaxe   held in build mode: digs faster, breaks harder stone", Title = pn,
+                                Sub = $"Upgrades your {Blocks.PickName(d.Pick)}: digs x{JsonUtil.F(tj, "speed", 2):0.#}, breaks hardness up to {JsonUtil.F(tj, "maxHardness", 2.5f):0.#}",
+                                Cost = cost, Col = UiTheme.Highlight, Btn = "Forge", Icon = Icons.ForItem("weapon", "axe"),
+                                Do = () =>
+                                {
+                                    if (d.Pick >= tier) return false; if (!CanPay(cost)) { Note("Not enough materials", new Color(1, .5f, .5f)); return false; }
+                                    Pay(cost); d.Pick = tier; Note($"Forged a {pn}", UiTheme.Highlight); Sfx.Play("level"); Game.Notify(); return true;
+                                },
+                            });
+                        }
+                    }
                 empty = "No block recipes yet.";
                 break;
             }

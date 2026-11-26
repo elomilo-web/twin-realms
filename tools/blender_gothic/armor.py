@@ -47,6 +47,147 @@ def helm_knight():
     return p
 
 
+# ------------------------------------------------------------------ fitted head pieces
+# These are built around the real skull of the TR_Male/Female bodies, with the origin AT THE HEAD BONE (data/avatar.json
+# kit pos [0,0,0], scale 1). Measured (tools: both bodies within 4 mm): skull top +0.148, eyes +0.035, half width 0.084,
+# face 0.11 in front of the bone, back of the head 0.09 behind it. SKULL = the ellipsoid that just encloses it.
+SKULL_C = (0.0, 0.04, 0.012)          # centre (y up, +z front)
+SKULL_R = (0.097, 0.125, 0.114)       # half width, half height, half depth
+
+
+def skull_pt(a, y, pad, peak=0.0):
+    """A point on the skull ellipsoid grown by pad: a = angle around (0 = front, +pi/2 = +x side), y = height.
+    peak pushes the crown up into a point (Norman helm, bascinet)."""
+    A, B, C = SKULL_R[0] + pad, SKULL_R[1] + pad, SKULL_R[2] + pad
+    t = max(-1.0, min(1.0, (y - SKULL_C[1]) / B))
+    f = math.sqrt(max(0.0, 1 - t * t))
+    yy = y + (peak * t ** 3 if t > 0 else 0.0)
+    return (A * f * math.sin(a), yy, SKULL_C[2] + C * f * math.cos(a))
+
+
+def rim_h(a, y_front, y_back, k=1.0):
+    """Height of a helmet's lower edge around the head: y_front at the brow, y_back at the nape (k > 1 = the drop starts later)."""
+    c = max(0.0, math.cos(a))
+    return y_back + (y_front - y_back) * c ** k if c > 0 else y_back
+
+
+def skull_shell(name, mat, y_front, y_back, pad, peak=0.0, k=1.0, seg=44, rows=12, thick=0.005):
+    top = SKULL_C[1] + SKULL_R[1] + pad
+    rings = []
+    for r in range(rows):
+        s = r / rows
+        ring = []
+        for j in range(seg):
+            a = 2 * math.pi * j / seg
+            h = rim_h(a, y_front, y_back, k)
+            ring.append(skull_pt(a, h + (top - h) * (1 - (1 - s) ** 1.15) * 0.985, pad, peak))
+        rings.append(ring)
+    o = loft(name, rings, mat, cap0=False, cap1=False, tip=(0.0, top + peak, SKULL_C[2]))
+    if thick:
+        thicken(o, thick, 0.0)
+    return o
+
+
+def rim_loop(y_front, y_back, pad, k=1.0, n=48, a0=0.0, a1=2 * math.pi, dy=0.0, peak=0.0):
+    return [(lambda a: (lambda p: (p[0], p[1] + dy, p[2]))(skull_pt(a, rim_h(a, y_front, y_back, k), pad, peak)))(a0 + (a1 - a0) * i / n)
+            for i in range(n + 1)]
+
+
+def meridian(a, y0, pad, n=14, peak=0.0):
+    top = SKULL_C[1] + SKULL_R[1] + pad
+    return [skull_pt(a, y0 + (top - y0) * (i / n) * 0.985, pad, peak) for i in range(n + 1)]
+
+
+def aventail(name, y_front, y_back, pad, a0, a1, drop=0.13, flare=1.25, k=1.0, seg=30, rows=6):
+    """A mail curtain hanging from a helmet's rim over the neck (sides and back), flaring out onto the shoulders."""
+    P = Part(name)
+    grid = []
+    for r in range(rows + 1):
+        s = r / rows
+        row = []
+        for j in range(seg + 1):
+            a = a0 + (a1 - a0) * j / seg
+            x, y, z = skull_pt(a, rim_h(a, y_front, y_back, k), pad - 0.004)
+            g = 1 + (flare - 1) * s ** 1.6
+            zc = SKULL_C[2]
+            ring_z = -0.012 * s * abs(math.cos(a / 2))   # the back hangs a little behind the neck
+            row.append(P.v((x * g, y - drop * s - 0.008 * math.sin(j * 1.7) * s, zc + (z - zc) * g + ring_z)))
+        grid.append(row)
+    for r in range(rows):
+        for j in range(seg):
+            P.face((grid[r][j], grid[r][j + 1], grid[r + 1][j + 1], grid[r + 1][j]), STEEL)
+    o = P.obj(); thicken(o, 0.004, 0.0)
+    out = [o]
+    for r in (2, 4, 6):   # rows of rings read as ridges
+        s = r / rows; pts = []
+        for j in range(seg + 1):
+            a = a0 + (a1 - a0) * j / seg
+            x, y, z = skull_pt(a, rim_h(a, y_front, y_back, k), pad - 0.002)
+            g = 1 + (flare - 1) * s ** 1.6; zc = SKULL_C[2]
+            pts.append((x * g, y - drop * s - 0.008 * math.sin(j * 1.7) * s, zc + (z - zc) * g - 0.012 * s * abs(math.cos(a / 2))))
+        out.append(tube("mail_row", pts, 0.0028, RUST, sides=4, cap=False))
+    return out
+
+
+@armor
+def cap_leather():
+    """Cap: a stitched leather arming cap hugging the skull, brow to nape."""
+    yf, yb = 0.064, -0.012
+    p = [skull_shell("cap", LEATHER, yf, yb, 0.010, k=1.4, thick=0.006)]
+    p.append(tube("roll", rim_loop(yf, yb, 0.016, k=1.4, dy=0.004), 0.0065, LEATHER, sides=6, cap=False))
+    for a in (0.0, math.pi / 2, math.pi, -math.pi / 2, math.pi / 4, -math.pi / 4, 3 * math.pi / 4, -3 * math.pi / 4):
+        y0 = rim_h(a, yf, yb, 1.4) + 0.01
+        p.append(tube("seam", meridian(a, y0, 0.0145), 0.0022, LEATHER, sides=4, cap=False))
+    p.append(ball("knot", (0.0, SKULL_C[1] + SKULL_R[1] + 0.013, SKULL_C[2]), 0.012, LEATHER, sy=0.6, seg=10, rings_=6))
+    return p
+
+
+@armor
+def cap_iron():
+    """Iron Cap / Skullcap: a riveted iron cervelliere over a leather liner, brass brow band."""
+    yf, yb = 0.062, 0.002
+    p = [skull_shell("cap", IRON, yf, yb, 0.013, peak=0.008, k=1.3, thick=0.004)]
+    p.append(tube("liner", rim_loop(yf, yb, 0.01, k=1.3, dy=-0.006), 0.005, LEATHER, sides=5, cap=False))
+    p.append(tube("band", rim_loop(yf, yb, 0.0175, k=1.3, dy=0.009), 0.0065, BRASS, sides=5, cap=False))
+    for a in (0.0, math.pi / 2, math.pi, -math.pi / 2):
+        y0 = rim_h(a, yf, yb, 1.3) + 0.012
+        m = meridian(a, y0, 0.0175, peak=0.008)
+        p.append(tube("strap", m, 0.0045, IRON, sides=5, cap=False))
+        p += [ball("rivet", m[i], 0.0045, IRON, sy=0.7, seg=8, rings_=5) for i in (2, 6, 10)]
+    return p
+
+
+@armor
+def helm_nasal():
+    """Helm: a Norman nasal helm (gently pointed iron dome, brass brow band, nose guard) with a mail aventail over the neck."""
+    yf, yb = 0.058, 0.0
+    p = [skull_shell("dome", IRON, yf, yb, 0.015, peak=0.03, k=1.2, thick=0.005)]
+    p.append(tube("band", rim_loop(yf, yb, 0.0205, k=1.2, dy=0.012), 0.009, BRASS, sides=6, cap=False))
+    p += [ball("rivet", q, 0.005, IRON, sy=0.7, seg=8, rings_=5) for q in rim_loop(yf, yb, 0.03, k=1.2, n=16, dy=0.012)[:-1]]
+    for a in (0.0, math.pi, math.pi / 2, -math.pi / 2):
+        p.append(tube("ridge", meridian(a, rim_h(a, yf, yb, 1.2) + 0.024, 0.019, peak=0.03), 0.004, IRON, sides=5, cap=False))
+    fz = skull_pt(0.0, yf, 0.022)[2]
+    p.append(slab("nasal", [(-0.011, 0.0), (0.011, 0.0), (0.009, 0.075), (0.0, 0.082), (-0.009, 0.075)], IRON, 0.004, 0.007, inset=0.003,
+                  rot=Matrix.Rotation(math.pi, 3, "X"), pos=(0.0, yf + 0.018, fz + 0.004)))
+    p += aventail("aventail", yf, yb, 0.018, math.radians(62), math.radians(298), drop=0.13, k=1.2)
+    return p
+
+
+@armor
+def bascinet():
+    """Bascinet: a tall pointed iron skull reaching down over the cheeks and nape, an open face, brass-edged, with a mail aventail."""
+    yf, yb = 0.062, -0.045
+    p = [skull_shell("skull", STEEL, yf, yb, 0.016, peak=0.055, k=0.55, thick=0.005)]
+    p.append(tube("edge", rim_loop(yf, yb, 0.019, k=0.55, n=60), 0.006, BRASS, sides=6, cap=False))
+    p += [ball("vervelle", q, 0.0045, BRASS, sy=0.7, seg=8, rings_=5) for q in rim_loop(yf, yb, 0.022, k=0.55, n=24, dy=0.012)[:-1]]
+    for s in (1, -1):   # visor pivots
+        q = skull_pt(s * math.pi / 2, 0.035, 0.024)
+        p.append(ball("pivot", q, 0.011, BRASS, sx=0.5, seg=10, rings_=6))
+    p.append(tube("ridge", meridian(math.pi, -0.02, 0.019, peak=0.055) + [(0.0, SKULL_C[1] + SKULL_R[1] + 0.019 + 0.055, SKULL_C[2])], 0.004, STEEL, sides=5, cap=False))
+    p += aventail("aventail", yf, yb, 0.02, math.radians(48), math.radians(312), drop=0.11, k=0.55)
+    return p
+
+
 @armor
 def circlet_winged():
     band = lathe("band", [(0.1, 0.0), (0.108, 0.004), (0.108, 0.026), (0.1, 0.03), (0.1, 0.0)], STEEL, seg=40, sz=1.15, caps=False)

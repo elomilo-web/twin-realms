@@ -110,9 +110,8 @@ public partial class Player
         }
         if (k.Tags.Contains("bow") && D.WType() != "bow") { if (!quiet) Ui.Note(k.Name + " needs a bow", new Color(1, .6f, .5f)); return false; }
         if (k.Kind == "resurrect") { TryResurrect(id, c); return true; }   // a channel, not a cast (PlayerDowned.cs)
-        if (Mp < c.Mp) { if (!quiet) Ui.Note("Not enough mana", new Color(0.4f, 0.65f, 1f)); return false; }
-        if (St < c.St) { if (!quiet) Ui.Note("Not enough stamina", new Color(0.6f, 0.9f, .7f)); return false; }
-        Mp -= c.Mp; if (c.St > 0) UseStamina(c.St); StartCd(id, c.Cd); PendCast(id, c.Mp, c.St);
+        if (!PayCast(id, c, quiet ? CastPath.Macro : CastPath.Hotbar, quiet)) return false;
+        PendCast(id, c.Mp, c.St);
         FaceAim();
         if (WeaponKinds.Contains(k.Kind) && !W.Ranged)
         {
@@ -124,6 +123,30 @@ public partial class Player
         return true;
     }
     void StartCd(string id, float cd) { _skillCd[id] = cd; _skillCdMax[id] = cd; }
+
+    // ---------------------------------------------------------------- the one cast gate (focus F-01)
+    /// <summary>How a skill was set off. Hotbar, Macro and Auto are ROOT casts: they pass the gate (cooldown, mana, stamina) and start
+    /// the skill's cooldown. Echo / Resonance repeats, crafted-spell chain sections and weapon-skill impacts are PART of a root cast that
+    /// already paid: rule (documented in .devloop/systems/stats.md): they cost nothing and start no new cooldown, and they only exist
+    /// because the root cast went off, so the skill is always on cooldown when they happen.</summary>
+    public enum CastPath { Hotbar, Macro, Auto, Echo, Chain, Combo, Channel }
+    public static bool LogCasts = System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--log-casts") >= 0;
+    /// <summary>The single cooldown/resource gate for root casts. False (nothing paid) when on cooldown or short of mana/stamina.</summary>
+    bool PayCast(string id, SkillCalc c, CastPath path, bool quiet)
+    {
+        if (CdOf(id) > 0) { LogCast(path, id, "blocked: on cooldown"); return false; }
+        if (Mp < c.Mp) { if (!quiet) Ui.Note("Not enough mana", new Color(0.4f, 0.65f, 1f)); LogCast(path, id, "blocked: mana"); return false; }
+        if (St < c.St) { if (!quiet) Ui.Note("Not enough stamina", new Color(0.6f, 0.9f, .7f)); LogCast(path, id, "blocked: stamina"); return false; }
+        Mp -= c.Mp; if (c.St > 0) UseStamina(c.St); StartCd(id, c.Cd);
+        LogCast(path, id, $"paid {c.Mp:0} mp {c.St:0} st, cooldown {c.Cd:0.00}s started");
+        return true;
+    }
+    /// <summary>Logs a cast on any path (root or part of a root cast) with the skill's cooldown state.</summary>
+    public void LogCast(CastPath path, string id, string what)
+    {
+        if (!LogCasts) return;
+        GD.Print($"[CAST] {path,-7} {id,-18} {what}  (cooldown left {CdOf(id):0.00}s)");
+    }
 
     // A skill pays its cost and starts its cooldown when the key is pressed, but only counts once it actually goes off (the end of the
     // wind-up for spells, the impact frame for weapon skills). If it is cut short first (a stagger, death, a teleport), the cost comes back
@@ -218,9 +241,13 @@ public partial class Player
     {
         if (Dead || !Game.D.Skills.TryGetValue(id, out var st)) return;
         if (!st.Sup.Exists(s => Skills.Sup(s)?.Auto == trigger) || _autoCd.GetValueOrDefault(id) > 0) return;
-        var c = Skills.Compute(id); if (Mp < c.Mp || St < c.St) return;
+        var c = Skills.Compute(id);
         if (c.Def.Tags.Contains("bow") && Game.D.WType() != "bow") return;
-        Mp -= c.Mp; if (c.St > 0) St -= c.St; _autoCd[id] = Mathf.Max(.5f, c.AutoCd);
+        // F-01: auto-casts used to pay only their own short timer and never touched the skill's cooldown, so an Arcane Loop /
+        // Retaliation skill (often with Echo/Resonance) fired every few seconds and the key stayed ready. Now they go through
+        // the same gate as the hotbar: off cooldown only, and they start the full cooldown.
+        if (!PayCast(id, c, CastPath.Auto, true)) return;
+        _autoCd[id] = Mathf.Max(.5f, c.AutoCd);
         var foe = NearestFoe(25f); if (foe != null) { var d = foe.GlobalPosition - GlobalPosition; _modelYaw = Util.YawTo(d.X, d.Z); }
         if (c.Def.Kind is "leap" or "dash") { Slam(c, GlobalPosition, 1f); return; }   // movement skills never move you by themselves: they slam where you stand
         Execute(c, foe);
@@ -409,7 +436,7 @@ public partial class Player
             // echoes stack: each one repeats the skill once more, .3 s apart
             // (leaps and dashes echo when they land, see Land; heals heal again; buffs renew and ring again)
             if (c.Echo > 0 && k.Kind is not ("leap" or "dash"))
-                for (int i = 1; i <= Mathf.Min(c.Echo, 3); i++) GetTree().CreateTimer(.3f * i).Timeout += () => { if (!Dead) Execute(c, forced, true); };
+                for (int i = 1; i <= Mathf.Min(c.Echo, 3); i++) { int n = i; GetTree().CreateTimer(.3f * i).Timeout += () => { if (Dead) return; LogCast(CastPath.Echo, c.Def.Id, $"repeat {n}/{Mathf.Min(c.Echo, 3)} (part of the root cast: no cost, no new cooldown)"); Execute(c, forced, true); }; }
         }
     }
     static Gradient Ramp(Color c) { var g = new Gradient(); g.SetColor(0, Colors.White); g.SetColor(1, new Color(c, 0)); return g; }
@@ -542,7 +569,7 @@ public partial class Player
     }
 
     /// <summary>Called from the attack timeline at the impact frame of a weapon skill.</summary>
-    void FireWeaponSkill(SkillCalc c) { var keep = c; if (c.Def.Kind != "spin") _atkSkill = null; Execute(keep); }
+    void FireWeaponSkill(SkillCalc c) { var keep = c; if (c.Def.Kind != "spin") _atkSkill = null; LogCast(CastPath.Combo, c.Def.Id, "impact frame (paid at the key press)"); Execute(keep); }
 }
 
 /// <summary>A lingering ground effect (Hex, Entangle, Consecrate, Rain of Arrows) or a delayed strike from above (Smite, Meteor).</summary>

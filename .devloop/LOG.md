@@ -1,5 +1,16 @@
 # Dev loop log (newest first; max 20 detailed entries, older ones rolled into History)
 
+## #20 (2026-11-25) user directives: loading screens, pickaxe/building, zones, spellcraft x3, no-stretch menus, user flag review fixes
+- Full sweep 118 views, avg 72.7 fps (45.7 mid-cycle, ~62-70 before), 0 engine errors, 0 warnings, world built 9.4 s (staged).
+- REGRESSION found + fixed: zone packs built ~650-900 Enemy nodes at world build -> dungeon 2.5 fps, D3D12 descriptor heap errors. Camps are data now (CampStreamer: nodes within 140 m, freed past 190 m; net indices fixed at build).
+- Perf: Auto quality by resolution (Medium 62% > 2560 px), FSR1/FSR2, cheaper Low/Medium, occlusion culling, house mesh merge, 227 textures VRAM-compressed (max 2048), physics interpolation for hero/monsters (animation sync). User settings.json has MaxFps 30 (user's choice; told them); our captures changed its RenderScale 0.75->0.65: restored.
+- Loading screens (LoadScreen.cs, tips.json, staged world build), pickaxe tiers + build hotbar + torch/glass/stairs/slab/fence blocks (PlayerBlocks, Blocks, BlockMesher), level zones + packs + leash + zone banner (Zones.cs, zones.json), spellcraft 3 sections + new layout, skill sockets data-driven.
+- Ui.Frame RULE: body in a ScrollContainer, windows never stretch (user directive); *_full capture views (learn_all, pack_fill, mats_fill).
+- User flags (9 screenshots) fixed: sky islands (vox_cut + under fill), Scarletta lair floor/lights + ~45% shorter walk, dungeon scaling rewritten vs a reference hero (boss 368k -> 43k HP), ground snapping on block tops, helmets refit + 4 new helm kits, wings (rim/glow skip feathers, swept flight pose), arena colosseum (MultiMesh), gamepad in all menus (PadInput repeat, PadTick refocus, IPadFocus custom views, LB/RB tabs everywhere), unarmed Fist Forms + synthesized punch sounds.
+- Gear polish: dyed linen tunic, lighter wool, gem emission cap, gothic.finish exported stray models (fixed, armor kits rebuilt). Gamepad glyph badges, pad aim assist.
+- FOCUS list started (.devloop/FOCUS.txt): F-01 cast gate code in (PayCast), test next.
+- Capture fix: switching between dungeon keys now leaves the first dungeon.
+
 ## #19 (2026-11-25) user directives: player models/armor/weapons, wand+staff shots, dungeon light, inventory, gamepad
 - BUG (root cause): devloop #18 swallowed `_hitDone = false; _atkSerial++;` into a comment (Player.TryAttack): every basic attack after the first never landed (no wand/staff shots, no melee damage, no fresh anim). Restored; capture logs "swing: 1 player shots" for wand + staff, 0 for sword. Same bug class since 217a461: roll never faced its direction (restored).
 - Observe first: capture options gear {slot:name}, pack_fill, mats_fill, probe; views gear_knight/_back/ranger/mage/surcoat/coat/chain/face, wand_attack, staff_attack, inventory_full, menu_*_full, character_full, dungeon_room.

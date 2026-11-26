@@ -53,7 +53,7 @@ public partial class Ui : CanvasLayer
     void OnChanged() { if (_rebuild != null && _panel != null) _rebuild(); }
     public override void _ExitTree() { Game.Changed -= OnChanged; Net.OnlineChanged -= OnOnlineChanged; if (I == this) I = null; }
 
-    public override void _Process(double delta) { Feel.Tick(); UpdateTick(); } // Ui always processes, so hit-stop always ends; UpdateTick: download progress (Updater.cs)
+    public override void _Process(double delta) { Feel.Tick(); UpdateTick(); PadTick(delta); }   // PadTick: controller focus upkeep (UiPad.cs) // Ui always processes, so hit-stop always ends; UpdateTick: download progress (Updater.cs)
 
     Label Lbl(string t, int size, Color? c = null, Node? parent = null)
     {
@@ -111,7 +111,7 @@ public partial class Ui : CanvasLayer
     /// <summary>Slim left column over a darkened, desaturated live world (pause menu). Returns the column's content box.</summary>
     VBoxContainer FrameSlim(string name, Action rebuild)
     {
-        _scrapMode = false; RememberFocus(); CloseNoUnpause(); _panelName = name; _rebuild = rebuild; Sfx.UiPanel(name); Callable.From(PadFocus).CallDeferred();
+        _scrapMode = false; RememberFocus(); CloseNoUnpause(); _panelName = name; _rebuild = rebuild; Sfx.UiPanel(name); Callable.From(PadFocus).CallDeferred(); _padTabs.Clear();
         var root = new Control { MouseFilter = Control.MouseFilterEnum.Stop, Theme = MakeTheme() }; root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         var sh = new Shader { Code = "shader_type canvas_item;\nuniform sampler2D screen_tex : hint_screen_texture, filter_linear_mipmap;\nvoid fragment() {\n vec3 c = textureLod(screen_tex, SCREEN_UV, 0.0).rgb;\n float g = dot(c, vec3(0.299, 0.587, 0.114));\n c = mix(c, vec3(g), 0.6) * 0.65;\n COLOR = vec4(c, 1.0);\n}\n" };
         var dim = new ColorRect { Color = Colors.White, Material = new ShaderMaterial { Shader = sh }, MouseFilter = Control.MouseFilterEnum.Ignore }; dim.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); root.AddChild(dim);
@@ -133,7 +133,7 @@ public partial class Ui : CanvasLayer
     VBoxContainer Frame(string name, string title, Vector2 size, Action rebuild)
     {
         if (name != "pack") _scrapMode = false;   // Disassemble stays on only while you stay in the pack
-        RememberFocus(); CloseNoUnpause(); _panelName = name; _rebuild = rebuild; Sfx.UiPanel(name); Callable.From(PadFocus).CallDeferred();   // controller: focus the first button (or the one focused before a rebuild)
+        RememberFocus(); CloseNoUnpause(); _panelName = name; _rebuild = rebuild; Sfx.UiPanel(name); Callable.From(PadFocus).CallDeferred(); _padTabs.Clear();   // controller: focus the first button (or the one focused before a rebuild); LB / RB tab rows register again
         var root = new Control { MouseFilter = Control.MouseFilterEnum.Stop, Theme = MakeTheme() }; root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         bool create = name == "title" && title.StartsWith("NEW HERO"), cine = name == "dialog";
         bool left = name == "title" && (title == "TWIN REALMS" || create);   // title screen: narrow translucent panel on the left, 3D backdrop visible on the right
@@ -184,11 +184,23 @@ public partial class Ui : CanvasLayer
         // system-window pop: fade in and grow from the centre
         root.Modulate = new Color(1, 1, 1, 0); pc.PivotOffset = pc.Size / 2; pc.Scale = new Vector2(1f, 0.92f);
         var tw = root.CreateTween().SetParallel(); tw.TweenProperty(root, "modulate:a", 1f, UiTheme.OpenTime); tw.TweenProperty(pc, "scale", Vector2.One, UiTheme.OpenTime).SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);        if (name != "title") { GetTree().Paused = !Net.Active; /* a shared world never pauses */ Input.MouseMode = Input.MouseModeEnum.Visible; }
-        return v;
+        if (left || cine) return v;
+        // RULE (user, 2026-11-25): a window never stretches. CustomMinimumSize is only a minimum and a PanelContainer grows to its
+        // content, so long skill lists / descriptions pushed windows off screen. The body lives in a ScrollContainer (its min size
+        // does not follow its content): the window stays at the requested size (clamped to the screen) and extra content scrolls.
+        // The title row stays pinned above it. Rebuilds of the same window (after a click) keep the scroll position.
+        var sc = new ScrollContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Auto, VerticalScrollMode = ScrollContainer.ScrollMode.Auto, FollowFocus = true };
+        v.AddChild(sc); _frameSc = sc;
+        var body = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ExpandFill };
+        body.AddThemeConstantOverride("separation", 8); sc.AddChild(body);
+        if (_frameScrollName == name && _frameScroll > 0) { int keep = _frameScroll; Callable.From(() => { if (GodotObject.IsInstanceValid(sc)) sc.ScrollVertical = keep; }).CallDeferred(); }
+        _frameScrollName = ""; _frameScroll = 0;
+        return body;
     }
+    ScrollContainer? _frameSc; string _frameScrollName = ""; int _frameScroll;
     // leaving the menus turns Disassemble back off
     public void Close() { Sfx.UiClosed(); _confirmQuit = false; _confirmUnstuck = false; _scrapMode = false; CloseNoUnpause(); if (InGame) { GetTree().Paused = false; Input.MouseMode = Input.MouseModeEnum.Captured; } }
-    void CloseNoUnpause() { HideTip(); if (_panel != null) { _panel.QueueFree(); _panel = null; _panelName = ""; _rebuild = null; } }
+    void CloseNoUnpause() { HideTip(); if (_frameSc != null && GodotObject.IsInstanceValid(_frameSc)) { _frameScrollName = _panelName; _frameScroll = _frameSc.ScrollVertical; } _frameSc = null; if (_panel != null) { _panel.QueueFree(); _panel = null; _panelName = ""; _rebuild = null; } }
 
     static Button Btn(string t, Action a, bool small = false)
     {
@@ -265,6 +277,7 @@ public partial class Ui : CanvasLayer
     /// <summary>Gold-underlined text tabs; the current one is gold with an underline.</summary>
     void Tabs(Node parent, string cur, params (string id, string label, Action open)[] tabs)
     {
+        PadTabs(tabs.Select(t => (t.open, t.id == cur)));   // LB / RB switch them (UiPad.cs)
         foreach (var (id, label, open) in tabs)
         {
             var b = Btn(label, open); bool on = id == cur; b.AddThemeFontSizeOverride("font_size", 18);
@@ -341,6 +354,7 @@ public partial class Ui : CanvasLayer
         var tabs = new HBoxContainer(); tabs.AddThemeConstantOverride("separation", 4); right.AddChild(tabs);
         tabs.AddChild(GoldTab("Items", () => { if (_packTab == 0) return; _packTab = 0; OpenPack(); }, _packTab == 0));
         tabs.AddChild(GoldTab($"Materials ({kinds})", () => { if (_packTab == 1) return; _packTab = 1; OpenPack(); }, _packTab == 1));
+        PadTabs(new (Action, bool)[] { (() => { _packTab = 0; OpenPack(); }, _packTab == 0), (() => { _packTab = 1; OpenPack(); }, _packTab == 1) });
         int tab = _packTab;
         var sc = new ScrollContainer { CustomMinimumSize = new Vector2(CentreW, GridH + 2), HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; right.AddChild(sc);
         var grid = new GridContainer { Columns = 7 }; grid.AddThemeConstantOverride("h_separation", Gap); grid.AddThemeConstantOverride("v_separation", Gap); sc.AddChild(grid);
@@ -355,7 +369,7 @@ public partial class Ui : CanvasLayer
             {
                 var m = GatherDb.Mat(kv.Key); var cell = new ItemSlot { IconId = m.Name, Count = kv.Value, Tint = m.Col, CustomMinimumSize = new Vector2(Cell, Cell), TooltipText = $"{m.Name} x{kv.Value}  ({m.Value}g each)" }; grid.AddChild(cell);
             }
-            if (kinds == 0) { grid.Columns = 1; var l = Row(grid, "Nothing gathered yet. Press E near herbs, mushrooms, berries, ore, crystals and fallen logs.", Dim, 13); l.CustomMinimumSize = new Vector2(GridW, 0); }
+            if (kinds == 0) { grid.Columns = 1; var l = Row(grid, $"Nothing gathered yet. Press {Inputs.KeyOf(Inputs.Use)} near herbs, mushrooms, berries, ore, crystals and fallen logs.", Dim, 13); l.CustomMinimumSize = new Vector2(GridW, 0); }
         }
         else for (int i = 0; i < Math.Max(28, (d.Inv.Count + 6) / 7 * 7); i++)
         {
@@ -656,7 +670,10 @@ public partial class Ui : CanvasLayer
             var warn = new Color(1, .6f, .5f); float cr = Tune.F("fastTravel.combatRange", 20f), wait = _travelAt - Time.GetTicksMsec() / 1000f;
             if (wait > 0) { Note($"Fast travel ready in {Mathf.CeilToInt(wait)} s", warn); return; }
             var me = Player.Instance; if (me != null) foreach (var n in me.GetTree().GetNodesInGroup("enemies")) if (n is Enemy ce && ce.Hunting && !ce.Dead && ce.GlobalPosition.DistanceTo(me.GlobalPosition) < cr) { Note("You cannot travel while enemies hunt you", warn); return; }
-            _travelAt = Time.GetTicksMsec() / 1000f + Tune.F("fastTravel.cooldown", 30f); Close(); World.ForceRealm(0); Player.Instance?.Teleport(World.TravelPoint(poi), 0f); Ui.Flash(Colors.White); Ui.Note("Travelled to " + poi.Name, Gold); };
+            _travelAt = Time.GetTicksMsec() / 1000f + Tune.F("fastTravel.cooldown", 30f); Close();
+            LoadScreen.Cut(poi.Name, "fast travel", "Raising the land");   // the far place streams its blocks in behind the screen
+            World.ForceRealm(0); Player.Instance?.Teleport(World.TravelPoint(poi), 0f);
+            LoadScreen.Lift(() => { Ui.Flash(Colors.White); Ui.Note("Travelled to " + poi.Name, Gold); }, .6f, 8f); };
     }
 
     // ---------------------------------------------------------------- pause and settings live in UiSystem.cs

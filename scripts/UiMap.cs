@@ -6,7 +6,7 @@ using Godot;
 namespace TwinRealms;
 
 /// <summary>World map with discovered points of interest.</summary>
-public partial class MapView : Control
+public partial class MapView : Control, IPadFocus
 {
     public Action<Poi>? Travel;
     // zoom and pan: the world map keeps them while the game runs; a dungeon floor opens centred on you
@@ -91,6 +91,7 @@ void fragment() {
             {
                 bool known = Game.D.Disc.Contains(p.Id); var s = W2S(p.X, p.Z);
                 DrawGlyph(s, p, known);
+                if (p == _sel) { DrawArc(s, 12, 0, Mathf.Tau, 28, Colors.White, 2.5f); DrawArc(s, 16, 0, Mathf.Tau, 28, RuneGold with { A = .6f }, 1.5f); }
                 if (known) Label(s + new Vector2(10, 5), p.Name, 15, new Color(.93f, .88f, .76f));
             }
             // soft vignette at the map edges
@@ -111,8 +112,49 @@ void fragment() {
     {
         float z2 = Mathf.Clamp(Zoom * k, 1f, 8f); var c = Size / 2; Pan = m - c - (m - c - Pan) * (z2 / Zoom); Zoom = z2; ClampPan(); QueueRedraw();
     }
+    // ---- controller: a cursor on the discovered places. D-pad / left stick jump to the place in that direction, A travels there,
+    // the right stick pans; in a dungeon (nothing to travel to) the D-pad pans
+    Poi? _sel; public string PadCursor => _sel?.Name ?? "-";
+    public void PadPan(Vector2 v) { Pan -= v * 600f; ClampPan(); QueueRedraw(); }
+    void PadSel(Poi? p)
+    {
+        _sel = p; QueueRedraw(); if (p == null) return;
+        var s = W2S(p.X, p.Z); var inner = new Rect2(Vector2.Zero, Size).Grow(-50);
+        if (!inner.HasPoint(s)) { Pan += Size / 2 - s; ClampPan(); }
+        Sfx.UiHover();
+    }
+    bool PadGui(InputEvent e)
+    {
+        if (e.IsActionPressed("ui_accept") && !e.IsEcho()) { if (_sel != null && !Dun) Travel?.Invoke(_sel); return true; }
+        var dir = e.IsActionPressed("ui_left", true) ? Vector2.Left : e.IsActionPressed("ui_right", true) ? Vector2.Right : e.IsActionPressed("ui_up", true) ? Vector2.Up : e.IsActionPressed("ui_down", true) ? Vector2.Down : Vector2.Zero;
+        if (dir == Vector2.Zero) return false;
+        if (Dun) { PadPan(-dir * .08f); return true; }
+        var known = World.Pois.Where(p => Game.D.Disc.Contains(p.Id)).ToList(); if (known.Count == 0) return false;
+        if (_sel == null) { PadSel(Nearest(known)); return true; }
+        var p0 = W2S(_sel.X, _sel.Z); Poi? best = null; float bs = 1e9f;
+        foreach (var p in known)
+        {
+            if (p == _sel) continue; var dv = W2S(p.X, p.Z) - p0; float along = dv.Dot(dir); if (along < 2f) continue;
+            float perp = Mathf.Abs(dv.Cross(dir)); if (perp > along * 1.5f) continue;
+            float s = along + perp * 2f; if (s < bs) { bs = s; best = p; }
+        }
+        if (best == null) return false;   // nothing that way: the focus leaves the map
+        PadSel(best); return true;
+    }
+    Poi? Nearest(List<Poi> l)
+    {
+        var me = Player.Instance; var at = me != null ? new Vector2(me.GlobalPosition.X, me.GlobalPosition.Z) : Vector2.Zero;
+        return l.OrderBy(p => new Vector2(p.X, p.Z).DistanceSquaredTo(at)).FirstOrDefault();
+    }
+    public override void _Notification(int what)
+    {
+        if (what == NotificationFocusEnter && !Dun) Callable.From(() => { if (IsInstanceValid(this) && HasFocus() && _sel == null) PadSel(Nearest(World.Pois.Where(p => Game.D.Disc.Contains(p.Id)).ToList())); }).CallDeferred();
+        else if (what == NotificationFocusExit) { _sel = null; QueueRedraw(); }
+    }
+
     public override void _GuiInput(InputEvent e)
     {
+        if (HasFocus() && e is not (InputEventMouse) && PadGui(e)) { AcceptEvent(); return; }
         if (e is InputEventMouseMotion mm && _drag) { Pan += mm.Relative; _moved += mm.Relative.Length(); ClampPan(); QueueRedraw(); AcceptEvent(); return; }
         if (e is not InputEventMouseButton mb) return;
         AcceptEvent();   // the wheel zooms the map, not the window around it

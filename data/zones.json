@@ -1,0 +1,78 @@
+{
+ "_help": "Overworld level zones (scripts/Zones.cs). Each zone is a circle in WORLD metres (x/z centre, r radius); where circles overlap the smallest one wins, so rings and wide land zones can hold smaller hot spots. Outside every zone the old distance formula (tuning.json world.metresPerAreaLevel) is used. A zone's level rises from minLvl on its side nearest Oakhaven to maxLvl on its far side and is FIXED (monsters no longer copy the hero's level). In the Shadow realm, home-island zones add shadowAdd levels. Rewards: xpMul / goldMul multiply experience and gold (on top of the level), lootBonus adds rarity weight (LootTables.RollRarity) and itemChance adds to the item drop chance; items drop at the monster's level. packs = light-realm pack templates picked at random (repeat a name to weight it), shadowPacks = Shadow-realm packs (home island only; land monsters are seen in both realms), density / shadowDensity = how many packs the zone holds. boss (optional) = a world boss placed in the zone at maxLvl + bossLvl.",
+
+ "rules": {
+  "_help": "aggroMul: overworld (non-boss) monsters notice heroes at their enemies.json aggro x this. leash: they give up the chase when farther than this from their camp, or when the hero is farther than max(aggro x leashHeroMul, leashHeroMin); while running home they evade (ignore damage) for evadeTime s and heal returnRegen x max health per second. packAlert: when one pack member notices a hero or is hit, its packmates within this many metres join. leaderLevels: a pack leader is this many levels above its pack [min, max]; leaderHp / leaderDmg multiply its health and damage, leaderReward its xp and gold, leaderItemChance adds to its item chance (and +1 loot bonus). respawn: a dead pack member comes back after [min, max] s (x the play-time threat respawn factor) once no hero is within respawnClear m of its camp. packSpacing: minimum metres between camps. maxActive: at most this many idle overworld monsters are run near the heroes at once (the nearest; fighting ones always run). maxEnemies: build-time cap on pack monsters.",
+  "aggroMul": 0.6,
+  "leash": 32, "leashHeroMul": 2.0, "leashHeroMin": 26, "evadeTime": 4, "returnRegen": 0.25,
+  "packAlert": 12,
+  "leaderLevels": [1, 2], "leaderHp": 1.6, "leaderDmg": 1.2, "leaderReward": 2.0, "leaderItemChance": 0.25,
+  "respawn": [90, 180], "respawnClear": 60,
+  "packSpacing": 30, "maxActive": 120, "maxEnemies": 900,
+  "shadowAdd": 3
+ },
+
+ "packs": {
+  "_help": "Pack templates. leader = the enemy type that leads (gets prefix + its name, leaderLevels and the leader buffs); members = [type, min, max] counts; camp = true puts a campfire (and on the home island a tent and crates) at the camp point; spread = how far members stand from the camp point (m).",
+  "slimes":      { "name": "Slime brood",      "leader": "spikeSlime",  "prefix": "Bloated",      "members": [["slime", 2, 4]], "spread": 5 },
+  "rats":        { "name": "Rat nest",         "leader": "giantRat",    "prefix": "Plague",       "members": [["giantRat", 2, 3], ["viper", 0, 2]], "spread": 5 },
+  "wolves":      { "name": "Wolf pack",        "leader": "wolf",        "prefix": "Alpha",        "members": [["wolf", 3, 5]], "spread": 6 },
+  "bandits":     { "name": "Bandit camp",      "leader": "bandit",      "prefix": "Chieftain",    "members": [["archer", 2, 2], ["bandit", 3, 3]], "camp": true, "spread": 6 },
+  "goblins":     { "name": "Goblin warband",   "leader": "hobgoblin",   "prefix": "Boss",         "members": [["goblin", 3, 4], ["brute", 0, 1]], "camp": true, "spread": 6 },
+  "orcs":        { "name": "Orc raiders",      "leader": "orcWarrior",  "prefix": "Warlord",      "members": [["orcWarrior", 1, 2], ["hobgoblin", 2, 3]], "camp": true, "spread": 6 },
+  "wasps":       { "name": "Wasp swarm",       "leader": "giantWasp",   "prefix": "Queen",        "members": [["giantWasp", 2, 4]], "spread": 5 },
+  "undead":      { "name": "Restless dead",    "leader": "revenant",    "prefix": "Dread",        "members": [["skeleton", 3, 4], ["wraith", 0, 1]], "spread": 6 },
+  "hounds":      { "name": "Shadow hounds",    "leader": "hound",       "prefix": "Alpha",        "members": [["hound", 3, 4]], "spread": 6 },
+  "wraiths":     { "name": "Wraith coven",     "leader": "wraith",      "prefix": "Elder",        "members": [["wraith", 2, 3], ["ghost", 1, 1]], "spread": 6 },
+  "demons":      { "name": "Demon pit",        "leader": "lesserDemon", "prefix": "Infernal",     "members": [["flameSkull", 2, 3], ["lesserDemon", 0, 1]], "spread": 6 },
+  "ninjas":      { "name": "Ninja cell",       "leader": "ninja",       "prefix": "Master",       "members": [["ninja", 2, 3]], "camp": true, "spread": 5 },
+  "spirits":     { "name": "Fox spirits",      "leader": "kitsune",     "prefix": "Nine-tailed",  "members": [["ghost", 2, 3], ["kitsune", 0, 1]], "spread": 6 },
+  "blobs":       { "name": "Toxic pool",       "leader": "toxicBlob",   "prefix": "Seething",     "members": [["toxicBlob", 2, 3], ["giantSpider", 0, 1]], "spread": 5 },
+  "cultists":    { "name": "Dark cult",        "leader": "darkMage",    "prefix": "High",         "members": [["skeleton", 2, 3], ["darkMage", 1, 1]], "camp": true, "spread": 6 },
+  "frostWolves": { "name": "Frost pack",       "leader": "yeti",        "prefix": "Frostback",    "members": [["wolf", 3, 4]], "spread": 6 },
+  "yetis":       { "name": "Yeti troop",       "leader": "yeti",        "prefix": "Elder",        "members": [["yeti", 1, 2], ["goleling", 1, 2]], "spread": 6 },
+  "golems":      { "name": "Living stone",     "leader": "earthGolem",  "prefix": "Ancient",      "members": [["goleling", 2, 4]], "spread": 6 },
+  "raptors":     { "name": "Raptor pack",      "leader": "raptor",      "prefix": "Alpha",        "members": [["raptor", 3, 4]], "spread": 6 },
+  "cactus":      { "name": "Thorn grove",      "leader": "cactusFiend", "prefix": "Old",          "members": [["cactusFiend", 1, 2], ["viper", 1, 2]], "spread": 5 },
+  "crabs":       { "name": "Crab colony",      "leader": "giantCrab",   "prefix": "Ironshell",    "members": [["giantCrab", 2, 3]], "spread": 5 },
+  "sandRaiders": { "name": "Sand raiders",     "leader": "bandit",      "prefix": "Raider",       "members": [["bandit", 2, 3], ["archer", 1, 2], ["raptor", 1, 1]], "camp": true, "spread": 6 },
+  "tombGuard":   { "name": "Tomb guard",       "leader": "revenant",    "prefix": "Entombed",     "members": [["skeleton", 3, 4]], "spread": 6 },
+  "bog":         { "name": "Bog spawn",        "leader": "spikeSlime",  "prefix": "Rotting",      "members": [["toxicBlob", 1, 2], ["slime", 2, 3]], "spread": 5 },
+  "myconids":    { "name": "Myconid ring",     "leader": "myconid",     "prefix": "Elder",        "members": [["myconid", 2, 3], ["spikeSlime", 0, 1]], "spread": 5 },
+  "ghosts":      { "name": "Drowned souls",    "leader": "ghost",       "prefix": "Wailing",      "members": [["ghost", 2, 3], ["wraith", 0, 1]], "spread": 6 },
+  "oniWarband":  { "name": "Oni warband",      "leader": "oni",         "prefix": "Warlord",      "members": [["hobgoblin", 2, 3], ["orcWarrior", 1, 1]], "camp": true, "spread": 6 },
+  "flameSkulls": { "name": "Burning skulls",   "leader": "lesserDemon", "prefix": "Ashen",        "members": [["flameSkull", 3, 4]], "spread": 6 },
+  "broodmother": { "name": "Spider brood",     "leader": "giantSpider", "prefix": "Broodmother",  "members": [["giantSpider", 2, 3], ["giantWasp", 0, 1]], "spread": 6 }
+ },
+
+ "zones": [
+  { "id": "oakmeadow",   "name": "Oakhaven Meadows",      "land": "home",  "x": 0,     "z": 0,     "r": 100, "minLvl": 1,  "maxLvl": 5,  "xpMul": 1.0, "goldMul": 1.0, "lootBonus": 0,   "itemChance": 0,    "density": 6, "shadowDensity": 2, "packs": ["slimes", "rats", "wolves", "slimes"], "shadowPacks": ["blobs"] },
+  { "id": "wolfmoor",    "name": "Wolfmoor",              "land": "home",  "x": -135,  "z": 60,    "r": 70,  "minLvl": 5,  "maxLvl": 8,  "xpMul": 1.1, "goldMul": 1.1, "lootBonus": 0.3, "itemChance": 0.02, "density": 5, "shadowDensity": 3, "packs": ["wolves", "wolves", "bandits"], "shadowPacks": ["hounds", "undead"] },
+  { "id": "barrens",     "name": "Whispering Barrens",    "land": "home",  "x": -70,   "z": -60,   "r": 45,  "minLvl": 4,  "maxLvl": 7,  "xpMul": 1.1, "goldMul": 1.1, "lootBonus": 0.3, "itemChance": 0.02, "density": 3, "shadowDensity": 3, "packs": ["goblins", "wolves"], "shadowPacks": ["undead", "wraiths"] },
+  { "id": "goblinhills", "name": "Goblin Hills",          "land": "home",  "x": 40,    "z": -155,  "r": 70,  "minLvl": 6,  "maxLvl": 9,  "xpMul": 1.15, "goldMul": 1.2, "lootBonus": 0.5, "itemChance": 0.03, "density": 5, "shadowDensity": 3, "packs": ["goblins", "goblins", "orcs"], "shadowPacks": ["demons", "hounds"] },
+  { "id": "ashenscar",   "name": "Ashen Scar",            "land": "home",  "x": -150,  "z": -170,  "r": 80,  "minLvl": 8,  "maxLvl": 11, "xpMul": 1.2, "goldMul": 1.25, "lootBonus": 0.6, "itemChance": 0.04, "density": 5, "shadowDensity": 3, "packs": ["orcs", "bandits", "wasps"], "shadowPacks": ["cultists", "undead"] },
+  { "id": "drakespire",  "name": "Drakespire",            "land": "home",  "x": 150,   "z": -140,  "r": 80,  "minLvl": 10, "maxLvl": 13, "xpMul": 1.3, "goldMul": 1.3, "lootBonus": 0.8, "itemChance": 0.05, "density": 4, "shadowDensity": 3, "packs": ["orcs", "wasps"], "shadowPacks": ["demons", "wraiths"], "boss": "dragon", "bossLvl": 1 },
+  { "id": "southreach",  "name": "Southern Reach",        "land": "home",  "x": 110,   "z": 140,   "r": 120, "minLvl": 5,  "maxLvl": 9,  "xpMul": 1.1, "goldMul": 1.15, "lootBonus": 0.3, "itemChance": 0.02, "density": 7, "shadowDensity": 4, "packs": ["bandits", "wasps", "slimes", "goblins"], "shadowPacks": ["ninjas", "spirits"] },
+  { "id": "verdantwilds","name": "Verdant Wilds",         "land": "home",  "x": 0,     "z": 0,     "r": 380, "minLvl": 6,  "maxLvl": 11, "xpMul": 1.15, "goldMul": 1.15, "lootBonus": 0.4, "itemChance": 0.03, "density": 8, "shadowDensity": 5, "packs": ["wolves", "bandits", "goblins", "wasps", "orcs"], "shadowPacks": ["undead", "hounds", "wraiths", "ninjas"] },
+
+  { "id": "bogwater",    "name": "Bogwater Fen",          "land": "mire",  "x": 60,    "z": 860,   "r": 200, "minLvl": 10, "maxLvl": 14, "xpMul": 1.3, "goldMul": 1.35, "lootBonus": 0.8, "itemChance": 0.04, "density": 5, "packs": ["bog", "rats", "myconids"] },
+  { "id": "drowned",     "name": "Drowned Bastion",       "land": "mire",  "x": 190,   "z": 1090,  "r": 150, "minLvl": 20, "maxLvl": 24, "xpMul": 1.6, "goldMul": 1.7, "lootBonus": 1.4, "itemChance": 0.07, "density": 4, "packs": ["ghosts", "bog", "undead"] },
+  { "id": "mirefen",     "name": "Mirefen Marshes",       "land": "mire",  "x": 0,     "z": 950,   "r": 540, "minLvl": 13, "maxLvl": 19, "xpMul": 1.45, "goldMul": 1.5, "lootBonus": 1.0, "itemChance": 0.05, "density": 8, "packs": ["bog", "myconids", "rats", "ghosts"] },
+
+  { "id": "keshsands",   "name": "Kesh Sands",            "land": "sun",   "x": 990,   "z": 30,    "r": 200, "minLvl": 12, "maxLvl": 16, "xpMul": 1.4, "goldMul": 1.5, "lootBonus": 0.9, "itemChance": 0.04, "density": 5, "packs": ["raptors", "cactus", "sandRaiders"] },
+  { "id": "atheru",      "name": "Tombs of Atheru",       "land": "sun",   "x": 1250,  "z": -10,   "r": 150, "minLvl": 24, "maxLvl": 28, "xpMul": 1.75, "goldMul": 1.9, "lootBonus": 1.6, "itemChance": 0.08, "density": 4, "packs": ["tombGuard", "tombGuard", "crabs"] },
+  { "id": "sunscar",     "name": "Sunscar Expanse",       "land": "sun",   "x": 950,   "z": 0,     "r": 540, "minLvl": 16, "maxLvl": 24, "xpMul": 1.55, "goldMul": 1.65, "lootBonus": 1.2, "itemChance": 0.06, "density": 8, "packs": ["raptors", "cactus", "crabs", "sandRaiders"] },
+
+  { "id": "ashford",     "name": "Ashford Vale",          "land": "ember", "x": -830,  "z": 40,    "r": 200, "minLvl": 18, "maxLvl": 23, "xpMul": 1.55, "goldMul": 1.65, "lootBonus": 1.2, "itemChance": 0.06, "density": 5, "packs": ["orcs", "oniWarband"] },
+  { "id": "magma",       "name": "Magma Throat",          "land": "ember", "x": -1060, "z": -110,  "r": 170, "minLvl": 30, "maxLvl": 35, "xpMul": 1.9, "goldMul": 2.1, "lootBonus": 1.9, "itemChance": 0.09, "density": 4, "packs": ["demons", "flameSkulls"], "boss": "wyvern", "bossLvl": 2 },
+  { "id": "emberwild",   "name": "Emberwild Highlands",   "land": "ember", "x": -950,  "z": 0,     "r": 540, "minLvl": 23, "maxLvl": 29, "xpMul": 1.7, "goldMul": 1.8, "lootBonus": 1.5, "itemChance": 0.07, "density": 8, "packs": ["oniWarband", "demons", "spirits", "orcs"] },
+
+  { "id": "frostfoot",   "name": "Frostspire Foothills",  "land": "frost", "x": 0,     "z": -760,  "r": 240, "minLvl": 16, "maxLvl": 22, "xpMul": 1.5, "goldMul": 1.6, "lootBonus": 1.1, "itemChance": 0.05, "density": 5, "packs": ["frostWolves", "yetis", "bandits"] },
+  { "id": "whitecrown",  "name": "The White Crown",       "land": "frost", "x": -260,  "z": -1130, "r": 160, "minLvl": 30, "maxLvl": 36, "xpMul": 1.9, "goldMul": 2.0, "lootBonus": 1.9, "itemChance": 0.09, "density": 3, "packs": ["golems", "frostWolves"] },
+  { "id": "frostfang",   "name": "Frostfang Peaks",       "land": "frost", "x": 0,     "z": -1210, "r": 230, "minLvl": 34, "maxLvl": 40, "xpMul": 2.0, "goldMul": 2.2, "lootBonus": 2.1, "itemChance": 0.1,  "density": 4, "packs": ["golems", "yetis"] },
+  { "id": "frostreach",  "name": "Frostspire Reach",      "land": "frost", "x": 0,     "z": -950,  "r": 540, "minLvl": 22, "maxLvl": 30, "xpMul": 1.7, "goldMul": 1.8, "lootBonus": 1.5, "itemChance": 0.07, "density": 7, "packs": ["yetis", "frostWolves", "golems"] },
+
+  { "id": "elderheart",  "name": "Heart of the Elderwood","land": "elder", "x": 1000,  "z": -1000, "r": 180, "minLvl": 50, "maxLvl": 55, "xpMul": 2.6, "goldMul": 3.0, "lootBonus": 3.0, "itemChance": 0.14, "density": 4, "packs": ["broodmother", "ninjas", "spirits"], "boss": "mushroomKing", "bossLvl": 2 },
+  { "id": "elderwood",   "name": "Elderwood Vale",        "land": "elder", "x": 1000,  "z": -1000, "r": 470, "minLvl": 42, "maxLvl": 50, "xpMul": 2.3, "goldMul": 2.6, "lootBonus": 2.5, "itemChance": 0.12, "density": 9, "packs": ["broodmother", "myconids", "ninjas", "spirits"] }
+ ]
+}

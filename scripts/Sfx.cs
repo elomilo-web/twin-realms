@@ -92,6 +92,8 @@ public partial class Sfx : Node
         {
             case "swing": Whoosh(s, 0, .22f, .35f, .18f, 1); break;
             case "hit": Bell(s, 0, 150f, .18f, .5f); Whoosh(s, 0, .08f, .25f, .08f, 2); break;
+            case "punch_swing": Whoosh(s, 0, .13f, .26f, .07f, 7); break;   // fists: a short, dark cloth whoosh (no blade ring)
+            case "punch_hit": Bell(s, 0, 92f, .13f, .55f); Whoosh(s, 0, .05f, .35f, .05f, 8); break;   // a low body thump
             case "hurt": Bell(s, 0, 220f, .3f, .35f); Bell(s, .02f, 330f, .25f, .15f); break;
             case "block": Bell(s, 0, 1174.7f, .25f, .25f); break;
             case "coin": Bell(s, 0, G5 * 2, .3f, .22f); Bell(s, .06f, C6 * 2, .35f, .2f); break;

@@ -159,13 +159,13 @@ public partial class MpBot : Node
             foreach (var n in GetTree().GetNodesInGroup("remote_heroes")) if (n is RemoteHero rh) tags.Add($"{rh.Name} at {rh.GlobalPosition.DistanceTo(P.GlobalPosition):0.0} m");
             Check("exactly one drawn hero per friend", copies == 1, string.Join(", ", tags));
             Check("we spawn next to the host", host != null && host.GlobalPosition.DistanceTo(P.GlobalPosition) < 12f, host == null ? "" : $"{host.GlobalPosition.DistanceTo(P.GlobalPosition):0.0} m");
-            int puppets = 0; foreach (var e in World.NetEnemies) if (e.Puppet) puppets++;
-            Check("our overworld enemies mirror the host", puppets > 20 && puppets == World.NetEnemies.Count, $"{puppets} puppets");
+            int puppets = 0, liveN = 0; foreach (var e in World.NetEnemies) if (GodotObject.IsInstanceValid(e)) { liveN++; if (e.Puppet) puppets++; }   // parked camps are null entries
+            Check("our overworld enemies mirror the host", puppets > 3 && puppets == liveN, $"{puppets} puppets");
             if (host != null) { P.Teleport(host.GlobalPosition + new Vector3(-3.5f, .5f, 3f), 0f); Face(host.GlobalPosition + Vector3.Up); await Wait(1f); await Shot("mp_join_sees_host"); }
 
             // ---- a shared enemy: hits go to the host, its death and our experience come back
             Enemy? target = null; float bd = 1e9f;
-            foreach (var e in World.NetEnemies) if (e.Active && !e.Dead && (e.Type == "wolf" || e.Type == "goblin" || e.Type == "bandit")) { float d = e.GlobalPosition.DistanceTo(P.GlobalPosition); if (d < bd) { bd = d; target = e; } }
+            foreach (var e in World.NetEnemies) if (GodotObject.IsInstanceValid(e) && e.Active && !e.Dead && (e.Type == "wolf" || e.Type == "goblin" || e.Type == "bandit")) { float d = e.GlobalPosition.DistanceTo(P.GlobalPosition); if (d < bd) { bd = d; target = e; } }
             Check("a shared enemy to fight", target != null);
             if (target != null)
             {

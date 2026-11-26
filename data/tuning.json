@@ -88,8 +88,11 @@
       "xp": { "base": 40, "lin": 20, "quad": 6, "cube": 0.15 },
       "levelUp": { "attr": 2, "rank": 1, "tree": 2 },
       "scaling": {
-        "hpLin": 0.2, "hpExp": 1.045, "dmgLin": 0.13, "dmgExp": 1.03,
-        "power": { "on": true, "refHp": 50, "hpHits": 5, "refDmg": 10, "hitPct": 0.06, "shape": 0.75, "defenseRespect": 0.5, "maxHitPct": 0.45 },
+        "_help": "Monsters measured against a reference hero of their level (see scaling._help in data/progression.json). The old hpLin/hpExp/dmgLin/dmgExp curve is gone.",
+        "hero": { "hit": 12, "hitPerLevel": 7.5, "hp": 110, "hpPerLevel": 50 },
+        "health": { "refHp": 50, "hits": 4.5, "shape": 0.7, "bossFrom": 580, "refBossHp": 1500, "bossHits": 80, "bossShape": 0.35 },
+        "damage": { "refDmg": 10, "hitPct": 0.065, "shape": 0.6, "maxHitPct": 0.2 },
+        "power": { "on": true, "hpFloor": 0.6, "dmgFloor": 0.5 },
         "armor": { "k": 14, "perLevel": 6 }
       },
       "overworld": { "follow": true, "offset": 0, "areaWeight": 0.5, "bossBonus": 3 },
@@ -102,7 +105,7 @@
       },
       "dungeon": {
         "levelOffset": 2, "perDepth": 1, "bossBonus": 1, "mobMul": 3,
-        "tiers": { "every": 5, "hpMul": 1.7, "dmgMul": 1.4, "levels": 2, "extraUpgrades": 1 },
+        "tiers": { "every": 5, "hpMul": 1.15, "dmgMul": 1.1, "levels": 1, "extraUpgrades": 1 },
         "upgrades": { "base": 1, "perDepth": 0.5, "max": 4, "bossExtra": 2 }
       }
     },

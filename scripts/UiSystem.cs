@@ -129,8 +129,8 @@ public partial class Ui
                 Choice(list, "VSync", "Matches the screen's refresh rate and stops tearing.", OffOn, s.VSync ? 1 : 0, i => s.VSync = i == 1, true);
                 Choice(list, "Frame limit", "Caps frames per second to save power.", new[] { "None", "30", "60", "120", "144" }, Math.Max(0, Array.IndexOf(FpsCaps, s.MaxFps)), i => s.MaxFps = FpsCaps[i], true);
                 Header("Quality", list);
-                SliderRow(list, "3D resolution", "Lower it for more speed. Menus and text stay sharp.", s.RenderScale, .5f, 1f, .05f, Pct, x => s.RenderScale = x, true);
-                Choice(list, "Graphics quality", "Lighting, shadows, smoothing and detail. Lower it for more frames per second.", new[] { "Low", "Medium", "High", "Ultra" }, s.Quality, i => s.Quality = i, true);
+                SliderRow(list, "3D resolution", "Lower it for more speed (upscaled with AMD FSR). Menus and text stay sharp. Moving it leaves Auto quality.", s.RenderScale, .5f, 1f, .05f, Pct, x => { s.RenderScale = x; s.AutoQuality = false; }, true);
+                Choice(list, "Graphics quality", "Lighting, shadows, smoothing and detail. Lower it for more frames per second. Auto picks the preset and 3D resolution for your screen size.", new[] { "Low", "Medium", "High", "Ultra", "Auto" }, s.AutoQuality ? 4 : s.Quality, i => { s.AutoQuality = i == 4; if (i < 4) s.Quality = i; }, true);
                 Choice(list, "Outlines", "Ink lines around shapes (a cartoon look).", OffOn, s.Outlines ? 1 : 0, i => s.Outlines = i == 1, true);
                 Header("Distance", list);
                 SliderRow(list, "View distance", "How far you can see. Trees and scenery fade out before it. Shorter is faster.", s.ViewDist, 300f, 3000f, 50f, x => $"{x:0} m", x => s.ViewDist = x, true);
@@ -145,7 +145,7 @@ public partial class Ui
                 SliderRow(list, "Field of view", "How wide the camera sees.", s.Fov, 55f, 100f, 1f, x => $"{x:0}°", x => s.Fov = x);
                 SliderRow(list, "Camera shake", "Shake on heavy hits and spells.", s.Shake, 0f, 1.5f, .05f, Pct, x => s.Shake = x);
                 Header("Combat", list);
-                Choice(list, "Auto target", "With nothing locked on (Tab), attacks and spells aim at: the monster that hit you or that you hit, the nearest monster, or the one with the least health. A thin gold ring marks it; the camera stays free.", new[] { "Off", "Hit you", "Nearest", "Lowest HP" }, Math.Clamp(s.AutoTarget, 0, 3), i => s.AutoTarget = i);
+                Choice(list, "Auto target", $"With nothing locked on ({Inputs.KeyOf(Inputs.Lock)}), attacks and spells aim at: the monster that hit you or that you hit, the nearest monster, or the one with the least health. A thin gold ring marks it; the camera stays free.", new[] { "Off", "Hit you", "Nearest", "Lowest HP" }, Math.Clamp(s.AutoTarget, 0, 3), i => s.AutoTarget = i);
                 static string PotPct(float x) => x <= 0 ? "Off" : $"{x * 100:0}%";
                 SliderRow(list, "Auto health potion", "Drink a health potion by itself when health falls below this. Off at 0.", s.AutoHp, 0f, .9f, .05f, PotPct, x => s.AutoHp = x);
                 SliderRow(list, "Auto mana potion", "Drink a mana potion by itself when mana falls below this. Off at 0.", s.AutoMp, 0f, .9f, .05f, PotPct, x => s.AutoMp = x);

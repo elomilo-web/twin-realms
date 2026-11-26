@@ -150,6 +150,36 @@ public static class Kit
         return mi;
     }
 
+    /// <summary>
+    /// Merges the direct static MeshInstance3D children of a group (a house's wall modules, windows, roof, plinth...) into one mesh with
+    /// one surface per material: a modular house drops from ~50 draw calls to ~6. Materials are the shared ones, so realm tints and
+    /// night windows still work. Children with their own children, hidden ones and the online server are left alone.
+    /// </summary>
+    public static void MergeStatic(Node3D g, bool shadows = true)
+    {
+        if (Net.Dedicated) return;
+        var sts = new Dictionary<Material, SurfaceTool>(); var order = new List<Material>(); var drop = new List<MeshInstance3D>();
+        foreach (var c in g.GetChildren())
+        {
+            if (c is not MeshInstance3D mi || mi.Mesh == null || mi.GetChildCount() > 0 || !mi.Visible || mi.MaterialOverlay != null) continue;
+            int n = mi.Mesh.GetSurfaceCount(); bool ok = n > 0;
+            for (int s = 0; s < n && ok; s++) ok = mi.GetActiveMaterial(s) != null && (mi.Mesh is not ArrayMesh am0 || am0.SurfaceGetPrimitiveType(s) == Mesh.PrimitiveType.Triangles);
+            if (!ok) continue;
+            for (int s = 0; s < n; s++)
+            {
+                var m = mi.GetActiveMaterial(s);
+                if (!sts.TryGetValue(m, out var st)) { sts[m] = st = new SurfaceTool(); order.Add(m); }
+                st.AppendFrom(mi.Mesh, s, mi.Transform);
+            }
+            drop.Add(mi);
+        }
+        if (drop.Count < 2) return;
+        var am = new ArrayMesh();
+        foreach (var m in order) { sts[m].SetMaterial(m); sts[m].Commit(am); }
+        foreach (var mi in drop) { g.RemoveChild(mi); mi.QueueFree(); }
+        g.AddChild(new MeshInstance3D { Name = "Merged", Mesh = am, CastShadow = shadows ? GeometryInstance3D.ShadowCastingSetting.On : GeometryInstance3D.ShadowCastingSetting.Off });
+    }
+
     // ---------------------------------------------------------------- data helpers
     public static string Str(string section, string key, string d = "") => Cfg.TryGetProperty(section, out var s) ? JsonUtil.S(s, key, d) : d;
     /// <summary>A list of [name, scale] pairs.</summary>

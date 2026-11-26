@@ -30,7 +30,7 @@ public partial class CameraRig : Node3D
 
     // sprint feel: FOV +6 deg and +0.4 m arm (0.35 s ease), footstep-synced 0.03 m vertical bob (bob off when Shake = 0)
     public bool Sprinting; float _spr, _bob;
-    Vector3 _lead, _lastTp; float _lockB, _camLen = -1f;
+    Vector3 _lead, _lastTp; float _lockB, _camLen = -1f; Node3D? _interpFor;
     Vector3 _frame; float _frameDist, _framePitch, _flickX, _switchT; double _flickT0, _flickCool;
     public void StepBob() { if (Sprinting && Game.Set.Shake > 0) _bob = .03f; }
 
@@ -111,9 +111,16 @@ public partial class CameraRig : Node3D
         {
             // follow the head height, smoothed
             // look-ahead: lead the camera along the horizontal motion (0.8 m run, 1.2 m sprint), tau 0.4 s, none while locked on
-            var tp = Target.GlobalPosition; float dt = Mathf.Max((float)delta, .0001f);
+            // physics interpolation (project.godot): the hero's body moves on 60 Hz physics ticks but is drawn interpolated every frame,
+            // so its animation, the camera and the world stay in step at any frame rate; the camera itself is not interpolated (it moves here)
+            if (_interpFor != Target)
+            {
+                _interpFor = Target; GetTree().Root.PhysicsInterpolationMode = PhysicsInterpolationModeEnum.Off; PhysicsInterpolationMode = PhysicsInterpolationModeEnum.Off;
+                if (Target is CharacterBody3D) { Target.PhysicsInterpolationMode = PhysicsInterpolationModeEnum.On; Target.ResetPhysicsInterpolation(); }
+            }
+            var tp = Target.PhysicsInterpolationMode == PhysicsInterpolationModeEnum.On ? Target.GetGlobalTransformInterpolated().Origin : Target.GlobalPosition; float dt = Mathf.Max((float)delta, .0001f);
             var hv = new Vector3(tp.X - _lastTp.X, 0, tp.Z - _lastTp.Z) / dt; _lastTp = tp;
-            if (hv.Length() > 30f) hv = Vector3.Zero;   // teleport / respawn guard
+            if (hv.Length() > 30f) { hv = Vector3.Zero; if (Target.PhysicsInterpolationMode == PhysicsInterpolationModeEnum.On) Target.ResetPhysicsInterpolation(); }   // teleport / respawn guard (no streak)
             bool locked = Targeting.Current is Enemy le && IsInstanceValid(le);
             _lockB = Mathf.MoveToward(_lockB, locked ? 1f : 0f, (float)delta / .3f);
             float maxLead = Sprinting ? 1.2f : 0.8f;

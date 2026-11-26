@@ -173,6 +173,7 @@ public static class Weapons
     /// <summary>Builds the weapon under parent (grip at origin, pointing -Z). Returns the trail markers (blade base and tip) for melee weapons.</summary>
     public static (Node3D? baseN, Node3D? tipN) Build(Node3D parent, string wt, Item? it)
     {
+        if (wt == "unarmed") return (null, null);   // fists: nothing in the hand
         var km = KitModelFor(wt, it);
         if (km.Model != "" && BuildKit(parent, wt, km, it) is { } kr) return kr;
         int rar = it?.Rar ?? 0; var rc = Items.RarityColor(rar);
@@ -262,6 +263,8 @@ public static class Weapons
     /// A kit weapon model under parent. Kit weapons hold the grip at the origin and point +Y, so they are turned to point -Z like the built-in meshes;
     /// bows stay upright (limbs along Y, as the built-in bow). Melee weapons get trail markers from the blade's length. Null if the file is missing.
     /// </summary>
+    /// <summary>A kit tool model (pickaxe) under parent, pointing -Z like the weapons; false if the file is missing.</summary>
+    public static bool BuildTool(Node3D parent, string model, float scale = 1f) => BuildKit(parent, "tool", new KitPick(model, scale), null) != null;
     static (Node3D?, Node3D?)? BuildKit(Node3D parent, string wt, KitPick pick, Item? it)
     {
         string name = pick.Model;

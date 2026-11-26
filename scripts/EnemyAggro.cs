@@ -58,6 +58,9 @@ public partial class Enemy
         return true;
     }
 
+    /// <summary>Leashed: forget damage and taunt locks so it really goes home.</summary>
+    void DropAggro() { _aggroT = 0; _dmgWin.Clear(); }
+
     /// <summary>Timers, the fading damage memory, and the raid boss's sudden changes of target. Only where the monster is run.</summary>
     void AggroTick(float dt)
     {

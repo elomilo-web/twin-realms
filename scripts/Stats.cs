@@ -37,6 +37,8 @@ public class PlayerStats
     public Dictionary<string, QuestState> Quests = new();
     public List<string> Disc = new() { "village" };
     public Dictionary<string, int> Mats = new();   // gathered materials and disassembly scraps by id (data/gather.json); older saves load with an empty bag
+    public int Pick = 1;                                  // pickaxe tier (data/blocks.json "pickaxes": 1 Wooden .. 4 Runed); older saves load with the wooden one
+    public List<string> BuildBar = new();                 // build-mode hotbar: up to 9 block keys (PlayerBlocks.cs), filled from the blocks owned
     // pickup filter (Pack > Pickup filter): items below PickRar or of a slot in PickSkip are left on the ground (PickScrap: disassembled instead). Set pieces are always picked up.
     public int PickRar = 0; public List<string> PickSkip = new(); public bool PickScrap = false;
     public List<string> Titles = new(); public string Title = "";   // earned titles and the one worn (scripts/Titles.cs); older saves load with none
@@ -62,7 +64,7 @@ public class PlayerStats
         return s;
     }
     [JsonIgnore] public Item? Weapon => Eq.GetValueOrDefault("weapon");
-    public string WType() => Weapon?.Wt ?? "sword";
+    public string WType() => Weapon?.Wt ?? "unarmed";   // no weapon: fists (data/weapons.json "unarmed", attacks.json style "unarmed")
     // base numbers in data/tuning.json "game.player" (the defaults here are the old built-in values)
     public int MaxHp() => Math.Max(30, (int)Math.Round((Tune.F("player.hpBase", 100) + Level * Tune.F("player.hpPerLevel", 8) + Vit * Tune.F("player.hpPerVit", 7) + EqStat("hp") + TS["hp"]) * (1 + TS["hpP"] / 100f)));
     public int MaxMp() => (int)Math.Round((Tune.F("player.mpBase", 50) + Mag * Tune.F("player.mpPerMag", 6) + Level * Tune.F("player.mpPerLevel", 2) + EqStat("mp") + TS["mp"]) * (1 + TS["mpP"] / 100f));
@@ -101,6 +103,6 @@ public class PlayerStats
 public static class Scaling
 {
     // curves in data/progression.json "scaling"; Enemy.Rescale adds the hero-power floor and the party, threat and dungeon tier multipliers
-    public static float EnemyHp(float baseHp, int lvl) => baseHp * Progression.HpCurve(lvl);
-    public static float EnemyDmg(float baseDmg, int lvl) => baseDmg * Progression.DmgCurve(lvl);
+    public static float EnemyHp(float baseHp, int lvl) => Progression.EnemyHp(baseHp, lvl);
+    public static float EnemyDmg(float baseDmg, int lvl) => Progression.EnemyDmg(baseDmg, lvl);
 }

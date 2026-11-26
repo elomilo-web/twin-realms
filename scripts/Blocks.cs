@@ -118,14 +118,35 @@ public static class Blocks
 
     // ---------------------------------------------------------------- digging
     /// <summary>Seconds to break a block with the hero's current weapon (its type counts as a tool, data/blocks.json "dig").</summary>
-    public static float DigTime(BlockDef b, string weaponType)
+    /// <param name="pick">pickaxe tier in hand (0 = none; build mode passes Game.D.Pick): pickaxe blocks dig at its speed and only up to
+    /// its max hardness (infinite = too hard for it, see <see cref="PickCanMine"/>); shovel blocks get half its bonus.</param>
+    public static float DigTime(BlockDef b, string weaponType, int pick = 0)
     {
         if (!b.Breakable) return float.PositiveInfinity;
         float speed = 1f;
         if (b.Tool != "" && Node("dig.tools." + b.Tool) is { } arr && arr.ValueKind == JsonValueKind.Array)
             foreach (var x in arr.EnumerateArray()) if (x.GetString() == weaponType) { speed = F("dig.toolSpeed", 4f); break; }
+        if (pick > 0 && PickTier(pick) is { } pt)
+        {
+            if (b.Tool == "pickaxe") { if (b.Hardness > JsonUtil.F(pt, "maxHardness", 2.5f)) return float.PositiveInfinity; speed = Mathf.Max(speed, JsonUtil.F(pt, "speed", 2f)); }
+            else if (b.Tool is "shovel" or "") speed = Mathf.Max(speed, 1f + (JsonUtil.F(pt, "speed", 2f) - 1f) * .5f);
+        }
         return Mathf.Max(.05f, b.Hardness / speed);
     }
+
+    // ---------------------------------------------------------------- the pickaxe (data/blocks.json dig.pickaxes.tiers; Game.D.Pick = 1-based tier)
+    public static int PickTiers => Node("dig.pickaxes.tiers") is { ValueKind: JsonValueKind.Array } a ? a.GetArrayLength() : 0;
+    public static JsonElement? PickTier(int tier)
+    {
+        if (Node("dig.pickaxes.tiers") is not { ValueKind: JsonValueKind.Array } a || a.GetArrayLength() == 0) return null;
+        return a[Math.Clamp(tier, 1, a.GetArrayLength()) - 1];
+    }
+    public static string PickName(int tier) => PickTier(tier) is { } t ? JsonUtil.S(t, "n", "Pickaxe") : "Pickaxe";
+    public static string PickModel(int tier) => PickTier(tier) is { } t ? JsonUtil.S(t, "model", "pickaxe_wood") : "pickaxe_wood";
+    /// <summary>Whether a pickaxe of this tier can break the block (only pickaxe blocks have a limit).</summary>
+    public static bool PickCanMine(BlockDef b, int tier) => b.Breakable && (b.Tool != "pickaxe" || PickTier(tier) is not { } t || b.Hardness <= JsonUtil.F(t, "maxHardness", 2.5f));
+    /// <summary>The weakest pickaxe tier that can break a block (0 = none can).</summary>
+    public static int PickNeeded(BlockDef b) { for (int i = 1; i <= PickTiers; i++) if (PickCanMine(b, i)) return i; return 0; }
 
     // ---------------------------------------------------------------- looks
     static readonly Dictionary<string, Material> _mats = new();

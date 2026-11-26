@@ -66,7 +66,7 @@ public partial class Player
         string kind = _chanKind; ChannelT = 0; _chanKind = "";
         if (kind == "res")
         {
-            CastWentOff(); StartCd(_chanSkill, _chanCd);
+            CastWentOff(); StartCd(_chanSkill, _chanCd); LogCast(CastPath.Channel, _chanSkill, $"channel finished, cooldown {_chanCd:0.00}s started");
             var down = DownedAllies(); foreach (var peer in down) Net.I?.ReviveRemote(peer, 0);
             Vfx.Ring(GlobalPosition + Vector3.Up * .2f, 40f, new Color(1f, .95f, .6f), 1f); Vfx.Flash(GlobalPosition + Vector3.Up * 2, new Color(1f, .95f, .7f), 6f, 30f, .6f); Sfx.Play("heal");
             Ui.Note(down.Count > 0 ? $"Resurrection raises {down.Count} fallen" : "Resurrection: nobody was left to raise", new Color(1f, .95f, .6f));

@@ -171,7 +171,7 @@ public partial class Shots : Node
     {
         DisplayServer.WindowSetVsyncMode(DisplayServer.VSyncMode.Disabled); Engine.MaxFps = 0;
         World.TimeOfDay = .45f; P.Teleport(World.OnGround(-46, 34, .5f), 2.2f); Cam(2.2f + Mathf.Pi, 4.2f); await Wait(2f);
-        var keep = (Game.Set.Quality, Game.Set.ViewDist, Game.Set.Grass);
+        var keep = (Game.Set.Quality, Game.Set.ViewDist, Game.Set.Grass); bool keepAuto = Game.Set.AutoQuality; Game.Set.AutoQuality = false;
         foreach (var (q, dist, grass) in new[] { (3, 1200f, 1f), (2, 1200f, 1f), (1, 900f, .6f), (0, 600f, .3f), (3, 3000f, 1f) })
         {
             Game.Set.Quality = q; Game.Set.ViewDist = dist; Game.Set.Grass = grass; Game.ApplyDisplay(); await Wait(2.5f);
@@ -179,7 +179,7 @@ public partial class Shots : Node
             float fps = (Engine.GetFramesDrawn() - f0) / ((Time.GetTicksMsec() - t0) / 1000f);
             Say($"perf quality {new[] { "Low", "Medium", "High", "Ultra" }[q]}, view {dist:0} m, grass {grass * 100:0}%: {fps:0} fps"); await Shot($"perf_q{q}_{dist:0}");
         }
-        (Game.Set.Quality, Game.Set.ViewDist, Game.Set.Grass) = keep; Game.ApplyDisplay();
+        (Game.Set.Quality, Game.Set.ViewDist, Game.Set.Grass) = keep; Game.Set.AutoQuality = keepAuto; Game.ApplyDisplay();
     }
 
     /// <summary>The progression menus (skills, modifier tree, passive tree, character), at the default window size and with a mid-game hero.</summary>

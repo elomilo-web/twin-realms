@@ -38,6 +38,13 @@ public partial class DevCapture : Node
     static void Say(string s) => GD.Print("[DEVCAP] " + s);
     async Task Frames(int n) { for (int i = 0; i < Math.Max(1, n); i++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame); }
     async Task Secs(float s) => await ToSignal(GetTree().CreateTimer(s, true), "timeout");
+    /// <summary>Until the loading screen has lifted (LoadScreen.cs), or max seconds.</summary>
+    async Task LoadDone(float max = 20f)
+    {
+        ulong t0 = Time.GetTicksMsec();
+        while (LoadScreen.Busy && Time.GetTicksMsec() - t0 < (ulong)(max * 1000)) await Frames(1);
+        if (LoadScreen.Busy) GD.PrintErr($"[DEVCAP] loading screen still up after {max:0} s");
+    }
 
     async Task Run()
     {
@@ -94,6 +101,7 @@ public partial class DevCapture : Node
         foreach (var v in views.Where(v => Str(v, "scene") == "title")) await Capture(v);
         StartGame?.Invoke();
         await Secs(4f);
+        await LoadDone(90f);   // the world builds a step a frame behind the loading screen
         if (Player.Instance == null) { GD.PrintErr("[DEVCAP] no player after start"); return; }
         Game.D.Level = 20; Game.RecalcTree(); Skills.GrantStarting(Game.D);
         Game.Notify();   // the warrior's own starting kit: the pictures show real gear
@@ -155,7 +163,32 @@ public partial class DevCapture : Node
             foreach (var k in GatherDb.Mats.Keys) { if (i++ >= n) break; d.Mats[k] = 3 + i * 7 % 60; }
             changed = true;
         }
+        if (Flag(v, "learn_all", false))
+        {   // every skill learned at rank 3 (menus at their fullest: the "windows never stretch" rule)
+            _savedSkills ??= new Dictionary<string, SkillState>(d.Skills);
+            foreach (var s in Skills.All) if (!d.Skills.ContainsKey(s.Id)) d.Skills[s.Id] = new SkillState { Rank = 3 };
+            changed = true;
+        }
         if (changed) Game.Notify();
+        // "body": "female"/"male" (+ optional "race"): a dressed stand-in Avatar in the hero's place (the hero model is built once),
+        // wearing the view's gear; the hero is hidden for the view and the stand-in removed after it (RestoreKit)
+        if ((Str(v, "body").Length > 0 || Str(v, "race").Length > 0) && Player.Instance != null && Avatar.Available)
+        {
+            var ap = Races.Look(d);
+            if (Str(v, "race") is { Length: > 0 } rid)
+            {
+                var src = Races.Get(rid).Look;
+                ap.Skin = src.Skin; ap.Hair = src.Hair; ap.Eyes = src.Eyes; ap.Height = src.Height; ap.Bulk = src.Bulk;
+                ap.PointyEars = src.PointyEars; ap.Tusks = src.Tusks; ap.Beard = src.Beard; ap.Horns = src.Horns;
+            }
+            if (Str(v, "body") is { Length: > 0 } bs) ap.Female = bs == "female";
+            _standIn = new Avatar { Name = "DevStandIn" }; Game.Root!.AddChild(_standIn);
+            _standIn.GlobalTransform = P.GlobalTransform;
+            _standIn.Build(ap, d.Name);
+            _standIn.Dress(s => d.Eq.GetValueOrDefault(s), d.WType(), Classes.Get(d.Class).Tunic);
+            if (Flag(v, "fly", false)) _standIn.FlapWings(Num(v, "fly_t", .2f), true);   // Golden Wings spread as in flight
+            P.Visible = false;
+        }
         // "probe": radius in metres; logs every visible mesh near the hero (what is that object in the picture?)
         if (v.TryGetProperty("probe", out _) && Player.Instance != null)
         {
@@ -169,14 +202,18 @@ public partial class DevCapture : Node
             Walk(Game.Root!);
         }
     }
+    Avatar? _standIn;
     void RestoreKit()
     {
         var d = Game.D; bool changed = false;
+        if (_standIn != null) { if (GodotObject.IsInstanceValid(_standIn)) _standIn.QueueFree(); _standIn = null; if (Player.Instance != null) P.Visible = true; }
         if (_savedEq != null) { d.Eq.Clear(); foreach (var kv in _savedEq) d.Eq[kv.Key] = kv.Value; _savedEq = null; changed = true; }
         if (_savedInv != null) { d.Inv.Clear(); d.Inv.AddRange(_savedInv); _savedInv = null; changed = true; }
         if (_savedMats != null) { d.Mats.Clear(); foreach (var kv in _savedMats) d.Mats[kv.Key] = kv.Value; _savedMats = null; changed = true; }
+        if (_savedSkills != null) { d.Skills.Clear(); foreach (var kv in _savedSkills) d.Skills[kv.Key] = kv.Value; _savedSkills = null; changed = true; }
         if (changed) Game.Notify();
     }
+    Dictionary<string, SkillState>? _savedSkills;
 
     void Heal() { if (Player.Instance is { } p) { p.Hp = Game.D.MaxHp(); p.Mp = Game.D.MaxMp(); p.St = Game.D.MaxSt(); } }
     void ClearFoes() { foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Node nn) nn.QueueFree(); Targeting.Clear(); }
@@ -217,10 +254,14 @@ public partial class DevCapture : Node
                 (Vector3 from, Vector3 at)? lakeCam = null;
                 if (Player.Instance != null) P.Visible = true;
                 ResetHero();
-                Ui.I?.Close(); if (Ui.I != null) Ui.I.Visible = action.StartsWith("ui:");
+                Ui.I?.Close(); if (Ui.I != null) Ui.I.Visible = action.StartsWith("ui:") || action.StartsWith("padnav:");
                 Input.MouseMode = Input.MouseModeEnum.Captured;
-                if (scene == "arena" && !Arenas.Active) { Arenas.Start("waves"); await Secs(1.5f); }
-                else if (scene.StartsWith("dungeon:") && !Dungeon.Active) { if (Arenas.Active) Arenas.Leave(); Dungeon.Enter(scene[8..], 1); await Secs(3f); }
+                if (scene == "arena" && !Arenas.Active) { Arenas.Start("waves"); await LoadDone(); await Secs(1.5f); }
+                else if (scene.StartsWith("dungeon:") && (!Dungeon.Active || Dungeon.Key != scene[8..]))
+                {   // a different dungeon than the one we are in (barrow -> scarletta): leave first, then enter the asked one
+                    if (Dungeon.Active) { Dungeon.Leave(false); await LoadDone(); await Secs(1f); }
+                    if (Arenas.Active) Arenas.Leave(); Dungeon.Enter(scene[8..], 1); await LoadDone(); await Secs(3f);
+                }
                 else if (scene == "world" && Arenas.Active) Arenas.Leave();
                 if (v.TryGetProperty("time", out _)) World.TimeOfDay = Num(v, "time", .5f);
                 Weather.Force(v.TryGetProperty("rain", out _) ? Num(v, "rain", 0f) : 0f);   // views without "rain" are dry (rain used to leak into the next views)
@@ -321,6 +362,7 @@ public partial class DevCapture : Node
                 if (_boss != null && GodotObject.IsInstanceValid(_boss) && Flag(v, "boss_freeze", false))
                 { _boss.SetProcess(false); _boss.SetPhysicsProcess(false); Enemy.CurrentBoss = _boss; }
             }
+            else if (action.StartsWith("padnav:")) await DoAction(action);   // the title menu itself (before the world exists)
             // measure frame times while the view settles
             var dts = new List<double>(); ulong last = Time.GetTicksUsec();
             for (int i = 0; i < wait; i++)
@@ -343,8 +385,10 @@ public partial class DevCapture : Node
         finally
         {
             foreach (var k in new[] { Inputs.Forward, Inputs.Sprint, Inputs.Attack, Inputs.Roll, "spell1" }) Input.ActionRelease(k);
+            if (action == "ui:loading") LoadScreen.Hide(false);
             if (scene != "title") { Ui.I?.Close(); if (Ui.I != null) Ui.I.Visible = false; }
-            RestoreKit();
+            RestoreKit(); Player.BuildMode = false;
+            if (action.StartsWith("padnav:")) Inputs.SetUsingPad(false);
         }
         _report.Add(entry);
     }
@@ -360,6 +404,25 @@ public partial class DevCapture : Node
             Say($"place {action[6..]} (id {id}) at {bx},{by},{bz}: {(ok ? "ok" : "failed")}");
             await Secs(.5f); return;
         }
+        if (action == "build")
+        {   // build mode with the pickaxe in hand and the block hotbar: a few torches, stairs, slabs and a fence placed in front
+            var m = Game.D.Mats; foreach (var k in new[] { "planks", "cobblestone", "torch", "planks_stairs", "cobble_stairs", "planks_slab", "glass", "fence", "log" }) if (Blocks.Exists(k)) m[Blocks.Item(k)] = 20;
+            Game.D.Pick = Math.Max(Game.D.Pick, 3); Player.BuildMode = true; Game.Notify();
+            var fwd = -P.GlobalTransform.Basis.Z with { Y = 0 }; fwd = fwd.LengthSquared() > .01f ? fwd.Normalized() : Vector3.Forward; var side = fwd.Cross(Vector3.Up);
+            int by = Mathf.FloorToInt(P.GlobalPosition.Y + .05f);
+            byte facing = (byte)(Mathf.Abs(fwd.X) > Mathf.Abs(fwd.Z) ? (fwd.X > 0 ? 0 : 1) : (fwd.Z > 0 ? 2 : 3));
+            void Put(float f, float s, int dy, string key, byte meta = 0)
+            {
+                var at = P.GlobalPosition + fwd * f + side * s; byte bid = Blocks.Id(key); if (bid == 0) return;
+                int bx = Mathf.FloorToInt(at.X), bz = Mathf.FloorToInt(at.Z);
+                for (int up = 0; up < 3; up++) if (BlockFx.Place(bx, by + dy + up, bz, bid, meta)) return;
+            }
+            Put(2.5f, 0, 0, "planks"); Put(3.5f, 0, 0, "planks_stairs", facing); Put(3.5f, 1, 0, "cobble_stairs", facing); Put(2.5f, -1.2f, 0, "planks_slab");
+            Put(2.5f, 1.4f, 0, "torch"); Put(2.5f, -2.4f, 0, "torch"); for (int i = -1; i <= 1; i++) Put(4.6f, i, 0, "fence");
+            Put(3.5f, -1.2f, 0, "glass");
+            await Secs(.6f); return;
+        }
+        if (action.StartsWith("padnav:")) { await PadNav(action[7..]); return; }
         switch (action)
         {
             case "dodge": Input.ActionPress(Inputs.Roll); await Secs(.05f); Input.ActionRelease(Inputs.Roll); await Secs(.12f); break;
@@ -386,6 +449,8 @@ public partial class DevCapture : Node
             case "ui:skills": Ui.I?.OpenSkills(); await Secs(.4f); break;
             case "ui:map": Ui.I?.OpenMap(); await Secs(.4f); break;
             case "ui:pause": Ui.I?.OpenPause(); await Secs(.4f); break;
+            case "ui:loading": LoadScreen.Preview(World.GetPoi("village")?.Name ?? "Oakhaven"); await Secs(.4f); break;   // hidden again in Capture's finally
+            case "ui:spellcraft3": UiSpellcraft.DebugPreload3(); await Secs(.4f); break;
             case var u when u.StartsWith("ui:"):
                 {
                     var ui = Ui.I; if (ui == null) break;
@@ -411,6 +476,89 @@ public partial class DevCapture : Node
                     await Secs(.4f); break;
                 }
         }
+    }
+
+    // ---- controller menu test: open a window with the mouse/keyboard, then drive it only with injected pad events
+    static string Desc(Control? c)
+    {
+        if (c == null) return "<none>";
+        string t = c is Button b ? b.Text : c is ItemSlot s ? "slot:" + (s.Item?.Name ?? "empty") : c.Name;
+        if (t.Length > 28) t = t[..28];
+        string cur = c is TreeView tv ? " @" + tv.PadCursor : c is MapView mv ? " @" + mv.PadCursor : c is ModLanes ml ? " @" + ml.PadCursor : "";
+        return $"{c.GetType().Name}'{t.Replace('\n', ' ')}'{cur}";
+    }
+    async Task PadBtn(JoyButton b, int hold = 2)
+    {
+        Input.ParseInputEvent(new InputEventJoypadButton { ButtonIndex = b, Pressed = true, Device = 0 }); await Frames(hold);
+        Input.ParseInputEvent(new InputEventJoypadButton { ButtonIndex = b, Pressed = false, Device = 0 }); await Frames(3);
+    }
+    async Task PadStick(JoyAxis a, float v, float secs)
+    {
+        Input.ParseInputEvent(new InputEventJoypadMotion { Axis = a, AxisValue = v, Device = 0 }); await Secs(secs);
+        Input.ParseInputEvent(new InputEventJoypadMotion { Axis = a, AxisValue = 0, Device = 0 }); await Frames(3);
+    }
+    async Task PadNav(string menu)
+    {
+        var ui = Ui.I; if (ui == null) { Say("padnav: no ui"); return; }
+        Inputs.SetUsingPad(false);   // opened from mouse / keyboard: the first pad press must still bring focus in
+        switch (menu)
+        {
+            case "pause": ui.OpenPause(); break;
+            case "settings": ui.OpenSettings("audio"); break;
+            case "controls": ui.OpenControls(); break;
+            case "pad": ui.OpenPad(); break;
+            case "pack": ui.OpenPack(); break;
+            case "character": ui.OpenCharacter(); break;
+            case "skills": ui.OpenSkills(); break;
+            case "tree": ui.OpenTree(); break;
+            case "attacks": ui.OpenAttacks(null); break;
+            case "macros": ui.OpenMacros(); break;
+            case "spellcraft": ui.OpenSpellcraft(null); break;
+            case "journal": ui.OpenJournal(); break;
+            case "map": ui.OpenMap(); break;
+            case "shop": ui.OpenShop("buy"); break;
+            case "smith": ui.OpenSmith(); break;
+            case "craft": ui.OpenCraft("gear"); break;
+            case "stash": ui.OpenStash(); break;
+            case "multiplayer": ui.OpenMultiplayer(); break;
+            case "mods": ui.OpenMods(); break;
+            case "title": if (Player.Instance == null) ui.ShowTitle(); break;
+            case "create": ui.ShowCreate(); break;
+        }
+        await Secs(.4f);
+        var vp = GetViewport();
+        Say($"padnav {menu}: open '{ui.PanelName}' focus {Desc(vp.GuiGetFocusOwner())}");
+        var seen = new HashSet<string>();   // distinct focus targets (a custom view counts each cursor position)
+        var steps = new (string n, JoyButton b)[] { ("down", JoyButton.DpadDown), ("down", JoyButton.DpadDown), ("right", JoyButton.DpadRight), ("down", JoyButton.DpadDown), ("up", JoyButton.DpadUp) };
+        foreach (var (n, b) in steps)
+        {
+            await PadBtn(b); var f = vp.GuiGetFocusOwner(); if (f != null) seen.Add(f.GetInstanceId() + Desc(f));
+            Say($"padnav {menu}: {n} -> {Desc(f)}");
+        }
+        await PadStick(JoyAxis.LeftY, 1f, .7f);   // held stick: repeats
+        { var f = vp.GuiGetFocusOwner(); if (f != null) seen.Add(f.GetInstanceId() + Desc(f)); Say($"padnav {menu}: stick-down held -> {Desc(f)}"); }
+        await PadBtn(JoyButton.DpadUp);
+        string before = ui.PanelName; var foc = vp.GuiGetFocusOwner();
+        bool pressed = false; string what = Desc(foc);
+        Action onP = () => pressed = true; Action<bool> onS = _ => pressed = true;
+        if (foc is BaseButton bb) bb.Pressed += onP; else if (foc is ItemSlot isl) isl.Clicked += onS;
+        bool skipA = menu == "title" || (foc is Button qb && (qb.Text.Contains("Quit") || qb.Text.Contains("Main menu") || qb.Text.Contains("Log out")));
+        if (foc is MapView) skipA = true;   // A on the map fast-travels (the tour stays put)
+        int tree0 = Game.D.Tree.Count;
+        if (!skipA) await PadBtn(JoyButton.A); else Say($"padnav {menu}: A skipped on {what} (would leave the test)");
+        if (foc is TreeView) pressed = Game.D.Tree.Count != tree0 || Game.D.SkillPts == 0;
+        if (foc is OptionButton ob && GodotObject.IsInstanceValid(ob))
+        {   // the list popup: down + A picks the next entry
+            await Frames(3); bool open = ob.GetPopup().Visible; int sel0 = ob.Selected;
+            await PadBtn(JoyButton.DpadDown); await PadBtn(JoyButton.A); await Frames(3);
+            Say($"padnav {menu}: OptionButton popup open={open} selected {sel0}->{(GodotObject.IsInstanceValid(ob) ? ob.Selected : -9)} popupNow={(GodotObject.IsInstanceValid(ob) && ob.GetPopup().Visible)}");
+        }
+        if (foc != null && GodotObject.IsInstanceValid(foc)) { if (foc is BaseButton bb2) bb2.Pressed -= onP; else if (foc is ItemSlot is2) is2.Clicked -= onS; }
+        await Frames(4);
+        Say($"padnav {menu}: A on {what} -> pressed={pressed} panel '{before}'->'{ui.PanelName}' focus {Desc(vp.GuiGetFocusOwner())}");
+        { string t0 = ui.PadTabState; if (t0 != "none" || menu == "settings") { await PadBtn(JoyButton.RightShoulder); await Frames(6); Say($"padnav {menu}: RB tabs {t0} -> {ui.PadTabState} panel '{ui.PanelName}' focus {Desc(vp.GuiGetFocusOwner())}"); } }
+        Say($"padnav {menu}: RESULT {(seen.Count >= 2 ? "MOVES" : seen.Count == 1 ? "STUCK" : "NOFOCUS")} ({seen.Count} distinct) A={(skipA ? "skipped" : pressed ? "ok" : "no")}");
+        await Secs(.2f);
     }
 
     void WriteReport()

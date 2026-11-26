@@ -308,6 +308,21 @@ public partial class BlockWorld : Node3D
     static (int, int, int) B(Vector3 p) => (Mathf.FloorToInt(p.X), Mathf.FloorToInt(p.Y), Mathf.FloorToInt(p.Z));
     /// <summary>The block at a world point (0 air; 255 not loaded or no block world).</summary>
     public static byte At(Vector3 p) { var a = I?.Area; if (a == null) return 255; var (x, y, z) = B(p); return a.Get(x, y, z); }
+    /// <summary>
+    /// Standing height on the loaded overworld blocks in column (x, z) near block row y: the first free row above the solid ground there
+    /// (scans up to 4 rows up out of the ground, or 4 rows down to it). Null when the column is not made yet, not the overworld, or no ground is near.
+    /// </summary>
+    public static int? StandTop(int x, int z, int y)
+    {
+        var w = I; var a = w?.Area; if (a == null || a != w!._over) return null;
+        static bool Solid(byte b) { if (b == 0 || b == 255) return false; var d = Blocks.Def(b); return d.Solid && !d.IsFluid; }
+        byte b0 = a.Get(x, y, z); if (b0 == 255) return null;
+        if (Solid(b0)) { for (int k = 1; k <= 4; k++) if (!Solid(a.Get(x, y + k, z))) return y + k; return null; }
+        for (int k = 1; k <= 4; k++) { byte b = a.Get(x, y - k, z); if (b == 255) return null; if (Solid(b)) return y - k + 1; }
+        return null;
+    }
+    /// <summary>True when the blocks are drawn at (x, z) (inside the cut-out square of the overworld).</summary>
+    public static bool Drawn(float x, float z) => Cut is { } r && r.HasPoint(new Vector2(x, z));
     /// <summary>"water", "lava" or "" at a point.</summary>
     public static string FluidAt(Vector3 p) { var b = At(p); return b == 255 || b == 0 ? "" : Blocks.Def(b).Fluid; }
     /// <summary>Ice, packed ice or a frozen block under the feet.</summary>

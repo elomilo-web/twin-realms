@@ -47,7 +47,7 @@ public static class Lands
         if (_loaded) return; _loaded = true;
         if (!FileAccess.FileExists("res://data/lands.json")) return;
         using var doc = JsonUtil.Load("res://data/lands.json"); var r = doc.RootElement;
-        Extent = F(r, "extent", Extent); HomeName = S(r, "home", HomeName); SkyName = S(r, "skyName", SkyName); SeaName = S(r, "sea", SeaName);
+        Extent = F(r, "extent", Extent); HomeName = S(r, "home", HomeName); SkyName = S(r, "skyName", SkyName); SeaName = S(r, "sea", SeaName); SkyFill = F(r, "skyFill", SkyFill);
         foreach (var b in r.GetProperty("biomes").EnumerateObject())
         {
             var e = b.Value; var bi = new Biome { Id = b.Name, Sand = F(e, "sand"), Forest = F(e, "forest"), Snow = F(e, "snow"), Rock = F(e, "rock"), Ash = F(e, "ash"), Hills = F(e, "hills", 20), Grass = F(e, "grass", 1), TreeD = F(e, "treeDensity", .5f), Trees = S(e, "trees"), PropD = F(e, "propDensity") };
@@ -727,6 +727,9 @@ public static class Lands
     }
 
     // ---------------------------------------------------------------- sky islands
+    static ShaderMaterial? _skyGrass;
+    /// <summary>data/lands.json "skyFill": the faint light on a sky island's underside (terrain shader under_fill).</summary>
+    public static float SkyFill = .14f;
     static void SkyIsland(SkyIsle s, Node3D parent)
     {
         const int Kt = 30, Ku = 22, M = 96; int cols = M + 1;
@@ -763,7 +766,11 @@ public static class Lands
         var mesh = new ArrayMesh(); mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
         var g = new Node3D { Name = "Sky_" + s.Id }; parent.AddChild(g);
         var body = new StaticBody3D { CollisionLayer = 1 }; g.AddChild(body);
-        body.AddChild(new MeshInstance3D { Mesh = mesh, MaterialOverride = TerrainMat(null) });
+        // the terrain shader hides itself inside the block world's square (vox_rect) because blocks replace the ground there; a sky island is far
+        // above the blocks' top (Blocks.MaxY), so it must never be cut (it went see-through when the hero flew over it). under_fill: the underside
+        // faces down, away from sun, moon and sky light, and read as a pure black shape at night.
+        var imat = TerrainMat(null); imat.SetShaderParameter("vox_cut", 0f); imat.SetShaderParameter("under_fill", SkyFill);
+        body.AddChild(new MeshInstance3D { Mesh = mesh, MaterialOverride = imat });
         body.AddChild(new CollisionShape3D { Shape = mesh.CreateTrimeshShape() });
 
         // trees, rocks and grass on top
@@ -798,7 +805,8 @@ public static class Lands
             var mm = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseColors = true, Mesh = Flora.GrassMesh, InstanceCount = xs.Count };
             var gc = new[] { new Color("6c9a28"), new Color("7aaa2c"), new Color("88b232"), new Color("62922a") };
             for (int i = 0; i < xs.Count; i++) { mm.SetInstanceTransform(i, xs[i]); var c = gc[i % gc.Length] * bio.GrassTint; c.A = 1; mm.SetInstanceColor(i, c); }
-            g.AddChild(new MultiMeshInstance3D { Multimesh = mm, MaterialOverride = Flora.GrassMat, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
+            if (_skyGrass == null) { _skyGrass = (ShaderMaterial)Flora.GrassMat.Duplicate(); _skyGrass.SetShaderParameter("vox_cut", 0f); }   // field grass hides inside the block square; up here there are no blocks
+            g.AddChild(new MultiMeshInstance3D { Multimesh = mm, MaterialOverride = _skyGrass, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
         }
         if (s.Temple)
         {
