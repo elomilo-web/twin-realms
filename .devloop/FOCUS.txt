@@ -491,7 +491,7 @@ PHASE 5 - WATER, FISHING, AND LIFE SKILLS
     mats "fish_<id>"/"junk_<id>" with icons. scripts/LifeSkills.cs: PlayerStats.Life xp, Level, Gain (for F-24).
     Views fishing_bite, fishing_minigame, fishing_catch, fishing_sim (200 catches; tables differ by every axis) verified.
 
-[ ] F-24  LIFE SKILLS: MINING, FISHING, COOKING
+[x] F-24  LIFE SKILLS: MINING, FISHING, COOKING
     DONE WHEN:
       - Each life skill has levels, XP, and perks (for example faster
         mining, rarer catches, stronger food buffs).
@@ -499,8 +499,16 @@ PHASE 5 - WATER, FISHING, AND LIFE SKILLS
         gives buffs.
       - Recipes are in data, and learned recipes are listed in a cooking
         book.
+    NOTE: scripts/LifeSkills.cs + data/life.json (levels, curves, perLevel perk keys applied in the stat pipeline's new "life"
+    stage, gem life_<id> keys add levels; stats.md updated). Mining: dig/ore-node time / (1+digP), extra drop + gem chance, XP by
+    hardness (PlayerLife.MinedBlock, Gather.cs). Fishing: fishEase widens the reel zone, fishLuck adds catch levels. Cooking:
+    scripts/Cooking.cs + data/cooking.json (12 recipes: start / level / merchant book / discover; "fish_*" = any fish); Interact
+    "Cook" at a campfire block, the new cooking_station block (blocks.json + recipe) or a campfire prop (low Torch); dishes are
+    pack materials food_<id>, eaten by clicking them in the pack or Eat in the cooking book (heal + one food buff via Player.Buffs);
+    perks foodP / foodDurP / foodDoubleChance. Windows (UiLife.cs): cooking_fire, cooking_book. Views life_sim, cooking_fire,
+    cooking_book verified (cook, discover, eat: regenHp 0 -> 2; prop and block fires found).
 
-[ ] F-25  EVERYTHING YOU DO LEVELS A SKILL
+[x] F-25  EVERYTHING YOU DO LEVELS A SKILL
     DONE WHEN:
       - These actions are skills that level as you use them: jumping,
         walking, running, swimming, sneaking, creeping, lockpicking,
@@ -513,6 +521,18 @@ PHASE 5 - WATER, FISHING, AND LIFE SKILLS
       - XP is tuned so a skill cannot be leveled by spamming a key while
         standing still.
       - Skills show on the character screen with levels and progress bars.
+    NOTE: 17 skills in data/life.json: mining, fishing, cooking, herbalism, woodcutting, crafting, smithing, lockpicking (life);
+    jumping, walking, running, swimming, sneaking, creeping, climbing, riding, blocking (actions). Each level adds keys in the life
+    stage (jumpP, sprintCost, st, stRegenP, move, swimP, breathP, sneakP, stealthP, climbP, rideP, lockW, block, smithCost...).
+    Sneak: new toggle Inputs.Sneak (Caps Lock; every letter was taken), slower, no sprint, Enemy.Notices range x0.5 (creeping
+    shrinks it). Anti-spam (PlayerLife.cs): XP from real displacement per frame, teleports ignored; jumps count only if they land
+    2.2 m away or 0.8 m higher, 1.5 s cooldown; own placed blocks give no mining XP; a lock gives XP once per 10 min;
+    LifeSkills.Award diminishes per minute (soft / (soft + recent)). Lockpicking (Lockpick.cs): BlockUse.CanLockpick = locked and
+    not yours; Interact opens the minigame (move the pick with A/D or stick, hold Space/E/pad A to turn; off the sweet spot it
+    strains and a lockpick snaps); lockpicks crafted (2 iron scrap) or bought (25g). Character screen: Attributes | Life skills
+    tab with levels, progress bars and bonuses. View life_sim: 8 jumps in place 0 XP, wall push 0.1 m 0 XP, travel jumps 4/4
+    counted, 5 blocks dug 8 XP, own block 0 XP, lock picked after 1 snapped pick, stats dump shows the life stage; views
+    life_skills, lockpick_game verified. Untested: pad default for Sneak (unbound; rebindable), bots.
 
 [ ] F-26  EVERY ITEM HAS A PURPOSE
     DONE WHEN:

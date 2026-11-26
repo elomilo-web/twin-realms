@@ -20,6 +20,7 @@ public static class GatherDb
         foreach (var p in r.GetProperty("materials").EnumerateObject())
             Mats[p.Name] = new MatDef { Id = p.Name, Name = JsonUtil.S(p.Value, "n", p.Name), Value = (int)JsonUtil.F(p.Value, "value", 1), Col = Color.FromHtml(JsonUtil.S(p.Value, "color", "#ffffff")), Scrap = p.Value.TryGetProperty("scrap", out var sc) && sc.ValueKind == System.Text.Json.JsonValueKind.True };
         FishDb.AddMats(Mats);   // caught fish and fishing junk are materials too (data/fishing.json, F-23)
+        Cooking.AddMats(Mats);  // cooked dishes "food_<id>" (data/cooking.json, F-24)
         foreach (var p in r.GetProperty("nodes").EnumerateObject())
         {
             var e = p.Value; var d = new NodeDef { Id = p.Name, Shape = JsonUtil.S(e, "shape", "herb"), Verb = JsonUtil.S(e, "verb", "Gather"), Mat = JsonUtil.S(e, "mat"), Count = (int)JsonUtil.F(e, "count"), Where = JsonUtil.S(e, "where", "meadow"),
@@ -216,7 +217,11 @@ public partial class Gatherable : Node3D, IInteractable
         _ringMat!.SetShaderParameter(PProg, _busy ? Mathf.Clamp(_t / GatherTime, 0f, 1f) : 0f);
     }
 
-    float GatherTime => Def.Time;
+    /// <summary>The life skill this node trains (F-24/F-25): ore and crystals mining, logs woodcutting, the rest herbalism.</summary>
+    public string Skill => Def.Verb is "Mine" or "Harvest" ? "mining" : Def.Verb == "Chop" ? "woodcutting" : "herbalism";
+    string SpeedKey => Skill switch { "mining" => "digP", "woodcutting" => "chopP", _ => "gatherSpeedP" };
+    string ExtraKey => Skill switch { "mining" => "mineDropChance", "woodcutting" => "chopExtraChance", _ => "gatherExtraChance" };
+    float GatherTime => Def.Time / Mathf.Max(.2f, 1 + StatPipeline.Key(SpeedKey) / 100f);
     void Cancel() { _busy = false; _yield.Position = Vector3.Zero; }
 
     void Tick(bool big)
@@ -245,6 +250,8 @@ public partial class Gatherable : Node3D, IInteractable
         Tick(true);
         _ready = false; _regrow = Def.Respawn;
         var tw = _yield.CreateTween(); tw.TweenProperty(_yield, "scale", Vector3.One * 0.05f, 0.25f).SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In); tw.TweenCallback(Callable.From(() => _yield.Visible = false));
+        if (GD.Randf() * 100f < StatPipeline.Key(ExtraKey)) n++;   // the skill's perk: one more
         GatherDb.Give(Def.Mat, n, GlobalPosition);
+        LifeSkills.Award(Skill, 3 + Def.Respawn / 80f);   // a node regrows slowly, so this cannot be repeated on the spot
     }
 }

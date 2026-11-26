@@ -445,7 +445,7 @@ public partial class DevCapture : Node
             foreach (var k in new[] { Inputs.Forward, Inputs.Sprint, Inputs.Attack, Inputs.Roll, Inputs.Jump, "spell1" }) Input.ActionRelease(k);
             if (action == "ui:loading") LoadScreen.Hide(false);
             if (scene != "title") { Ui.I?.Close(); if (Ui.I != null) Ui.I.Visible = false; }
-            RestoreKit(); Player.BuildMode = false; DevBlocksCleanup(); DevWaterCleanup(); Fishing.I?.DevReset();
+            RestoreKit(); Player.BuildMode = false; DevLifeCleanup(); DevBlocksCleanup(); DevWaterCleanup(); Fishing.I?.DevReset();
             foreach (var sc in GetTree().GetNodesInGroup("soulcubes")) if (sc is Node scn) scn.QueueFree();   // a cube still shaking must not bind into the real save
             if (PetTrade.Open) PetTrade.Cancel(false);
             if (_petsBak != null) { var dd = Game.D; dd.Pets = _petsBak.Value.pets; dd.ActivePet = _petsBak.Value.act; dd.Cubes = _petsBak.Value.cubes; _petsBak = null; PetWorld.Despawn(); }
@@ -533,6 +533,7 @@ public partial class DevCapture : Node
         }
         if (action == "protect_test") { await ProtectTest(); return; }   // F-18 (DevCaptureTowns.cs)
         if (action.StartsWith("fish:")) { await FishAction(action[5..]); return; }   // F-22/F-23 (DevCaptureFish.cs)
+        if (action.StartsWith("life:")) { await LifeAction(action[5..]); return; }   // F-24/F-25 (DevCaptureLife.cs)
         if (action.StartsWith("water:")) { await WaterAction(action[6..]); return; }   // F-20 / F-21 (DevCaptureWater.cs)
         if (action.StartsWith("blocks:")) { await BlocksAction(action[7..], castWait); return; }   // F-14..F-17 (DevCaptureBlocks.cs)
         if (action == "build")

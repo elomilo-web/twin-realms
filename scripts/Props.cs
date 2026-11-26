@@ -25,9 +25,11 @@ public partial class Torch : Node3D
     OmniLight3D? _l; float _ph; readonly System.Collections.Generic.List<CpuParticles3D> _fx = new();
     /// <summary>Turns the flame and smoke particles on or off (the nearest torches keep theirs).</summary>
     public void SetFlames(bool on) { Flames = on; foreach (var p in _fx) if (IsInstanceValid(p)) { p.Emitting = on; p.Visible = on; } }
+    /// <summary>A campfire prop (a big flame low over the ground, not a block light): you can cook at it (Cooking.FireNear, F-24).</summary>
+    public bool IsCampfire => !HueFlicker && Size >= 1.1f && (GlobalPosition.Y - World.GroundAt(GlobalPosition.X, GlobalPosition.Z) < 1f || GlobalPosition.Y - World.OnGround(GlobalPosition.X, GlobalPosition.Z).Y < 1f);
     public override void _Ready()
     {
-        _ph = GD.Randf() * 6f;
+        _ph = GD.Randf() * 6f; AddToGroup("torches");
         var m = new StandardMaterial3D { AlbedoColor = Col, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded };
         AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = 0.08f * Size, Height = 0.16f * Size, RadialSegments = 6, Rings = 3 }, MaterialOverride = m });   // the hot ember core under the flames
         // licking flames (Kenney flame sprites) over the glowing core, with a wisp of smoke above

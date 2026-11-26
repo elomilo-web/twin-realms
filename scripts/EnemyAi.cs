@@ -8,9 +8,14 @@ public partial class Enemy
 {
     // ------------------------------------------------------------------ noticing heroes
     float _seeT; bool _saw;
+    /// <summary>How far this monster notices a hero who is not sneaking (creeping XP: sneaking within this of an unaware monster).</summary>
+    internal float NoticeRange => AggroR;
+    /// <summary>Standing or wandering, not hunting anyone yet.</summary>
+    internal bool Unaware => _state is State.Idle or State.Sleep or State.Return;
     /// <summary>Within aggro range: outdoors that is enough; in a dungeon the monster must see the hero (no walls between), or hear them up close.</summary>
     bool Notices(Node3D hero, float dist, float dt)
     {
+        if (hero is Player sp && sp.Sneaking && dist > AggroR * Player.SneakNoticeMul) return false;   // F-25: a sneaking hero is noticed from less far (creeping levels shrink it more)
         if (!FromDungeon || dist < 4f) return true;
         _seeT -= dt; if (_seeT > 0) return _saw; _seeT = .25f + GD.Randf() * .1f;
         var from = GlobalPosition + Vector3.Up * Mathf.Min(1.4f, HeightM() * .8f); var to = hero.GlobalPosition + Vector3.Up * 1.2f;

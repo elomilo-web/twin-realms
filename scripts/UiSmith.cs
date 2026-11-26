@@ -118,7 +118,7 @@ public partial class Ui
             {
                 if (d.Gold < gold) { Note("Not enough gold", new Color(1, .5f, .5f)); Sfx.UiError(); return; }
                 if (!CanPay(mats)) { Note("Not enough materials", new Color(1, .5f, .5f)); Sfx.UiError(); return; }
-                d.Gold -= gold; Pay(mats); Hone(it); Sfx.Play("hit"); Sfx.Play("coin"); Sfx.UiConfirm(); Note($"{it.Name}: +{Mathf.RoundToInt(Affixes.HonePer * 100)}% to its stats", it.Color); Game.Notify(); Game.Save(); _smithFlash = it; OpenSmith();
+                d.Gold -= gold; Pay(mats); Hone(it); LifeSkills.Award("smithing", 8 + it.Up * 3); Sfx.Play("hit"); Sfx.Play("coin"); Sfx.UiConfirm(); Note($"{it.Name}: +{Mathf.RoundToInt(Affixes.HonePer * 100)}% to its stats", it.Color); Game.Notify(); Game.Save(); _smithFlash = it; OpenSmith();
             }); hb.CustomMinimumSize = new Vector2(150, 36); hb.AddThemeColorOverride("font_color", UiTheme.Highlight); hr.AddChild(hb);
             Lbl($"+{Mathf.RoundToInt(Affixes.HonePer * 100)}% to base and bonus stats", 12, Dim, hr);
         }
@@ -158,7 +158,7 @@ public partial class Ui
     /// <summary>Gold and scraps for the next hone (steeper with every step, more for higher level and rarity).</summary>
     static (int gold, Dictionary<string, int> mats) HoneCost(Item it)
     {
-        int up = it.Up; int gold = (int)(60 * Math.Pow(up + 1, 1.6) + it.Lvl * 12 * (1 + it.Rar * .5f));
+        int up = it.Up; int gold = (int)((60 * Math.Pow(up + 1, 1.6) + it.Lvl * 12 * (1 + it.Rar * .5f)) * Math.Max(.5f, 1 + StatPipeline.Key("smithCost") / 100f));   // F-25: smithing levels lower the price
         var m = new Dictionary<string, int> { ["ironscrap"] = 2 + 2 * up };
         if (up >= 4) m["runeshard"] = up - 2; if (up >= 8) m["riftprism"] = 1;
         return (gold, m);

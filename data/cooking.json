@@ -1,0 +1,19 @@
+{
+ "_help": "Cooking (scripts/Cooking.cs, focus F-24). Cook at a fire: a campfire block, a placed cooking station block (data/blocks.json 'cooking_station') or a campfire prop in a village or camp, within 'range' metres; Interact opens the cooking window. recipes: n name; cost ingredients (gather materials, 'fish_<id>' for one fish, 'fish_*' for any fish you hold); heal = share of max health healed at once; buff = stat-table keys while it lasts (the pipeline's buffs stage), dur seconds; xp = cooking XP; value = gold at the merchant; learn: 'start' (known from the start), 'level:N' (learned at cooking level N), 'book:PRICE' (a recipe book the merchant sells), 'discover' (shown as an unknown dish with its ingredients: cook it once to learn it). Cooking perks (data/life.json cooking): foodP scales heal and buff, foodDurP the duration, foodDoubleChance a second portion. One food buff at a time: eating replaces it.",
+ "range": 3.2,
+ "stations": ["campfire", "cooking_station"],
+ "recipes": {
+  "grilled_fish":    { "n": "Grilled Fish",       "cost": { "fish_*": 1 },                              "heal": 0.25, "buff": { "regenHp": 2 },               "dur": 120, "xp": 6,  "value": 12, "learn": "start",    "color": "#d89a5a" },
+  "roast_meat":      { "n": "Roast Meat",         "cost": { "meat": 2 },                                "heal": 0.30, "buff": { "hp": 25 },                   "dur": 180, "xp": 6,  "value": 14, "learn": "start",    "color": "#a8502e" },
+  "berry_skewer":    { "n": "Berry Skewer",       "cost": { "berries": 4 },                             "heal": 0.15, "buff": { "move": 5 },                  "dur": 120, "xp": 4,  "value": 9,  "learn": "start",    "color": "#c22a54" },
+  "sunleaf_tea":     { "n": "Sunleaf Tea",        "cost": { "sunleaf": 3 },                             "heal": 0.10, "buff": { "st": 15, "stRegenP": 20 },   "dur": 180, "xp": 5,  "value": 12, "learn": "discover", "color": "#d8c84a" },
+  "herb_fish":       { "n": "Herb-baked Fish",    "cost": { "fish_*": 1, "sunleaf": 2 },                "heal": 0.30, "buff": { "regenMp": 2 },               "dur": 240, "xp": 9,  "value": 20, "learn": "discover", "color": "#b8a050" },
+  "mushroom_stew":   { "n": "Mushroom Stew",      "cost": { "redcap": 3, "meat": 1 },                   "heal": 0.35, "buff": { "def": 8 },                   "dur": 240, "xp": 10, "value": 22, "learn": "level:3",  "color": "#9a4a3a" },
+  "hunters_feast":   { "n": "Hunter's Feast",     "cost": { "meat": 3, "berries": 3, "redcap": 2 },     "heal": 0.50, "buff": { "meleeP": 8, "rangedP": 8 },  "dur": 300, "xp": 18, "value": 45, "learn": "level:8",  "color": "#8a3a26" },
+  "ember_skewer":    { "n": "Emberscale Skewer",  "cost": { "fish_emberscale": 1, "berries": 2 },       "heal": 0.30, "buff": { "res_fire": 15 },             "dur": 300, "xp": 14, "value": 40, "learn": "level:12", "color": "#e0602a" },
+  "frost_chowder":   { "n": "Frost Char Chowder", "cost": { "fish_icechar": 1, "redcap": 2 },           "heal": 0.30, "buff": { "res_frost": 15 },            "dur": 300, "xp": 14, "value": 40, "learn": "discover", "color": "#9ac8e0" },
+  "moon_broth":      { "n": "Moonpetal Broth",    "cost": { "moonpetal": 2, "fish_*": 1 },              "heal": 0.20, "buff": { "spellP": 10 },               "dur": 300, "xp": 14, "value": 38, "learn": "book:150", "color": "#a07ae0" },
+  "smoked_pike":     { "n": "Smoked Pike",        "cost": { "fish_pike": 1, "timber": 1 },              "heal": 0.40, "buff": { "crit": 4 },                  "dur": 300, "xp": 16, "value": 48, "learn": "book:220", "color": "#8a6a48" },
+  "koi_feast":       { "n": "Golden Koi Feast",   "cost": { "fish_koi": 1, "moonpetal": 1, "sunleaf": 1 }, "heal": 0.60, "buff": { "xpP": 10 },               "dur": 600, "xp": 30, "value": 120, "learn": "book:400", "color": "#f0b030" }
+ }
+}

@@ -1,0 +1,35 @@
+{
+ "_help": "Life and action skills (scripts/LifeSkills.cs, focus F-24/F-25; .devloop/systems/stats.md 'life' stage). Every skill levels with use: XP needed from level L to L+1 = round(base x L^growth), up to max. perLevel: stat-table keys added per level past 1, applied through the stat pipeline's life stage (gem 'life_<id>' keys add levels). soft: XP per minute before diminishing returns (an award is scaled by soft / (soft + XP already gained in the last 60 s)). group: life (crafts and trades) or action (what you do with your body). Distance skills: 'per' metres of real movement (measured from the hero's position, never from keys) give 'xp'; teleports and steps over 'maxStep' metres in one frame count nothing.",
+ "defaults": { "base": 40, "growth": 1.35, "max": 50, "soft": 40 },
+ "track": {
+  "maxStep": 1.2, "lockpickPrice": 25,
+  "walking":  { "per": 14, "xp": 1 },
+  "running":  { "per": 12, "xp": 1 },
+  "swimming": { "per": 6,  "xp": 1 },
+  "sneaking": { "per": 5,  "xp": 1 },
+  "creeping": { "per": 3,  "xp": 1, "near": 1.0 },
+  "climbing": { "per": 2,  "xp": 1 },
+  "riding":   { "per": 25, "xp": 1 },
+  "jumping":  { "xp": 2, "minTravel": 2.2, "minRise": 0.8, "cooldown": 1.5 },
+  "sneak":    { "speed": 0.5, "notice": 0.5, "maxSpeed": 0.85, "minNotice": 0.15 }
+ },
+ "skills": {
+  "mining":      { "n": "Mining",      "group": "life",   "icon": "ore",     "desc": "Digging blocks and mining ore veins and crystals.", "perLevel": { "digP": 2, "mineDropChance": 0.6, "mineGemChance": 0.05 }, "perk": "digs faster; a chance of an extra drop or a gem" },
+  "fishing":     { "n": "Fishing",     "group": "life",   "icon": "fish",    "desc": "Landing fish, junk and treasure.", "perLevel": { "fishEase": 0.35, "fishLuck": 0.25 }, "perk": "a wider reel zone; rarer catches (counts as extra fishing levels in the loot tables)" },
+  "cooking":     { "n": "Cooking",     "group": "life",   "icon": "food",    "desc": "Cooking recipes at a campfire or a cooking station.", "perLevel": { "foodP": 2, "foodDurP": 2, "foodDoubleChance": 0.8 }, "perk": "stronger and longer food buffs; a chance of a double portion" },
+  "herbalism":   { "n": "Herbalism",   "group": "life",   "icon": "herb",    "desc": "Gathering herbs, mushrooms and berries.", "perLevel": { "gatherSpeedP": 1.5, "gatherExtraChance": 1 }, "perk": "gathers faster; a chance of one more" },
+  "woodcutting": { "n": "Woodcutting", "group": "life",   "icon": "log",     "desc": "Chopping fallen logs and wooden blocks.", "perLevel": { "chopP": 2, "chopExtraChance": 1 }, "perk": "chops faster; a chance of one more" },
+  "crafting":    { "n": "Crafting",    "group": "life",   "icon": "craft",   "desc": "Making blocks, tools and gear in the crafting window.", "perLevel": { "craftSaveChance": 0.6 }, "perk": "a chance to get one material back" },
+  "smithing":    { "n": "Smithing",    "group": "life",   "icon": "anvil",   "desc": "Honing gear with Dorrin the smith.", "perLevel": { "smithCost": -0.5 }, "perk": "Dorrin asks less gold to hone", "soft": 80 },
+  "lockpicking": { "n": "Lockpicking", "group": "life",   "icon": "lockpick","desc": "Picking locked doors and chests that are not yours.", "perLevel": { "lockW": 3, "lockStrainP": 2 }, "perk": "a wider sweet spot; picks hold longer under strain", "soft": 60 },
+  "jumping":     { "n": "Jumping",     "group": "action", "icon": "jump",    "desc": "Jumps that cover ground or reach higher ground (not hopping in place).", "perLevel": { "jumpP": 0.4 }, "perk": "jump higher" },
+  "walking":     { "n": "Walking",     "group": "action", "icon": "walk",    "desc": "Distance walked on foot.", "perLevel": { "move": 0.08, "stRegenP": 0.6 }, "perk": "move a little faster; stamina refills faster" },
+  "running":     { "n": "Running",     "group": "action", "icon": "run",     "desc": "Distance sprinted.", "perLevel": { "sprintCost": -0.8, "st": 0.6 }, "perk": "sprinting costs less stamina; more stamina" },
+  "swimming":    { "n": "Swimming",    "group": "action", "icon": "swim",    "desc": "Distance swum.", "perLevel": { "swimP": 1.2, "breathP": 2 }, "perk": "swim faster; hold your breath longer" },
+  "sneaking":    { "n": "Sneaking",    "group": "action", "icon": "sneak",   "desc": "Distance moved while sneaking.", "perLevel": { "sneakP": 1.2 }, "perk": "move faster while sneaking" },
+  "creeping":    { "n": "Creeping",    "group": "action", "icon": "creep",   "desc": "Sneaking close to monsters that have not noticed you.", "perLevel": { "stealthP": 1.2 }, "perk": "monsters notice you from less far while you sneak", "soft": 30 },
+  "climbing":    { "n": "Climbing",    "group": "action", "icon": "climb",   "desc": "Height climbed on ladders.", "perLevel": { "climbP": 1.5 }, "perk": "climb faster" },
+  "riding":      { "n": "Riding",      "group": "action", "icon": "horse",   "desc": "Distance ridden on a horse or a pet.", "perLevel": { "rideP": 0.4 }, "perk": "your mount runs faster" },
+  "blocking":    { "n": "Blocking",    "group": "action", "icon": "shield",  "desc": "Monster blows blocked or parried with a shield.", "perLevel": { "block": 0.3 }, "perk": "blocks soak more of a blow", "soft": 30 }
+ }
+}

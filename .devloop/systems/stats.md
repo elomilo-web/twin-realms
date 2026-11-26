@@ -6,7 +6,7 @@ Data: `data/stats.json` (caps), `data/tuning.json` game.player (base numbers; tu
 `data/races.json`, `data/classes.json`, `data/skilltree.json`, `data/weapons.json`, `data/progression.json`, `data/skills.json`.
 
 ## One pipeline
-Stages, in order: **base > race > class > level > gear > gems > passives > buffs**.
+Stages, in order: **base > race > class > level > gear > gems > passives > life > buffs**.
 
 | stage    | what it holds |
 |----------|---------------|
@@ -17,7 +17,8 @@ Stages, in order: **base > race > class > level > gear > gems > passives > buffs
 | gear     | item base stats (Dmg/Def/Hp/Mp/Sp), item `Mods` (affixes, Golden Wings), set bonuses (loot.json sets) |
 | gems     | `Item.Gems` (one stat table per gem) - empty until F-10 |
 | passives | skill tree nodes, the worn title |
-| buffs    | timed skill buffs (`Player.Buffs`: War Cry, Venom Blade...) |
+| life     | life and action skills (F-24/F-25, `scripts/LifeSkills.cs`, `data/life.json`): per skill, level (+ gem `life_<id>` levels from the stages above) x its `perLevel` keys for every level past 1 |
+| buffs    | timed skill buffs (`Player.Buffs`: War Cry, Venom Blade...) and the food buff (id `food`, cooking F-24) |
 
 1. `Game.RecalcTree()` -> `StatPipeline.Rebuild`: every stage's contributions to the stat-table keys (meleeP, cdr, res_fire...) are
    recorded, summed into `Game.TS`, then each key is clamped to its cap. Runs on `Game.Notify`, NewGame/Load and whenever a buff
@@ -76,6 +77,19 @@ maxTicks 20, noNested (a zone's follow-ups go off once per tick instead of makin
 need(L) = max(10, round(40 + 20 n + 6 n^2 + 0.15 n^3)), n = L - 1. Gain = max(0, round(xp x (1 + xpP%))), xpP >= -90%.
 Per level: 2 attribute points, 1 skill rank point, 2 skill tree points (levelUp). Monster xp = base x (1 + 0.12 (lvl-1)) x xpMul
 (tuning game.monsters), x0.5 when the monster is more than 4 levels below you; parties share 90% split evenly.
+
+## Life and action skills (life stage, F-24/F-25)
+XP from level L to L+1 = round(base x L^growth) (data/life.json defaults 40, 1.35, max 50; fishing keeps data/fishing.json "skill").
+XP from play goes through `LifeSkills.Award`: x soft / (soft + XP got in the last 60 s), fractions kept. Distance skills count real
+displacement per physics frame (`Player.LifeTick`, PlayerLife.cs), never keys; a frame step over track.maxStep (teleport) counts nothing.
+Jumps count only when they land >= 2.2 m away or >= 0.8 m higher, once per 1.5 s. Blocks you placed give no mining XP when dug.
+Keys and their readers: digP / chopP (dig and gather time / (1 + k%)), mineDropChance / chopExtraChance / gatherExtraChance (one more),
+mineGemChance (a gem from pickaxe blocks), fishEase (reel zone + k%), fishLuck (whole extra levels in the fishing tables), foodP
+(heal and food buff x (1 + k%)), foodDurP, foodDoubleChance, craftSaveChance (one material back), smithCost (hone gold x (1 + k%), cap
+[-40, 0]), lockW (lockpick sweet spot 12 deg x (1 + k%)), lockStrainP, jumpP (jump velocity x (1 + k%), clamped 0.5-1.6), move (walking),
+stRegenP (stamina regen), sprintCost (sprint drain x (1 + k%), cap [-60, 0]), st (running), swimP, breathP (breath drains / (1 + k%)),
+sneakP (sneak speed 0.5 x (1 + k%), max 0.85), stealthP (notice range while sneaking 0.5 / (1 + k%), min 0.15), climbP (ladder speed),
+rideP (mount speed), block (blocking). The dump prints `[life skills]` (levels, xp, keys) and `[life bonuses]` (the resolved numbers).
 
 ## Caps (data/stats.json)
 Keys: cdr [-50, 50], castSpd [-50, 200], aspd [-60, 300], move [-60, 100], evade [0, 60], block [-50, 100], mcost [-75, 200],

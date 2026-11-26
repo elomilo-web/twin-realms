@@ -33,9 +33,10 @@ public static class BlockUse
     public static bool MayOpen(BlockArea a, Vector3I c, string who, bool admin) => !Locked(a, c) || admin || (who != "" && Owner(a, c) == who);
     /// <summary>Only its owner (or an admin) may lock or unlock it; a block nobody owns (built before F-14) can be claimed by locking it.</summary>
     public static bool MayLock(BlockArea a, Vector3I c, string who, bool admin) { string o = Owner(a, c); return admin || o == "" || o == who; }
-    /// <summary>F-25 hook: whether this hero can try to pick the lock at c (skill, lockpicks in the pack). No lockpicking yet.</summary>
-    public static bool CanLockpick(Vector3I c, Node3D who) => false;
-    /// <summary>F-25 hook: a successful pick opens the lock (it stays unlocked until its owner locks it again).</summary>
+    /// <summary>F-25: whether this hero must pick the lock at c: it is locked and not theirs (even the world's owner picks other people's
+    /// locks, or unlocks them in build mode). The minigame needs a lockpick in the pack (Lockpick.cs).</summary>
+    public static bool CanLockpick(Vector3I c, Node3D who) => who is Player && A is { } a && Locked(a, c) && Owner(a, c) != Me;
+    /// <summary>F-25: a successful pick opens the lock (it stays unlocked until its owner locks it again).</summary>
     public static void Lockpicked(Vector3I c) { if (A is { } a) SetLock(a, c, false); }
     /// <summary>Locked blocks cannot be broken by blows, spells or monsters (only their owner digs them out by hand).</summary>
     public static bool Protects(BlockArea a, int x, int y, int z) { byte id = a.Get(x, y, z); return (IsDoor(id) || IsChest(id)) && Locked(a, Anchor(a, x, y, z)); }

@@ -64,7 +64,7 @@
  },
  "build": {
   "_help": "blocks you can place in build mode cycle with the mouse wheel; the first owned one is chosen",
-  "order": ["dirt", "cobblestone", "stone", "planks", "log", "torch", "glass", "planks_stairs", "cobble_stairs", "planks_slab", "cobble_slab", "fence", "brick", "dark_stone", "sand", "gravel", "sandstone", "snow", "ice", "packed_ice", "leaves", "obsidian", "grass", "ladder", "door", "door_dark", "door_iron", "chest"]
+  "order": ["dirt", "cobblestone", "stone", "planks", "log", "torch", "glass", "planks_stairs", "cobble_stairs", "planks_slab", "cobble_slab", "fence", "brick", "dark_stone", "sand", "gravel", "sandstone", "snow", "ice", "packed_ice", "leaves", "obsidian", "grass", "ladder", "door", "door_dark", "door_iron", "chest", "cooking_station"]
  },
  "recipes": {
   "_help": "crafting window, Blocks tab: what you get from what you pay (block ids from this file or materials from data/gather.json). Doors (shape door, 2 tall): every closed door X has an open twin X_open; meta & 3 = wall side, & 4 = upper half, & 8 = locked (owner in PlayerStats.BlockOwners); 'sound': 'iron' for a metal clang. Chests (shape chest): 'capacity' item slots, contents in PlayerStats.Chests.",
@@ -85,11 +85,13 @@
   "cobble_stairs": { "out": 4, "cost": { "cobblestone": 3 } },
   "planks_slab":   { "out": 2, "cost": { "planks": 1 } },
   "cobble_slab":   { "out": 2, "cost": { "cobblestone": 1 } },
-  "fence":         { "out": 3, "cost": { "planks": 2, "log": 1 } }
+  "fence":         { "out": 3, "cost": { "planks": 2, "log": 1 } },
+  "cooking_station": { "out": 1, "cost": { "cobblestone": 4, "log": 2, "coal_ore": 1 } }
  },
  "items": {
   "_help": "crafting window, Blocks tab: things made from blocks that are not blocks themselves, kept in the pack's materials (PlayerStats.Mats by key). boat (F-21, Boat.cs): set on water with Interact, boarded with Interact, hit it to pick it up.",
-  "boat": { "n": "Boat", "sub": "Floats on any water: Interact on open water to set it there, Interact to board, W/S row, A/D turn, hit it to pick it up", "out": 1, "cost": { "planks": 5 } }
+  "boat": { "n": "Boat", "sub": "Floats on any water: Interact on open water to set it there, Interact to board, W/S row, A/D turn, hit it to pick it up", "out": 1, "cost": { "planks": 5 } },
+  "lockpick": { "n": "Lockpicks", "sub": "Pick locked doors and chests that are not yours (Interact on one); a pick snaps when you force it", "out": 2, "cost": { "ironscrap": 2 } }
  },
  "blocks": {
   "bedrock":      { "n": "Bedrock",       "hardness": -1, "mat": { "gothic": "G_Rock", "color": "#3a3438" } },
@@ -160,7 +162,9 @@
   "awning_blue":  { "n": "Blue Awning", "step": "grass", "hardness": 0.3, "tool": "axe", "see": true, "shape": "slab", "drops": "awning_blue", "burn": 3, "burnsTo": "", "mat": { "gothic": "G_Cloth_Blue", "color": "#4a6a8e", "tile": 1 } },
   "rune_stone":   { "n": "Rune Stone", "hardness": 4.0, "tool": "pickaxe", "drops": "rune_stone", "mat": { "top": { "gothic": "G_Slate", "color": "#40385a", "tile": 1 }, "side": { "gothic": "G_Slate", "color": "#c8a0ff", "glow": 1.4, "tile": 1 }, "bottom": { "gothic": "G_Slate", "color": "#40385a", "tile": 1 } } },
   "campfire":     { "n": "Campfire", "step": "wood", "hardness": 0.5, "tool": "axe", "see": true, "shape": "slab", "drops": "log", "light": { "color": "ff9a48", "range": 10, "energy": 1.9 },
-                    "mat": { "top": { "color": "#ff8a3a", "glow": 2.6, "rough": 1.0 }, "side": { "gothic": "G_Wood", "color": "#4a3426", "tile": 1 }, "bottom": { "gothic": "G_Wood", "color": "#4a3426", "tile": 1 } } }
+                    "mat": { "top": { "color": "#ff8a3a", "glow": 2.6, "rough": 1.0 }, "side": { "gothic": "G_Wood", "color": "#4a3426", "tile": 1 }, "bottom": { "gothic": "G_Wood", "color": "#4a3426", "tile": 1 } } },
+  "cooking_station": { "n": "Cooking Station", "step": "stone", "hardness": 1.5, "tool": "pickaxe", "drops": "cooking_station", "light": { "color": "ff8a40", "range": 6, "energy": 1.2 },
+                    "mat": { "top": { "gothic": "G_Metal_Iron", "color": "#3a3634", "rough": 0.6, "tile": 1 }, "side": { "gothic": "G_Cobble", "color": "#8a7a6a", "glow": 0.15, "tile": 1 }, "bottom": { "gothic": "G_Cobble", "color": "#6a5e54", "tile": 1 } } }
  },
  "structures": {
   "_help": "F-19 block structures (scripts/Structures.cs): every town, castle, bridge, shrine, camp and dungeon mouth is a block blueprint stamped into the generated world (the same on every machine; player edits are kept on top). blockStructures false = the old mesh buildings. farRange = metres the merged far-view meshes of the structures are drawn to (beyond the block radius).",

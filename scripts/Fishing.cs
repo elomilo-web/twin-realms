@@ -136,7 +136,7 @@ public partial class Fishing : Node3D
     public void StartReel()
     {
         var r = FishDb.Reel; int lv = LifeSkills.Level(FishDb.Skill); float diff = Hooked?.Diff ?? .3f;
-        ZoneW = Mathf.Clamp(JsonUtil.F(r, "zone", .3f) - JsonUtil.F(r, "zoneDiff", .14f) * diff + JsonUtil.F(r, "zoneLevel", .006f) * (lv - 1), .12f, .5f);
+        ZoneW = Mathf.Clamp(JsonUtil.F(r, "zone", .3f) - JsonUtil.F(r, "zoneDiff", .14f) * diff + JsonUtil.F(r, "zoneLevel", .006f) * (lv - 1) + StatPipeline.Key("fishEase") / 100f, .12f, .5f);   // F-24 perk: fishing levels widen the zone (life stage)
         Zone = .5f - ZoneW / 2; FishAt = .5f; _zoneV = 0; _fishV = 0; _fishGoal = .5f; _fishGoalT = 0; Progress = JsonUtil.F(r, "start", .3f); State = St.Reel;
     }
 

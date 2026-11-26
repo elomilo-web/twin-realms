@@ -203,12 +203,14 @@ public partial class Player : CharacterBody3D, IDamageable
                 FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.3f, 0), "Parry!", new Color(1, 0.88f, 0.5f), 1.3f);
                 Fx.Burst(shieldPos, new Color(1, .97f, .8f), (int)Tune.F("guard.parrySparks", 22f), 6f, 0.4f, 0.08f);
                 Feel.HitStop(Tune.F("guard.hitStop", .04f) * 1.5f);
+                LifeSkills.Award("blocking", 4);   // F-25: a parried monster blow
                 return;
             }
             float red = Mathf.Clamp(0.55f + D.ShieldDef * 0.012f + TS["block"] / 100f, 0.5f, 0.92f);
             dmg = baseDmg * (1f - red); UseStamina(h.Damage * Tune.F("stamina.blockPerDamage", .3f)); Sfx.Play("block"); Inputs.Rumble(.3f, .15f, .1f);
             Fx.Burst(shieldPos, new Color(1, .95f, .8f), (int)Tune.F("guard.sparks", 10f), 4f, 0.25f, 0.05f);
             Feel.HitStop(Tune.F("guard.hitStop", .04f));
+            if (h.Attacker is Enemy && h.Damage > 0) LifeSkills.Award("blocking", 2);   // F-25: a monster blow blocked
             if (away.LengthSquared() > 0.001f) _hitKb += away.Normalized() * Tune.F("guard.pushBack", .3f) * 1.4f;
             if (St <= 0) { _blocking = false; _stagger = Tune.F("guard.breakStagger", .6f); FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.3f, 0), "Guard broken", new Color(1, 0.6f, 0.45f)); }
         }
@@ -549,6 +551,7 @@ public partial class Player : CharacterBody3D, IDamageable
             Prompt = best is Gatherable ? "" : "[" + Inputs.KeyOf(Inputs.Use) + "] " + best.Prompt;   // gather nodes show their own world prompt (Gather.cs)
             if (Input.IsActionJustPressed(Inputs.Use)) best.Interact();
         }
+        else CookScan();   // by a campfire or a cooking station: Interact cooks (PlayerLife.cs, F-24)
     }
 
     void UsePotion(bool hp)
@@ -641,6 +644,7 @@ public partial class Player : CharacterBody3D, IDamageable
             Ui.Note(Game.Set.FirstPerson ? (Mounted ? "First person (after you dismount)" : "First person") : "Third person", new Color(.8f, .85f, 1f));
         }
         if (captured && Input.IsActionJustPressed(Inputs.Realm)) World.TryShiftRealm();
+        if (captured && Input.IsActionJustPressed(Inputs.Sneak)) ToggleSneak();   // F-25 (PlayerLife.cs)
         if (captured) ScanInteract(); else Prompt = "";
         BoatPlaceScan(captured);   // a boat in the pack: Interact on open water sets it there (PlayerSwim.cs)
         if (captured && Input.IsActionJustPressed(Inputs.Lock)) { if (Inputs.UsingPad && Targeting.Current != null) Targeting.Clear(); else Targeting.Toggle(Targeting.Current != null); }   // pad: R3 toggles, a right-stick flick switches
@@ -726,12 +730,14 @@ public partial class Player : CharacterBody3D, IDamageable
                 Fx.Dust(GlobalPosition - _rollDir * .6f, .4f); Sfx.Play("swing", .8f); Fx.RollPuff(GlobalPosition, false);
                 _modelYaw = Util.YawTo(_rollDir.X, _rollDir.Z);   // face the roll (a roll also cancels the recovery, above); this line was lost in a comment since 217a461
             }
-            if (captured && Input.IsActionJustPressed(Inputs.Jump) && IsOnFloor() && _atkT <= 0 && _stagger <= 0) v.Y = JumpVelocity;
+            if ((captured && Input.IsActionJustPressed(Inputs.Jump) || DevJump) && IsOnFloor() && _atkT <= 0 && _stagger <= 0) { v.Y = JumpVelocity * JumpMul; LifeJumped(); }   // F-25: jumping levels jump higher
+            DevJump = false;
 
             if (!captured) Input.ActionRelease(Inputs.Sprint);   // a menu or another window took the Shift release: never keep sprinting after it
-            bool sprint = Input.IsActionPressed(Inputs.Sprint) && St > 1f && dir.LengthSquared() > 0.01f && _atkT <= 0 && !_blocking && !Mounted;
+            bool sprint = Input.IsActionPressed(Inputs.Sprint) && St > 1f && dir.LengthSquared() > 0.01f && _atkT <= 0 && !_blocking && !Mounted && !Sneaking;
             float speed = (sprint ? SprintSpeed : RunSpeed) * moveMul;   // matched to the clips' own stride (Avatar gait speeds)
-            if (Mounted) speed = (_petMount != null ? PetWorld.MountSpeed : 10.5f) * moveMul;
+            if (Sneaking && !Mounted) speed *= SneakSpeedMul;   // F-25: sneaking is slow (faster with sneaking levels)
+            if (Mounted) speed = (_petMount != null ? PetWorld.MountSpeed : 10.5f) * moveMul * (1 + StatPipeline.Key("rideP") / 100f);   // F-25: riding levels
             if (_atkT > 0 && !Ranged && _atk != null)
             {
                 // melee: feet planted until the blow lands (lunges move the body themselves); after it, moving cancels the recovery
@@ -745,7 +751,7 @@ public partial class Player : CharacterBody3D, IDamageable
             speed *= Statuses.SpeedMul * _fluidSpeed;   // swimming and wading in lava are slower
             if (_spinLeft > 0) speed = Mathf.Max(speed, 3.5f);
             if (_stagger > 0) speed = 0;
-            if (sprint) { St = Mathf.Max(0, St - Feel.SprintDrain * dt); _stLockT = Mathf.Max(_stLockT, Feel.SprintRegenDelay); }   // data/feel.json "move"
+            if (sprint) { St = Mathf.Max(0, St - Feel.SprintDrain * SprintCostMul * dt); _stLockT = Mathf.Max(_stLockT, Feel.SprintRegenDelay); }   // data/feel.json "move"
             {   // sprint feel: camera FOV/bob flag, start dust + whoosh, 0.15 s skid with a puff when stopping from full speed
                 float hs = new Vector2(v.X, v.Z).Length(); bool fast = sprint && hs > SprintSpeed * .7f && IsOnFloor();
                 if (Rig != null) Rig.Sprinting = fast;
@@ -765,7 +771,7 @@ public partial class Player : CharacterBody3D, IDamageable
         var push = _kb * .3f + _hitKb; v.X += push.X; v.Z += push.Z;
 
         // ---- regeneration
-        if (_stLockT <= 0 && !_blocking && _atkT <= 0) St = Mathf.Min(D.MaxSt(), St + Feel.StRegen * dt);
+        if (_stLockT <= 0 && !_blocking && _atkT <= 0) St = Mathf.Min(D.MaxSt(), St + Feel.StRegen * (1 + StatPipeline.Key("stRegenP") / 100f) * dt);   // walking levels (F-25), Sunleaf Tea
         Hp = Mathf.Min(D.MaxHp(), Hp + (TS["regenHp"] + Tune.F("player.hpRegenBase", 0) + D.Vit * Tune.F("player.hpRegenPerVit", .02f)) * HealIn * dt);
         Mp = Mathf.Min(D.MaxMp(), Mp + (Tune.F("player.mpRegenBase", 1.5f) + TS["regenMp"] + D.Mag * Tune.F("player.mpRegenPerMag", .05f)) * dt);
 
@@ -791,6 +797,7 @@ public partial class Player : CharacterBody3D, IDamageable
         if (Rig != null && Rig.FirstPerson) { _modelYaw = camYaw; _spinBase = camYaw; }
 
         Velocity = v; MoveAndSlide();
+        LifeTick(dt);   // F-25: walking, running, swimming, sneaking, creeping, climbing, riding and jumping XP from real movement (PlayerLife.cs)
         Animate(dt);
         Game.PlayTime += dt;
     }

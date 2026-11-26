@@ -133,7 +133,7 @@ public static class FishDb
     }
     public static string TimeTag(float tod) => tod is >= .2f and < .32f ? "dawn" : tod is >= .32f and < .68f ? "day" : tod is >= .68f and < .8f ? "dusk" : "night";
     public static string WeatherTag(float rain) => rain > .7f ? "storm" : rain > .2f ? "rain" : "clear";
-    public static Ctx Here(Vector3 p) => new(Biome(p.X, p.Z), WaterKind(p), TimeTag(World.TimeOfDay), WeatherTag(Weather.Rain), LifeSkills.Level(Skill));
+    public static Ctx Here(Vector3 p) => new(Biome(p.X, p.Z), WaterKind(p), TimeTag(World.TimeOfDay), WeatherTag(Weather.Rain), LifeSkills.Level(Skill) + (int)StatPipeline.Key("fishLuck"));   // F-24 perk: rarer catches (extra levels in the loot tables)
 
     // ---------------------------------------------------------------- loot
     static bool Has(string[] a, string v) => a.Length == 0 || a.Contains("*") || a.Contains(v);

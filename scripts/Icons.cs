@@ -229,6 +229,21 @@ public static class Icons
             {
                 // scraps and other materials without a drawing: a cut gem in the material's colour
                 if (GemDb.IconColor(id) != null) { GemDb.Draw(ci, id[4..], c, size * 1.15f, alpha); break; }   // "gem:<key>" (Gems.cs)
+                if (Cooking.ByName(id) is { } food)
+                {   // a cooked dish (data/cooking.json, F-24): a bowl with the food in its colour and a curl of steam
+                    Poly(ci, P(c, s, -.8f, -.05f, .8f, -.05f, .55f, .55f, -.55f, .55f), A(new Color(.55f, .4f, .26f)), ol);
+                    Poly(ci, P(c, s, -.7f, -.05f, -.4f, -.35f, 0, -.42f, .4f, -.35f, .7f, -.05f), A(food.Col), ol, 1f);
+                    ci.DrawCircle(c + new Vector2(-.2f, -.2f) * s, s * .1f, A(food.Col.Lightened(.4f)));
+                    ci.DrawArc(c + new Vector2(.15f, -.7f) * s, s * .14f, Mathf.Pi * .2f, Mathf.Pi * 1.3f, 8, A(new Color(1, 1, 1, .6f)), 1.5f, true);
+                    break;
+                }
+                if (id is "Lockpick" or "lockpick")
+                {
+                    ci.DrawLine(c + new Vector2(-.7f, .7f) * s, c + new Vector2(.55f, -.55f) * s, A(new Color(.82f, .84f, .88f)), Mathf.Max(2f, s * .1f), true);
+                    ci.DrawLine(c + new Vector2(.55f, -.55f) * s, c + new Vector2(.75f, -.45f) * s, A(new Color(.82f, .84f, .88f)), Mathf.Max(2f, s * .1f), true);
+                    ci.DrawLine(c + new Vector2(-.7f, .7f) * s, c + new Vector2(-.4f, .4f) * s, A(new Color(.72f, .56f, .28f)), Mathf.Max(4f, s * .22f), true);
+                    break;
+                }
                 if (FishDb.FishByName(id) is { } fd)
                 {   // caught fish (data/fishing.json): a side view in its colours
                     Poly(ci, P(c, s, -.75f, 0, -.2f, -.42f, .4f, -.3f, .55f, 0, .4f, .3f, -.2f, .4f), A(fd.Col), ol);

@@ -27,7 +27,7 @@ public partial class Player
     /// <summary>Water, lava and ice before this frame's movement: speed and acceleration factors, swimming, lava burns.</summary>
     void BlockMove(float dt, ref Vector3 v)
     {
-        _fluidSpeed = 1f; _accelMul = 1f;
+        _fluidSpeed = 1f; _accelMul = 1f; _onLadder = false;
         bool water = SwimMove(dt, ref v);   // water blocks and the smooth lakes: float, swim, dive, breath (PlayerSwim.cs, F-20)
         if (!BlockWorld.Enabled) return;
         string body = water ? "water" : BlockWorld.FluidAt(GlobalPosition + Vector3.Up * .9f);
@@ -50,8 +50,9 @@ public partial class Player
         if (lad != 0 && body == "" && (BlockWorld.At(GlobalPosition + Vector3.Up * .3f) == lad || BlockWorld.At(GlobalPosition + Vector3.Up * 1f) == lad))
         {
             bool cap = Input.MouseMode == Input.MouseModeEnum.Captured;
-            bool upK = cap && (Input.IsActionPressed(Inputs.Forward) || Input.IsActionPressed(Inputs.Jump)), dnK = cap && Input.IsActionPressed(Inputs.Back);
-            v.Y = upK ? 3f : dnK ? -3f : 0f;
+            bool upK = cap && (Input.IsActionPressed(Inputs.Forward) || Input.IsActionPressed(Inputs.Jump)) || DevClimb > 0, dnK = cap && Input.IsActionPressed(Inputs.Back) || DevClimb < 0;
+            float cs = 3f * (1 + StatPipeline.Key("climbP") / 100f);   // F-25: climbing levels climb faster
+            v.Y = upK ? cs : dnK ? -cs : 0f; _onLadder = true;
         }
         StepUp(v);
     }
@@ -105,8 +106,10 @@ public partial class Player
         if (!door && !chest) return false;
         var c = BlockUse.Anchor(a, t.b.X, t.b.Y, t.b.Z); bool locked = BlockUse.Locked(a, c), may = BlockUse.MayOpen(a, c, BlockUse.Me, BlockUse.Admin);
         bool canLock = BuildMode && BlockUse.MayLock(a, c, BlockUse.Me, BlockUse.Admin);
+        bool pick = !BuildMode && BlockUse.CanLockpick(c, this); int picks = Game.D.Mats.GetValueOrDefault(Lockpick.Item);   // F-25: someone else's lock
         string what = door ? (BlockUse.IsOpen(id) ? "Close door" : "Open door") : "Open chest";
-        string p = may ? "[" + Inputs.KeyOf(Inputs.Use) + "] " + what + (locked ? " (locked)" : "") : "Locked" + (BlockUse.Owner(a, c) is { Length: > 0 } o ? " by " + o : "");
+        string p = pick ? (picks > 0 ? $"[{Inputs.KeyOf(Inputs.Use)}] Pick the lock  ({picks} lockpick{(picks == 1 ? "" : "s")})" : "Locked: you need a lockpick")
+            : may ? "[" + Inputs.KeyOf(Inputs.Use) + "] " + what + (locked ? " (locked)" : "") : "Locked" + (BlockUse.Owner(a, c) is { Length: > 0 } o ? " by " + o : "");
         if (canLock) p += "   [" + Inputs.KeyOf(Inputs.BlockRotate) + "] " + (locked ? "Unlock" : "Lock");
         if (Prompt == "") Prompt = p;
         if (canLock && Input.IsActionJustPressed(Inputs.BlockRotate))
@@ -116,6 +119,12 @@ public partial class Player
             return true;
         }
         if (!Input.IsActionJustPressed(Inputs.Use)) return false;
+        if (pick)
+        {
+            if (picks <= 0) { Ui.Note("Locked: you need a lockpick (Crafting > Blocks, or the merchant)", new Color(1, .6f, .5f)); Sfx.Play("lock", .6f, .7f); }
+            else Ui.I?.OpenLockpick(c, door);
+            return false;
+        }
         if (door) { if (BlockUse.UseDoor(a, t.b.X, t.b.Y, t.b.Z, BlockUse.Me, BlockUse.Admin) is { } why) Ui.Note(why, new Color(1, .6f, .5f)); }
         else BlockUse.OpenChest(a, c);
         return false;
@@ -153,7 +162,7 @@ public partial class Player
         if (dig && id != 0 && id != 255)
         {
             if (t.b != _digAt) { _digAt = t.b; _digT = 0; }
-            var def = Blocks.Def(id); float need = Blocks.DigTime(def, Game.D.WType(), Game.D.Pick) * (BlockWorld.I.Frozen(t.b.X, t.b.Y, t.b.Z) ? .5f : 1f);
+            var def = Blocks.Def(id); float need = Blocks.DigTime(def, Game.D.WType(), Game.D.Pick) * (BlockWorld.I.Frozen(t.b.X, t.b.Y, t.b.Z) ? .5f : 1f) / DigMul(def);   // F-24: mining / woodcutting levels dig faster
             bool locked = BlockUse.Protects(a, t.b.X, t.b.Y, t.b.Z) && !BlockUse.MayOpen(a, BlockUse.Anchor(a, t.b.X, t.b.Y, t.b.Z), BlockUse.Me, BlockUse.Admin);
             string? townMsg = TownZones.Deny(t.b.X, t.b.Z);
             bool prot = a.Gen.Protected(t.b.X, t.b.Y, t.b.Z) || locked || townMsg != null;
@@ -174,7 +183,9 @@ public partial class Player
                 if (_digT >= need)
                 {
                     byte dm = a.GetMeta(t.b.X, t.b.Y, t.b.Z);
-                    if (BlockFx.Dig(t.b.X, t.b.Y, t.b.Z) && def.Shape == "door")   // the other half goes too (no second drop)
+                    bool dug = BlockFx.Dig(t.b.X, t.b.Y, t.b.Z);
+                    if (dug) MinedBlock(t.b, def);   // F-24: mining / woodcutting XP and perks
+                    if (dug && def.Shape == "door")   // the other half goes too (no second drop)
                     {
                         int oy = (dm & 4) != 0 ? t.b.Y - 1 : t.b.Y + 1; byte ob = a.Get(t.b.X, oy, t.b.Z);
                         if (Blocks.Def(ob).Shape == "door") BlockWorld.I.Change(t.b.X, oy, t.b.Z, 0);
@@ -205,6 +216,7 @@ public partial class Player
                 if (placed)
                 {
                     BlockUse.Placed(a, at.X, at.Y, at.Z, BlockUse.Me);   // doors and chests: you own them (and may lock them)
+                    NotePlaced(at);   // digging your own block back gives no mining XP (F-25 anti-spam)
                     var m = Game.D.Mats; string k = Blocks.Item(_sel); m[k] = m.GetValueOrDefault(k) - 1; if (m[k] <= 0) m.Remove(k); Game.Notify();
                     BlockFx.PlacePuff(at.X, at.Y, at.Z, bid); _swingT = .28f; _swingSerial++; _modelYaw = Rig?.Yaw ?? _modelYaw; _barRefresh = 0;
                 }

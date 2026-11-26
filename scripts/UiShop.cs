@@ -24,6 +24,7 @@ public partial class Ui
             if (!d.Horse) AddRow(list, "Horse (ride with T)", Colors.White, $"Buy {hc}g", () => { if (d.Gold < hc) { Sfx.UiError(); Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= hc; d.Horse = true; Sfx.Play("coin"); Note("You bought a horse. Press T to ride.", Gold); OpenShop(tab); }, d.Gold >= hc);
             int rodc = (int)JsonUtil.F(FishDb.RodData(), "price", 120);   // the fishing rod (Fishing.cs, data/fishing.json "rod")
             if (d.Rod <= 0) AddRow(list, "Fishing rod (take out with 7, attack casts)", Colors.White, $"Buy {rodc}g", () => { if (d.Gold < rodc) { Sfx.UiError(); Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= rodc; d.Rod = 1; Sfx.Play("coin"); Note("You bought a fishing rod. Press 7 to take it out.", Gold); OpenShop(tab); }, d.Gold >= rodc);
+            LifeShopRows(list, tab);   // F-24/F-25: lockpicks and cooking recipe books (UiLife.cs)
             foreach (var cb in PetDb.Cubes)
             {   // Soul Cubes (data/pets.json "cubes"): bind a weakened monster as a pet
                 var cd = cb; AddRow(list, $"{cd.Name}  (have {Cubes.Count(cd.Id)})  x{cd.Mul:0.#} catch", cd.Col.Lightened(.2f), $"Buy {cd.Cost}g",

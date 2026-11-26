@@ -377,6 +377,11 @@ public partial class Ui : CanvasLayer
             foreach (var kv in d.Mats) if (kv.Value > 0)
             {
                 var m = GatherDb.Mat(kv.Key); var cell = new ItemSlot { IconId = m.Name, Count = kv.Value, Tint = m.Col, CustomMinimumSize = new Vector2(Cell, Cell), TooltipText = $"{m.Name} x{kv.Value}  ({m.Value}g each)" }; grid.AddChild(cell);
+                if (Cooking.ByFood(kv.Key) is { } food)
+                {   // F-24: cooked food is eaten from the pack (click)
+                    string fk = kv.Key; cell.TooltipText += $"\nClick: eat ({Cooking.BuffText(food)})";
+                    cell.Clicked += _ => { if (Cooking.Eat(fk)) OpenPack(); };
+                }
             }
             if (kinds == 0) { grid.Columns = 1; var l = Row(grid, $"Nothing gathered yet. Press {Inputs.KeyOf(Inputs.Use)} near herbs, mushrooms, berries, ore, crystals and fallen logs.", Dim, 13); l.CustomMinimumSize = new Vector2(GridW, 0); }
         }
@@ -489,6 +494,7 @@ public partial class Ui : CanvasLayer
     {
         var d = Game.D; var TS = Game.TS; var v = Frame("char", "Character", new Vector2(1120, 620), OpenCharacterPanel); HideInfo();
         var gold = UiTheme.Highlight;
+        CharTabs(v, "char");   // Attributes | Life skills (UiLife.cs, F-25)
         // top strip: points, respec, shortcuts
         var pts = new HBoxContainer(); pts.AddThemeConstantOverride("separation", 8); v.AddChild(pts);
         Chip(pts, $"Attribute points  {d.AttrPts}", d.AttrPts > 0); Chip(pts, $"Skill points  {d.RankPts}", d.RankPts > 0); Chip(pts, $"Tree points  {d.SkillPts}", d.SkillPts > 0);

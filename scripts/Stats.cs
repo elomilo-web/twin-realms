@@ -41,6 +41,7 @@ public class PlayerStats
     public int Pick = 1;                                // pickaxe tier (data/blocks.json "pickaxes": 1 Wooden .. 4 Runed); older saves load with the wooden one
     public int Rod = 0;                                 // fishing rod owned (Fishing.cs, F-23): 0 none, 1 rod; older saves load without one
     public Dictionary<string, int> Life = new();        // life skill XP by id ("fishing"; LifeSkills.cs, F-23/F-24); older saves load with none
+    public List<string> Recipes = new();                // cooking recipes learned (data/cooking.json; Cooking.cs, F-24); older saves load with the starting ones
     public List<string> BuildBar = new();                 // build-mode hotbar: up to 9 block keys (PlayerBlocks.cs), filled from the blocks owned
     // pickup filter (Pack > Pickup filter): items below PickRar or of a slot in PickSkip are left on the ground (PickScrap: disassembled instead). Set pieces are always picked up.
     public int PickRar = 0; public List<string> PickSkip = new(); public bool PickScrap = false;

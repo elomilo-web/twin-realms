@@ -9,7 +9,7 @@ using Godot;
 namespace TwinRealms;
 
 /// <summary>Pipeline stages, in the order they apply (focus F-02). Every stat contribution belongs to exactly one.</summary>
-public enum StatStage { Base, Race, Class, Level, Gear, Gems, Passives, Buffs }
+public enum StatStage { Base, Race, Class, Level, Gear, Gems, Passives, Life, Buffs }   // Life: life and action skill levels (F-24/F-25, LifeSkills.cs)
 
 /// <summary>One step of a derived stat: a flat add, a percent in a named group, a "more" multiplier, or a cap adjustment.</summary>
 public struct StatStep { public StatStage Stage; public string Src; public string Kind; public float V; }
@@ -85,6 +85,14 @@ public static class StatPipeline
         foreach (var kv in d.Eq) if (kv.Value?.Gems is { } gems) foreach (var g in gems) Add(StatStage.Gems, kv.Value.Name + " gem", g);   // F-10
         tmp = new TreeStats(); TreeDb.Recalc(new HashSet<int>(d.Tree), tmp); Add(StatStage.Passives, $"skill tree ({d.Tree.Count} nodes)", tmp.All.ToList());
         tmp = new TreeStats(); Titles.Apply(d, tmp); Add(StatStage.Passives, "title " + d.Title, tmp.All.ToList());
+        // life skills (F-24/F-25): each skill's level, plus the gem levels ("life_<id>" keys of the stages above), x its perLevel keys (data/life.json)
+        LifeSkills.Load();
+        foreach (var id in LifeSkills.Order)
+        {
+            float gem = 0; foreach (var m in _mods) if (m.key == "life_" + id) gem += m.v;
+            int lv = LifeSkills.Level(d, id) + Math.Max(0, (int)gem);
+            if (lv > 1) Add(StatStage.Life, $"{LifeSkills.Defs[id].Name} {lv}", LifeSkills.Mods(id, lv));
+        }
         if (Player.Instance != null) foreach (var b in Player.Instance.Buffs) Add(StatStage.Buffs, "buff " + (Skills.Get(b.id)?.Name ?? b.id), b.mods);   // War Cry, Venom Blade...
         ts.Clear();
         foreach (var m in _mods) ts[m.key] += m.v;
@@ -201,7 +209,7 @@ public static class StatPipeline
     {
         var sh = Sheet(d); var sb = new StringBuilder(); var race = Races.Get(d.Race); var cls = Classes.Get(d.Class);
         sb.AppendLine($"=== STATS DUMP: {d.Name}, level {d.Level} {race.Name} {cls.Name}, weapon {d.WType()} ({d.Weapon?.Name ?? "none"}) ===");
-        sb.AppendLine("pipeline: base > race > class > level > gear > gems > passives > buffs; flat adds, then each % group x(1+sum/100), then 'more' x, then round and cap");
+        sb.AppendLine("pipeline: base > race > class > level > gear > gems > passives > life > buffs; flat adds, then each % group x(1+sum/100), then 'more' x, then round and cap");
         sb.AppendLine($"attributes: Str {d.Str} Dex {d.Dex} Vit {d.Vit} Mag {d.Mag} (5 base + race {Fmt(race.Attr)} + class {Fmt(cls.Attr)} + level-up points); unspent attr {d.AttrPts}, tree {d.SkillPts}, ranks {d.RankPts}");
         foreach (var l in sh.Lines.Values)
         {
@@ -221,6 +229,10 @@ public static class StatPipeline
             sb.AppendLine($"    {kv.Key} = {N(kv.Value)}{capTxt}{(_clamped.TryGetValue(kv.Key, out var raw) ? $" (CAPPED from {N(raw)})" : "")}: {string.Join("; ", parts)}");
         }
         sb.AppendLine(GemDb.DumpLines(d));   // F-10: what sits in each worn item's sockets
+        sb.AppendLine(LifeSkills.DumpLines(d));   // F-24/F-25: life and action skill levels and the keys they give
+        sb.AppendLine($"[life bonuses] jump x{Player.JumpMul:0.###}, sprint stamina x{Player.SprintCostMul:0.###}, swim x{1 + Key("swimP") / 100f:0.###}, breath x{1 + Key("breathP") / 100f:0.###}, climb x{1 + Key("climbP") / 100f:0.###}, "
+            + $"sneak speed x{Player.SneakSpeedMul:0.###}, notice range while sneaking x{Player.SneakNoticeMul:0.###}, lockpick sweet spot {Lockpick.SweetDeg():0.#} deg, dig time x{1f / (1 + Key("digP") / 100f):0.###}, "
+            + $"mine extra drop {Key("mineDropChance"):0.#}% gem {Key("mineGemChance"):0.##}%, fish reel zone +{Key("fishEase"):0.#}% luck +{(int)Key("fishLuck")} lv, food x{1 + Key("foodP") / 100f:0.###} dur x{1 + Key("foodDurP") / 100f:0.###} double {Key("foodDoubleChance"):0.#}%, ride x{1 + Key("rideP") / 100f:0.###}");
         // skills on the bar: the resolved numbers (Skills.Compute) next to their inputs
         sb.AppendLine("[skills] dmg = base x rank (1 + rankP x (rank-1)) x supports x (1 + skillP); spell base = (dmg + lvl x level) x spellPow, weapon base = mult x wpnDmg");
         foreach (var id in d.Bar.Where(b => !string.IsNullOrEmpty(b)).Distinct())

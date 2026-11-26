@@ -376,7 +376,7 @@ public partial class Ui
             var br = new HBoxContainer(); br.AddThemeConstantOverride("separation", 8); detail.AddChild(br);
             void Go(int times)
             {
-                bool any = false; for (int i = 0; i < times; i++) { if (!r.Do()) break; any = true; }
+                bool any = false; for (int i = 0; i < times; i++) { if (!r.Do()) break; any = true; CraftedLife(r.Cost); }   // F-25: crafting XP and its perk (UiLife.cs)
                 if (any) { Sfx.UiConfirm(); OpenCraft(tab); } else Sfx.UiError();
             }
             var cb = Btn(r.Btn, () => Go(1)); cb.CustomMinimumSize = new Vector2(120, 38); cb.AddThemeColorOverride("font_color", ok ? UiTheme.Highlight : Dim); br.AddChild(cb);

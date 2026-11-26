@@ -214,6 +214,11 @@
     { "name": "fishing_bite",     "scene": "world", "time": 0.45, "hud": false, "action": "fish:bite", "wait_frames": 4 },
     { "name": "fishing_minigame", "scene": "world", "time": 0.45, "hud": false, "action": "fish:minigame", "wait_frames": 4 },
     { "name": "fishing_catch",    "scene": "world", "time": 0.45, "hud": false, "action": "fish:catch", "wait_frames": 6 },
-    { "name": "fishing_sim",      "scene": "world", "time": 0.45, "hud": false, "action": "fish:sim", "wait_frames": 2 }
+    { "name": "fishing_sim",      "scene": "world", "time": 0.45, "hud": false, "action": "fish:sim", "wait_frames": 2 },
+    { "name": "life_sim",         "scene": "world", "time": 0.45, "hud": false, "action": "life:sim", "wait_frames": 2 },
+    { "name": "life_skills",      "scene": "world", "time": 0.45, "hud": false, "action": "life:skills", "wait_frames": 4 },
+    { "name": "cooking_book",     "scene": "world", "time": 0.45, "hud": false, "action": "life:book", "wait_frames": 4 },
+    { "name": "cooking_fire",     "scene": "world", "time": 0.45, "hud": false, "action": "life:fire", "wait_frames": 4 },
+    { "name": "lockpick_game",    "scene": "world", "time": 0.45, "hud": false, "action": "life:lockpick", "wait_frames": 2 }
   ]
 }

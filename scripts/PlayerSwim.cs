@@ -42,7 +42,7 @@ public partial class Player
             if (!down && !up && Mathf.Abs(depth - Float) < .3f) target += Mathf.Sin(_idleT * 2.1f) * .12f;   // bobbing at the surface
             v.Y = Mathf.MoveToward(v.Y, target, 10f * dt);
             if (up && !HeadUnder && IsOnWall()) v.Y = Mathf.Max(v.Y, JumpVelocity * .8f);   // climb out onto the bank
-            _fluidSpeed = Blocks.F("fluids.swim.speed", .6f) * (HeadUnder ? .9f : 1f);
+            _fluidSpeed = Blocks.F("fluids.swim.speed", .6f) * (HeadUnder ? .9f : 1f) * (1 + StatPipeline.Key("swimP") / 100f);   // F-25: swimming levels
             float hv = new Vector2(v.X, v.Z).Length();
             _swimPh += dt * (hv > .5f ? 2.6f : 1.3f);
         }
@@ -57,7 +57,7 @@ public partial class Player
     {
         if (HeadUnder && !Dead)
         {
-            Breath = Mathf.Max(0, Breath - dt);
+            Breath = Mathf.Max(0, Breath - dt / Mathf.Max(.2f, 1 + StatPipeline.Key("breathP") / 100f));   // F-25: swimming levels hold the breath longer
             if (Breath <= 0)
             {
                 _drownT -= dt;
