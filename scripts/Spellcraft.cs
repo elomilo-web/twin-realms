@@ -11,6 +11,8 @@ namespace TwinRealms;
 public class CraftedSpell
 {
     public string Id = "", Name = "";
+    /// <summary>The player's icon for it ("" = automatic): lib:/ed:/png: data (SpellIcon.cs), saved with the spell, capped in size.</summary>
+    public string Icon = "";
     public List<List<string>> Secs = new();
     /// <summary>Saves from before three sections (A = first, B = second): moved into <see cref="Secs"/> by <see cref="Migrate"/>.</summary>
     public List<string> A = new(), B = new();
@@ -32,7 +34,7 @@ public class CraftedSpell
     public List<List<string>> Used() { Migrate(); int n = Secs.Count; while (n > 0 && Secs[n - 1].Count == 0) n--; return Secs.Take(n).ToList(); }
     public IEnumerable<string> AllCards { get { Migrate(); return Secs.SelectMany(x => x); } }
     public int Count => AllCards.Count();
-    public CraftedSpell Copy() { Migrate(); return new CraftedSpell { Id = Id, Name = Name, Secs = Secs.Select(x => x.ToList()).ToList() }; }
+    public CraftedSpell Copy() { Migrate(); return new CraftedSpell { Id = Id, Name = Name, Icon = Icon ?? "", Secs = Secs.Select(x => x.ToList()).ToList() }; }
 }
 
 public class CardDef
@@ -384,6 +386,7 @@ public static class Spellcraft
         foreach (var s in d.Spells)
         {
             s.Migrate();   // saves from before three sections (A, B) load as sections I and II
+            s.Icon = SpellIcon.Clean(s.Icon);   // icons arrive inside saves (also from the online server): size-capped, broken ones dropped
             if (Register(s) == null) { GD.PrintErr($"[SPELLCRAFT] {s.Id} no longer makes a spell; left off"); continue; }
             if (!d.Skills.ContainsKey(s.Id)) d.Skills[s.Id] = new SkillState();
         }
@@ -419,7 +422,7 @@ public static class Spellcraft
         var test = work.Copy(); test.Id = editing; test.Secs = test.Used();
         var err = Check(d, test); if (err != null) return err;
         if (editing == "") { int n = d.SpellSeq; do n++; while (d.Spells.Exists(x => x.Id == Prefix + n)); d.SpellSeq = n; s.Id = Prefix + n; d.Spells.Add(s); }
-        s.Name = work.Name.Trim() == "" || work.Name == AutoName(work) ? "" : work.Name.Trim(); s.Secs = test.Secs; s.A = new(); s.B = new();
+        s.Name = work.Name.Trim() == "" || work.Name == AutoName(work) ? "" : work.Name.Trim(); s.Secs = test.Secs; s.A = new(); s.B = new(); s.Icon = SpellIcon.Clean(work.Icon);
         if (Register(s) == null) return "Those cards do not make a spell";
         if (!d.Skills.ContainsKey(s.Id)) { d.Skills[s.Id] = new SkillState(); d.Forgot.Remove(s.Id); for (int i = 0; i < d.Bar.Length; i++) if (string.IsNullOrEmpty(d.Bar[i])) { d.Bar[i] = s.Id; break; } }
         work.Id = s.Id; return null;
@@ -475,13 +478,17 @@ public static class Spellcraft
         "carrier" => Skills.Get(c.From) is { } t ? Icons.ForSkill(t) : "trinket",
         _ => "trinket",
     };
-    /// <summary>Hotbar icon of a crafted skill: spells show their element, weapon arts and archery the skill their carrier copies.</summary>
+    /// <summary>Hotbar icon of a crafted skill: the player's own icon for the spell (sections II/III use the root spell's), else weapon
+    /// arts and archery the skill their carrier copies, spells an automatic icon from their delivery and element.</summary>
     public static string IconFor(SkillDef k)
     {
+        string root = k.Id.Contains('.') && k.Id != EditId ? k.Id[..k.Id.IndexOf('.')] : k.Id;
+        var own = (_hero ?? Game.D)?.Spells?.FirstOrDefault(s => s.Id == root)?.Icon;
+        if (!string.IsNullOrEmpty(own)) return own;
         var car = Skills.Get(Base(k.Id));
         bool weapon = k.Scale == "weapon";
         if (weapon && car != null && !car.Crafted) return Icons.ForSkill(car);
-        return k.Type switch { "shadow" => "shadow", "poison" => "poison", "holy" => "heal", "frost" => "nova", "lightning" => "zap", "fire" => "fire", _ => "sword" };
+        return SpellIcon.Auto(k);
     }
     static string Cap(string s) => s == "" ? s : char.ToUpper(s[0]) + s[1..];
 }

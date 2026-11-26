@@ -12,6 +12,7 @@ public partial class Main : Node3D
         if (System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--list-anims") >= 0) { Avatar.ListSources(); GetTree().Quit(); return; }
         if (System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--scaling-table") >= 0) { GD.Print(Progression.Table()); GetTree().Quit(); return; }   // tools: monster health/damage vs the reference hero (data/progression.json)
         if (System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--bake-anims") >= 0) { Avatar.Bake(); GetTree().Quit(); return; }   // tools: rebuild assets/models/anim/clips.res
+        if (System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--gen-icons") >= 0) { IconArt.GenerateAll(); GetTree().Quit(); return; }   // tools: paint res://assets/icons/skills/*.png (IconArt.cs)
         if (AnimTool.Wanted()) { Game.Root = this; AddChild(new AnimTool { Name = "AnimTool" }); return; }   // tools: measure attack clips (impact timing)
         GD.Print("[MAIN] scene start"); GetTree().Root.PhysicsInterpolationMode = PhysicsInterpolationModeEnum.Off;   // only hero and monster bodies interpolate (CameraRig, Enemy)
         Inputs.Setup(); Game.Root = this; Dungeon.Active = false; Arenas.Active = false; Threat.Reset(); World.Realm = 0; World.RealmT = 0; Ui.InGame = false;

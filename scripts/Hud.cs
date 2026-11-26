@@ -57,6 +57,18 @@ public partial class HudCanvas : Control
     Image? _img;
     Font F => ThemeDB.FallbackFont;
     float _deathFade;
+    string _tipName = ""; Rect2 _tipAt;
+    readonly System.Collections.Generic.Dictionary<(string, int, int), string> _short = new();
+    /// <summary>A hotbar label that fits w: the full name, else its first word, else cut with an ellipsis (cached).</summary>
+    string ShortName(string n, float w, int size)
+    {
+        if (_short.TryGetValue((n, (int)w, size), out var s)) return s;
+        bool Fits(string t) => F.GetStringSize(t, HorizontalAlignment.Left, -1, size).X <= w - 2;
+        s = n;
+        if (!Fits(s)) { s = n.Split(' ')[0]; while (s.Length > 2 && !Fits(s)) s = s[..^2] + "…"; if (s.EndsWith("…") && s.Length > 2 && !Fits(s)) s = s[..^1]; }
+        if (_short.Count > 200) _short.Clear();
+        return _short[(n, (int)w, size)] = s;
+    }
     public override void _Process(double delta) { QueueRedraw(); float tgt = Player.Instance is { Dead: true, Downed: false } ? 1f : 0f; _deathFade = Mathf.MoveToward(_deathFade, tgt, (float)delta / (tgt > 0 ? 2.2f : .8f)); }
 
     // ---- compass (Skyrim style): reused buffers, nothing allocated per frame
@@ -288,13 +300,16 @@ public partial class HudCanvas : Control
         for (int i = 0; i < 8; i++)
         {
             var r = new Rect2(hx + i * (ss + u * .5f), hy, ss, ss); Glass(r, false);
-            string icon, key; float cd = 0, cdMax = 1; bool dim = false; string cnt = "";
+            string icon, key, full = ""; float cd = 0, cdMax = 1; bool dim = false; string cnt = "";
             if (i < 6)
             {
                 var id = i < d.Bar.Length ? d.Bar[i] : null; var sk = string.IsNullOrEmpty(id) ? null : Skills.Get(id!); icon = sk != null ? Icons.ForSkill(sk) : ""; key = Inputs.KeyOf("spell" + (i + 1));
-                if (sk != null) { var sc = Skills.Compute(id!); cd = p.CdOf(id); cdMax = p.CdMaxOf(id); dim = p.Mp < sc.Mp || p.St < sc.St; cnt = sc.Mp > 0 ? $"{sc.Mp:0}" : $"{sc.St:0}"; }
+                if (sk != null) { var sc = Skills.Compute(id!); cd = p.CdOf(id); cdMax = p.CdMaxOf(id); dim = p.Mp < sc.Mp || p.St < sc.St; cnt = sc.Mp > 0 ? $"{sc.Mp:0}" : $"{sc.St:0}"; full = sk.Name; }
             }
-            else { bool hp = i == 6; icon = hp ? "hp" : "mp"; key = Inputs.KeyOf(hp ? Inputs.PotHp : Inputs.PotMp); cnt = (hp ? d.HpPot : d.MpPot).ToString(); dim = (hp ? d.HpPot : d.MpPot) <= 0; }
+            else { bool hp = i == 6; icon = hp ? "hp" : "mp"; key = Inputs.KeyOf(hp ? Inputs.PotHp : Inputs.PotMp); cnt = (hp ? d.HpPot : d.MpPot).ToString(); dim = (hp ? d.HpPot : d.MpPot) <= 0; full = hp ? "Health potion" : "Mana potion"; }
+            // the name above the slot (shortened to the slot's width); hovering with a free cursor shows the full name
+            if (i < 6 && full != "") Txt(new Vector2(r.Position.X - u * .25f, hy - 4), ShortName(full, ss + u * .5f, fs(.78f)), fs(.78f), dim ? UiTheme.Dim : Parch, HorizontalAlignment.Center, ss + u * .5f);
+            if (full != "" && Input.MouseMode == Input.MouseModeEnum.Visible && r.HasPoint(GetLocalMousePosition())) { _tipName = full; _tipAt = r; }
             // vector icon (scripts/Icons.cs), dimmed when unaffordable; radial cooldown sweep with seconds left
             if (icon != "") Icons.Draw(this, icon, r.GetCenter() + new Vector2(0, -ss * .02f), ss * .68f, dim ? .35f : 1f);
             if (cd > 0)
@@ -310,6 +325,14 @@ public partial class HudCanvas : Control
             if (Inputs.UsingPad && Inputs.PadCode(kact) != "") PadGlyphs.Draw(this, new Rect2(r.Position + new Vector2(3, 3), new Vector2(ss - 6, Mathf.Max(12, ss * .3f))), key, Inputs.PadStyle);
             else Txt(r.Position + new Vector2(4, fs(.95f) + 1), key, fs(.95f), UiTheme.Accent);
             Txt(r.Position + new Vector2(0, ss - 4), cnt, fs(.85f), i == 6 ? new Color("ff8f86") : i == 7 ? new Color("8fb8ff") : UiTheme.Dim.Lightened(.3f), HorizontalAlignment.Right, ss - 4);
+        }
+        if (_tipName != "")
+        {   // hotbar tooltip: the full name over the hovered slot
+            int tf = fs(1f); float tw = F.GetStringSize(_tipName, HorizontalAlignment.Left, -1, tf).X + 16;
+            var tr = new Rect2(_tipAt.Position.X, _tipAt.Position.Y - tf * 2.6f - 4, tw, tf * 1.6f);
+            DrawRect(tr, new Color(.04f, .035f, .03f, .92f)); DrawRect(tr, UiTheme.Accent with { A = .8f }, false, 1f);
+            Txt(tr.Position + new Vector2(8, tf * 1.15f), _tipName, tf, Parch);
+            _tipName = "";
         }
         // hero statuses and skill buffs: icons with seconds left, just above the hotbar
         float isz = Mathf.Max(22, u * 2.1f);

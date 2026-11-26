@@ -55,6 +55,8 @@
     { "name": "character",      "scene": "world", "action": "ui:character", "hud": true, "wait_frames": 20 },
     { "name": "spellcraft",    "scene": "world", "action": "ui:spellcraft", "hud": true, "wait_frames": 20 },
     { "name": "spellcraft_3",  "scene": "world", "action": "ui:spellcraft3", "hud": true, "wait_frames": 20 },
+    { "name": "icon_editor",   "scene": "world", "action": "ui:spellicon", "hud": true, "wait_frames": 20 },
+    { "name": "hotbar_icons",  "scene": "world", "player_at": [1.5, 12], "realm": 0, "time": 0.5, "hud": true, "bar": ["fire", "nova", "zap", "cleave", "sunlance", "maelstrom"], "bar_cd": 2, "cam_yaw": 3.1, "cam_dist": 4.5, "wait_frames": 30 },
     { "name": "pause",          "scene": "world", "action": "ui:pause", "hud": true, "wait_frames": 20 },
     { "name": "loading",        "scene": "world", "action": "ui:loading", "wait_frames": 30 },
     { "name": "menu_settings",    "scene": "world", "action": "ui:settings", "hud": true, "wait_frames": 20 },

@@ -228,9 +228,10 @@ public partial class DevCapture : Node
         if (_savedMats != null) { d.Mats.Clear(); foreach (var kv in _savedMats) d.Mats[kv.Key] = kv.Value; _savedMats = null; changed = true; }
         if (_savedSkills != null) { d.Skills.Clear(); foreach (var kv in _savedSkills) d.Skills[kv.Key] = kv.Value; _savedSkills = null; changed = true; }
         if (_savedGems != null) { d.Gems.Clear(); foreach (var kv in _savedGems) d.Gems[kv.Key] = kv.Value; _savedGems = null; changed = true; }
+        if (_savedBar != null) { d.Bar = _savedBar; _savedBar = null; changed = true; }
         if (changed) Game.Notify();
     }
-    Dictionary<string, SkillState>? _savedSkills; Dictionary<string, int>? _savedGems;
+    Dictionary<string, SkillState>? _savedSkills; Dictionary<string, int>? _savedGems; string[]? _savedBar;
 
     void Heal() { if (Player.Instance is { } p) { p.Hp = Game.D.MaxHp(); p.Mp = Game.D.MaxMp(); p.St = Game.D.MaxSt(); } }
     void ClearFoes() { foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Node nn) nn.QueueFree(); Targeting.Clear(); }
@@ -343,6 +344,14 @@ public partial class DevCapture : Node
                     Game.Q(qid).N = Math.Min(qd.Need - 1, (int)Num(v, "quest_progress", 1f));
                 }
                 if (v.TryGetProperty("buffs", out _)) Game.RecalcTree();
+                // "bar": skill ids for hotbar slots 1..n (learned at rank 3 for the view); "bar_cd": the slot index shown mid-cooldown
+                if (v.TryGetProperty("bar", out var bar) && bar.ValueKind == JsonValueKind.Array)
+                {
+                    var d = Game.D; _savedSkills ??= new Dictionary<string, SkillState>(d.Skills); _savedBar ??= (string[])d.Bar.Clone(); int bi = 0;
+                    foreach (var b in bar.EnumerateArray()) { var sid = b.GetString() ?? ""; if (bi >= d.Bar.Length) break; if (Skills.Get(sid) != null && !d.Skills.ContainsKey(sid)) d.Skills[sid] = new SkillState { Rank = 3 }; d.Bar[bi++] = sid; }
+                    Game.Notify(); Heal();
+                    int ci = (int)Num(v, "bar_cd", -1); if (ci >= 0 && ci < d.Bar.Length && d.Bar[ci] != "") P.DevSetCd(d.Bar[ci], 7.5f, 10f);
+                }
                 if (v.TryGetProperty("foes", out var fs) && fs.ValueKind == JsonValueKind.Array)
                 {
                     var fwd = -P.GlobalTransform.Basis.Z with { Y = 0 }; fwd = fwd.LengthSquared() > .01f ? fwd.Normalized() : Vector3.Forward;
@@ -591,6 +600,7 @@ public partial class DevCapture : Node
             case "ui:pause": Ui.I?.OpenPause(); await Secs(.4f); break;
             case "ui:loading": LoadScreen.Preview(World.GetPoi("village")?.Name ?? "Oakhaven"); await Secs(.4f); break;   // hidden again in Capture's finally
             case "ui:spellcraft3": UiSpellcraft.DebugPreload3(); await Secs(.4f); break;
+            case "ui:spellicon": UiSpellcraft.DebugIconEditor(); await Secs(.4f); break;
             case var cl when cl.StartsWith("cmd:"):   // a debug command line (scripts/Commands.cs), e.g. "cmd:stats dump"; output in the log
                 foreach (var ln in Commands.Run(cl[4..]).Split('\n')) Say("cmd> " + ln.TrimEnd('\r'));
                 await Secs(.2f); break;

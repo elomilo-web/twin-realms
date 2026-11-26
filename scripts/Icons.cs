@@ -29,6 +29,11 @@ public static class Icons
 
     public static void Draw(CanvasItem ci, string id, Vector2 c, float size, float alpha = 1f)
     {
+        if (SpellIcon.IsTex(id))
+        {   // painted skill icons and the player's own spell icons (SpellIcon.cs)
+            if (SpellIcon.Tex(id) is { } tex) { ci.DrawTextureRect(tex, new Rect2(c - new Vector2(size, size) / 2f, new Vector2(size, size)), false, new Color(1, 1, 1, alpha)); return; }
+            id = "trinket";
+        }
         float s = size / 2f; var ol = new Color(0, 0, 0, .7f * alpha);
         Color A(Color k) => Mute(k) with { A = k.A * alpha };
         switch (id)
@@ -232,8 +237,10 @@ public static class Icons
         }
     }
 
-    /// <summary>Icon for a skill: its own drawing if there is one, otherwise one for its damage type or kind.</summary>
-    public static string ForSkill(SkillDef s) => s.Crafted ? Spellcraft.IconFor(s) : s.Id switch
+    /// <summary>Icon for a skill: its painted PNG (assets/icons/skills, made by --gen-icons); crafted spells their own icon.
+    /// Only when the PNG is missing (warned once) the old vector glyph for its damage type or kind.</summary>
+    public static string ForSkill(SkillDef s) => s.Crafted ? Spellcraft.IconFor(s) : SpellIcon.HasBuiltin(s.Id) ? "skill:" + s.Id : OldGlyph(s);
+    static string OldGlyph(SkillDef s) => s.Id switch
     {
         "fire" or "nova" or "heal" or "zap" => s.Id, "meteor" => "fire", "icelance" => "nova", "volley" or "rain" => "bow", "fan" => "dagger", "shieldbash" => "shield", "lunge" => "spear", "leap" or "groundslam" => "mace",
         "cleave" or "whirlwind" => "axe", "arcanestrike" => "zap", "smite" or "consecrate" => "heal", "warcry" => "head", "shadowstep" or "poisonblade" => "dagger",

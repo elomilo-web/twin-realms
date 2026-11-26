@@ -283,7 +283,19 @@ PHASE 2 - GEMS AND GEAR SOCKETS
 PHASE 3 - HOTBAR, ICONS, AND SPELLCRAFTING
 ================================================================================
 
-[ ] F-11  HOTBAR NAMES AND ICONS
+[x] F-11  HOTBAR NAMES AND ICONS
+    NOTE (done): Hud.cs hotbar draws a short name above each slot (full name
+      in a tooltip when the cursor is free), icon, key / pad glyph, cooldown
+      sweep. scripts/IconArt.cs paints 69 unique skill icons (badge, element
+      gradient, rune ring, per-skill symbol, element motif, rim) via
+      `godot --headless --path . -- --gen-icons` -> assets/icons/skills/<id>.png
+      (MD5 duplicates 0; sheet .devloop/icon_sheet.png). Icons.ForSkill uses
+      them (old glyph + warning only if a PNG is missing). Crafted spells:
+      CraftedSpell.Icon ("lib:" / "ed:" / "png:" data, SpellIcon.cs, cap 6000
+      chars, 32 px imports) saved in the save JSON, which goes to the online
+      server; sections id.2/id.3 use the root's icon. Spellcraft "Icon"
+      button -> UiSpellIcon.cs window (Library | Editor | Import from
+      user://icons/). Captures: hotbar_icons, icon_editor, menu_skills_full.
     DONE WHEN:
       - Each hotbar slot shows the spell or skill name (short label, with
         the full name in the tooltip), the icon, the keybind, and a cooldown

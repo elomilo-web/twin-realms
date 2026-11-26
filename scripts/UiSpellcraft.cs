@@ -282,6 +282,11 @@ public partial class Ui
         Lbl("NAME", 12, UiTheme.Accent, nr);
         var name = new LineEdit { Text = _scWork.Name, PlaceholderText = Spellcraft.AutoName(_scWork), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, CustomMinimumSize = new Vector2(0, 30), MaxLength = 32 };
         name.TextChanged += t => _scWork.Name = t; nr.AddChild(name);
+        {   // the spell's icon: a preview of it and the button that opens the icon window (library | editor | import)
+            string cur = _scWork.Icon != "" ? _scWork.Icon : _scWork.Sec(0).Count > 0 && Spellcraft.Preview(_scWork) is { } pv ? SpellIcon.Auto(pv) : "";
+            var ib = new IconBox { Icon = cur, CustomMinimumSize = new Vector2(30, 30), MouseFilter = Control.MouseFilterEnum.Ignore }; nr.AddChild(ib);
+            var icb = Btn("Icon", () => OpenSpellIcon(null), true); icb.TooltipText = "Pick, draw or import this spell's icon"; icb.CustomMinimumSize = new Vector2(52, 30); nr.AddChild(icb);
+        }
 
         // live preview (scrolls inside a fixed box)
         var card = new PanelContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; card.AddThemeStyleboxOverride("panel", UiTheme.Box(new Color(.03f, .025f, .02f, .75f), UiTheme.AccentSoft, 1, 10, 8, 0)); right.AddChild(card);
@@ -509,6 +514,8 @@ public static class UiSpellcraft
     /// raises the level to open section III. For the "spellcraft_3" capture only.</summary>
     public static void DebugPreload3() => Ui.ScDebugPreload3();
     public static string? DebugForge3() => Ui.ScDebugForge3();
+    /// <summary>The "icon_editor" capture: the spell icon window on its Editor tab.</summary>
+    public static void DebugIconEditor() => Ui.IcDebugOpen();
 }
 
 /// <summary>The "then" arrow between two spell sections: lit when both hold cards.</summary>
