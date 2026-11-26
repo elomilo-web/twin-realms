@@ -54,17 +54,12 @@ public static class Game
     public static string SetPath = "user://settings.json";   // the test bots use their own file so they never change your controls
     static readonly JsonSerializerOptions Opt = new() { IncludeFields = true, WriteIndented = false };
 
-    /// <summary>All permanent modifiers: skill tree nodes + race bonuses + class passive. Everything reads them through Game.TS.</summary>
-    public static void RecalcTree()
-    {
-        TreeDb.Load(); TreeDb.Recalc(new HashSet<int>(D.Tree), TS);
-        foreach (var kv in Races.Get(D.Race).Mods) TS[kv.Key] += kv.Value;
-        foreach (var kv in Classes.Get(D.Class).Mods) TS[kv.Key] += kv.Value;
-        if (Player.Instance != null) foreach (var b in Player.Instance.Buffs) foreach (var kv in b.mods) TS[kv.Key] += kv.Value;   // timed skill buffs (War Cry, Venom Blade)
-        LootTables.Apply(D, TS);   // set bonuses for set pieces worn together (data/loot.json "sets")
-        foreach (var it in D.Eq.Values) if (it?.Mods != null) foreach (var kv in it.Mods) TS[kv.Key] += kv.Value;   // items with their own stats (Golden Wings)
-        Titles.Apply(D, TS);   // the worn title (Felled Angel: +15% movement)
-    }
+    /// <summary>
+    /// All modifiers into the stat table through the one stat pipeline (StatPipeline.Rebuild, focus F-02): race, class, gear affixes and
+    /// set bonuses, gems, skill tree and title, timed skill buffs; then the caps of data/stats.json. Everything reads them through Game.TS.
+    /// Called on Notify and whenever a buff starts or ends; the derived stats (MaxHp, WpnDmg...) rebuild from it on their next read.
+    /// </summary>
+    public static void RecalcTree() { TreeDb.Load(); StatPipeline.Rebuild(D, TS); }
     /// <summary>Saved data changed: refresh the stat table (equipment may have changed, and with it set bonuses), then the UI.</summary>
     public static void Notify() { RecalcTree(); Changed?.Invoke(); }
 

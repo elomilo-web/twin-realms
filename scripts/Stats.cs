@@ -73,34 +73,29 @@ public class PlayerStats
     [JsonIgnore] public Item? Weapon => Eq.GetValueOrDefault("weapon");
     public string WType() => Weapon?.Wt ?? "unarmed";   // no weapon: fists (data/weapons.json "unarmed", attacks.json style "unarmed")
     // base numbers in data/tuning.json "game.player" (the defaults here are the old built-in values)
-    public int MaxHp() => Math.Max(30, (int)Math.Round((Tune.F("player.hpBase", 100) + Level * Tune.F("player.hpPerLevel", 8) + Vit * Tune.F("player.hpPerVit", 7) + EqStat("hp") + TS["hp"]) * (1 + TS["hpP"] / 100f)));
-    public int MaxMp() => (int)Math.Round((Tune.F("player.mpBase", 50) + Mag * Tune.F("player.mpPerMag", 6) + Level * Tune.F("player.mpPerLevel", 2) + EqStat("mp") + TS["mp"]) * (1 + TS["mpP"] / 100f));
-    public int MaxSt() => (int)Math.Round(Tune.F("player.staminaBase", 90) + Dex * Tune.F("player.staminaPerDex", 3) + TS["st"]);
-    public int Defense() => (int)(EqStat("def") + Vit * Tune.F("player.defensePerVit", .5f) + TS["def"]);
+    // Every derived stat comes from the one stat pipeline (StatPipeline.cs: base > race > class > level > gear > gems > passives > buffs,
+    // caps in data/stats.json, formulas in .devloop/systems/stats.md). Cached per hero; "/stats dump" (F9) prints every step.
+    public int MaxHp() => (int)StatPipeline.Get(this, "maxHp");
+    public int MaxMp() => (int)StatPipeline.Get(this, "maxMp");
+    public int MaxSt() => (int)StatPipeline.Get(this, "maxSt");
+    public int Defense() => (int)StatPipeline.Get(this, "defense");
     public int XpNeed() => Progression.XpNeed(Level);   // curve in data/progression.json
-    public float AtkSpeed() => (1 + Dex * Tune.F("player.attackSpeedPerDex", .012f)) * (1 + TS["aspd"] / 100f);
-    public float CritChance() => Tune.F("player.critBase", .05f) + Dex * Tune.F("player.critPerDex", .005f) + TS["crit"] / 100f;
-    public float CritMult() => Tune.F("player.critDamage", 1.8f) + TS["critD"] / 100f;
-    public float SpellPow() => (1 + Mag * Tune.F("player.spellPerMag", .08f) + Level * Tune.F("player.spellPerLevel", .02f)) * (1 + TS["spellP"] / 100f) * (1 + EqStat("sp")) * (1 + TS["allP"] / 100f);
+    public float AtkSpeed() => StatPipeline.Get(this, "atkSpeed");
+    public float CritChance() => StatPipeline.Get(this, "critChance");
+    public float CritMult() => StatPipeline.Get(this, "critMult");
+    public float SpellPow() => StatPipeline.Get(this, "spellPow");
     /// <summary>
-    /// Weapon hit damage before crits: base 5 plus attribute scaling from data/weapons.json (str/dex/mag per point) plus item damage,
-    /// times the weapon's damage factor, times the matching passive bonus (melee, bow, or spell for wands and staves) and all-damage.
+    /// Weapon hit damage before crits: base 5 (wands/staves 4) plus attribute scaling from data/weapons.json plus item damage, times the
+    /// weapon's damage factor, times the matching bonus groups (melee / bow / spell + gear spell power), the weapon type (swordP, bowP...) and all-damage.
     /// </summary>
-    public float WpnDmg()
-    {
-        string wt = WType(); var w = Weapons.Get(wt); float wd = Weapon?.Dmg ?? 0, all = 1 + TS["allP"] / 100f;
-        float b = Tune.F("player.weaponBase", 5);
-        if (wt == "bow") return (b + Dex * w.Dex + Str * w.Str + wd + Str * TS["strToBow"] + Mag * TS["magToBow"]) * w.Dmg * (1 + TS["rangedP"] / 100f) * all;
-        if (wt == "wand" || wt == "staff") return (Tune.F("player.magicWeaponBase", 4) + Mag * w.Mag + wd) * w.Dmg * (1 + TS["spellP"] / 100f) * (1 + EqStat("sp")) * all;
-        float wpnType = 1 + TS[wt + "P"] / 100f;                                    // e.g. "axeP": +% axe damage
-        return (b + Str * w.Str + Dex * w.Dex + Mag * w.Mag + wd + Mag * TS["magToDmg"]) * w.Dmg * (1 + TS["meleeP"] / 100f) * wpnType * all;
-    }
+    public float WpnDmg() => StatPipeline.Get(this, "wpnDmg");
     [JsonIgnore] public float ShieldDef => Eq.GetValueOrDefault("shield")?.Def ?? 0;
 
     /// <summary>Adds XP, returns how many levels were gained.</summary>
     public int GainXp(int n)
     {
-        Xp += (int)Math.Round(n * (1 + TS["xpP"] / 100f)); int up = 0;
+        // never loses experience: a negative gain or an xpP below -100% used to subtract (F-02); xpP is capped at -90% (data/stats.json "*P")
+        Xp = Math.Max(0, Xp) + Math.Max(0, (int)Math.Round(n * (1 + StatPipeline.Key("xpP") / 100f))); int up = 0;
         // per level (data/progression.json): attribute points, skill points (Skills menu, RankPts) and skill tree points (SkillPts)
         while (Xp >= XpNeed()) { Xp -= XpNeed(); Level++; AttrPts += Progression.AttrPerLevel; SkillPts += Progression.TreePerLevel; RankPts += Progression.RankPerLevel; up++; }
         return up;

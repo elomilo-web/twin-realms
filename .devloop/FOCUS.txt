@@ -63,7 +63,7 @@ PHASE 0 - BUGS AND FIXES (do these first)
       paid 4 s cd with sections 2 and 3 logged. Files: PlayerSkills.cs, PlayerSpellcraft.cs, PlayerDowned.cs,
       UiSpellcraft.cs (debug forge), dev/DevCapture.cs, .devloop/viewpoints.json.
 
-[ ] F-02  FULL MATH AUDIT: STATS, SKILLS, LEVELS, PASSIVES
+[x] F-02  FULL MATH AUDIT: STATS, SKILLS, LEVELS, PASSIVES
     Check the math for every stat source and the order bonuses are applied in.
     DONE WHEN:
       - There is one stat pipeline:
@@ -77,6 +77,26 @@ PHASE 0 - BUGS AND FIXES (do these first)
       - No stat can go negative, divide by zero, or go past its intended cap
         (for example resist and cooldown reduction).
       - Every bug found is listed in the item's note with how it was fixed.
+    NOTE (2026-11-26): New StatPipeline.cs: Game.RecalcTree records every stat-key contribution per stage (race, class, gear
+      affixes + set bonuses, gems = Item.Gems, empty until F-10, passives = tree + title, buffs), sums into Game.TS and clamps to
+      data/stats.json caps. Derived stats (MaxHp/Mp/St, Defense, AtkSpeed, CritChance/Mult, SpellPow, WpnDmg) are built from
+      ordered steps: flat sum, then each % group x max(0.1, 1+sum/100), then "more" multipliers, round, cap. Cached per hero
+      (rebuilds only on TS/level/attribute/gear change: 2 builds in the dump run). Stats.cs getters and Skills.Compute read it.
+      Formulas + F-01 cast rule in .devloop/systems/stats.md. "/stats dump": Commands.cs registry (F-42 reuses it), F9 in game
+      (log + user://stats_dump.txt), DevCapture "cmd:<line>", view test_stats_dump. The dump ends with a self-check that pushes
+      28 keys to +-1e6 (and a hero with -50 attributes): 2504 values all finite, non-negative, within caps.
+      Bugs fixed: (1) cdr uncapped: affixes/wings/tree can pass 100% -> capped 50%. (2) castSpd <= -100% divided by zero /
+      negative cast time; attack speed could reach 0 -> castSpd >= -50%, atkSpeed [0.25, 3]. (3) mcost / weapon Mc > 100% gave
+      negative mana -> mcost >= -75%, Mc [0, 0.9]. (4) crit chance could exceed 100% and critD < -80% made crits weaker than hits ->
+      crit [0, 1], critMult [1, 6]. (5) negative hpP/mpP/any *P below -100% flipped stats negative -> every *P >= -90%, % groups
+      floored at x0.1, max mana/defense/damage >= 0. (6) bowP/wandP/staffP were valid keys that did nothing -> applied to their
+      weapons (no data uses them: no balance change). (7) GainXp could subtract XP (negative gain or xpP < -100%) -> never below
+      0. (8) skill rank 0 or > maxRank (edited saves, dev tools) scaled damage wrong -> clamped [1, 5]. (9) keys read raw by other
+      systems are now capped at the source: move [-60,100], evade [0,60], leech/mleech [0,30], tenacity [0,80], healIn >= -100,
+      regen >= 0, pen >= 0, res_* [-100,75]. No number changed for normal builds (character screen identical: 316 hp, 28 dmg...).
+      ASSUMPTION: attributes are the "level" stage; their base 5 / race / class shares are shown in their own stages.
+      Files: StatPipeline.cs, Commands.cs (new), Stats.cs, Game.cs, Tree.cs (TreeStats.Ver/All), Items.cs (Gems), Skills.cs,
+      Main.cs (F9 node), dev/DevCapture.cs, data/stats.json, .devloop/viewpoints.json, .devloop/systems/stats.md.
 
 [ ] F-03  PLAYER MODEL LIMBS AND HEAD DETACHED
     The head and limbs look separated from the body and look odd.

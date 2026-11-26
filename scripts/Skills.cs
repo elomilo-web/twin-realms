@@ -198,9 +198,11 @@ public static class Skills
     public static SkillCalc Compute(string id, string? stateOf = null)
     {
         // stateOf: whose rank and sockets to use (a crafted spell's second section uses the spell's own)
-        Load(); var d = Game.D; var TS = Game.TS; var k = _s[id]; var st = d.Skills.GetValueOrDefault(stateOf ?? id) ?? new SkillState();
+        // stat-table keys through StatPipeline.Key: capped (cdr at most 50%, castSpd at least -50%, mcost at least -75%; data/stats.json)
+        Load(); var d = Game.D; Func<string, float> K = StatPipeline.Key; var k = _s[id]; var st = d.Skills.GetValueOrDefault(stateOf ?? id) ?? new SkillState();
         var c = new SkillCalc { Def = k, Type = k.Type, Radius = k.Radius, Speed = k.Speed, Spread = k.Spread, Knock = k.Knock, Stun = k.Stun, Up = k.Up, Leech = k.Leech, Heal = k.Heal, Dur = k.Dur, Tick = k.Tick, Count = k.Count, Pierce = k.Pierce, Chain = k.Chain, Homing = k.Homing };
-        float more = 1 + RankP * (st.Rank - 1) / 100f, aoe = 1 + TS["aoeP"] / 100f, spd = 1, cost = 1 + TS["mcost"] / 100f, cd = 1 - TS["cdr"] / 100f, cast = 1, knock = 1, dur = 1, tick = 1, heal = 1;
+        int rank = Math.Clamp(st.Rank, 1, Math.Max(1, MaxRank));   // a rank 0 or past the max (old or edited saves) no longer scales damage down or past rank 5
+        float more = 1 + RankP * (rank - 1) / 100f, aoe = 1 + K("aoeP") / 100f, spd = 1, cost = 1 + K("mcost") / 100f, cd = 1 - K("cdr") / 100f, cast = 1, knock = 1, dur = 1, tick = 1, heal = 1;
         float supMore = 1, supAoe = 1; bool off = false, offCrit = false;   // the modifiers' own share, for the stand-in effects below
         foreach (var kv in k.Status) c.Status.Add((kv.Key, kv.Value.Length > 0 ? kv.Value[0] : 1, kv.Value.Length > 1 ? kv.Value[1] : 1, kv.Value.Length > 2 ? kv.Value[2] : 0));
         foreach (var sid in k.CardMods.Count > 0 ? st.Sup.Concat(k.CardMods) : st.Sup)
@@ -223,11 +225,11 @@ public static class Skills
         string kind = k.Kind; bool support = kind is "heal" or "buff" or "enchant" or "ward";
         float baseDmg = k.Scale == "weapon" ? d.WpnDmg() * k.Mult : (k.Dmg + k.Lvl * d.Level) * d.SpellPow();
         if (support && baseDmg <= 0) baseDmg = (8 + 1.6f * d.Level) * d.SpellPow();   // heals and buffs: what their burst hits for
-        c.Dmg = baseDmg * more * (1 + TS["skillP"] / 100f);
+        c.Dmg = Mathf.Max(0, baseDmg * more * (1 + K("skillP") / 100f));
         c.Radius = k.Radius * Mathf.Max(.3f, aoe); c.Knock *= knock;
         c.Dur = k.Dur * Mathf.Max(.3f, dur); c.Tick = k.Tick; c.Heal = k.Heal * Mathf.Max(0, heal); c.ManaBack = Mathf.Min(c.ManaBack, 90f);
         c.Speed = k.Speed; c.Range = k.Range; c.Arc = k.Arc; c.Delay = k.Delay;
-        c.Mp = k.Mp * Mathf.Max(0, cost) * (1f - (d.Weapon?.Mc ?? 0f)); c.St = k.St * Mathf.Max(0, cost);
+        c.Mp = k.Mp * Mathf.Max(0, cost) * (1f - Mathf.Clamp(d.Weapon?.Mc ?? 0f, 0f, .9f));   // a weapon's mana cost cut never makes mana negative c.St = k.St * Mathf.Max(0, cost);
         float cdMul = Mathf.Max(.2f, cd), castMul = Mathf.Max(.3f, cast);
 
         // ---- every modifier does something on every kind of skill: where its natural effect has no meaning, it gets a stand-in
@@ -277,7 +279,8 @@ public static class Skills
         // more "projectiles" on buffs: each one adds a quarter to the duration (the other kinds use Count directly, see PlayerSkills.Execute)
         if (kind == "buff" && c.Count > k.Count) c.Dur *= 1 + .25f * (c.Count - k.Count);
 
-        c.Cd = k.Cd * cdMul; c.Cast = k.Cast * castMul / (k.Scale == "weapon" ? d.AtkSpeed() : 1f + TS["castSpd"] / 100f);
+        // attack speed is at least 0.25 and castSpd at least -50% (data/stats.json): never a division by zero or a negative cast time
+        c.Cd = Mathf.Max(0, k.Cd * cdMul); c.Cast = Mathf.Max(0, k.Cast * castMul / Mathf.Max(.25f, k.Scale == "weapon" ? d.AtkSpeed() : 1f + K("castSpd") / 100f));
         return c;
     }
 

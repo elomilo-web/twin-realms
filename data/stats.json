@@ -1,0 +1,43 @@
+{
+  "_help": "Stat caps for the hero's stat pipeline (scripts/StatPipeline.cs, formulas in .devloop/systems/stats.md). keys: [min, max] for a stat-table key (skill tree / gear / race / class / buff keys, in their own units: % for *P, cdr, res_..., points for hp, def...). Exact keys win over the patterns '*P' (any key ending in P), 'res_*' and '*Chance'. Totals are clamped after every stage is added; the dump shows each clamp. derived: [min, max] for the final hero numbers (critChance and attack speed are factors: 1 = 100%). pctFloor: the smallest multiplier a percent group can give (0.1 = -90%), so no stat goes negative. Can be overridden from data/tuning.json files > stats.json.",
+  "pctFloor": 0.1,
+  "keys": {
+    "cdr": [-50, 50],
+    "castSpd": [-50, 200],
+    "aspd": [-60, 300],
+    "move": [-60, 100],
+    "evade": [0, 60],
+    "block": [-50, 100],
+    "mcost": [-75, 200],
+    "leech": [0, 30],
+    "mleech": [0, 30],
+    "tenacity": [0, 80],
+    "healIn": [-100, 300],
+    "regenHp": [0, 1000],
+    "regenMp": [0, 1000],
+    "armorPen": [0, 100000],
+    "armorPenP": [0, 100],
+    "magicPen": [0, 100000],
+    "magicPenP": [0, 100],
+    "thorns": [0, 300],
+    "reach": [-50, 200],
+    "luck": [0, 100000],
+    "res_*": [-100, 75],
+    "*Chance": [0, 100],
+    "*P": [-90, 100000]
+  },
+  "derived": {
+    "maxHp": [30, 1000000],
+    "maxMp": [0, 1000000],
+    "maxSt": [10, 1000000],
+    "defense": [0, 1000000],
+    "atkSpeed": [0.25, 3],
+    "critChance": [0, 1],
+    "critMult": [1, 6],
+    "spellPow": [0, 1000],
+    "wpnDmg": [0, 10000000],
+    "cdr": [-50, 50],
+    "castSpeed": [0.5, 3],
+    "moveMul": [0.4, 2]
+  }
+}

@@ -17,9 +17,13 @@ public class TreeNode
 public class TreeStats
 {
     readonly Dictionary<string, float> _v = new();
-    public float this[string k] { get => _v.TryGetValue(k, out var x) ? x : 0f; set => _v[k] = value; }
+    /// <summary>Bumped on every write: the stat pipeline's cache (StatPipeline.cs) rebuilds when it changes.</summary>
+    public int Ver { get; private set; }
+    public float this[string k] { get => _v.TryGetValue(k, out var x) ? x : 0f; set { _v[k] = value; Ver++; } }
     public bool Has(string flag) => this[flag] > 0;
-    public void Clear() => _v.Clear();
+    public void Clear() { _v.Clear(); Ver++; }
+    /// <summary>Every key with its total (for the stat pipeline and the stat dump).</summary>
+    public IEnumerable<KeyValuePair<string, float>> All => _v;
 }
 
 public static class TreeDb

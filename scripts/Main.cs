@@ -33,6 +33,7 @@ public partial class Main : Node3D
         }
         AddChild(new Sfx { Name = "Sfx" });
         AddChild(new Flag { Name = "Flag" });   // F8: playtest flag (screenshot + report in user://playtest/)
+        AddChild(new CommandKey { Name = "CommandKey" });   // F9: "/stats dump" (Commands.cs) until the command bar exists
         AddChild(new Net { Name = "Net" });
         var ui = new Ui { Name = "Ui" }; AddChild(ui);
         // loading screens (LoadScreen.cs): not for the test bots, whose timings and pictures expect the world at once (the dev capture loop keeps them)

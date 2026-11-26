@@ -28,6 +28,9 @@ public class Item
     public bool Wings { get; set; }                  // Golden Wings (cape slot): the hero can fly (Wings.cs)
     public Dictionary<string, float>? Mods { get; set; }   // bonus stats in tree stat keys (TreeDb.Known), added to the stat table while worn (Affixes.cs)
     public string? Glow { get; set; }                // the smith's glow colour (hex); null = the element's or rarity's own
+    // Socketed gems (focus F-10 fills this): one stat table per gem, in tree stat keys. The stat pipeline's "gems" stage
+    // (StatPipeline.cs) adds them after gear and before passives. Null / empty until gems exist; not written when null.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<Dictionary<string, float>>? Gems { get; set; }
 
     [JsonIgnore] public int Value => Math.Max(1, (int)Math.Round((Dmg * 4 + Def * 4 + Hp * 0.6 + Mp * 0.6) * (1 + Rar * 0.8) * (Set != null ? 1.5 : 1) * (1 + .15 * (Mods?.Count ?? 0)) * (1 + .1 * Up)));
     [JsonIgnore] public Color Color => Set != null ? LootTables.SetColorOf(Set) : Items.RarityColor(Rar);
