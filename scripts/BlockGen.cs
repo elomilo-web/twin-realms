@@ -111,6 +111,7 @@ public sealed class OverworldGen : IBlockGen
                 for (int y = top; y < water; y++) c.Id[c.Index(lx, y, lz)] = waterId;   // sources (meta 0)
                 int hi = Math.Max(top, water); if (hi > c.Top) c.Top = hi;
             }
+        Structures.Apply(c, this);   // F-19: towns, castles, bridges, shrines built from blocks, part of the generated world
     }
 }
 

@@ -296,8 +296,11 @@ public static class Lands
     static Func<float> _rg = World.Rng(1u);
     static float R(float a, float b) => a + _rg() * (b - a);
 
+    /// <summary>Where the block bridges are (river bridges: their middle; sea bridges: near the first end), for capture views.</summary>
+    public static readonly List<Vector3> BridgeSpots = new();
     public static void Build(Node3D over)
     {
+        Structures.Begin(); BridgeSpots.Clear();   // F-19: this build's block structures start here (Builder.BuildAll finishes them)
         Load(); if (All.Count == 0 && Sky.Count == 0) return;
         _stone = World.Mat(new Color(.62f, .6f, .57f), null, 1f); Gfx.Tex(_stone, "stone", 2.6f);
         _sandstone = World.Mat(new Color(.82f, .68f, .5f), null, 1f); Gfx.Tex(_sandstone, "stone", 3f);
@@ -506,6 +509,7 @@ public static class Lands
     static void BuildPlace(Land L, Place p, Node3D parent)
     {
         var g = new Node3D { Name = (p.Kind == "stilts" ? "Stilt_" : "") + p.Id, Position = new Vector3(p.X, p.H, p.Z) }; parent.AddChild(g);
+        if (Structures.On) { BlockPlace(L, p, g); Label(g, p.Name, new Vector3(0, p.Kind == "city" ? 30 : 12, 0), p.Kind == "city" ? 160 : 80); return; }
         switch (p.Kind)
         {
             case "city": City(L, p, g); break;
@@ -520,7 +524,167 @@ public static class Lands
         Label(g, p.Name, new Vector3(0, p.Kind == "city" ? 30 : 12, 0), p.Kind == "city" ? 160 : 80);
     }
 
-    static readonly string[] Cottages = { "village/house_cottage", "village/house_hut", "village/house_town_teal", "village/house_cottage", "village/house_shop", "village/house_inn_lit" };
+    // ---------------------------------------------------------------- F-19: the same places built from blocks (scripts/StructGen.cs)
+    static byte Bk(string k) => Blocks.Id(k);
+    static void BlockPlace(Land L, Place p, Node3D g)
+    {
+        var b = new Blueprint(); int ox = Mathf.FloorToInt(p.X), oz = Mathf.FloorToInt(p.Z), oy = Structures.Floor(p.H), rot = 0;
+        uint seed = (uint)Math.Abs((int)(p.X * 31 + p.Z * 17)) + 7u; string reg = L.Id;
+        g.Position = new Vector3(ox + .5f, oy, oz + .5f);
+        switch (p.Kind)
+        {
+            case "city": BCity(L, p, b, reg, seed, g); break;
+            case "castle": rot = BCastle(L, p, b, false, seed); break;
+            case "ruins": rot = BCastle(L, p, b, true, seed); break;
+            case "stilts": BVillage(p, b, reg, seed, true, g); break;
+            case "cave": rot = BCave(p, b, seed); break;
+            case "camp": BCamp(p, b, g); break;
+            case "tombs": BTombs(b, seed); K(g, "dungeon/rune_obelisk", new Vector3(0, 0, 12), 0, 1.3f); break;
+            default: BVillage(p, b, reg, seed, false, g); break;
+        }
+        g.Rotation = new Vector3(0, rot * Mathf.Pi / 2, 0);
+        if (p.Kind == "cave") { K(g, "dungeon/brazier", new Vector3(-3, 0, 3), 0, 1.2f); K(g, "dungeon/brazier", new Vector3(3, 0, 3), 0, 1.2f); }
+        if (p.Kind == "castle") { int s3 = Mathf.RoundToInt(p.R * .62f) - 3; K(g, "castle/banner_red", new Vector3(-4, 0, s3), 0, 1.3f, false); K(g, "castle/banner_red", new Vector3(4, 0, s3), 0, 1.3f, false); }
+        Structures.Place(b, ox, oy, oz, rot);
+    }
+    static void BVillage(Place p, Blueprint b, string reg, uint seed, bool stilts, Node3D g)
+    {
+        int n = Math.Max(5, (int)(p.R / 3.4f));
+        for (int i = 0; i < n; i++)
+        {
+            float a = i / (float)n * Mathf.Tau + R(-.15f, .15f), rad = p.R * R(.6f, .85f); _rg();
+            int px = Mathf.RoundToInt(Mathf.Cos(a) * rad), pz = Mathf.RoundToInt(Mathf.Sin(a) * rad); int rot = Structures.RotFacing(-px, -pz);
+            uint hs = StructGen.Hash(px, i, pz, seed); var st = StructGen.StyleFor(reg, hs);
+            int W = hs % 3 == 0 ? 7 : 5, D = hs % 5 == 0 ? 7 : 5, fl = hs % 4 == 0 ? 2 : 1;
+            if (!stilts) { b.Merge(StructGen.House(st, W, D, fl, hs), px, 0, pz, rot); continue; }
+            // on stilts: the house on a plank platform 3 up, log posts to the ground, a stair ramp down at the front
+            var sh = new Blueprint(); const int lift = 3; int hw = W / 2, hd = D / 2;
+            sh.Box(-hw - 1, lift - 1, -hd - 1, hw + 1, lift - 1, hd + 1, Bk("planks"));
+            sh.Merge(StructGen.House(st, W, D, 1, hs, false), 0, lift, 0);
+            foreach (int sx in new[] { -hw - 1, hw + 1 }) foreach (int sz in new[] { -hd - 1, hd + 1 }) sh.Post(sx, lift - 2, sz, Bk("log"));
+            for (int k = 0; k < lift; k++) for (int x = -1; x <= 1; x++) sh.Set(x, lift - 1 - k, hd + 2 + k, Bk("planks_stairs"), 3);
+            b.Merge(sh, px, 0, pz, rot);
+        }
+        if (stilts)
+        {
+            b.Box(-4, 0, -4, 4, 0, 4, Bk("planks")); foreach (int sx in new[] { -4, 0, 4 }) foreach (int sz in new[] { -4, 0, 4 }) b.Post(sx, -1, sz, Bk("log"));
+            b.Merge(StructGen.LampPost(), 3, 1, 3);
+        }
+        else
+        {
+            b.Merge(StructGen.Well(Bk("cobblestone"), Bk("roof_slab")), 0, 0, 0);
+            b.Merge(StructGen.Stall(Bk("awning_red"), true, seed), 6, 0, 2, Structures.RotFacing(-6, -2));
+            b.Merge(StructGen.Stall(Bk("awning_blue"), false, seed + 1), -5, 0, -4, Structures.RotFacing(5, 4));
+            for (int i = 0; i < 4; i++) { float a = i * Mathf.Pi / 2 + .6f; b.Merge(StructGen.LampPost(), Mathf.RoundToInt(Mathf.Cos(a) * p.R * .4f), 0, Mathf.RoundToInt(Mathf.Sin(a) * p.R * .4f)); }
+            float fr = p.R + 3; int nf = (int)(Mathf.Tau * fr / 2.8f), Ri = (int)fr + 1;
+            for (int z = -Ri; z <= Ri; z++) for (int x = -Ri; x <= Ri; x++)
+            {
+                float d = Mathf.Sqrt(x * x + z * z); if (Mathf.Abs(d - fr) >= .5f) continue;
+                int bin = (int)((Mathf.Atan2(z, x) + Mathf.Pi) / Mathf.Tau * nf); if (bin % 9 < 2) continue;
+                b.Set(x, 0, z, Bk("fence")); b.Post(x, -1, z, Bk("dirt"));
+            }
+        }
+        K(g, "village/signpost", new Vector3(p.R + 5, 0, 0), Mathf.Pi / 2, 1.3f, false);
+    }
+    static void BCity(Land L, Place p, Blueprint b, string reg, uint seed, Node3D g)
+    {
+        var gates = RoadAngles(L, p, p.R); if (gates.Count == 0) gates.AddRange(new[] { 0f, Mathf.Pi / 2, Mathf.Pi, -Mathf.Pi / 2 });
+        byte wall = reg == "sun" ? Bk("sandstone") : reg == "ember" ? Bk("dark_stone") : Bk("stone_bricks");
+        StructGen.RingWall(b, p.R, gates, 8, wall, false, seed);
+        void TowerAt(float a, int size, int h) => b.Merge(StructGen.Tower(size, h, wall, false), Mathf.RoundToInt(Mathf.Cos(a) * p.R), 0, Mathf.RoundToInt(Mathf.Sin(a) * p.R));
+        for (int k = 0; k < 12; k++) { float a = k / 12f * Mathf.Tau; if (!gates.Exists(ga => Mathf.Abs(Mathf.AngleDifference(ga, a)) * p.R < 9f)) TowerAt(a, 5, 12); }
+        foreach (var ga in gates) foreach (float s in new[] { -1f, 1f }) TowerAt(ga + s * 5f / p.R, 5, 13);
+        float plaza = p.Capital ? 22f : 14f;
+        for (float gx = -p.R; gx <= p.R; gx += 13f)
+            for (float gz = -p.R; gz <= p.R; gz += 13f)
+            {
+                float x = gx + R(-1.5f, 1.5f), z = gz + R(-1.5f, 1.5f), d = new Vector2(x, z).Length();
+                if (d > p.R - 9 || d < plaza + 6) continue;
+                float a = Mathf.Atan2(z, x); if (gates.Exists(ga => Mathf.Abs(Mathf.AngleDifference(ga, a)) * d < 7.5f)) continue;
+                _rg(); float sc = R(1.3f, 1.55f);
+                int hx = Mathf.RoundToInt(x), hz = Mathf.RoundToInt(z); uint hs = StructGen.Hash(hx, 3, hz, seed);
+                b.Merge(StructGen.House(StructGen.StyleFor(reg, hs), sc > 1.42f ? 9 : 7, 7, 2 + (int)(hs % 2), hs), hx, 0, hz, Structures.RotFacing(-x, -z));
+            }
+        foreach (var ga in gates)
+            for (float d = plaza + 4; d < p.R - 4; d += 12f)
+                foreach (float s in new[] { -1f, 1f })
+                {
+                    var q = new Vector2(Mathf.Cos(ga), Mathf.Sin(ga)) * d + new Vector2(-Mathf.Sin(ga), Mathf.Cos(ga)) * s * 5f;
+                    b.Merge(StructGen.LampPost(), Mathf.RoundToInt(q.X), 0, Mathf.RoundToInt(q.Y));
+                }
+        if (p.Capital)
+        {
+            b.PadBox(-20, -20, 20, 20, Bk("stone_bricks"), Bk("stone_bricks"), 0);
+            b.Merge(StructGen.Tower(15, 16, wall, true), 0, 0, 0);
+            for (int i = 0; i < 4; i++) { float a = i * Mathf.Pi / 2 + Mathf.Pi / 4; b.Merge(StructGen.Tower(7, 21, wall, false), Mathf.RoundToInt(Mathf.Cos(a) * 15f), 0, Mathf.RoundToInt(Mathf.Sin(a) * 15f)); }
+            for (int i = 0; i < 6; i++) { float a = i / 6f * Mathf.Tau + .3f; K(g, i % 2 == 0 ? "castle/banner_red" : "castle/banner_blue", new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * 19f, -a, 1.4f, false); }
+        }
+        else
+        {
+            b.Merge(StructGen.Well(wall, Bk("roof_slab")), 0, 0, 0);
+            byte[] aw = { Bk("awning_red"), Bk("awning_blue"), Bk("awning_tan") };
+            for (int i = 0; i < 6; i++) { float a = i / 6f * Mathf.Tau; int sx = Mathf.RoundToInt(Mathf.Cos(a) * 9f), sz = Mathf.RoundToInt(Mathf.Sin(a) * 9f); b.Merge(StructGen.Stall(aw[i % 3], i % 2 == 0, seed + (uint)i), sx, 0, sz, Structures.RotFacing(-sx, -sz)); }
+        }
+    }
+    /// <summary>A square curtain wall with corner towers, a gatehouse towards the road and a keep (or the same worn into a ruin). Returns the quarter turn.</summary>
+    static int BCastle(Land L, Place p, Blueprint b, bool ruined, uint seed)
+    {
+        var ra = RoadAngles(L, p, p.R); float front = ra.Count > 0 ? ra[0] : Mathf.Pi / 2;
+        int rot = Structures.RotFacing(Mathf.Cos(front), Mathf.Sin(front));
+        int S = Mathf.RoundToInt(p.R * .62f); byte sb = L.Id == "ember" ? Bk("dark_stone") : Bk("stone_bricks");
+        for (int z = -S; z <= S; z++) for (int x = -S; x <= S; x++)
+        {
+            int m = Math.Max(Math.Abs(x), Math.Abs(z)); if (m < S - 1) continue;
+            bool gate = z >= S - 1 && Math.Abs(x) <= 2;
+            for (int y = 0; y < 8; y++) b.Set(x, y, z, gate && y <= 4 ? (byte)0 : sb);
+            if (!gate) b.Post(x, -1, z, sb);
+            if (m == S && !gate && ((x + z) & 1) == 0) b.Set(x, 8, z, sb);
+        }
+        foreach (int sx in new[] { -S, S }) foreach (int sz in new[] { -S, S }) b.Merge(StructGen.Tower(7, 13, sb, false), sx, 0, sz);
+        foreach (int sx in new[] { -5, 5 }) b.Merge(StructGen.Tower(5, 11, sb, false), sx, 0, S);
+        for (int x = -2; x <= 2; x++) for (int z = S - 1; z <= S; z++) for (int y = 5; y <= 9; y++) b.Set(x, y, z, sb);
+        if (!ruined) { b.Merge(StructGen.Tower(11, 14, sb, true), 0, 0, -S / 4); return rot; }
+        StructGen.Ruin(b, seed, 13);
+        var core = StructGen.Tower(7, 10, sb, false); StructGen.Ruin(core, seed + 9, 10); b.Merge(core, 0, 0, -2);
+        for (int i = 0; i < 10; i++) { int px = Mathf.RoundToInt(R(-S + 3, S - 3)), pz = Mathf.RoundToInt(R(-S + 3, S - 3)), h = Mathf.RoundToInt(R(1.5f, 6f)); for (int y = 0; y < h; y++) b.Set(px, y, pz, StructGen.H01(px, y, pz, seed) < .5f ? Bk("mossy_bricks") : sb); }
+        return rot;
+    }
+    static int BCave(Place p, Blueprint b, uint seed)
+    {
+        float best = p.Yaw, low = 1e9f;
+        for (int i = 0; i < 12; i++) { float a = i / 12f * Mathf.Tau; float h = GroundAt(p.X + Mathf.Cos(a) * 30, p.Z + Mathf.Sin(a) * 30); if (h < low) { low = h; best = a; } }
+        b.Merge(StructGen.Mouth(Bk("cobblestone"), seed), 0, 0, 0);
+        return Structures.RotFacing(Mathf.Cos(best), Mathf.Sin(best));
+    }
+    static void BCamp(Place p, Blueprint b, Node3D g)
+    {
+        byte[] cl = { Bk("cloth_tan"), Bk("cloth_red"), Bk("cloth_tan"), Bk("cloth_blue"), Bk("cloth_tan") };
+        for (int i = 0; i < 5; i++)
+        {
+            float a = i / 5f * Mathf.Tau, rad = p.R * .55f; int tx = Mathf.RoundToInt(Mathf.Cos(a) * rad), tz = Mathf.RoundToInt(Mathf.Sin(a) * rad);
+            b.Merge(StructGen.Tent(cl[i], 4), tx, 0, tz, Structures.RotFacing(-tx, -tz));
+        }
+        b.Merge(StructGen.Campfire(), 0, 0, 0);
+        for (int i = 0; i < 6; i++) K(g, i % 2 == 0 ? "village/crate" : "village/barrel", new Vector3(R(-6, 6), 0, R(-6, 6)), R(0, 6), 1.3f, false);
+    }
+    static void BTombs(Blueprint b, uint seed)
+    {
+        byte ss = Bk("sandstone"), slab = Bk("sandstone_slab"), dark = Bk("dark_stone");
+        int[] w = { 11, 8, 6, 3 };   // half widths of the 4 steps, 3 high each, centred at z -6
+        for (int i = 0; i < 4; i++) b.Box(-w[i], i * 3, -6 - w[i], w[i], i * 3 + 2, -6 + w[i], ss);
+        for (int x = -w[0]; x <= w[0]; x++) for (int z = -6 - w[0]; z <= -6 + w[0]; z++) if (Math.Abs(x) == w[0] || Math.Abs(z + 6) == w[0]) b.Post(x, -1, z, ss);
+        b.Box(-2, 12, -8, 2, 12, -4, slab);
+        for (int z = 2; z <= 5; z++) for (int y = 0; y <= 3; y++) for (int x = -1; x <= 1; x++) b.Set(x, y, z, z == 2 ? dark : (byte)0);
+        for (int i = 0; i < 6; i++) foreach (int sx in new[] { -6, 6 })
+        {
+            int z = 10 + i * 5; bool broken = StructGen.H01(sx, i, 0, seed) < .4f; int h = broken ? 1 + (int)(StructGen.H01(sx, i, 1, seed) * 3) : 7;
+            for (int y = 0; y < h; y++) b.Set(sx, y, z, ss);
+            if (!broken) b.Set(sx, h, z, slab);
+            b.Post(sx, -1, z, ss);
+        }
+    }
+
+    static readonly string[] Cottages ={ "village/house_cottage", "village/house_hut", "village/house_town_teal", "village/house_cottage", "village/house_shop", "village/house_inn_lit" };
     static readonly string[] Townhouses = { "village/house_town_blue", "village/house_town_teal", "village/house_shop", "village/house_inn_lit", "village/house_cottage" };
 
     static void Village(Place p, Node3D g, bool stilts)
@@ -687,6 +851,7 @@ public static class Lands
                 done.Add(q);
                 var dir = (rd.P[i + 1] - rd.P[i]).Normalized(); float span = rv.W * 3.6f + 6f;
                 var a = q - dir * span / 2; var b = q + dir * span / 2; float h = Mathf.Max(GroundAt(a.X, a.Y), GroundAt(b.X, b.Y)) + .25f;
+                if (Structures.On) { Structures.Place(StructGen.RiverBridge(a, b, Structures.Floor(h)), 0, 0, 0); BridgeSpots.Add(new Vector3(q.X, h, q.Y)); continue; }
                 var g = new Node3D { Name = "RiverBridge", Position = new Vector3(q.X, h, q.Y), Rotation = new Vector3(0, Mathf.Atan2(dir.X, dir.Y), 0) }; parent.AddChild(g);
                 Builder.Solid(g, new Vector3(4.6f, .5f, span), new Vector3(0, -.25f, 0), _wood);
                 foreach (float s in new[] { -1f, 1f }) { Builder.Solid(g, new Vector3(.25f, 1f, span), new Vector3(s * 2.25f, .5f, 0), _dark); for (float z = -span / 2 + 2; z < span / 2; z += 5f) Pillar(g, .3f, h + 3f, new Vector3(s * 2f, -h - 2.5f, z), _dark); }
@@ -710,6 +875,7 @@ public static class Lands
         Vector3 P(float t) { var q = sA + (sB - sA) * t; return new Vector3(q.X, Mathf.Lerp(hA, hB, t) + Mathf.Sin(t * Mathf.Pi) * arch, q.Y); }
         var g = new Node3D { Name = "Bridge_" + br.Name }; parent.AddChild(g);
         int segs = Mathf.CeilToInt(len / 5f); var side = new Vector3(-dir.Y, 0, dir.X);
+        if (Structures.On) { Structures.Place(StructGen.SeaBridge(sA, sB, P), 0, 0, 0); segs = 0; BridgeSpots.Add(P(.08f)); }
         for (int i = 0; i < segs; i++)
         {
             Vector3 p0 = P(i / (float)segs), p1 = P((i + 1) / (float)segs), fwd = p1 - p0, mid = (p0 + p1) / 2; float l = fwd.Length() + .2f;

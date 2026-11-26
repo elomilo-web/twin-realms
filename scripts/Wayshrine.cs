@@ -36,7 +36,15 @@ public partial class Wayshrine : Node3D
             bool blk = Structures.On && !p.Sky;   // F-19: plinth and column as blocks (the sky islands have no blocks)
             if (blk)
             {
-                int bx = Mathf.FloorToInt(x), bz = Mathf.FloorToInt(z), by = Structures.Floor(y);
+                int bx = Mathf.FloorToInt(x), bz = Mathf.FloorToInt(z);
+                // not into a house, tomb, tent or dungeon mound: walk round the spot in growing rings until a dry 7 x 7 is free
+                for (int ring = 0, k = 0; !Structures.Free(bx, bz, 3) && ring < 12; k++)
+                {
+                    if (k >= 8) { k = 0; ring++; }
+                    float a = k / 8f * Mathf.Tau; int tx = Mathf.FloorToInt(x + Mathf.Cos(a) * ring * 3), tz = Mathf.FloorToInt(z + Mathf.Sin(a) * ring * 3);
+                    if (Structures.Free(tx, tz, 3) && Lands.WaterAt(tx, tz) < World.GroundAt(tx, tz) - .2f) { bx = tx; bz = tz; }
+                }
+                y = World.GroundAt(bx + .5f, bz + .5f); int by = Structures.Floor(y);
                 Structures.Place(StructGen.Wayshrine(), bx, by, bz); x = bx + .5f; z = bz + .5f; y = by;
             }
             var w = new Wayshrine { _id = p.Id, Position = new Vector3(x, y, z), _blocks = blk };

@@ -416,10 +416,34 @@ PHASE 4 - BUILDING BLOCKS AND PROTECTED AREAS
     it, players cannot mine or place blocks, and trying shows a clear
     message. The zone border can be shown on the map. Admins can bypass it.
 
-[ ] F-19  ALL STRUCTURES IN BLOCK STYLE
+[x] F-19  ALL STRUCTURES IN BLOCK STYLE
     DONE WHEN: every structure not built from game blocks (houses, walls,
     towers, bridges, ruins) is replaced with a block-built version in the
     same style, and the log has a screenshot of each town and structure type.
+    NOTE (2026-11-26): Structures are block blueprints (scripts/Structures.cs: Blueprint = cells + ground pads + posts, merge/rotate
+      by quarter turns with stair/door/torch/ladder/chest/log metas turned; scripts/StructGen.cs: procedural House (styles per land:
+      planks/plaster/stone/sandstone/dark stone, log frame, glass windows, working door, torches, ladder to upper floors, chest,
+      stair gable or flat roof, chimney), Well, Stall, LampPost, Campfire (new campfire light block), Tent, Wayshrine, Tower,
+      RingWall, Ruin (broken columns, holes, moss), Mouth (dungeon/cave arch in a rock mound), Arena colosseum, RiverBridge,
+      SeaBridge (half-step arch, parapets, piers, lamps)). Builder/Lands/Wayshrine stamp them at the old places while the world is
+      built (same seeds and order = same world everywhere); OverworldGen.Fill lays them into each chunk (pads level the ground and
+      fill foundations), player edits stay on top. Old meshes/colliders are skipped (Kit houses, castle kit, wells, stalls, lamps,
+      colosseum boxes, bridges, boulders) behind data/blocks.json "structures.blockStructures" (false = old meshes; the online
+      server always keeps them, it has no blocks). Kept: interaction nodes (Door, chests, ArenaExit, gate/portcullis, NPC spots),
+      props (anvil, barrels, wagon, banners), crowd, portals, wayshrine sigil/light. Far view: each 128 m tile of structures is one
+      merged vertex-colour mesh (outer faces only, built on worker threads, 102 tiles) that discards itself inside vox_rect.
+      22 new blocks (stone/mossy bricks, roof tiles/slate/thatch/sandstone stairs+slabs, plaster, dark planks, cloth, awnings,
+      rune stone, campfire) appended so saved ids never shift. 272k blocks in 769 chunks. Wayshrines avoid structure cells.
+      World build 9.7 s -> 10.2 s. FPS before/after: village 69.6/69.5, settlement 61.4/61.2, hud 42.6/41.5, arena 82.9/82.3
+      (draw calls settlement 1646 -> 2549, arena 5910 -> 6264). DevCapture: "bridge": n and "wait_blocks" view options.
+      Screenshots (.devloop/screenshots/structures/): s_oakhaven_square, s_oakhaven_houses, s_house_interior, s_windmill_forge,
+      s_wayshrine, s_arena_outside, s_arena_inside, s_dungeon_entrance, s_far_lod, s_village_hollowfrost, s_castle_wintermere,
+      s_cave_glacier_maw, s_city_kesh, s_village_dunemere, s_tombs_atheru, s_camp_sandstrider, s_stilts_bogwater, s_ruins_drowned,
+      s_city_ashford, s_castle_cinderhold, s_village_emberfall, s_city_aurelion, s_tower, s_village_thistledown, s_bridge_river,
+      s_bridge_sea.
+      ASSUMPTION: rotations snap to quarter turns (houses around round villages face the centre's nearest axis); sky-island
+      shrines/temples and natural set pieces (standing stones, obelisks, dragon bones) stay meshes; NPC/monster walking inside
+      houses and opening doors use the existing F-14/F-16 block code (not separately tested here).
 
 
 ================================================================================

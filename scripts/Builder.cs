@@ -32,6 +32,51 @@ public static class Builder
         Village(over); Arena(over); foreach (var p in World.Pois) if (p.Dun != null) Entrance(over, p);
         Wayshrine.BuildAll(over);
         Lair(over); Stones(over); Obelisks(over); Chests(over); Npcs(over); Spawns(over);
+        Structures.Finish(over);   // F-19: every block structure is stamped; the far meshes build and the block world may start
+    }
+
+    // ---------------------------------------------------------------- F-19 block structures (scripts/StructGen.cs)
+    static byte Bk(string k) => Blocks.Id(k);
+    static int Fl(float x, float z) => Structures.Floor(World.GroundAt(x + .5f, z + .5f));
+    /// <summary>Oakhaven from blocks: the same houses (place, size, facing), the well, stalls, forge hearth, windmill tower, lamp posts and paddock fence.</summary>
+    static void BlockVillage((float x, float z, float w, float d, float h, float r)[] hs)
+    {
+        var b = new Blueprint(); int oy = Fl(0, 0);
+        int Dy(int x, int z) => Fl(x, z) - oy;
+        foreach (var h in hs)
+        {
+            int hx = Mathf.FloorToInt(h.x), hz = Mathf.FloorToInt(h.z); uint seed = (uint)Math.Abs((int)(h.x * 7 + h.z * 13));
+            int W = Math.Max(5, Mathf.RoundToInt(h.w) | 1), D = Math.Max(5, Mathf.RoundToInt(h.d) | 1);
+            b.Merge(StructGen.House(StructGen.StyleFor("home", seed), W, D, h.h > 3.6f ? 2 : 1, seed), hx, Dy(hx, hz), hz, Structures.RotOfYaw(h.r));
+        }
+        b.Merge(StructGen.Well(Bk("stone_bricks"), Bk("roof_slab")), 0, 0, 0);
+        b.Merge(StructGen.Stall(Bk("awning_red"), true, 1), -9, Dy(-9, 8), 8, 2);   // Brynn's stall: counter towards her, plaza side
+        foreach (var (sx, sz, yaw, aw, lit) in new[] { (-3.5f, -9.6f, .08f, "awning_red", true), (9.8f, -5.6f, -1.1f, "awning_tan", true), (11.2f, 8.8f, -1.9f, "awning_blue", false) })
+        { int x = Mathf.FloorToInt(sx), z = Mathf.FloorToInt(sz); b.Merge(StructGen.Stall(Bk(aw), lit, (uint)x), x, Dy(x, z), z, Structures.RotOfYaw(yaw)); }
+        // Dorrin's forge: a cobblestone hearth with a chimney (the fire, anvil and bench stay)
+        { int dy = Dy(24, 2); b.Box(23, dy, 1, 24, dy, 2, Bk("cobblestone")); b.Box(23, dy + 1, 1, 24, dy + 1, 2, Bk("cobble_slab")); for (int y = 1; y <= 4; y++) b.Set(23, dy + y, 1, Bk("cobblestone")); }
+        // the windmill: a plaster tower (log corners) narrowing to a 3 x 3 top under a tiled cap; the sails still turn on its front
+        {
+            int cx = 26, cz = -18, dy = Dy(cx, cz); byte pl = Bk("plaster"), log = Bk("log");
+            b.PadBox(cx - 3, cz - 3, cx + 3, cz + 3, Bk("cobblestone"), Bk("cobblestone"), 14, dy);
+            for (int y = 0; y <= 10; y++)
+            {
+                int r = y < 7 ? 2 : 1;
+                for (int z = -r; z <= r; z++) for (int x = -r; x <= r; x++)
+                {
+                    bool edge = Math.Abs(x) == r || Math.Abs(z) == r; if (!edge) { b.Set(cx + x, dy + y, cz + z, 0); continue; }
+                    b.Set(cx + x, dy + y, cz + z, Math.Abs(x) == r && Math.Abs(z) == r ? log : y == 3 && (x == 0 || z == 0) ? Bk("glass") : pl);
+                }
+            }
+            b.Box(cx - 2, dy + 7, cz - 2, cx + 2, dy + 7, cz + 2, Bk("roof_slab")); for (int z = -1; z <= 1; z++) for (int x = -1; x <= 1; x++) b.Set(cx + x, dy + 7, cz + z, pl);
+            b.Box(cx - 1, dy + 11, cz - 1, cx + 1, dy + 11, cz + 1, Bk("roof_tiles")); b.Set(cx, dy + 12, cz, Bk("roof_slab"));
+            b.Set(cx, dy, cz - 2, Bk("door"), 3); b.Set(cx, dy + 1, cz - 2, Bk("door"), 3 | 4);
+        }
+        foreach (var (lx, lz) in new[] { (-11f, 0f), (11, 0), (0, -12), (3.5f, 13), (-22, -2), (22, 12), (30, 10), (-30, 6) })
+        { int x = Mathf.FloorToInt(lx), z = Mathf.FloorToInt(lz); b.Merge(StructGen.LampPost(), x, Dy(x, z), z); }
+        for (int x = 31; x <= 45; x++) foreach (int z in new[] { 5, 14 }) { b.Set(x, Dy(x, z), z, Bk("fence")); b.Post(x, Dy(x, z) - 1, z, Blocks.Dirt); }
+        for (int z = 6; z <= 13; z++) if (z is < 9 or > 10) { b.Set(45, Dy(45, z), z, Bk("fence")); b.Post(45, Dy(45, z) - 1, z, Blocks.Dirt); }
+        Structures.Place(b, 0, oy, 0);
     }
 
     // ---------------------------------------------------------------- helpers
@@ -149,6 +194,10 @@ public static class Builder
     {
         float P = Mathf.Pi;
         (float x, float z, float w, float d, float h, float r)[] hs = { (-15, -9, 7, 6, 3.2f, 0), (-18, 7, 6, 6, 3f, P / 2), (15, -10, 7, 6, 3.3f, 0), (18, 6, 6, 7, 3.1f, -P / 2), (-3, -21, 9, 6.5f, 4.2f, 0), (8, -20, 6, 6, 3f, 0), (-7, 19, 6.5f, 6, 3.1f, P), (9, 19, 7, 6, 3.2f, P) };
+        bool blk = Structures.On;   // F-19: houses, well, stalls, hearth, windmill, lamps and fences as blocks
+        if (blk) BlockVillage(hs);
+        else
+        {
         foreach (var a in hs) House(over, a.x, a.z, a.w, a.d, a.h, a.r);
         // plaza cobbles
         var cob = World.Mat(new Color(.5f, .45f, .4f),   // warmer and darker: the light stone blew out to white in the brighter grade
@@ -157,13 +206,15 @@ public static class Builder
         // well
         var well = Group(over, 0, 0); Cyl(well, 1.5f, .9f, new Vector3(0, .45f, 0), Stone, true); Cyl(well, 1.2f, .05f, new Vector3(0, .86f, 0), World.Mat(new Color(.04f, .1f, .16f)));
         Box(well, new Vector3(.2f, 2.4f, .2f), new Vector3(-1.2f, 1.5f, 0), Wood); Box(well, new Vector3(.2f, 2.4f, .2f), new Vector3(1.2f, 1.5f, 0), Wood); Box(well, new Vector3(3.2f, .25f, 1.8f), new Vector3(0, 2.7f, 0), Roof);
+        }
         Campfire(over, 7, 5);
         // the hero's home: the cottage north of the plaza (at -7, 19, door facing the plaza); storage chest beside the door
         over.AddChild(new StashChest { Position = World.OnGround(-4.6f, 14.0f), Rotation = new Vector3(0, Mathf.Pi, 0) });
         over.AddChild(new PartyChestNode { Position = World.OnGround(-2.1f, 13.9f), Rotation = new Vector3(0, Mathf.Pi, 0) });
         if (Kit.Available) KitVillageProps(over);
         var st = Group(over, -9, 8);
-        if (Kit.Available)
+        if (blk) { }
+        else if (Kit.Available)
         {
             float sy = JsonUtil.F(Kit.Cfg.GetProperty("props"), "stallYaw", 0f) * Mathf.Pi / 180f;
             Kit.Add(st, Kit.Str("props", "stall"), new Vector3(.6f, 0, .3f), sy);
@@ -176,19 +227,26 @@ public static class Builder
         foreach (var s in new[] { (-1.8f, -1f), (1.8f, -1f), (-1.8f, 1f), (1.8f, 1f) }) Box(st, new Vector3(.2f, 2.8f, .2f), new Vector3(s.Item1, 1.4f, s.Item2), Wood);
         Box(st, new Vector3(4.4f, .15f, 3f), new Vector3(0, 2.85f, 0), Cloth); Solid(st, new Vector3(3.6f, .9f, .9f), new Vector3(0, .5f, .3f), Wood); Box(st, new Vector3(3.6f, .1f, .9f), new Vector3(0, .97f, .3f), Cloth);
         }
-        var fg = Group(over, 24, 2); Solid(fg, new Vector3(2.4f, 1.3f, 2f), new Vector3(0, .65f, 0), Stone);
+        var fg = Group(over, 24, 2); if (!blk) Solid(fg, new Vector3(2.4f, 1.3f, 2f), new Vector3(0, .65f, 0), Stone);
         if (Kit.Available) { Kit.Add(fg, Kit.Str("props", "anvil"), new Vector3(2, 0, 0), Mathf.Pi / 2, 1f, true); Kit.Add(fg, Kit.Str("props", "workbench"), new Vector3(-.4f, 0, -2.1f), 0, 1f, true); Kit.Add(fg, Kit.Str("props", "barrel"), new Vector3(-2f, 0, 1f), 0, 1.1f, true); Kit.Add(fg, Kit.Str("props", "weaponStand"), new Vector3(3.6f, 0, -1.4f), -.5f, 1f, true); }
-        else Box(fg, new Vector3(1.1f, .6f, .6f), new Vector3(2, .8f, 0), Metal); Box(fg, new Vector3(.5f, 3f, .5f), new Vector3(-.6f, 2.4f, -.5f), Stone); Fire(fg, new Vector3(.2f, 1.45f, 0), 1.4f, 16f);
-        var wm = Group(over, 26, -18); var tower = new StaticBody3D { CollisionLayer = 1 }; tower.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 1.7f, BottomRadius = 2.7f, Height = 9f, RadialSegments = 10 }, MaterialOverride = Wall, Position = new Vector3(0, 4.5f, 0) });
+        else Box(fg, new Vector3(1.1f, .6f, .6f), new Vector3(2, .8f, 0), Metal);
+        if (!blk) Box(fg, new Vector3(.5f, 3f, .5f), new Vector3(-.6f, 2.4f, -.5f), Stone);
+        Fire(fg, new Vector3(.2f, blk ? 1.7f : 1.45f, 0), 1.4f, 16f);
+        var wm = Group(over, 26, -18);
+        if (!blk)
+        {
+        var tower = new StaticBody3D { CollisionLayer = 1 }; tower.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 1.7f, BottomRadius = 2.7f, Height = 9f, RadialSegments = 10 }, MaterialOverride = Wall, Position = new Vector3(0, 4.5f, 0) });
         tower.AddChild(new CollisionShape3D { Shape = new CylinderShape3D { Radius = 2.4f, Height = 9f }, Position = new Vector3(0, 4.5f, 0) }); wm.AddChild(tower);
         wm.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 0f, BottomRadius = 3.1f, Height = 3f, RadialSegments = 10 }, MaterialOverride = Roof, Position = new Vector3(0, 10.5f, 0) });
-        var hub = new Spinner { Axis = Vector3.Forward, Speed = .45f, Position = new Vector3(0, 8f, 2.4f) }; wm.AddChild(hub);
+        }
+        var hub = new Spinner { Axis = Vector3.Forward, Speed = .45f, Position = blk ? new Vector3(.5f, 9f, 2.3f) - new Vector3(0, wm.Position.Y - Fl(26, -18), 0) : new Vector3(0, 8f, 2.4f) }; wm.AddChild(hub);
         for (int i = 0; i < 4; i++) { var arm = new Node3D { Rotation = new Vector3(0, 0, i * P / 2) }; arm.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(.5f, 6f, .12f) }, MaterialOverride = Wood, Position = new Vector3(0, 3f, 0) }); hub.AddChild(arm); }
-        foreach (var p in new[] { (-11f, 0f), (11, 0), (0, -12), (3.5f, 13), (-22, -2), (22, 12), (30, 10), (-30, 6) }) Lamp(over, p.Item1, p.Item2);
+        if (!blk) foreach (var p in new[] { (-11f, 0f), (11, 0), (0, -12), (3.5f, 13), (-22, -2), (22, 12), (30, 10), (-30, 6) }) Lamp(over, p.Item1, p.Item2);
         _doorLanterns = 0;
         foreach (var p in new[] { (-20f, -14f), (21, -22), (-22, 16), (15, 25) }) { Crate(over, p.Item1, p.Item2, 1.1f); Crate(over, p.Item1 + 1.3f, p.Item2 + .4f, .8f); Barrel(over, p.Item1 - 1, p.Item2 + 1); }
         for (int i = 0; i < 4; i++) { var hb = Group(over, -24 + i * 1.8f, 20 + (i % 2) * .8f, 0, .4f); hb.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = .9f, BottomRadius = .9f, Height = .8f, RadialSegments = 8 }, MaterialOverride = Hay, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off, VisibilityRangeEnd = 110f, VisibilityRangeEndMargin = 15f, VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self }); }
-        if (Kit.Available) { for (int i = 0; i < 7; i++) foreach (var zz in new[] { -4.2f, 4.2f }) Kit.Add(over, Kit.Str("props", "fence"), World.OnGround(31.03f + i * 2.06f, 10 + zz, -.02f)); }
+        if (blk) { }
+        else if (Kit.Available) { for (int i = 0; i < 7; i++) foreach (var zz in new[] { -4.2f, 4.2f }) Kit.Add(over, Kit.Str("props", "fence"), World.OnGround(31.03f + i * 2.06f, 10 + zz, -.02f)); }
         else for (int i = 0; i < 10; i++) foreach (var zz in new[] { -4.2f, 4.2f }) Box(over, new Vector3(.15f, 1.1f, .15f), World.OnGround(30 + i * 1.6f, 10 + zz, .5f), Wood);
         DressVillage(over, hs);
     }
@@ -247,6 +305,7 @@ public static class Builder
     static void DressVillage(Node3D over, (float x, float z, float w, float d, float h, float r)[] hs)
     {
         var rnd = World.Rng(777u);
+        if (Structures.On) goto Wood;   // F-19: the stalls are blocks (BlockVillage); the banners hung on the old house fronts
         // stalls around the plaza edge (clear of well, campfire, benches, table, lamps, the west stall and the cottage path)
         MarketStall(over, -3.5f, -9.6f, .08f, new Color(.4f, .13f, .12f), new Color(.52f, .4f, .18f), rnd, true);
         MarketStall(over, 9.8f, -5.6f, -1.1f, new Color(.5f, .37f, .17f), new Color(.3f, .1f, .1f), rnd, true);
@@ -256,6 +315,7 @@ public static class Builder
         Banner(over, 15, -10, 0, -2.4f, 3.0f, new Color(.16f, .2f, .22f), new Color(.6f, .5f, .25f));
         Banner(over, 8, -20, 0, 2.0f, 3.0f, new Color(.4f, .3f, .1f), new Color(.2f, .06f, .07f));
         // firewood stacks
+        Wood:
         foreach (var (fx, fz, fy) in new[] { (-17f, -5.2f, .1f), (17.5f, -6.2f, -.1f), (5f, -16.2f, .2f), (-13f, 13.5f, 1.2f) })
         {
             var g = Group(over, fx, fz, fy); var lm = new CylinderMesh { TopRadius = .1f, BottomRadius = .1f, Height = 1.1f, RadialSegments = 6 }; var xf = new List<Transform3D>();
@@ -309,6 +369,7 @@ public static class Builder
     }
     static void Campfire(Node parent, float x, float z)
     {
+        if (Structures.On) { int bx = Mathf.FloorToInt(x), bz = Mathf.FloorToInt(z); Structures.Place(StructGen.Campfire(), bx, Fl(bx, bz), bz); return; }   // F-19: a campfire block in a ring of cobble slabs
         var g = Group(parent, x, z); for (int i = 0; i < 6; i++) { float a = i / 6f * Tau; g.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = .22f, Height = .3f, RadialSegments = 6, Rings = 3 }, MaterialOverride = Stone, Position = new Vector3(Mathf.Cos(a) * .6f, .08f, Mathf.Sin(a) * .6f), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off, VisibilityRangeEnd = 90f, VisibilityRangeEndMargin = 12f, VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self }); }
         for (int i = 0; i < 3; i++) g.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = .08f, BottomRadius = .08f, Height = .9f }, MaterialOverride = Wood, Position = new Vector3(0, .25f, 0), Rotation = new Vector3(0, i * 2.1f, 1.2f) });
         Fire(g, new Vector3(0, .5f, 0), 1.2f, 14f);
@@ -373,9 +434,11 @@ public static class Builder
     static void Arena(Node3D over)
     {
         var ap = World.GetPoi("arena")!; float H = World.GroundAt(ap.X, ap.Z);
+        bool blk = Structures.On;   // F-19: the colosseum is blocks (StructGen.Arena); banners, iron, braziers, crowd and the portcullis stay
+        if (blk) { int oy = Structures.Floor(H); Structures.Place(StructGen.Arena(), Mathf.FloorToInt(ap.X), oy, Mathf.FloorToInt(ap.Z)); H = oy; }
         var g = new Node3D { Position = new Vector3(ap.X, H, ap.Z) }; over.AddChild(g);
         ArenaMats();
-        g.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 22.6f, BottomRadius = 22.6f, Height = .1f, RadialSegments = 40 }, MaterialOverride = _arSand, Position = new Vector3(0, .02f, 0) });
+        if (!blk) g.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 22.6f, BottomRadius = 22.6f, Height = .1f, RadialSegments = 40 }, MaterialOverride = _arSand, Position = new Vector3(0, .02f, 0) });
         { // worn central circle and dark stains (flat transparent discs, no shadows)
             void Disc(float x, float z, float r, Material m, float y) => g.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = r, BottomRadius = r, Height = .01f, RadialSegments = 24 }, MaterialOverride = m, Position = new Vector3(x, y, z), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
             Disc(0, 0, 11f, _arWorn, .075f); Disc(0, 0, 6.5f, _arWorn, .08f);
@@ -388,7 +451,7 @@ public static class Builder
         const int SEG = 44; float gateA = Mathf.Pi; (float r, float h)[] tiers = { (25.6f, 3.4f), (27.8f, 5.2f), (30f, 7f), (32.2f, 9f) };
         var unit = new BoxMesh { Size = Vector3.One };
         var walls = new StaticBody3D { Name = "ArenaWalls", CollisionLayer = 1 }; g.AddChild(walls);
-        void Shape(Vector3 size, Transform3D t) => walls.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = size }, Transform = t });
+        void Shape(Vector3 size, Transform3D t) { if (!blk) walls.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = size }, Transform = t }); }
         Basis Seg(float a) => new Basis(Vector3.Up, -a + Mathf.Pi / 2);   // local X along the ring, +Z outward
         Vector3 At(float a, float r, float y) => new(Mathf.Cos(a) * r, y, Mathf.Sin(a) * r);
         Transform3D Xf(float a, float r, float y, Vector3 size, float tang = 0f, float roll = 0f)
@@ -450,6 +513,7 @@ public static class Builder
             stoneL.Add(Xf(a, 24.6f, 3.9f, new Vector3(1.2f, 8.5f, 1.2f))); trim.Add(Xf(a, 24.6f, 8.2f, new Vector3(1.45f, .25f, 1.45f)));
             banners.Add(Xf(a, 23.96f, 5.9f, new Vector3(1.0f, 3.6f, .06f))); bannerC.Add(crimson);
             iron.Add(Xf(a, 23.9f, 7.75f, new Vector3(1.25f, .09f, .09f)));
+            if (blk) continue;   // block pylons carry campfire blocks (their own light)
             if (i % 2 == 0) { bowls.Add(new Transform3D(Basis.Identity, At(a, 24.6f, 8.55f))); Fire(g, At(a, 24.6f, 8.95f), 1.8f, 14f); }
             else spires.Add(new Transform3D(Seg(a) * new Basis(Vector3.Up, Mathf.Pi / 4), At(a, 24.6f, 9.05f)));
         }
@@ -461,12 +525,12 @@ public static class Builder
             stands.Add(new Transform3D(Basis.Identity, bp + new Vector3(0, .35f, 0))); bowls.Add(new Transform3D(Basis.Identity, bp + new Vector3(0, .85f, 0)));
             Fire(g, bp + new Vector3(0, 1.15f, 0), 1.5f, 10f);
         }
-        Solid(g, new Vector3(12, 1.6f, 7), new Vector3(-28, 6.2f, 0), Stone); Solid(g, new Vector3(12, 6, 1.2f), new Vector3(-27.5f, 2.7f, 3f), Stone); Solid(g, new Vector3(12, 6, 1.2f), new Vector3(-27.5f, 2.7f, -3f), Stone);
-        _portcullis = new Node3D { Position = new Vector3(-24, 5.2f, 0) }; g.AddChild(_portcullis);
+        if (!blk) { Solid(g, new Vector3(12, 1.6f, 7), new Vector3(-28, 6.2f, 0), Stone); Solid(g, new Vector3(12, 6, 1.2f), new Vector3(-27.5f, 2.7f, 3f), Stone); Solid(g, new Vector3(12, 6, 1.2f), new Vector3(-27.5f, 2.7f, -3f), Stone); }
+        _portcullis = new Node3D { Position = new Vector3(blk ? -23.5f : -24, 5.2f, 0) }; g.AddChild(_portcullis);
         for (int i = -2; i <= 2; i++) Box(_portcullis, new Vector3(.16f, 5f, .16f), new Vector3(0, 2.5f, i * .95f), Metal);
         for (int j = 1; j <= 4; j++) Box(_portcullis, new Vector3(.12f, .12f, 4.6f), new Vector3(0, j * 1.1f, 0), Metal);
         if (Kit.Available) foreach (var (k, lx, lz, yw) in new[] { ("weaponStand", -35f, 6.5f, Mathf.Pi / 2), ("dummy", -36f, -6.5f, Mathf.Pi / 2), ("dummy", -38f, -8f, 1.2f) })
-            Kit.Add(g, Kit.Str("props", k), new Vector3(lx, World.GroundAt(ap.X + lx, ap.Z + lz) - H - .02f, lz), yw, 1f, true);
+            Kit.Add(g, Kit.Str("props", k), new Vector3(lx, blk ? -.02f : World.GroundAt(ap.X + lx, ap.Z + lz) - H - .02f, lz), yw, 1f, true);
         g.AddChild(new ArenaExit { Position = new Vector3(-22.2f, 0, 0) });   // walk back to the gate and press E to leave a run
         GateBody = new StaticBody3D { Position = new Vector3(-24, 2.5f, 0), CollisionLayer = 1 }; GateBody.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(.5f, 5f, 5f) }, Disabled = true }); g.AddChild(GateBody);
         // gatehouse: two square towers with merlons flank the passage; a pointed arch and a black-and-crimson banner over the gate
@@ -484,9 +548,10 @@ public static class Builder
             Fire(g, new Vector3(-22.6f, 4.4f, s * 3.4f), 1f, 8f);   // gate torches
         }
         var gw = new Vector3(1.2f, 7.4f, 6f); stoneL.Add(new Transform3D(Basis.FromScale(gw), new Vector3(-23.2f, 9.1f, 0))); Shape(gw, new Transform3D(Basis.Identity, new Vector3(-23.2f, 9.1f, 0)));
-        banners.Add(new Transform3D(Basis.FromScale(new Vector3(.06f, 3.2f, 2.0f)), new Vector3(-22.55f, 9.8f, 0))); bannerC.Add(black);
-        banners.Add(new Transform3D(Basis.FromScale(new Vector3(.07f, 2.4f, 1.2f)), new Vector3(-22.48f, 10.0f, 0))); bannerC.Add(crimson);
-        iron.Add(new Transform3D(Basis.FromScale(new Vector3(.1f, .1f, 2.4f)), new Vector3(-22.5f, 11.45f, 0)));
+        float gx = blk ? -.42f : 0f;   // the block lintel's face is at x -23
+        banners.Add(new Transform3D(Basis.FromScale(new Vector3(.06f, 3.2f, 2.0f)), new Vector3(-22.55f + gx, 9.8f, 0))); bannerC.Add(black);
+        banners.Add(new Transform3D(Basis.FromScale(new Vector3(.07f, 2.4f, 1.2f)), new Vector3(-22.48f + gx, 10.0f, 0))); bannerC.Add(crimson);
+        iron.Add(new Transform3D(Basis.FromScale(new Vector3(.1f, .1f, 2.4f)), new Vector3(-22.5f + gx, 11.45f, 0)));
         // royal box across from the gate: a platform on the tiers under a crimson canopy on iron posts
         {
             float a0 = 0f;
@@ -509,11 +574,12 @@ public static class Builder
                 uint hsh = (uint)(i * 73856093 ^ ti * 19349663) * 2654435761u; float hf = (hsh >> 8 & 1023) / 1023f;
                 if (hf < .18f || (ti >= 1 && Mathf.Abs(Util.AngDiff(a, 0f)) < .12f)) continue;   // empty seats; the royal box stays clear
                 float sc = 1.08f + .14f * ((hsh >> 18 & 255) / 255f);
-                var p = At(a, rr, tiers[ti].h - .3f); var look = new Vector3(-p.X, 0, -p.Z).Normalized();
+                float sy = blk ? Mathf.Round(tiers[ti].h - .3f) : tiers[ti].h - .3f;   // block tier tops are whole metres
+                var p = At(a, rr, sy); var look = new Vector3(-p.X, 0, -p.Z).Normalized();
                 var b = Basis.LookingAt(look, Vector3.Up) * new Basis(Vector3.Up, (hf - .5f) * .6f) * Basis.FromScale(Vector3.One * sc);
                 crowd.Add(new Transform3D(b, p)); crowdC.Add(robes[(int)(hsh >> 4) % robes.Length]);
                 faces.Add(new Transform3D(b, p));
-                if ((hsh >> 12 & 7) == 0) { var p2 = At(a + .55f / rr, rr, tiers[ti].h - .3f); crowd.Add(new Transform3D(b, p2)); crowdC.Add(robes[(int)(hsh >> 7) % robes.Length]); faces.Add(new Transform3D(b, p2)); }   // pairs
+                if ((hsh >> 12 & 7) == 0) { var p2 = At(a + .55f / rr, rr, sy); crowd.Add(new Transform3D(b, p2)); crowdC.Add(robes[(int)(hsh >> 7) % robes.Length]); faces.Add(new Transform3D(b, p2)); }   // pairs
             }
         }
         var faceMesh = new SphereMesh { Radius = .1f, Height = .22f, RadialSegments = 8, Rings = 4 };
@@ -530,16 +596,20 @@ public static class Builder
             foreach (var (tx, lord, seed) in new[] { (-1.6f, false, "arena_a"), (0f, true, "arena_lord"), (1.6f, false, "arena_b") })
             {
                 var av = new Avatar { Name = "Spectator" }; g.AddChild(av);
-                var p = At(0f, 28.4f, 6.9f) + Seg(0f).X * tx; av.Position = p; av.Basis = Basis.LookingAt(new Vector3(-1, 0, 0), Vector3.Up);
+                var p = At(0f, 28.4f, blk ? 7f : 6.9f) + Seg(0f).X * tx; av.Position = p; av.Basis = Basis.LookingAt(new Vector3(-1, 0, 0), Vector3.Up);
                 av.Build(new Appearance { Female = seed == "arena_b", Skin = new Color(.86f, .7f, .58f), Hair = new Color(.12f, .09f, .07f), Height = lord ? 1.02f : 1f, Bulk = 1f }, seed);
                 Item? Eq(string sl) => sl switch { "head" => lord ? crown : hood, "armor" => lord ? surcoat : robe, "feet" => boots, _ => null };
                 av.Dress(Eq, "none", lord ? new Color(.45f, .1f, .1f) : new Color(.2f, .17f, .15f), lord ? new Color(.4f, .12f, .1f) : new Color(.22f, .19f, .17f));
                 av.Play("idle");
             }
         }
-        ArMulti(g, unit, _arStone, stoneL); ArMulti(g, unit, _arBase, baseL); ArMulti(g, unit, _arTrim, trim);
-        ArMulti(g, unit, _arVoid, voids, null, false); ArMulti(g, unit, _arIron, iron); ArMulti(g, unit, _arBanner, banners, bannerC);
-        ArMulti(g, new CylinderMesh { TopRadius = .02f, BottomRadius = .75f, Height = 1.5f, RadialSegments = 4, Rings = 1 }, _arTrim, spires);
+        if (!blk)
+        {
+            ArMulti(g, unit, _arStone, stoneL); ArMulti(g, unit, _arBase, baseL); ArMulti(g, unit, _arTrim, trim);
+            ArMulti(g, unit, _arVoid, voids, null, false);
+            ArMulti(g, new CylinderMesh { TopRadius = .02f, BottomRadius = .75f, Height = 1.5f, RadialSegments = 4, Rings = 1 }, _arTrim, spires);
+        }
+        ArMulti(g, unit, _arIron, iron); ArMulti(g, unit, _arBanner, banners, bannerC);
         ArMulti(g, new CylinderMesh { TopRadius = .45f, BottomRadius = .2f, Height = .32f, RadialSegments = 10, Rings = 1 }, _arIron, bowls, null, false);
         ArMulti(g, new CylinderMesh { TopRadius = .08f, BottomRadius = .14f, Height = .7f, RadialSegments = 8, Rings = 1 }, _arIron, stands, null, false);
         World.Lamp(g, new Vector3(0, 12, 0), new Color(1f, .8f, .55f), 40f, 1.2f);
@@ -552,9 +622,35 @@ public static class Builder
     }
 
     // ---------------------------------------------------------------- dungeon mouths
+    static ShaderMaterial PortalMat() => new ShaderMaterial { Shader = PortalShader ??= new Shader { Code = @"
+shader_type spatial;
+render_mode unshaded, cull_disabled;
+uniform vec3 c1 : source_color = vec3(0.35, 0.85, 1.0);
+uniform vec3 c2 : source_color = vec3(0.02, 0.02, 0.08);
+void fragment(){
+  vec2 uv = UV * 2.0 - 1.0; uv.x *= 0.62; float r = length(uv); float a = atan(uv.y, uv.x);
+  float sw = sin(a * 3.0 + r * 11.0 - TIME * 2.2) * 0.5 + 0.5;
+  float sw2 = sin(a * 5.0 - r * 7.0 + TIME * 1.3) * 0.5 + 0.5;
+  float n = (sw * 0.7 + sw2 * 0.3) * smoothstep(1.05, 0.15, r);
+  vec3 col = mix(c2, c1, pow(n, 2.2) * 0.85 + smoothstep(0.45, 0.0, r) * 0.25);
+  col += c1 * smoothstep(0.75, 1.0, r) * 0.35 * (0.6 + 0.4 * sin(TIME * 3.0));
+  ALBEDO = col;
+}" } };
+    /// <summary>F-19: a dungeon mouth from blocks (StructGen.Mouth) turned to the nearest quarter of the old facing; the portal, light and door spot stay.</summary>
+    static void BlockEntrance(Node3D over, Poi p, float yaw)
+    {
+        int rot = Structures.RotOfYaw(yaw), ox = Mathf.FloorToInt(p.Door.X), oz = Mathf.FloorToInt(p.Door.Z), oy = Fl(ox, oz);
+        byte arch = p.Dun == "depths" ? Bk("dark_stone") : p.Dun == "barrow" ? Bk("mossy_bricks") : Bk("stone_bricks");
+        Structures.Place(StructGen.Mouth(arch, (uint)Math.Abs(ox * 31 + oz * 17)), ox, oy, oz, rot);
+        var g = new Node3D { Position = new Vector3(ox + .5f, oy, oz + .5f), Rotation = new Vector3(0, rot * Mathf.Pi / 2, 0) }; over.AddChild(g);
+        g.AddChild(new MeshInstance3D { Mesh = new QuadMesh { Size = new Vector2(3f, 5f) }, MaterialOverride = PortalMat(), Position = new Vector3(0, 2.5f, -4.4f) });
+        World.Lamp(g, new Vector3(0, 3f, 0.5f), new Color(.5f, .88f, 1f), 14f, 1.2f, -1, false);
+        g.AddChild(new Door { Key = p.Dun!, Title = p.Name, Position = new Vector3(0, 1f, 3.2f) });
+    }
     static void Entrance(Node3D over, Poi p)
     {
         float yaw = Mathf.Atan2(-p.Door.X, -p.Door.Z); var rg = World.Rng((uint)(Math.Abs(p.X * 31 + p.Z * 17)) + 1u); float rr(float a, float b) => a + rg() * (b - a);
+        if (Structures.On) { BlockEntrance(over, p, yaw); return; }
         var g = Group(over, p.Door.X, p.Door.Z, yaw);
         for (int i = 0; i < 26; i++)
         {
