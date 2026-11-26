@@ -254,10 +254,11 @@
    "size": 1.6
   }
  },
+ "_banned_help": "Sheets no spell may use: fire_orb, ice_orb and shadow_orb are upright, flat-bottomed blobs that face the camera, so in flight they read as a flying bottle (FOCUS F-08). SpellFx.For never returns them and the audit at load logs any skill that names one. Spell projectiles in flight are drawn by Projectile.cs instead (element-tinted orb, comet streak and an element particle trail, see Projectile.TravelFx).",
+ "banned": ["fire_orb", "ice_orb", "shadow_orb"],
  "skills": {
   "fire": {
    "cast": "cast_gather_fire",
-   "travel": "fire_orb",
    "hit": "fire_burst"
   },
   "nova": {
@@ -273,7 +274,6 @@
   },
   "shadowbolt": {
    "cast": "cast_gather",
-   "travel": "shadow_orb",
    "hit": "shadow_burst"
   },
   "drain": {
@@ -290,7 +290,6 @@
    "after": "shockwave"
   },
   "icelance": {
-   "travel": "ice_orb",
    "hit": "ice_shatter"
   },
   "thornvolley": {

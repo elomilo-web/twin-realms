@@ -418,6 +418,8 @@ public static class Vfx
     }
 
     /// <summary>One entry point for element impacts without a dedicated effect of their own (fire/frost/lightning have theirs).</summary>
+    /// <summary>True when ElementImpact draws something for this damage type.</summary>
+    public static bool HasElementImpact(string type) => type is "holy" or "shadow" or "poison";
     public static void ElementImpact(string type, Vector3 pos, float radius)
     {
         switch (type) { case "holy": HolyImpact(pos, radius); break; case "shadow": ShadowImpact(pos, radius); break; case "poison": PoisonImpact(pos, radius); break; }

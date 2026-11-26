@@ -108,21 +108,40 @@ PHASE 0 - BUGS AND FIXES (do these first)
         and the animation tree picks them by weapon type.
       - Arrows leave from the bow, not from the pistol's hand position.
 
-[ ] F-07  RETICLE MATCHES DIGGING AND PLACING
+[x] F-07  RETICLE MATCHES DIGGING AND PLACING
     DONE WHEN:
       - Digging and placing both use the same raycast, from the camera
         through the center of the reticle.
       - The targeted block gets an outline, and a ghost preview shows where
         a placed block will go.
       - Tested at close range, far range, at angles, and in first person.
+    NOTE (2026-11-26): new scripts/BlockAim.cs: one ray, Camera3D.ProjectRayOrigin/Normal at the
+      visible-rect centre (the HUD reticle; includes the shoulder HOffset/VOffset the old code missed,
+      it cast from cam.GlobalPosition along -Z), DDA through the block grid, reach measured from the
+      hero's eye (blocks further than reach are rejected; blocks >1 m behind the hero skipped). Dig,
+      place, crack, door use, outline and ghost all use it (PlayerBlocks.Aim). New outline: 12 edge bars
+      (dark rim + pale core) around the targeted block, slab-aware. Views dig_close/dig_far/dig_angle
+      (+DevCapture "build aim" log): target 2.9/3.5/2.5 m from the eye, hit point 0.0 px from the
+      reticle, player target == BlockAim target; a pitch aimed past reach logs "nothing within reach".
+      First person does not exist yet: that check is carried by F-09 ("digging, placing ... work in
+      both views").
 
-[ ] F-08  REMOVE THE FLYING BOTTLE FROM SPELL EFFECTS
+[x] F-08  REMOVE THE FLYING BOTTLE FROM SPELL EFFECTS
     A flying bottle is used as the effect for every spell.
     DONE WHEN:
       - The bottle is removed from all spell visuals. Only thrown potions may
         still use it.
       - Every spell uses an effect from F-12 instead. Nothing falls back to
         the bottle.
+    NOTE (2026-11-26): the "bottle" was the travel flipbooks fire_orb / ice_orb / shadow_orb: upright,
+      flat-bottomed camera-facing blobs riding every fire/shadow/frost bolt (and crafted spells built
+      on them). data/spellfx.json drops those travel entries and lists them under "banned"; SpellFx.For
+      and Make refuse banned sheets. Spells now fly as Projectile.cs draws them: tinted orb + comet
+      streak + an element trail (frost stars, lightning sparks, shadow/poison smoke, holy light, fire
+      flames; Projectile.TrailSet/TravelFx). Startup audit (SpellFx.Audit at load) logs any skill
+      naming a banned/unknown sheet or resolving to no effect: "69 skills checked, 0 problems".
+      DevCapture logs each cast's effect ids. F-12 will replace these stand-ins with the full library.
+      No code in the game uses a bottle model (potions are drunk, not thrown).
 
 
 ================================================================================

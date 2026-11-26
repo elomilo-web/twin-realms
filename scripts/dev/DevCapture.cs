@@ -187,6 +187,8 @@ public partial class DevCapture : Node
             _standIn.Build(ap, d.Name);
             _standIn.Dress(s => d.Eq.GetValueOrDefault(s), d.WType(), Classes.Get(d.Class).Tunic);
             if (Flag(v, "fly", false)) _standIn.FlapWings(Num(v, "fly_t", .2f), true);   // Golden Wings spread as in flight
+            // "pose": a clip key of data/avatar.json "clips" (run, jump, fall, melee, cast...) or a clip name, held at "pose_t" (0..1)
+            if (Str(v, "pose") is { Length: > 0 } pk) _standIn.PoseAt(pk, Num(v, "pose_t", .4f));
             P.Visible = false;
         }
         // "probe": radius in metres; logs every visible mesh near the hero (what is that object in the picture?)
@@ -375,10 +377,27 @@ public partial class DevCapture : Node
             }
             if (dts.Count > 4) dts = dts.Skip(dts.Count / 4).ToList();   // the first frames after a teleport are spikes
             double avg = dts.Count > 0 ? dts.Count / dts.Sum() : 0, min = dts.Count > 0 ? 1.0 / dts.Max() : 0;
-            await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
-            var img = GetViewport().GetTexture().GetImage();
-            if (img.GetWidth() != 1280 || img.GetHeight() != 720) img.Resize(1280, 720, Image.Interpolation.Bilinear);
-            img.SavePng(_cur + name + ".png");
+            // "spin": camera yaw step per frame (rad; the follow camera, or the free camera orbiting its look_at) while "frames"
+            // pictures are taken "frame_gap" frames apart (name_0.png ...): catches flicker that only shows while the camera turns
+            float spin = Num(v, "spin", 0f); int shots = Math.Max(1, (int)Num(v, "frames", 1f)), gap = Math.Max(1, (int)Num(v, "frame_gap", 2f));
+            var spinAt = (Vec(v, "look_at") ?? Vector3.Zero) + (Flag(v, "relative", false) && Player.Instance != null ? P.GlobalPosition : Vector3.Zero);
+            void Spin()
+            {
+                if (spin == 0f) return;
+                if (_free != null && _free.Current)
+                {
+                    var off = _free.GlobalPosition - spinAt; _free.GlobalPosition = spinAt + off.Rotated(Vector3.Up, spin); _free.LookAt(spinAt, Vector3.Up);
+                }
+                else if (Player.Instance?.Rig is { } rig) rig.Rotation = rig.Rotation with { Y = rig.Rotation.Y + spin };
+            }
+            for (int shot = 0; shot < shots; shot++)
+            {
+                if (shot > 0 || spin != 0f) for (int f = 0; f < gap; f++) { Spin(); await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame); }
+                await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+                var img = GetViewport().GetTexture().GetImage();
+                if (img.GetWidth() != 1280 || img.GetHeight() != 720) img.Resize(1280, 720, Image.Interpolation.Bilinear);
+                img.SavePng(_cur + name + (shots > 1 ? "_" + shot : "") + ".png");
+            }
             if (PetWorld.Out != null && GodotObject.IsInstanceValid(PetWorld.Out)) entry["pet"] = $"{PetWorld.Out.S.Species} at {PetWorld.Out.GlobalPosition} (hero {P.GlobalPosition}) visible {PetWorld.Out.Visible}";
             entry["fps_avg"] = Math.Round(avg, 1); entry["fps_min"] = Math.Round(min, 1);
             entry["draw_calls"] = RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalDrawCallsInFrame);
@@ -387,7 +406,7 @@ public partial class DevCapture : Node
         catch (Exception e) { GD.PrintErr($"[DEVCAP] {name} failed: {e.Message}"); entry["error"] = e.Message; }
         finally
         {
-            foreach (var k in new[] { Inputs.Forward, Inputs.Sprint, Inputs.Attack, Inputs.Roll, "spell1" }) Input.ActionRelease(k);
+            foreach (var k in new[] { Inputs.Forward, Inputs.Sprint, Inputs.Attack, Inputs.Roll, Inputs.Jump, "spell1" }) Input.ActionRelease(k);
             if (action == "ui:loading") LoadScreen.Hide(false);
             if (scene != "title") { Ui.I?.Close(); if (Ui.I != null) Ui.I.Visible = false; }
             RestoreKit(); Player.BuildMode = false;
@@ -409,6 +428,40 @@ public partial class DevCapture : Node
         foreach (var s in species) { var p = PetDb.New(s, 8 + 4 * i++, "runed"); p.Bond = 20 + 15 * i; p.Xp = p.XpNeed() / 3; d.Pets.Add(p); }
         d.ActivePet = d.Pets.Count > 0 ? d.Pets[0].Id : ""; d.Cubes["iron"] = 6; d.Cubes["runed"] = 3; d.Cubes["void"] = 1;
         PetWorld.Despawn(); Game.Notify();
+    }
+
+    /// <summary>
+    /// "sfxlog:&lt;weapon type|all&gt;": per type, one swing at nothing (miss) and one at a frozen golem in front (hit), logging every weapon
+    /// sound id played ([SFX] lines, Sfx.Weapon). The weapon is put back by RestoreKit.
+    /// </summary>
+    async Task SfxLog(string which)
+    {
+        var d = Game.D; _savedEq ??= new Dictionary<string, Item?>(d.Eq);
+        var types = which == "all" ? Weapons.Types.ToList() : new List<string> { which };
+        var fwd = -P.GlobalTransform.Basis.Z with { Y = 0 }; fwd = fwd.LengthSquared() > .01f ? fwd.Normalized() : Vector3.Forward;
+        async Task<List<string>> Swing(float wait)
+        {
+            Sfx.Played.Clear(); Heal(); Input.ActionPress(Inputs.Attack); await Secs(.05f); Input.ActionRelease(Inputs.Attack); await Secs(wait);
+            return new List<string>(Sfx.Played);
+        }
+        Sfx.Log = true;
+        try
+        {
+            foreach (var wt in types)
+            {
+                d.Eq["weapon"] = wt == "unarmed" ? null : Items.Roll(20, 0, "weapon", 3, null, wt); Game.Notify(); await Secs(.5f);
+                bool ranged = Weapons.Get(wt).Ranged; float wait = ranged ? 2.8f : 1.4f;
+                var miss = await Swing(wait);
+                var at = P.GlobalPosition + fwd * (ranged ? 6f : 1.8f);
+                var foe = new Enemy { Type = "golem", Level = 30, AnyRealm = true, NoLeash = true, Position = World.OnGround(at.X, at.Z, .3f) };
+                Game.Root!.AddChild(foe); await Secs(.6f); foe.SetProcess(false); foe.SetPhysicsProcess(false);
+                var hit = await Swing(wait);
+                if (GodotObject.IsInstanceValid(foe)) foe.QueueFree();
+                await Secs(.3f);
+                Say($"sfxlog {wt}: empty swing [{string.Join(", ", miss)}] | swing at foe [{string.Join(", ", hit)}]");
+            }
+        }
+        finally { Sfx.Log = false; }
     }
 
     async Task DoAction(string action, float castWait = .35f)
@@ -448,9 +501,20 @@ public partial class DevCapture : Node
             Put(2.5f, 0, 0, "planks"); Put(3.5f, 0, 0, "planks_stairs", facing); Put(3.5f, 1, 0, "cobble_stairs", facing); Put(2.5f, -1.2f, 0, "planks_slab");
             Put(2.5f, 1.4f, 0, "torch"); Put(2.5f, -2.4f, 0, "torch"); for (int i = -1; i <= 1; i++) Put(4.6f, i, 0, "fence");
             Put(3.5f, -1.2f, 0, "glass");
-            await Secs(.6f); return;
+            await Secs(.6f);
+            // F-07: the block under the reticle (BlockAim, the one ray dig/place/outline/ghost use) and where its hit point lands on screen
+            float reach = Blocks.F("world.reach", 6f);
+            if (BlockAim.Target(GetViewport(), P.BlockEye, reach) is { } bt && GetViewport().GetCamera3D() is { } bcam)
+            {
+                var mid = GetViewport().GetVisibleRect().Size / 2f; var sp = bcam.UnprojectPosition(bt.hit);
+                byte tid = BlockWorld.I?.Area?.Get(bt.b.X, bt.b.Y, bt.b.Z) ?? 0;
+                Say($"build aim: block {bt.b} ({(tid is 0 or 255 ? "?" : Blocks.Def(tid).Key)}) face {bt.n} place {bt.b + bt.n}, {(bt.hit - P.BlockEye).Length():0.00} m from the eye (reach {reach}), camera {(bt.hit - bcam.GlobalPosition).Length():0.00} m, hit on screen {(sp - mid).Length():0.0} px from the reticle; player target {(P.BlockTarget is { } pt ? pt.b.ToString() : "none")}");
+            }
+            else Say($"build aim: nothing within reach {reach} under the reticle");
+            return;
         }
         if (action.StartsWith("padnav:")) { await PadNav(action[7..]); return; }
+        if (action.StartsWith("sfxlog:")) { await SfxLog(action[7..]); return; }
         if (action == "souls:start")
         {   // a Soul Duel with the view's pets (no rewards, no saving); the picture lands after the first turn's first attack
             Arenas.Start("souls", Game.D.Pets.Take(3).Select(p => p.Id).ToList(), true); await LoadDone();
@@ -463,6 +527,15 @@ public partial class DevCapture : Node
         {
             case "dodge": Input.ActionPress(Inputs.Roll); await Secs(.05f); Input.ActionRelease(Inputs.Roll); await Secs(.12f); break;
             case "run": Input.ActionPress(Inputs.Forward); await Secs(.8f); break;
+            case "camspin": for (int f = 0; f < 20; f++) { if (P.Rig is { } rig) rig.Rotation = rig.Rotation with { Y = rig.Rotation.Y + .3f }; await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame); } break;   // a fast turn of the follow camera
+            case "jump": Input.ActionPress(Inputs.Jump); await Secs(.05f); Input.ActionRelease(Inputs.Jump); await Secs(.25f); break;
+            case "swim":
+                {   // into the middle of the first lake, swimming forward
+                    var lk = Lands.All.SelectMany(l => l.Lakes).FirstOrDefault();
+                    if (lk != null) { P.Teleport(new Vector3(lk.X, lk.Level - .9f, lk.Z), 0f); await Secs(.8f); }
+                    Input.ActionPress(Inputs.Forward); await Secs(.8f);
+                    Say($"swim: lake {lk?.Name} level {lk?.Level:0.00}, hero at {P.GlobalPosition}");
+                } break;
             case "sprint": Input.ActionPress(Inputs.Forward); Input.ActionPress(Inputs.Sprint); await Secs(1f); break;
             case "swing": { int shots0 = Projectile.SpawnedByPlayer; Input.ActionPress(Inputs.Attack); await Secs(.05f); Input.ActionRelease(Inputs.Attack); await Secs(castWait); Say($"swing: {Projectile.SpawnedByPlayer - shots0} player shots"); } break;
             case "swing3": for (int s = 0; s < 3; s++) { Input.ActionPress(Inputs.Attack); await Secs(.05f); Input.ActionRelease(Inputs.Attack); await Secs(.3f); } break;
@@ -472,12 +545,15 @@ public partial class DevCapture : Node
             case "cast":
                 var id = Game.D.Skills.Keys.FirstOrDefault(k => Skills.Get(k) is { } s && s.Kind is not "resurrect" && s.Kind is not "buff");
                 if (id != null) { Game.D.Bar[0] = id; Game.Notify(); }
-                Input.ActionPress("spell1"); await Secs(.05f); Input.ActionRelease("spell1"); await Secs(castWait); break;
+                SpellFx.ClearRecent();
+                Input.ActionPress("spell1"); await Secs(.05f); Input.ActionRelease("spell1"); await Secs(castWait);
+                Say($"cast {id}: effects {SpellFx.Describe(id ?? "")}; flipbooks played [{string.Join(", ", SpellFx.Recent)}]"); break;
             case var c when c.StartsWith("cast:"):
                 var sid = c[5..];
                 if (!Game.D.Skills.ContainsKey(sid)) Game.D.Skills[sid] = new SkillState { Rank = 3 };
-                Game.D.Bar[0] = sid; Game.Notify(); Heal();
-                Input.ActionPress("spell1"); await Secs(.05f); Input.ActionRelease("spell1"); await Secs(castWait); break;
+                Game.D.Bar[0] = sid; Game.Notify(); Heal(); SpellFx.ClearRecent();
+                Input.ActionPress("spell1"); await Secs(.05f); Input.ActionRelease("spell1"); await Secs(castWait);
+                Say($"cast {sid}: effects {SpellFx.Describe(sid)}; flipbooks played [{string.Join(", ", SpellFx.Recent)}]"); break;
             case "ui:pack": Ui.I?.OpenPack(); await Secs(.4f); break;
             case "ui:spellcraft": Ui.I?.OpenSpellcraft(null); await Secs(.4f); break;
             case "ui:character": Ui.I?.OpenCharacter(); await Secs(.4f); break;
@@ -487,6 +563,9 @@ public partial class DevCapture : Node
             case "ui:pause": Ui.I?.OpenPause(); await Secs(.4f); break;
             case "ui:loading": LoadScreen.Preview(World.GetPoi("village")?.Name ?? "Oakhaven"); await Secs(.4f); break;   // hidden again in Capture's finally
             case "ui:spellcraft3": UiSpellcraft.DebugPreload3(); await Secs(.4f); break;
+            case var cl when cl.StartsWith("cmd:"):   // a debug command line (scripts/Commands.cs), e.g. "cmd:stats dump"; output in the log
+                foreach (var ln in Commands.Run(cl[4..]).Split('\n')) Say("cmd> " + ln.TrimEnd('\r'));
+                await Secs(.2f); break;
             case "castpaths":
             {   // focus F-01: every cast path through the one gate; [CAST] lines in the log show cooldowns starting / blocking
                 Player.LogCasts = true; var d = Game.D;

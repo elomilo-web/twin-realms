@@ -56,6 +56,8 @@ void fragment() {
             foreach (var p in fx.EnumerateObject())
                 _defs[p.Name] = new Def((int)JsonUtil.F(p.Value, "frames", 16), JsonUtil.F(p.Value, "fps", 24), p.Value.TryGetProperty("loop", out var lp) && lp.ValueKind == JsonValueKind.True,
                                         JsonUtil.S(p.Value, "kind", "billboard"), JsonUtil.F(p.Value, "size", 2f));
+        if (doc.RootElement.TryGetProperty("banned", out var bn) && bn.ValueKind == JsonValueKind.Array)
+            foreach (var x in bn.EnumerateArray()) if (x.GetString() is { Length: > 0 } s) _banned.Add(s);
         if (doc.RootElement.TryGetProperty("skills", out var sk))
             foreach (var p in sk.EnumerateObject())
             {
@@ -63,7 +65,59 @@ void fragment() {
                 foreach (var q in p.Value.EnumerateObject()) if (q.Value.ValueKind == JsonValueKind.String) d[q.Name] = q.Value.GetString() ?? "";
                 _skills[p.Name] = d;
             }
+        Audit();
     }
+
+    // sheets no spell may use (data/spellfx.json "banned": the upright orb blobs that read as a flying bottle, FOCUS F-08)
+    static readonly HashSet<string> _banned = new();
+    public static bool Banned(string name) { Load(); return _banned.Contains(name); }
+
+    /// <summary>
+    /// Checked once when the effects load: every skill's effects, as they resolve. Logs (as errors) any skill whose data names a banned
+    /// (bottle) sheet or a sheet that does not exist, and any skill whose effects resolve to nothing at all (no flipbook moment and no
+    /// built-in look). Projectile skills always fly as Projectile.cs draws them (Projectile.TravelFx), never as a flipbook.
+    /// </summary>
+    static void Audit()
+    {
+        int bad = 0, n = 0;
+        foreach (var (id, d) in _skills)
+            foreach (var (moment, name) in d)
+            {
+                if (_banned.Contains(name)) { bad++; GD.PrintErr($"[SPELLFX] audit: skill {id} {moment} uses the banned sheet {name} (the flying bottle); it is not played"); }
+                else if (name != "" && !_defs.ContainsKey(name)) { bad++; GD.PrintErr($"[SPELLFX] audit: skill {id} {moment} names unknown sheet {name}"); }
+            }
+        foreach (var k in Skills.All)
+        {
+            n++;
+            string fx = Describe(k.Id);
+            if (fx == "") { bad++; GD.PrintErr($"[SPELLFX] audit: skill {k.Id} ({k.Kind}, {k.Type}) resolves to no effect at all"); }
+        }
+        GD.Print($"[SPELLFX] audit: {n} skills checked, {_banned.Count} banned sheets, {bad} problems");
+    }
+
+    /// <summary>
+    /// Every effect a skill plays, as "moment=id" pairs: its flipbooks (banned ones dropped) plus the built-in looks: a projectile's travel
+    /// (Projectile.TravelFx) and the element impact (Vfx.ElementImpact). "" means nothing at all.
+    /// </summary>
+    public static string Describe(string skillId)
+    {
+        Load(); var parts = new List<string>();
+        string fid = Spellcraft.FxOf(skillId);
+        if (_skills.TryGetValue(fid, out var d)) foreach (var (m, name) in d) if (!_banned.Contains(name) && _defs.ContainsKey(name)) parts.Add(m + "=" + name);
+        if (Skills.Get(fid) is { } k)
+        {
+            if (k.Kind == "projectile") parts.Add("travel=" + Projectile.TravelFx(k.Arrow || (k.Scale == "weapon" && k.Type == "physical") ? "arrow" : k.Type == "fire" ? "fire" : "bolt", k.Type));
+            else if (BuiltInKinds.Contains(k.Kind)) parts.Add("look=kind:" + k.Kind);
+            if (d != null && (d.ContainsKey("hit") || d.ContainsKey("ground")) && Vfx.HasElementImpact(k.Type)) parts.Add("impact=vfx:" + k.Type);
+        }
+        return string.Join(" ", parts);
+    }
+    /// <summary>Skill kinds whose code draws their own look (rings, beams, walls, orbiting blades: PlayerSkills*.cs with Vfx/Fx).</summary>
+    static readonly HashSet<string> BuiltInKinds = new() { "beam", "blinkto", "boomerang", "buff", "chain", "dash", "enchant", "heal", "hook", "leap", "mark", "melee", "nova", "orbit", "rush", "spin", "strike", "trap", "turret", "vortex", "wall", "ward", "zone", "resurrect" };
+
+    /// <summary>Flipbooks started since the last ClearRecent (DevCapture logs which effects a cast really played).</summary>
+    public static readonly List<string> Recent = new();
+    public static void ClearRecent() => Recent.Clear();
 
     static Texture2D? Sheet(string name)
     {
@@ -78,7 +132,7 @@ void fragment() {
     public static string For(string skillId, string moment)
     {
         Load(); skillId = Spellcraft.FxOf(skillId);   // crafted spells play the animations of the skill they are built on
-        return _skills.TryGetValue(skillId, out var d) && d.TryGetValue(moment, out var n) ? n : "";
+        return _skills.TryGetValue(skillId, out var d) && d.TryGetValue(moment, out var n) && !_banned.Contains(n) ? n : "";
     }
 
     /// <summary>Play the animation data/spellfx.json gives this skill for this moment. Does nothing if there is none.</summary>
@@ -138,7 +192,9 @@ void fragment() {
     static SpellFxSprite? Make(string name, float scale)
     {
         Load();
+        if (_banned.Contains(name)) { GD.PrintErr($"[SPELLFX] {name} is banned (reads as a flying bottle): not played"); return null; }
         if (!_defs.TryGetValue(name, out var d)) { GD.PrintErr($"[SPELLFX] unknown animation {name}"); return null; }
+        if (Recent.Count < 64) Recent.Add(name);
         var tex = Sheet(name); if (tex == null) return null;
         bool ground = d.Kind == "ground", strip = d.Kind == "strip";
         var mat = new ShaderMaterial { Shader = _shader };

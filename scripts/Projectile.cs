@@ -16,6 +16,7 @@ public partial class Projectile : Node3D
     public SkillCalc? Calc; public int PierceLeft, ChainLeft; public bool Homing; public Color? Tint; public Enemy? Source;
     public System.Action<Vector3>? OnEnd;   // crafted spells: the second section goes off where the missile ends (PlayerSpellcraft.cs)
     public List<(string id, float chance)>? Statuses;   // basic-attack chain step statuses (data/attacks.json)
+    public string Wpn = "";   // a basic-attack shot: the weapon type whose hit / miss sounds it plays (data/weapons.json "sfx")
     HitInfo HitFor(Vector3 from)
     {
         var h = Calc != null ? Calc.Hit(Dmg, from, Crit) : new HitInfo { Damage = Dmg, From = from, Knock = 2.2f, Crit = Crit, Attacker = Player.Instance, IsPlayer = true };
@@ -85,7 +86,7 @@ public partial class Projectile : Node3D
             string look = fire ? "fire" : "magic";   // Kenney flame sprites behind fire, swirling magic wisps behind everything else
             var trail = new CpuParticles3D { Amount = fire ? 48 : 26, Lifetime = fire ? .45f : .3f, LocalCoords = false, Gravity = new Vector3(0, fire ? 2.5f : 0f, 0), Spread = 180, InitialVelocityMin = .1f, InitialVelocityMax = fire ? 1.2f : .5f,
                 Mesh = new QuadMesh { Size = new Vector2(r * 3.6f, r * 3.6f), Material = Vfx.SpriteMat(!fire, look) }, ColorRamp = g, ScaleAmountCurve = sc, EmissionShape = CpuParticles3D.EmissionShapeEnum.Sphere, EmissionSphereRadius = r * .5f };
-            Vfx.Spin(trail, look, 180f); AddChild(trail);
+            Vfx.Spin(trail, look, 180f); AddChild(trail); if (!fire) _boltTrail = trail;
             if (fire) AddChild(new OmniLight3D { LightColor = c, OmniRange = 8f, LightEnergy = 2.2f });
             else if (Own == 'p' && _lights < 6) { _lights++; _hasLight = true; AddChild(new OmniLight3D { LightColor = c, OmniRange = 3f, LightEnergy = .8f, ShadowEnabled = false }); }
         }
@@ -121,7 +122,23 @@ public partial class Projectile : Node3D
         var d = Vel.Normalized();
         _streak.LookAt(_streak.GlobalPosition + d, Mathf.Abs(d.Y) > .98f ? Vector3.Right : Vector3.Up);
     }
-    static int _lights; bool _hasLight; float _age; bool _worldHit; CpuParticles3D? _trail;
+    static int _lights; bool _hasLight; float _age; bool _worldHit; CpuParticles3D? _trail, _boltTrail;
+
+    /// <summary>
+    /// The particle sprites behind a spell bolt, by element (Vfx texture sets): frost stars, lightning sparks, shadow and poison smoke,
+    /// holy light, swirling magic otherwise. Spells fly as this orb + comet + trail, never as a flipbook (the upright orb sheets read as a
+    /// flying bottle, FOCUS F-08; data/spellfx.json "banned").
+    /// </summary>
+    public static string TrailSet(string type) => type switch { "frost" => "star", "lightning" => "spark", "shadow" or "poison" => "smoke", "holy" => "light", "fire" => "fire", _ => "magic" };
+    /// <summary>The id of the look a shot of this kind and element flies with (logged by the SpellFx audit and DevCapture).</summary>
+    public static string TravelFx(string kind, string type) => kind == "arrow" ? "proj:arrow" : kind == "fire" || type == "fire" ? "proj:fireball+fire" : "proj:orb+comet+" + TrailSet(type);
+    /// <summary>A skill's element is known only after Spawn (Calc is set after _Ready): its trail sprites are swapped in on the first tick.</summary>
+    void ElementTrail()
+    {
+        if (_boltTrail == null || Calc == null) return;
+        string set = TrailSet(Calc.Type); if (set == "magic" || set == "fire") return;
+        if (_boltTrail.Mesh is QuadMesh q) { q.Material = Vfx.SpriteMat(true, set); Vfx.Spin(_boltTrail, set, 180f); }
+    }
     static readonly List<Projectile> Stuck = new();
     public override void _ExitTree() { if (_hasLight) { _hasLight = false; _lights--; } }
 
@@ -146,6 +163,7 @@ public partial class Projectile : Node3D
     public override void _PhysicsProcess(double delta)
     {
         float dt = (float)delta;
+        if (_age == 0) ElementTrail();
         Life -= dt; _age += dt;
         if (Kind == "arrow") Vel.Y -= 7f * dt;
         if (Homing && Own == 'p')
@@ -205,9 +223,10 @@ public partial class Projectile : Node3D
         {
             if (OnEnd != null) { var cb = OnEnd; OnEnd = null; cb(to); }
             if (Calc != null) SpellFx.Skill(Calc.Def.Id, "hit", to, Aoe > 0 ? Mathf.Max(1f, Aoe * 2f / Mathf.Max(.1f, SpellFx.SizeOf(SpellFx.For(Calc.Def.Id, "hit")))) : 1f);
+            if (Wpn != "") Sfx.Weapon(Wpn, Aoe > 0 || hitE != null ? "hit" : "miss");   // the weapon type's own impact, or its miss
             if (Aoe > 0)
             {
-                Vfx.Explosion(to, Aoe); Sfx.Play("hit"); Player.Instance?.Rig?.Shake(0.18f);
+                Vfx.Explosion(to, Aoe); if (Wpn == "") Sfx.Play("hit"); Player.Instance?.Rig?.Shake(0.18f);
                 foreach (var n in GetTree().GetNodesInGroup("enemies"))
                 {
                     if (n is not Enemy e || e.Dead || !e.Active) continue;
