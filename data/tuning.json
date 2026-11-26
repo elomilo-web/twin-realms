@@ -95,7 +95,7 @@
         "power": { "on": true, "hpFloor": 0.6, "dmgFloor": 0.5 },
         "armor": { "k": 14, "perLevel": 6 }
       },
-      "overworld": { "follow": true, "offset": 0, "areaWeight": 0.5, "bossBonus": 3 },
+      "overworld": { "follow": false, "offset": 0, "areaWeight": 0.5, "bossBonus": 3 },
       "party": { "xpPool": 0.9, "dropMul": 1.15, "dungeonOffset": 3, "statMul": 1.5, "minPlayers": 2 },
       "threat": {
         "minutesPerLevel": 8, "max": 10, "hpP": 8, "dmgP": 5, "respawnP": 7,
