@@ -41,7 +41,7 @@ STATUS KEY:   [ ] to do     [x] done     [!] blocked
 PHASE 0 - BUGS AND FIXES (do these first)
 ================================================================================
 
-[ ] F-01  ECHO AND RESONATE COOLDOWNS
+[x] F-01  ECHO AND RESONATE COOLDOWNS
     Problem: Echo and Resonate do not put skills on cooldown. Find out why
     (for example, is the cooldown skipped when a skill is triggered
     indirectly?) and fix the root cause.
@@ -51,6 +51,17 @@ PHASE 0 - BUGS AND FIXES (do these first)
       - Echo/Resonate repeats respect cooldowns, or follow their own
         documented cooldown rule.
       - A test or debug log shows the cooldown starting for every cast path.
+    NOTE (2026-11-25): Root causes: (1) auto-cast supports (Arcane Loop, Sentinel, Retaliation, Critical Trigger)
+      paid only their own short timer and never checked/started the skill cooldown; (2) Echo/Resonance repeats fire
+      .3 s apart, so short-cooldown skills (fire 0.7 s) came back while their echoes still fired = free casts.
+      Fix: one gate PayCast() (cooldown + mana + stamina + StartCd + log) for every ROOT cast (hotbar, macro, auto);
+      rule for parts of a root cast: Echo/Resonance repeats cost nothing but RESTART the cooldown (ready one full
+      cooldown after the last repeat); spell-chain sections and weapon-skill impacts are covered by the root cast's
+      cooldown; channels (resurrect) start theirs at the end. Every path logs a [CAST] line with --log-casts.
+      Test: capture view test_castpaths (DevCapture "castpaths"): hotbar paid+cd, echoes restart cd, recast after the
+      last echo blocked (0.47 s left), auto blocked while on cooldown and paid+cd off cooldown, crafted 3-section spell
+      paid 4 s cd with sections 2 and 3 logged. Files: PlayerSkills.cs, PlayerSpellcraft.cs, PlayerDowned.cs,
+      UiSpellcraft.cs (debug forge), dev/DevCapture.cs, .devloop/viewpoints.json.
 
 [ ] F-02  FULL MATH AUDIT: STATS, SKILLS, LEVELS, PASSIVES
     Check the math for every stat source and the order bonuses are applied in.

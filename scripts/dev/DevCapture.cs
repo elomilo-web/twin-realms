@@ -451,6 +451,26 @@ public partial class DevCapture : Node
             case "ui:pause": Ui.I?.OpenPause(); await Secs(.4f); break;
             case "ui:loading": LoadScreen.Preview(World.GetPoi("village")?.Name ?? "Oakhaven"); await Secs(.4f); break;   // hidden again in Capture's finally
             case "ui:spellcraft3": UiSpellcraft.DebugPreload3(); await Secs(.4f); break;
+            case "castpaths":
+            {   // focus F-01: every cast path through the one gate; [CAST] lines in the log show cooldowns starting / blocking
+                Player.LogCasts = true; var d = Game.D;
+                foreach (var s in new[] { "echo", "resonance", "loop" }) if (!d.Supports.Contains(s)) d.Supports.Add(s);
+                d.Skills["fire"] = new SkillState { Rank = Skills.MaxRank };
+                Say($"sockets: {Skills.Socket("fire", 0, "echo") ?? "echo"} {Skills.Socket("fire", 1, "resonance") ?? "resonance"} {Skills.Socket("fire", 2, "loop") ?? "loop"}");
+                d.Bar[0] = "fire"; Game.Notify(); Heal(); float cd = Skills.Compute("fire").Cd;
+                Say($"castpaths 1: hotbar key (root cast + echo repeats; base cooldown {cd:0.00}s)");
+                Input.ActionPress("spell1"); await Secs(.05f); Input.ActionRelease("spell1");
+                await Secs(.75f);   // after the last echo (.6 s) but before a full cooldown from it
+                Say($"castpaths 2: hotbar again right after the last echo -> {(P.DebugCast("fire") ? "CAST (bug)" : "blocked (ok)")}  cd left {P.CdOf("fire"):0.00}s");
+                Say("castpaths 3: auto (Arcane Loop) while on cooldown -> expect blocked"); P.AutoFire("fire", "timer");
+                await Secs(cd + 1.5f); Heal();
+                Say("castpaths 4: auto (Arcane Loop) off cooldown -> pays, starts the cooldown"); P.AutoFire("fire", "timer"); await Secs(.1f);
+                Say($"castpaths 5: hotbar right after the auto-cast -> {(P.DebugCast("fire") ? "CAST (bug)" : "blocked (ok)")}  cd left {P.CdOf("fire"):0.00}s");
+                await Secs(cd + 1.5f);
+                var sp = UiSpellcraft.DebugForge3(); Heal();
+                if (sp != null) { bool ok = P.DebugCast(sp); Say($"castpaths 6: crafted 3-section spell {sp}: {(ok ? "cast" : "NOT cast")}, cd left {P.CdOf(sp):0.00}s"); await Secs(3f); }
+                Player.LogCasts = false; break;
+            }
             case var u when u.StartsWith("ui:"):
                 {
                     var ui = Ui.I; if (ui == null) break;

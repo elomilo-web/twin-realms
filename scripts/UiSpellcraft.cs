@@ -389,6 +389,14 @@ public partial class Ui
         _scEdit = ""; _scTree = false; _scConfirm = false; _scSec = Math.Min(2, Spellcraft.MaxSections - 1); _scSearch = ""; ScAdvance();
         I?.OpenSpellcraft(null);
     }
+    /// <summary>Test only: forges the preloaded 3-section spell and returns its skill id (null + the reason logged when it fails).</summary>
+    internal static string? ScDebugForge3()
+    {
+        ScDebugPreload3(); I?.Close(); var d = Game.D; int before = d.Spells.Count;
+        var err = Spellcraft.Forge(d, _scWork, "");
+        if (err != null) { GD.PrintErr("[DEVCAP] forge failed: " + err); return null; }
+        return d.Spells.LastOrDefault()?.Id;
+    }
 
     // ---------------------------------------------------------------- the spell tree (its own points; only crafted spells feel it)
     static bool _scTree, _scTreeReset;
@@ -500,6 +508,7 @@ public static class UiSpellcraft
     /// <summary>Opens Spellcraft on a three-section spell (Flame Missile -> Frost Area -> Storm Strike): gives its cards and, if needed,
     /// raises the level to open section III. For the "spellcraft_3" capture only.</summary>
     public static void DebugPreload3() => Ui.ScDebugPreload3();
+    public static string? DebugForge3() => Ui.ScDebugForge3();
 }
 
 /// <summary>The "then" arrow between two spell sections: lit when both hold cards.</summary>

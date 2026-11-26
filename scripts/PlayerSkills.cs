@@ -130,6 +130,11 @@ public partial class Player
     /// already paid: rule (documented in .devloop/systems/stats.md): they cost nothing and start no new cooldown, and they only exist
     /// because the root cast went off, so the skill is always on cooldown when they happen.</summary>
     public enum CastPath { Hotbar, Macro, Auto, Echo, Chain, Combo, Channel }
+    /// <summary>Echo / Resonance rule (F-01): each repeat restarts the skill's cooldown, so the skill is ready a full cooldown after its
+    /// LAST repeat (short-cooldown skills used to come back while their echoes were still firing: free extra casts). The cooldown bar
+    /// shows the restarted value.</summary>
+    void RestartCd(string id, float cd) { if (cd <= 0) return; _skillCd[RootSkill(id)] = cd; _skillCdMax[RootSkill(id)] = cd; }
+    static string RootSkill(string id) => Spellcraft.IsSectionId(id) ? Spellcraft.RootOf(id) : id;
     public static bool LogCasts = System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--log-casts") >= 0;
     /// <summary>The single cooldown/resource gate for root casts. False (nothing paid) when on cooldown or short of mana/stamina.</summary>
     bool PayCast(string id, SkillCalc c, CastPath path, bool quiet)
@@ -141,6 +146,9 @@ public partial class Player
         LogCast(path, id, $"paid {c.Mp:0} mp {c.St:0} st, cooldown {c.Cd:0.00}s started");
         return true;
     }
+    /// <summary>Test hooks (DevCapture "castpaths"): a macro-style cast and a cooldown reset.</summary>
+    public bool DebugCast(string id) => CastSkill(id, null, 0, true);
+    public void DebugClearCd(string id) { _skillCd[id] = 0; _autoCd[id] = 0; }
     /// <summary>Logs a cast on any path (root or part of a root cast) with the skill's cooldown state.</summary>
     public void LogCast(CastPath path, string id, string what)
     {
@@ -206,7 +214,7 @@ public partial class Player
         foreach (var id in Game.D.Bar)
         {
             if (string.IsNullOrEmpty(id) || !Game.D.Skills.ContainsKey(id)) continue; var st = Game.D.Skills[id]; if (!st.Sup.Exists(s => Skills.Sup(s)?.Auto == "timer")) continue;
-            if (_autoCd.GetValueOrDefault(id) > 0 || NearestFoe(18f) == null) continue;
+            if (_autoCd.GetValueOrDefault(id) > 0 || CdOf(id) > 0 || NearestFoe(18f) == null) continue;   // F-01: not every frame while on cooldown
             AutoFire(id, "timer");
         }
         if (_spinLeft > 0 && _atkSkill != null)
@@ -436,7 +444,7 @@ public partial class Player
             // echoes stack: each one repeats the skill once more, .3 s apart
             // (leaps and dashes echo when they land, see Land; heals heal again; buffs renew and ring again)
             if (c.Echo > 0 && k.Kind is not ("leap" or "dash"))
-                for (int i = 1; i <= Mathf.Min(c.Echo, 3); i++) { int n = i; GetTree().CreateTimer(.3f * i).Timeout += () => { if (Dead) return; LogCast(CastPath.Echo, c.Def.Id, $"repeat {n}/{Mathf.Min(c.Echo, 3)} (part of the root cast: no cost, no new cooldown)"); Execute(c, forced, true); }; }
+                for (int i = 1; i <= Mathf.Min(c.Echo, 3); i++) { int n = i; GetTree().CreateTimer(.3f * i).Timeout += () => { if (Dead) return; RestartCd(c.Def.Id, c.Cd); LogCast(CastPath.Echo, c.Def.Id, $"repeat {n}/{Mathf.Min(c.Echo, 3)}: no cost, cooldown restarted ({c.Cd:0.00}s)"); Execute(c, forced, true); }; }
         }
     }
     static Gradient Ramp(Color c) { var g = new Gradient(); g.SetColor(0, Colors.White); g.SetColor(1, new Color(c, 0)); return g; }
