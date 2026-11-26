@@ -104,6 +104,7 @@ public partial class Ui : CanvasLayer
         else if (e.IsActionPressed(Inputs.AttacksUi)) Toggle("attacks", () => OpenAttacks(null));
         else if (e.IsActionPressed(Inputs.ModsUi)) Toggle("mods", OpenMods);
         else if (e.IsActionPressed(Inputs.SpellcraftUi)) Toggle("spellcraft", () => OpenSpellcraft(null));
+        else if (e.IsActionPressed(Inputs.PetsUi)) Toggle("pets", () => OpenPets(null));
     }
     void Toggle(string name, Action open) { if (_panelName == name) Close(); else if (_panel == null && Player.Instance != null && !Player.Instance.Dead) open(); }
 
@@ -450,6 +451,7 @@ public partial class Ui : CanvasLayer
     void Equip(int idx)
     {
         var d = Game.D; var it = d.Inv[idx]; var slot = it.Slot;
+        if (PetDb.IsGear(slot)) { OpenPets(null, "gear"); return; }   // pet gear goes on a pet (Pets menu > Gear)
         if (slot == "shield" && d.Weapon?.Two == true) { Note("Your weapon needs both hands", new Color(1, .6f, .5f)); return; }
         var old = d.Eq.GetValueOrDefault(slot); d.Inv.RemoveAt(idx); d.Eq[slot] = it; if (old != null) d.Inv.Add(old);
         if (slot == "weapon" && it.Two && d.Eq.GetValueOrDefault("shield") is Item sh) { d.Eq["shield"] = null; d.Inv.Add(sh); }

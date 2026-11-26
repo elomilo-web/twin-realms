@@ -257,6 +257,26 @@ public partial class Ui
                         },
                     });
                 }
+                // Soul Cubes and pet gear (data/pets.json "cubes" craft costs, "gear.craft")
+                foreach (var cb in PetDb.Cubes)
+                {
+                    if (cb.Craft.Count == 0) continue; var cdef = cb; var cost = new Dictionary<string, int>(cb.Craft);
+                    recs.Add(new CraftRec
+                    {
+                        Group = "Soul Cubes   bind weakened monsters as pets", Title = cdef.Name, Sub = $"x{cdef.Mul:0.#} catch chance (bosses x{cdef.BossMul:0.#}). You carry {Cubes.Count(cdef.Id)}", Btn = "Bind", Cost = cost, Cube = cdef.Col, Tier = 1, Repeat = true, Col = cdef.Col.Lightened(.2f),
+                        Do = () => { if (!CanPay(cost)) { NoMats(); return false; } Pay(cost); Cubes.Give(cdef.Id, 1); Sfx.Play("pickup"); return true; },
+                    });
+                }
+                if (PetDb.Root.GetProperty("gear").TryGetProperty("craft", out var pg))
+                    foreach (var e in pg.EnumerateArray())
+                    {
+                        string ps = JsonUtil.S(e, "slot", "pet_collar"); int rar = (int)JsonUtil.F(e, "rar", 1); var cost = Cost(e);
+                        recs.Add(new CraftRec
+                        {
+                            Group = "Pet gear   collars, barding and charms", Title = $"{Items.RarityName(rar)} {PetDb.GearName(ps).ToLower()}", Sub = $"Level {d.Level}. Equip it in the Pets menu", Cost = cost, Col = Items.RarityColor(rar), Tier = rar, Repeat = true, Icon = ps,
+                            Do = () => { if (!Room()) return false; if (!CanPay(cost)) { NoMats(); return false; } Pay(cost); Give(PetDb.RollGear(d.Level, 0, ps, rar)); return true; },
+                        });
+                    }
                 break;
             default:
                 intro = "Forge gear for the slot you choose at your level (weapons get a random weapon type).";

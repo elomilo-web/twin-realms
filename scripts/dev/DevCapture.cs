@@ -308,6 +308,8 @@ public partial class DevCapture : Node
                 if (scene.StartsWith("dungeon:") || scene == "arena") { foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Enemy e && e.GlobalPosition.DistanceTo(P.GlobalPosition) < 10f) e.QueueFree(); }
                 ResetHero(); Hud(Flag(v, "hud", false));
                 SetupKit(v);
+                // "pets": species to give the hero for this view (the first one active and out); restored afterwards
+                if (v.TryGetProperty("pets", out var pts) && pts.ValueKind == JsonValueKind.Array) DevPets(pts.EnumerateArray().Select(x => x.GetString() ?? "wolf").ToArray());
                 // "buffs": skill ids with a buff (warcry) go on the hero's buff list, status ids (burn, poison) on its statuses; "quest": accepted + "quest_progress" kills
                 if (_quest != null) { Game.Q(_quest).S = 0; Game.Q(_quest).N = 0; _quest = null; }
                 if (v.TryGetProperty("buffs", out var bf) && bf.ValueKind == JsonValueKind.Array)
@@ -377,6 +379,7 @@ public partial class DevCapture : Node
             var img = GetViewport().GetTexture().GetImage();
             if (img.GetWidth() != 1280 || img.GetHeight() != 720) img.Resize(1280, 720, Image.Interpolation.Bilinear);
             img.SavePng(_cur + name + ".png");
+            if (PetWorld.Out != null && GodotObject.IsInstanceValid(PetWorld.Out)) entry["pet"] = $"{PetWorld.Out.S.Species} at {PetWorld.Out.GlobalPosition} (hero {P.GlobalPosition}) visible {PetWorld.Out.Visible}";
             entry["fps_avg"] = Math.Round(avg, 1); entry["fps_min"] = Math.Round(min, 1);
             entry["draw_calls"] = RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalDrawCallsInFrame);
             Say($"{name}: {avg:0} fps avg, {min:0} min");
@@ -388,13 +391,36 @@ public partial class DevCapture : Node
             if (action == "ui:loading") LoadScreen.Hide(false);
             if (scene != "title") { Ui.I?.Close(); if (Ui.I != null) Ui.I.Visible = false; }
             RestoreKit(); Player.BuildMode = false;
+            foreach (var sc in GetTree().GetNodesInGroup("soulcubes")) if (sc is Node scn) scn.QueueFree();   // a cube still shaking must not bind into the real save
+            if (_petsBak != null) { var dd = Game.D; dd.Pets = _petsBak.Value.pets; dd.ActivePet = _petsBak.Value.act; dd.Cubes = _petsBak.Value.cubes; _petsBak = null; PetWorld.Despawn(); }
             if (action.StartsWith("padnav:")) Inputs.SetUsingPad(false);
         }
         _report.Add(entry);
     }
 
+    (List<PetState> pets, string act, Dictionary<string, int> cubes)? _petsBak;
+    /// <summary>Gives the hero these pets (levels 8, 12, 16 ...), the first one out; the real ones come back after the view.</summary>
+    void DevPets(string[] species)
+    {
+        var d = Game.D; _petsBak ??= (d.Pets, d.ActivePet, new Dictionary<string, int>(d.Cubes));   // the new list below keeps the real one untouched
+        d.Pets = new List<PetState>(); int i = 0;
+        foreach (var s in species) { var p = PetDb.New(s, 8 + 4 * i++, "runed"); p.Bond = 20 + 15 * i; p.Xp = p.XpNeed() / 3; d.Pets.Add(p); }
+        d.ActivePet = d.Pets.Count > 0 ? d.Pets[0].Id : ""; d.Cubes["iron"] = 6; d.Cubes["runed"] = 3; d.Cubes["void"] = 1;
+        PetWorld.Despawn(); Game.Notify();
+    }
+
     async Task DoAction(string action, float castWait = .35f)
     {
+        if (action.StartsWith("catch:"))
+        {   // throw a cube of that tier at the nearest foe, worn down to 30% health; the picture lands while the cube shakes
+            if (_petsBak == null) { _petsBak = (Game.D.Pets, Game.D.ActivePet, new Dictionary<string, int>(Game.D.Cubes)); Game.D.Pets = new List<PetState>(Game.D.Pets); }
+            string tier = action[6..]; Game.D.Cubes[tier] = Cubes.Count(tier) + 2;
+            Enemy? foe = null; float bd = 99;
+            foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Enemy e && !e.Dead && e.GlobalPosition.DistanceTo(P.GlobalPosition) is float dd && dd < bd) { bd = dd; foe = e; }
+            if (foe == null) { Say("catch: no foe"); return; }
+            foe.Hp = foe.MaxHp * .3f; Say($"catch: {foe.Type} chance {PetDb.CatchChance(foe, tier):P1}");
+            Cubes.Throw(P, tier, foe); await Secs(castWait); return;
+        }
         if (action.StartsWith("place:"))
         {   // a block of that key two metres in front of the hero, on the ground (needs the block world)
             byte id = Blocks.Id(action[6..]);
@@ -492,6 +518,7 @@ public partial class DevCapture : Node
                         case "multiplayer": ui.OpenMultiplayer(); break;
                         case "stash": ui.OpenStash(); break;
                         case "create": ui.ShowCreate(); break;
+                        case "pets": ui.OpenPets(null, arg.Length > 0 ? arg : "skills"); break;
                     }
                     await Secs(.4f); break;
                 }

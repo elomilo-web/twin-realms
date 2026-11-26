@@ -6,6 +6,7 @@ namespace TwinRealms;
 public partial class Loot : Node3D
 {
     public int Gold; public Item? Item; public string? Pot;   // "hp" or "mp"
+    public string? Cube;   // a Soul Cube of this tier (data/pets.json "cubes")
     // multiplayer: a drop the host keeps track of (NetId > 0). Owner 0 = anyone may take it.
     public int NetId; public new long Owner; public string OwnerName = "";
     public bool Hold;   // dropped by us: not picked up again until we have stepped away from it once
@@ -58,13 +59,18 @@ public partial class Loot : Node3D
         if (gold > 0) Drop(pos, gold: gold);
         if (GD.Randf() < itemChance) Drop(pos, item: LootTables.Roll(level, bonus));   // in a dungeon: that dungeon's own drop table
         if (GD.Randf() < potChance) Drop(pos, pot: GD.Randf() < .6f ? "hp" : "mp");
+        // Soul Cubes (data/pets.json rules): now and then from monsters, more in dungeons, often from bosses
+        float cc = gold > 30 && itemChance >= 1 ? PetDb.R("bossCubeDropChance", .6f) : Dungeon.Active ? PetDb.R("dungeonCubeDropChance", .08f) : PetDb.R("cubeDropChance", .03f);
+        if (GD.Randf() < cc) { var l = new Loot { Cube = PetDb.RollCube() }; Game.Root!.AddChild(l); l.GlobalPosition = pos + new Vector3((GD.Randf() - .5f) * 1.5f, 0.6f, (GD.Randf() - .5f) * 1.5f); }
     }
+    /// <summary>A pet's auto-loot brings it in (same rules as walking over it).</summary>
+    public void PetPickup(Player pl) { if (_t > .4f && !Hold) Collect(pl); }
 
     public override void _Ready()
     {
         AddToGroup("loot");
         if (NetId > 0 && Time.GetTicksMsec() - _dropMs < 5000 && GlobalPosition.DistanceTo(_dropPos) < 3f) Hold = true;   // the copy of what we just dropped
-        Color c = Gold > 0 ? new Color(1, .85f, .2f) : Pot == "hp" ? new Color(.9f, .2f, .25f) : Pot == "mp" ? new Color(.25f, .45f, 1f) : (Item?.Color ?? Colors.White);
+        Color c = Cube != null ? PetDb.Cube(Cube).Col.Lightened(.15f) : Gold > 0 ? new Color(1, .85f, .2f) : Pot == "hp" ? new Color(.9f, .2f, .25f) : Pot == "mp" ? new Color(.25f, .45f, 1f) : (Item?.Color ?? Colors.White);
         var mat = new StandardMaterial3D { AlbedoColor = c, EmissionEnabled = true, Emission = c, EmissionEnergyMultiplier = 1.5f };
         Mesh mesh = Gold > 0 ? new SphereMesh { Radius = .15f, Height = .3f, RadialSegments = 8, Rings = 4 } : Pot != null ? new CylinderMesh { TopRadius = .1f, BottomRadius = .13f, Height = .3f } : new BoxMesh { Size = new Vector3(.3f, .3f, .3f) };
         AddChild(new MeshInstance3D { Mesh = mesh, MaterialOverride = mat });
@@ -116,7 +122,8 @@ public partial class Loot : Node3D
             return;
         }
         var D = Game.D;
-        if (Gold > 0) { D.Gold += Gold; Ui.Note("+" + Gold + " gold", new Color(1, .85f, .3f)); Sfx.Play("coin"); }
+        if (Cube != null) { Cubes.Give(Cube, 1); Sfx.Play("pickup"); }
+        else if (Gold > 0) { D.Gold += Gold; Ui.Note("+" + Gold + " gold", new Color(1, .85f, .3f)); Sfx.Play("coin"); }
         else if (Pot != null) { if (Pot == "hp") D.HpPot++; else D.MpPot++; Ui.Note(Pot == "hp" ? "Health potion" : "Mana potion", Pot == "hp" ? new Color(1, .5f, .5f) : new Color(.5f, .7f, 1f)); Sfx.Play("pickup"); }
         else if (Item != null && scrap) Ui.Note($"Scrapped {Item.Name}: {LootTables.Disassemble(Item)}", Ui.Dim);
         else if (Item != null)

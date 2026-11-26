@@ -50,6 +50,9 @@ public class PlayerStats
     public bool CardsGiven = false; public int SpellSeq = 0;
     public Dictionary<string, int> CraftTree = new();   // spell tree ranks (Spellcraft menu > Spell tree): node id -> rank
     public Dictionary<string, string> BlockDiffs = new();   // block world changes per area ("overworld", "dun:...") as packed diffs (BlockArea.Encode); older saves have none
+    // Pets (Bound Souls, scripts/PetDb.cs): every bound soul (party + Soul Box), the one out in the world, Soul Cubes by tier and the tier thrown. Older saves load with none.
+    public List<PetState> Pets = new(); public string ActivePet = "";
+    public Dictionary<string, int> Cubes = new(); public string CubeSel = "iron";
 
     // ---- derived stats (methods so they are not serialised)
     static TreeStats TS => Game.TS;

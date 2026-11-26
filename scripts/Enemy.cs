@@ -107,19 +107,19 @@ public partial class Enemy : CharacterBody3D, IDamageable
         Def = DefOverride ?? EnemyDb.Get(Type);
         if (DefOverride == null && Mods != null && Mods.Count > 0) Def = Progression.Apply(Def, Mods, out _xpMul, out _lootBonus);
         if (DefOverride != null) { MaxHp = Hp = Def.Hp; Damage = Def.Dmg; }
-        else Rescale(false);
+        else if (!PetBody) Rescale(false);
         if (Def.Reach <= 0) Def.Reach = 2.2f;
         _home = GlobalPosition;
         // moves on physics ticks, drawn interpolated every frame (the scene root has interpolation off: CameraRig)
         PhysicsInterpolationMode = PhysicsInterpolationModeEnum.On; ResetPhysicsInterpolation();
         _gravity =(float)ProjectSettings.GetSetting("physics/3d/default_gravity");
-        AddToGroup("enemies");
-        CollisionLayer = 2; CollisionMask = 1 | 2;
+        if (!PetBody) AddToGroup("enemies");   // a pet's body (Pet.cs, the pets menu preview, a ridden pet) is only the model
+        CollisionLayer = PetBody ? 0u : 2u; CollisionMask = PetBody ? 0u : 1u | 2u;
         _scale = Def.Scale <= 0 ? 1f : Def.Scale;
         float r = Def.R, s = _scale;
         bool quad = Def.Kind == "quad", dragon = Def.Kind == "dragon", wraith = Def.Kind == "wraith";
         float h = Def.Model != "" ? Mathf.Max(.6f, (Def.H > 0 ? Def.H : 1.6f) * s) : quad ? HeightM() : dragon ? 5f : 1.8f * s;
-        AddChild(new CollisionShape3D { Shape = new CapsuleShape3D { Radius = Mathf.Min(r, h / 2 - 0.01f), Height = h }, Position = new Vector3(0, h / 2, 0) });
+        if (!PetBody) AddChild(new CollisionShape3D { Shape = new CapsuleShape3D { Radius = Mathf.Min(r, h / 2 - 0.01f), Height = h }, Position = new Vector3(0, h / 2, 0) });
 
         Color col = Def.Color != 0x888888 ? JsonUtil.Hex(Def.Color) : DefaultColor(Type);
         if (Realm_() == 1 && Def.Color == 0x888888) col = col.Lerp(new Color(0.5f, 0.35f, 0.75f), 0.4f);
@@ -175,6 +175,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         if (FromDungeon) AnyRealm = true;
         if (Ambusher) _state = State.Chase;
         _summonT = (float)GD.RandRange(5, 9);
+        if (PetBody) { _state = State.Idle; _label.Visible = false; _yaw = 0; if (_aura != null) _aura.Visible = false; return; }
         if (StartDead >= 0)
         {
             _state = State.Dead; _deadT = StartDead; Hp = 0; CollisionLayer = 0; CollisionMask = 1; Visible = false; _label.Visible = false;
@@ -530,13 +531,13 @@ public partial class Enemy : CharacterBody3D, IDamageable
     {
         var TS = Game.TS; float raw = AttackerRaw(h) * Status.TakenMul;
         if (h.Remote) return Dmg.Mitigate(raw, h.Type, ArmorNow, MrNow, ResPct(h.Type), h.APen, h.APenP, h.MPen, h.MPenP);   // a friend's hit: their penetration came with it
-        return h.IsPlayer ? Dmg.Mitigate(raw, h.Type, ArmorNow, MrNow, ResPct(h.Type), TS["armorPen"], TS["armorPenP"], TS["magicPen"], TS["magicPenP"]) : Dmg.Mitigate(raw, h.Type, ArmorNow, MrNow, ResPct(h.Type), 0, 0, 0, 0);
+        return h.IsPlayer && h.Attacker is not Pet ? Dmg.Mitigate(raw, h.Type, ArmorNow, MrNow, ResPct(h.Type), TS["armorPen"], TS["armorPenP"], TS["magicPen"], TS["magicPenP"]) : Dmg.Mitigate(raw, h.Type, ArmorNow, MrNow, ResPct(h.Type), 0, 0, 0, 0);
     }
     /// <summary>The attacker's side of the damage: our type bonus, weaken on us, execute and rage. The target's side (amplify, armour, resist) comes after.</summary>
     float AttackerRaw(HitInfo h)
     {
         float raw = h.Damage; var TS = Game.TS;
-        if (h.IsPlayer)
+        if (h.IsPlayer && h.Attacker is not Pet)   // a pet's blow carries its own numbers, not the hero's bonuses
         {
             raw *= 1 + TS[h.Type + "P"] / 100f;
             if (Player.Instance != null) raw *= Player.Instance.Statuses.DealtMul;
@@ -598,6 +599,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         if (Duelist && !DuelHit(h, ref dmg)) return;   // dodged, immune, or soaked by the Eclipse barrier
         if (Scarletta) ScarHitTaken(ref dmg);          // the Bloom counts it; broken, she takes more
         Hp -= dmg; _flash = 0.12f; NoteDamage(h, dmg);
+        if (h.Attacker is Pet byPet && AggroHero == null && GD.Randf() < PetDb.R("aggroSwitchChance", .45f)) { PetFoe = byPet; _petAggroT = PetDb.R("aggroSwitchTime", 6f); _heroT = 0; }
         // stagger (decided here, on the host/owner): a big hit or crit cancels the wind-up; bosses only every Nth qualifying hit
         if (h.IsPlayer && Hp > 0 && !Duelist && !Scarletta && (h.Crit || dmg >= MaxHp * Tune.F("monsters.staggerFrac", .2f)) && _state != State.Sleep && _state != State.Stagger)
         {
@@ -606,7 +608,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
             if (go) { Stun(Tune.F("monsters.staggerTime", .4f)); _staggerLean = 1f; }
         }
         if (h.IsPlayer && !h.Remote) Flag.Event($"hit {Def.N} Lv{Level} for {dmg}{(h.Crit ? " crit" : "")} {h.Type}, its hp {Mathf.Max(0, Hp):0}/{MaxHp:0}");
-        if (h.IsPlayer) { var D = Game.D; var p = Player.Instance; if (p != null) { p.Hp = Mathf.Min(D.MaxHp(), p.Hp + dmg * (Game.TS["leech"] + h.Leech) / 100f * Player.HealIn); p.Mp = Mathf.Min(D.MaxMp(), p.Mp + dmg * Game.TS["mleech"] / 100f); } }
+        if (h.IsPlayer && h.Attacker is not Pet) { var D = Game.D; var p = Player.Instance; if (p != null) { p.Hp = Mathf.Min(D.MaxHp(), p.Hp + dmg * (Game.TS["leech"] + h.Leech) / 100f * Player.HealIn); p.Mp = Mathf.Min(D.MaxMp(), p.Mp + dmg * Game.TS["mleech"] / 100f); } }
         ApplyStatuses(h, dealt);
         var tc = Dmg.TypeColor(h.Type);
         if (!h.NoText) FloatText.Spawn(this, GlobalPosition + new Vector3(0, HeightM() + 0.3f, 0), h.Crit ? dmg + "!" : dmg.ToString(), h.Crit ? new Color(1, 0.82f, 0.3f) : h.Type != "physical" ? tc : h.Fire ? new Color(1, 0.7f, 0.4f) : Colors.White, h.Crit ? 1.25f : 1f);
@@ -706,6 +708,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
             }
         }
         _lastPeer = -1;
+        PetWorld.OnKill(this, xp);   // the companion nearby learns from the fight
         if (IsShade) ShadeDrops();   // our own drops (friends roll theirs when their copy falls)
         if (Arena) Arenas.OnEnemyDown(this);
         else if (!netKill) Quests.OnKill(Type, Def.Realm, Def.Boss);
@@ -727,6 +730,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
     public override void _PhysicsProcess(double delta)
     {
         float dt = (float)delta;
+        if (PetBody) { PetBodyTick(dt); return; }
         bool act = AnyRealm || Def.Realm == World.Realm;
         if (act != Active) { Active = act; Visible = act; if (!Dead) { CollisionLayer = act ? 2u : 0u; } }
         if (!Active) return;
@@ -889,6 +893,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
                             var from = GlobalPosition + new Vector3(0, 1.4f * _scale, 0); var to = pl!.GlobalPosition + new Vector3(0, 1.1f, 0);
                             var dir = (to - from).Normalized();
                             { var pr = Projectile.Spawn(Def.Ranged == "arrow" ? "arrow" : "ebolt", 'e', from, dir * (Def.Ranged == "arrow" ? 26f : 18f), Damage, 3f); pr.Source = this; }
+                            if (pl is Pet shotPet) shotPet.TakeHit(OnHit(new HitInfo { Damage = Damage, From = GlobalPosition, Knock = 2f, IsProjectile = true, Attacker = this }));   // shots only strike heroes: a pet takes it directly
                             Sfx.Play(Def.Ranged == "arrow" ? "swing" : "zap", 0.6f);
                         }
                         else if (dist - 0.4f <= Def.Reach + 0.5f)
@@ -959,6 +964,64 @@ public partial class Enemy : CharacterBody3D, IDamageable
         AnimateAvatar();
     }
 
+    // ------------------------------------------------------------------ pets (Pet.cs): this enemy as a body only, and being bound in a Soul Cube (Cube.cs)
+    /// <summary>Only the model: no AI, collision, group or nameplate. The owner (Pet, the pets menu, a ridden pet) moves it and sets PetVel.</summary>
+    public bool PetBody; public Vector3 PetVel;
+    /// <summary>A pet that drew this monster's anger (it hit it): fought instead of the hero for a few seconds.</summary>
+    public Node3D? PetFoe; float _petAggroT; bool _enraged;
+    public bool CatchBusy;   // inside a cube right now (Cube.cs)
+    void PetBodyTick(float dt)
+    {
+        Velocity = PetVel;
+        if (_flash > 0) { _flash -= dt; foreach (var m in _mats) m.AlbedoColor = Colors.White; if (_flash <= 0) for (int i = 0; i < _mats.Count; i++) _mats[i].AlbedoColor = _baseCols[i]; }
+        if (_state == State.Wind) { _timer -= dt; if (_timer <= 0) { _state = State.Recover; _timer = .3f; } }
+        else if (_state == State.Recover) { _timer -= dt; if (_timer <= 0) _state = State.Idle; }
+        else if (_state == State.Stagger) { _stun -= dt; if (_stun <= 0) _state = State.Idle; }
+        if (_state != State.Dead) FlinchTick(dt);
+        else { _deadT += dt; if (_mdlAp == null && _av == null) _body.Quaternion = new Quaternion(Vector3.Forward, Mathf.DegToRad(80f) * Mathf.Clamp(_deadT / .35f, 0, 1)); }
+        if (_legs.Count > 0)
+        {
+            float hs = new Vector2(PetVel.X, PetVel.Z).Length(), amt = Mathf.Clamp(hs / Mathf.Max(1f, Def.Spd * 0.6f), 0, 1);
+            _legPh = Mathf.Wrap(_legPh + hs * dt * 2.2f / Mathf.Max(0.25f, Def.R), 0, Mathf.Tau);
+            for (int i = 0; i < _legs.Count; i++) { float ph = _legPh + ((i == 0 || i == 3) ? 0 : Mathf.Pi); _legs[i].Rotation = new Vector3(Mathf.Sin(ph) * 0.65f * amt, 0, 0); }
+        }
+        AnimateAvatar();
+    }
+    /// <summary>Pet body: play the attack (stretched to the wind-up).</summary>
+    public void PetSwing(float wind) { if (_state == State.Dead) return; _state = State.Wind; _timer = Mathf.Max(.15f, wind); _swingSerial++; }
+    /// <summary>Pet body: flash and flinch from a blow.</summary>
+    public void PetFlinch(Vector3 from)
+    {
+        if (_state == State.Dead) return; _flash = .12f; var away = GlobalPosition - from; away.Y = 0;
+        if (away.LengthSquared() > .001f) { _recoilDir = GlobalTransform.Basis.Inverse() * away.Normalized(); Flinch(1); }
+    }
+    /// <summary>Pet body: knocked out (death clip) or back on its feet.</summary>
+    public void PetDown(bool down) { _state = down ? State.Dead : State.Idle; _deadT = 0; if (!down) { _body.Rotation = Vector3.Zero; _body.Position = Vector3.Zero; } }
+    /// <summary>Bound in a cube: gone without loot or experience (quests, arena waves and dungeon bosses still count it), respawning like a kill.</summary>
+    public void Captured()
+    {
+        if (Dead) return;
+        if (Puppet)
+        {   // a friend's copy: the host runs it, so the binding lands there as a killing blow (the host's rules pay it out)
+            PuppetHit(new HitInfo { Damage = MaxHp * 50 + 9999, Type = "true", From = GlobalPosition, IsPlayer = true, NoText = true, Attacker = Player.Instance });
+        }
+        ClearTele(); _state = State.Dead; _deadT = 3f; CollisionLayer = 0; CollisionMask = 1; _label.Visible = false; if (_aura != null) _aura.Visible = false; _body.Visible = false; Hp = 0; Status.Clear();
+        if (CurrentBoss == this) CurrentBoss = null;
+        if (Puppet) { RespawnTime = 1e9f; return; }
+        if (Arena) Arenas.OnEnemyDown(this); else Quests.OnKill(Type, Def.Realm, Def.Boss);
+        if (Def.Boss) { Ui.Banner(Def.N, "is bound"); if (FromDungeon) Dungeon.OnBossDown(this); }
+        if (FromDungeon && NetIdx >= 0) RespawnTime = 1e9f;   // keep the (hidden) body so its index stays valid for friends
+        else if (PackId > 0 && Overworld && !Def.Boss && !Ambusher) RespawnTime = Zones.RespawnRoll() * Threat.RespawnMul;
+        else if (!Arena && !Summoned && !FromDungeon && !Ambusher && RespawnTime <= 0) RespawnTime = (Def.Boss ? Tune.F("monsters.bossRespawn", 600) : Tune.F("monsters.respawn", 260)) * Threat.RespawnMul;
+    }
+    /// <summary>Broke out of a cube: wakes up angry and hits harder (once).</summary>
+    public void Enrage()
+    {
+        if (Dead) return; Wake(); if (_state == State.Idle || _state == State.Sleep) _state = State.Chase;
+        if (!_enraged) { _enraged = true; Damage *= PetDb.R("enrageDamage", 1.2f); }
+        FloatText.Spawn(this, GlobalPosition + new Vector3(0, HeightM() + .6f, 0), "Enraged!", new Color(1f, .4f, .3f), .9f);
+    }
+
     // ------------------------------------------------------------------ character model (humanoid foes listed in data/avatar.json "enemies")
     Avatar? _av;
     void BuildAvatar(System.Text.Json.JsonElement fc, float s)
@@ -995,6 +1058,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
     Node3D? PickHero()
     {
         var me = Player.Instance;
+        if (_petAggroT > 0 && PetFoe is Pet pf && IsInstanceValid(pf) && !pf.Dead && pf.Visible) return pf;   // a pet bit it: it turns on the pet for a while
         if (!Net.Active || Puppet || Arena || (Ambusher && NetIdx < 0) || (FromDungeon && !Dungeon.Shared)) return me;   // shared ambushers hunt any hero
         if (AggroHero is { } locked) return locked;   // drawn by damage or a taunt (EnemyAggro.cs)
         Node3D? best = null; float bd = float.MaxValue;

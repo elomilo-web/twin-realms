@@ -41,3 +41,30 @@ turn-based pet duels in the Arena. Original gothic take: a cube is a rune-carved
    save/load, catch math. 2. Soul Cube item + throw + capture VFX/SFX (Cube.cs). 3. Pet.cs world companion (follow, aggro
    modes, auto-loot, KO, xp, mount). 4. UiPets.cs menu + capture view. 5. SoulDuel.cs turn-based arena mode + UI.
 Links: [[enemies]] [[combat]] [[arena]] [[ui]] [[loot]] [[player]]
+
+## Implemented (core) — parts 1-4 (2026-11-25)
+- data/pets.json (`_help` lines): rules, rarity table, cubes (iron/silver/runed/abyssal/void "Void Reliquary"), natures, stats
+  coefficients (+ `stats.world` floors), skills (world: range/cd/fx; duel: power/acc/cost=focus/priority/effect/chance/turns,
+  kinds attack/heal/shield/buff/debuff), archetype learnsets + elemLearn, species overrides, pet gear (rolls + craft).
+- Every enemies.json type is catchable (species derived from the def; overrides in pets.json "species" or an enemy's "catch").
+  Excluded: shade/shadeArcher/shadeCaster (hero mirror copies, Enemy.ShadeOf) via pets.json "uncatchable". Bosses/raid
+  (Scarletta, hp >= raidHp) use cube bossMul and bossMinChance (0.2%): very low, never zero.
+- scripts/PetDb.cs: `PetState` (fields only: Id, Species, Nick, Nature, Ot, Cube, Level, Xp, Bond, HpFrac, KoT, Learned,
+  Skills[<=4], Gear{pet_collar,pet_armor,pet_charm}, Stay, Aggro, Loot, LootRar; methods Name(), Sp(), Stats() -> PetStats
+  {Hp,Atk,Def,Spd,Mag}, Elem() (game damage types: physical/fire/frost/lightning/poison/shadow/holy), GainXp(n), LearnUpTo(),
+  ToJson()/FromJson(s) compact JSON for trade). `PetDb`: Skill(id), AllSkills, Cubes, Cube(id), Natures, Species(type),
+  New(species, level, cube), CatchChance(enemy, cube), XpNeed, RollGear, GearText, R(rule).
+- PlayerStats: Pets, ActivePet, Cubes (tier -> count), CubeSel. Old saves load empty.
+- scripts/Cube.cs: `Cubes` (Count/Give/Selected/Cycle/Throw/DrawIcon), `SoulCube` node (arc, pull ribbons, 1-3 shake rolls of
+  chance^(1/3), gold burst + new pet / crack + Enemy.Enrage). Enemy.Captured() removes the foe (quests/arena/dungeon boss count).
+- scripts/Pet.cs: `Pet` (CharacterBody3D, IDamageable; body = `Enemy { PetBody = true }` model only, PetSwing/PetFlinch/PetDown),
+  `PetWorld` (Out, Active, Tick, SetActive, ToggleStay, OnKill xp share, WorldDamage, CanMount/MountSpeed/Riding).
+  Hits are IsPlayer HitInfos with Attacker = the pet (no hero bonuses/leech); struck foes may switch aggro to it (Enemy.PetFoe).
+- Player: ToggleMount rides the active mountable pet (its model replaces the box horse; horse kept as fallback).
+- scripts/UiPets.cs: OpenPets(sel, tab) — list, PetPreview (SubViewport, own world), stats, Skills/Gear/Orders, rename/release/active.
+- Keys: P pets (pad LT+RT), V throw cube (pad LT+RB), "," next cube tier, "." follow/stay. Shop sells cubes; craft bench
+  (Potions tab) makes cubes + pet gear; cubes drop (3% / 8% dungeon / 60% boss); pet gear 2% of item rolls.
+- MP: pets are local only (not shown to friends yet; RemoteHero has no pet). Catching a host's monster as a client lands as a killing blow.
+- For the duel/trade agent: build duel stats from `PetState.Stats()`, moves from `PetDb.Skill(id)` (power/acc/cost/priority/
+  effect/turns), element wheel on `Elem()`; trade by `ToJson()`/`FromJson()` (give a new Id on receipt). Arena: PetWorld does not
+  spawn pets while `Arenas.Active`.

@@ -65,6 +65,7 @@ public partial class Enemy
     void AggroTick(float dt)
     {
         _aggroT = Mathf.Max(0, _aggroT - dt); _tauntImmT = Mathf.Max(0, _tauntImmT - dt);
+        if (_petAggroT > 0) { _petAggroT -= dt; if (_petAggroT <= 0) { PetFoe = null; _heroT = 0; } }
         if (_aggroT > 0 && HeroOf(_aggroPeer) == null) _aggroT = 0;   // the hero died or left: back to the closest
         if (_dmgWin.Count > 0) { float k = Mathf.Exp(-dt / AT("damageWindow", 6f)); foreach (var key in new List<long>(_dmgWin.Keys)) { _dmgWin[key] *= k; if (_dmgWin[key] < 1) _dmgWin.Remove(key); } }
         // raid lair bosses: now and then she turns on someone else, and taunts do nothing for a while

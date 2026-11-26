@@ -90,6 +90,7 @@ public static class LootTables
     public static Item Roll(int level, float bonus)
     {
         Load();
+        if (GD.Randf() < PetDb.R("gearDropChance", .02f)) return PetDb.RollGear(level, bonus);   // pet gear (data/pets.json "gear"), at a low weight
         if (!Dungeon.Active || !_dun.TryGetValue(Dungeon.Key, out var t)) return Items.Roll(level, bonus);
         int depth = Dungeon.Depth; bonus += DepthBonus(depth);
         // a named unique of this dungeon

@@ -202,6 +202,24 @@ public static class Icons
                 ci.DrawCircle(c + new Vector2(-.1f, .05f) * s, s * .6f, A(new Color(.82f, .3f, .3f))); ci.DrawCircle(c + new Vector2(-.15f, 0) * s, s * .35f, A(new Color(.95f, .55f, .55f)));
                 ci.DrawLine(c + new Vector2(.35f, -.35f) * s, c + new Vector2(.75f, -.75f) * s, A(new Color(.95f, .92f, .85f)), Mathf.Max(2.5f, s * .16f), true);
                 break;
+            // ---------------- pets (PetDb.cs): gear and the Soul Cube
+            case "pet_collar":
+                ci.DrawArc(c, s * .62f, 0, Mathf.Tau, 24, A(new Color(.55f, .36f, .2f)), Mathf.Max(2.5f, s * .2f), true);
+                for (int k = 0; k < 6; k++) { var q = c + new Vector2(Mathf.Cos(k * Mathf.Tau / 6), Mathf.Sin(k * Mathf.Tau / 6)) * s * .62f; ci.DrawCircle(q, s * .1f, A(new Color(.8f, .78f, .72f))); }
+                ci.DrawCircle(c + new Vector2(0, .78f) * s, s * .16f, A(new Color(.9f, .75f, .35f)));
+                break;
+            case "pet_armor":
+                Poly(ci, P(c, s, -.8f, -.35f, 0, -.6f, .8f, -.35f, .7f, .45f, 0, .7f, -.7f, .45f), A(new Color(.5f, .5f, .55f)), ol, 1.5f);
+                for (int k = -1; k <= 1; k++) ci.DrawLine(c + new Vector2(k * .45f, -.35f) * s, c + new Vector2(k * .4f, .5f) * s, A(new Color(.3f, .3f, .34f)), 1.5f, true);
+                break;
+            case "pet_charm":
+                ci.DrawLine(c + new Vector2(0, -.85f) * s, c + new Vector2(0, -.3f) * s, A(new Color(.6f, .5f, .35f)), 1.5f, true);
+                Glow(ci, c + new Vector2(0, .2f) * s, s * .5f, A(new Color(.6f, .9f, 1f)));
+                Poly(ci, P(c + new Vector2(0, .2f) * s, s * .48f, 0, -1, .75f, 0, 0, 1, -.75f, 0), A(new Color(.85f, .82f, .7f)), ol, 1.5f);
+                break;
+            case "cube":
+                Cubes.DrawIcon(ci, c, size, new Color(.42f, .62f, 1f), alpha);
+                break;
             default:
             {
                 // scraps and other materials without a drawing: a cut gem in the material's colour

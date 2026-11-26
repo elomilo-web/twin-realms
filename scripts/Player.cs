@@ -176,6 +176,7 @@ public partial class Player : CharacterBody3D, IDamageable
     public void TakeHit(HitInfo h)
     {
         if (Dead || World.Shifting || _moveT > 0) return;
+        if (h.Attacker is Enemy byFoe) PetWorld.HeroHitBy(byFoe);   // a defensive pet answers whoever strikes its master
         if (_rollT > 0 && h.Attacker is Enemy && RollTime - _rollT <= Tune.F("perfectDodge.window", .18f)) PerfectDodge();
         if (_inv > 0 || _rollT > 0) return;
         var D = Game.D; var TS = Game.TS;
@@ -286,11 +287,28 @@ public partial class Player : CharacterBody3D, IDamageable
     // ------------------------------------------------------------------ mount
     public void ToggleMount(bool forceOff = false)
     {
-        if (forceOff || Mounted) { Mounted = false; _horse.Visible = false; return; }
-        if (!Game.D.Horse) { Ui.Note("You do not own a horse. Brynn sells one.", new Color(0.7f, 0.8f, 1)); return; }
+        if (forceOff || Mounted)
+        {
+            Mounted = false; _horse.Visible = false;
+            if (_petMount != null) { _petMount.QueueFree(); _petMount = null; _petBody = null; _mountY = .9f; PetWorld.Riding = false; foreach (var c in _horse.GetChildren()) if (c is MeshInstance3D mi) mi.Visible = true; }
+            return;
+        }
+        bool pet = PetWorld.CanMount;
+        if (!Game.D.Horse && !pet) { Ui.Note("You do not own a horse. Brynn sells one. (A mountable pet can carry you too.)", new Color(0.7f, 0.8f, 1)); return; }
         if (Dungeon.Active || Arenas.Active) { Ui.Note("No riding here", new Color(0.7f, 0.8f, 1)); return; }
-        Mounted = true; _horse.Visible = true; Ui.Note("You mount your horse", new Color(0.8f, 0.9f, 1));
+        Mounted = true; _horse.Visible = true;
+        if (pet)
+        {   // ride the active pet: its own model (at riding size) instead of the box horse, which stays as the fallback
+            var s = PetWorld.Active!; var sp = s.Sp(); PetWorld.Riding = true; PetWorld.Despawn();
+            foreach (var c in _horse.GetChildren()) if (c is MeshInstance3D mi) mi.Visible = false;
+            var holder = new Node3D { Scale = Vector3.One * sp.MountScale }; _horse.AddChild(holder);
+            _petBody = new Enemy { Type = s.Species, PetBody = true, Level = s.Level, AnyRealm = true }; holder.AddChild(_petBody); _petMount = holder;
+            _mountY = Mathf.Clamp(_petBody.HeightM() * sp.MountScale * .62f, .5f, 2.2f);
+            Ui.Note($"You ride {s.Name()}", new Color(0.8f, 0.9f, 1));
+        }
+        else Ui.Note("You mount your horse", new Color(0.8f, 0.9f, 1));
     }
+    Node3D? _petMount; Enemy? _petBody; float _mountY = .9f;   // a ridden pet (PetWorld.Riding)
 
     // ------------------------------------------------------------------ aiming
     public (Vector3 point, Enemy? enemy) AimPoint(float maxDist)
@@ -314,7 +332,7 @@ public partial class Player : CharacterBody3D, IDamageable
     {
         var fw = new Vector3(-Mathf.Sin(_modelYaw), 0, -Mathf.Cos(_modelYaw));
         if (_av != null && !Mounted && _av.HandPos(true) is { } h && h.DistanceTo(GlobalPosition) < 2.5f) return h + fw * .25f;
-        return GlobalPosition + new Vector3(0, 1.45f + (Mounted ? 0.9f : 0f), 0) + fw * 0.6f;
+        return GlobalPosition + new Vector3(0, 1.45f + (Mounted ? _mountY : 0f), 0) + fw * 0.6f;
     }
 
     // ------------------------------------------------------------------ attacks
@@ -548,6 +566,7 @@ public partial class Player : CharacterBody3D, IDamageable
     public static bool Frozen;
     public override void _PhysicsProcess(double delta)
     {
+        PetWorld.Tick(this, (float)delta);   // the active pet: knock-out timers, spawning it beside us (Pet.cs)
         if (Frozen) { Velocity = Vector3.Zero; _walkV = Vector3.Zero; return; }
         float dt = (float)delta; var D = Game.D; var TS = Game.TS;
         var v = Velocity; v.X = _walkV.X; v.Z = _walkV.Z;   // steer the walking velocity only; pushes are added for the move below
@@ -597,6 +616,9 @@ public partial class Player : CharacterBody3D, IDamageable
         if (captured && Input.IsActionJustPressed(Inputs.PotHp)) UsePotion(true);
         if (captured && Input.IsActionJustPressed(Inputs.PotMp)) UsePotion(false);
         if (captured && Input.IsActionJustPressed(Inputs.Mount)) ToggleMount();
+        if (captured && !BuildMode && Input.IsActionJustPressed(Inputs.ThrowCube)) Cubes.Throw(this);   // Soul Cubes (Cube.cs)
+        if (captured && Input.IsActionJustPressed(Inputs.CubeNext)) Cubes.Cycle();
+        if (captured && Input.IsActionJustPressed(Inputs.PetStay)) PetWorld.ToggleStay();
         if (captured && Input.IsActionJustPressed(Inputs.Realm)) World.TryShiftRealm();
         if (captured) ScanInteract(); else Prompt = "";
         if (captured && Input.IsActionJustPressed(Inputs.Lock)) { if (Inputs.UsingPad && Targeting.Current != null) Targeting.Clear(); else Targeting.Toggle(Targeting.Current != null); }   // pad: R3 toggles, a right-stick flick switches
@@ -687,7 +709,7 @@ public partial class Player : CharacterBody3D, IDamageable
             if (!captured) Input.ActionRelease(Inputs.Sprint);   // a menu or another window took the Shift release: never keep sprinting after it
             bool sprint = Input.IsActionPressed(Inputs.Sprint) && St > 1f && dir.LengthSquared() > 0.01f && _atkT <= 0 && !_blocking && !Mounted;
             float speed = (sprint ? SprintSpeed : RunSpeed) * moveMul;   // matched to the clips' own stride (Avatar gait speeds)
-            if (Mounted) speed = 10.5f * moveMul;
+            if (Mounted) speed = (_petMount != null ? PetWorld.MountSpeed : 10.5f) * moveMul;
             if (_atkT > 0 && !Ranged && _atk != null)
             {
                 // melee: feet planted until the blow lands (lunges move the body themselves); after it, moving cancels the recovery
@@ -793,8 +815,9 @@ public partial class Player : CharacterBody3D, IDamageable
         float roll = _rollT > 0 ? (1f - _rollT / RollTime) * Mathf.Tau : 0f;
         if (_av != null) { roll = 0; bob = breath = crouch = 0; }   // the model's clips do the roll, bob and crouch
         _model.Rotation = new Vector3(roll, _modelYaw, 0);
-        _model.Position = new Vector3(0, (Mounted ? 0.9f : 0f) + bob + breath - crouch * .12f, 0);
+        _model.Position = new Vector3(0, (Mounted ? _mountY : 0f) + bob + breath - crouch * .12f, 0);
         _horse.Rotation = new Vector3(0, _modelYaw, 0);
+        if (_petBody != null && _petMount != null && GodotObject.IsInstanceValid(_petBody)) _petBody.PetVel = new Vector3(Velocity.X, 0, Velocity.Z) / Mathf.Max(.3f, _petMount!.Scale.X);   // the ridden pet's gait follows our speed
 
         // ---- hands
         var restR = w.Rest; var lift = new Vector3(0, breath * .6f, 0);

@@ -23,6 +23,7 @@ public static class Inputs
     public const string Macro1 = "macro1", Macro2 = "macro2";   // skill chains (PlayerMacros.cs; set up in Skills > Macros)
     public const string Flag = "playtest_flag";   // F8: screenshot + report for later review (scripts/Flag.cs)
     public const string BuildMode = "build_mode", BlockRotate = "block_rotate";   // the block world (PlayerBlocks.cs)
+    public const string PetsUi = "ui_pets", ThrowCube = "throw_cube", CubeNext = "cube_next", PetStay = "pet_stay";   // pets (UiPets.cs, Cube.cs, Pet.cs)
 
     /// <summary>Actions shown in the Controls menu, in order, with their names.</summary>
     public static readonly (string id, string name)[] Rebindable =
@@ -36,6 +37,7 @@ public static class Inputs
         (Pack, "Pack"), (Journal, "Journal"), (Map, "Map"), (Tree, "Skill tree"), (SkillsUi, "Skills"), (AttacksUi, "Basic attacks"), (ModsUi, "Modifier tree"), (SpellcraftUi, "Spellcraft"), (Pause, "Menu"),
         (Flag, "Flag for review (screenshot + report)"),
         (BuildMode, "Build mode (dig and place blocks)"), (BlockRotate, "Rotate block (build mode)"),
+        (PetsUi, "Pets"), (ThrowCube, "Throw Soul Cube"), (CubeNext, "Next Soul Cube tier"), (PetStay, "Pet: follow / stay"),
     };
 
     static bool _done;
@@ -51,6 +53,7 @@ public static class Inputs
         Bind(Pack, Key.I); Bind(Journal, Key.J); Bind(Map, Key.M); Bind(Tree, Key.K);
         Bind(Lock, Key.Tab); Bind(Unlock, Key.Q); Bind(SkillsUi, Key.L); Bind(AttacksUi, Key.O); Bind(ModsUi, Key.U); Bind(SpellcraftUi, Key.B); Bind(Flag, Key.F8);
         Bind(BuildMode, Key.N); Bind(BlockRotate, Key.Y);
+        Bind(PetsUi, Key.P); Bind(ThrowCube, Key.V); Bind(CubeNext, Key.Comma); Bind(PetStay, Key.Period);
         BindMouse(Attack, MouseButton.Left); BindMouse(Heavy, MouseButton.Right); Bind(Guard, Key.F);
         InputMap.ActionAddEvent(Lock, new InputEventMouseButton { ButtonIndex = MouseButton.Middle });   // extra default, dropped once rebound
         // the analog stick arrives already dead-zoned and rescaled (PadInput), so the move actions keep only a tiny deadzone of their own
@@ -184,11 +187,12 @@ public static class Inputs
         [PotMp] = LT(JoyButton.Y), [Realm] = LT(JoyButton.X), [Mount] = LT(JoyButton.A), [SkillsUi] = LT(JoyButton.B),
         [Pause] = B(JoyButton.Start), [Pack] = B(JoyButton.Back), [Map] = LT(JoyButton.Back), [Journal] = LT(JoyButton.Start),
         [BuildMode] = LT(JoyButton.LeftStick), [BlockRotate] = LT(JoyButton.LeftShoulder),
+        [ThrowCube] = LT(JoyButton.RightShoulder), [PetsUi] = "L+a:" + (int)JoyAxis.TriggerRight,
     };
     static readonly HashSet<string> _moves = new() { Left, Right, Forward, Back };
     public static bool IsMove(string id) => _moves.Contains(id);
     /// <summary>Actions that open or close menus: they work while a menu is open (everything else waits until the button is let go).</summary>
-    public static bool IsMenuAction(string id) => id is Pause or Pack or Journal or Map or Tree or SkillsUi or AttacksUi or ModsUi or SpellcraftUi;
+    public static bool IsMenuAction(string id) => id is Pause or Pack or Journal or Map or Tree or SkillsUi or AttacksUi or ModsUi or SpellcraftUi or PetsUi;
     /// <summary>The controller input of an action ("" = none).</summary>
     public static string PadCode(string action) => Game.Set.PadBinds.TryGetValue(action, out var c) ? c : PadDefaults.GetValueOrDefault(action, "");
 

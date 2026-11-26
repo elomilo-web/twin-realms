@@ -273,8 +273,17 @@ public partial class HudCanvas : Control
         if (unspent > _lastPts) _ptsShowT = 10f; _lastPts = unspent; _ptsShowT -= (float)GetProcessDeltaTime();
         if (unspent > 0 && _ptsShowT > 0)
         {
-            float ux = hx + 8 * (ss + u * .5f) + u;
+            float ux = hx + 9 * (ss + u * .5f) + u;
             Txt(new Vector2(ux, hy + ss * .62f),$"Unspent: {d.AttrPts} attribute ({(Inputs.UsingPad ? Inputs.KeyOf(Inputs.Pause) : "Esc")} > Character), {d.RankPts} skill ({Inputs.KeyOf(Inputs.SkillsUi)}), {d.SkillPts} skill tree ({Inputs.KeyOf(Inputs.Tree)})", fs(1f), UiTheme.Highlight, HorizontalAlignment.Left, Mathf.Max(100, sz.X - ux - pad));
+        }
+        {   // slot 9: the Soul Cube tier the throw key uses, with how many you carry (Cube.cs)
+            var r = new Rect2(hx + 8 * (ss + u * .5f), hy, ss, ss); Glass(r, false);
+            string sel = Cubes.Selected; int n = Cubes.Count(sel);
+            Cubes.DrawIcon(this, r.GetCenter(), ss * .7f, PetDb.Cube(sel).Col, n > 0 ? 1f : .35f);
+            string ck = Inputs.KeyOf(Inputs.ThrowCube);
+            if (Inputs.UsingPad && Inputs.PadCode(Inputs.ThrowCube) != "") PadGlyphs.Draw(this, new Rect2(r.Position + new Vector2(3, 3), new Vector2(ss - 6, Mathf.Max(12, ss * .3f))), ck, Inputs.PadStyle);
+            else Txt(r.Position + new Vector2(4, fs(.95f) + 1), ck, fs(.95f), UiTheme.Accent);
+            Txt(r.Position + new Vector2(0, ss - 4), n.ToString(), fs(.85f), PetDb.Cube(sel).Col.Lightened(.3f), HorizontalAlignment.Right, ss - 4);
         }
         for (int i = 0; i < 8; i++)
         {
