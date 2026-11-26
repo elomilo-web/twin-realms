@@ -366,24 +366,50 @@ PHASE 3 - HOTBAR, ICONS, AND SPELLCRAFTING
 PHASE 4 - BUILDING BLOCKS AND PROTECTED AREAS
 ================================================================================
 
-[ ] F-14  CRAFTABLE DOORS
+[x] F-14  CRAFTABLE DOORS
     DONE WHEN: doors can be crafted and placed. Interacting opens and closes
     them, with an animation and a sound. There are several block-style
     materials. The owner can lock a door, and NPCs can use doors.
+    NOTE (2026-11-26): Extended the existing 2-tall door. Three materials with recipes (data/blocks.json): Oak Door (4 planks),
+      Dark Wood Door (4 planks + coal), Iron Door (4 iron ore, clangs); every door X has a twin X_open. E swings both halves over
+      .25 s (DoorSwing node at the hinge; the chunk mesh leaves the cell out meanwhile, BlockMesher.Hidden) with synth sounds
+      door_open/door_close/door_iron. Lock: meta bit 8 (syncs with the block); owner = placer's hero name in PlayerStats.BlockOwners
+      ("area|x,y,z"); in build mode the rotate key locks/unlocks your own door; locked = owner or world owner (playing alone/hosting)
+      only, cannot be broken by blows/spells/monsters or dug by others. F-25 hooks: BlockUse.CanLockpick / Lockpicked. NPCs: villagers
+      got a movement capability (Npc.WalkTo: follows the block surface, opens unlocked doors in the way, closes them once past,
+      stops at locked ones). Doors got a handle and cross-boards. Files: scripts/BlockUse.cs (new), BlockMesher.cs, PlayerBlocks.cs,
+      BlockSim.cs, BlockFx.cs, Props.cs (Npc), Sfx.cs, Stats.cs, data/blocks.json. Capture blocks_doors: [F14] villager opened at
+      1.1 s, closed at 2.6 s once past; stranger "Locked by <owner>", villager stopped at the locked iron door.
+      ASSUMPTION: villagers do not roam yet (roaming schedules come in F-29); remote players see the door change without the swing.
 
-[ ] F-15  CRAFTABLE CHESTS
+[x] F-15  CRAFTABLE CHESTS
     DONE WHEN: chests can be crafted and placed. They have their own storage
     window, save their contents, and can be lockpicked (see F-25). Optional:
     two chests side by side merge into one large chest.
+    NOTE (2026-11-26): New "chest" block (8 planks): block-style crate (planks body and lid, iron bands, latch facing the placer).
+      E opens its own window (scripts/UiChest.cs, the Home Storage pattern: pack | 27 chest slots in fixed scroll boxes, Store all /
+      Take all). Contents saved with the hero in PlayerStats.Chests["area|x,y,z"]; a chest that is dug or blown up spills its items.
+      Lockable by its owner like doors; F-25 lockpicking hooks BlockUse.CanLockpick/Lockpicked (the picking itself is F-25).
+      Capture blocks_chest: [F15] 11 items saved to a capture-only file, read back equal True, chest block + owner in the saved data.
+      Optional large-chest merge not done.
 
-[ ] F-16  STAIRS (AND SLABS)
+[x] F-16  STAIRS (AND SLABS)
     DONE WHEN: stairs can be crafted and placed facing any of 4 directions,
     and upside down. Players and NPCs walk up stairs smoothly without
     jumping.
+    NOTE (2026-11-26): Stairs face the look direction (4 ways, existing); new: upside down (meta & 4) when placed against a ceiling or
+      the upper half of a wall face (slabs use the same rule). Step-up moved to BlockStep.StepUp (scripts/BlockUse.cs), now shared by
+      the hero (the model eases over the step, Player.StepLift), monsters (Enemy.cs) and pets (Pet.cs); villagers walk the block
+      surface (BlockStep.GroundY). Capture blocks_stairs: [F16] place metas floor 3 / ceiling 7 / wall-high 7; hero rose 0.5 m per
+      step to 4.0 with no jump speed; villager climbed 0 -> 3.72 in half steps.
 
-[ ] F-17  PLACEABLE TORCHES
+[x] F-17  PLACEABLE TORCHES
     DONE WHEN: torches can be crafted and placed on floors and walls. They
     give real, flickering light and have a small flame particle.
+    NOTE (2026-11-26): Torches placed on a wall face lean out from it with an iron bracket (meta 1 + wall side; BlockMesher.TorchPose);
+      the light sits at the flame. The nearest 24 torches keep a real OmniLight that flickers in energy and colour (shared time-based
+      sines, Torch.HueFlicker); only the nearest 8 (world.torchFlames) carry the small flame + smoke particles (reused the Torch
+      CPU particles rather than adding GPU ones). Capture blocks_torches (night): 5 lights, energy 1.3-1.8 with colour shift.
 
 [ ] F-18  PROTECTED TOWN ZONES
     DONE WHEN: each main town has a protected radius (set in data). Inside

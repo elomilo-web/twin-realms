@@ -59,33 +59,9 @@ public partial class Player
     }
 
     /// <summary>Walking into a stair, a slab (or a full block from a slab's top): a half-block step is climbed without jumping.</summary>
-    void StepUp(Vector3 v)
-    {
-        if (!IsOnFloor() || v.Y > .1f || BlockWorld.I?.Area is not { } a) return;
-        var hv = new Vector3(v.X, 0, v.Z); if (hv.LengthSquared() < .25f) return;
-        var p = GlobalPosition + hv.Normalized() * .42f; float feet = GlobalPosition.Y;
-        int cx = Mathf.FloorToInt(p.X), cy = Mathf.FloorToInt(feet + .05f), cz = Mathf.FloorToInt(p.Z);
-        byte id = a.Get(cx, cy, cz); if (id == 0 || id == 255) return; var d = Blocks.Def(id); if (!d.Solid || d.IsFluid) return;
-        float top;
-        switch (d.Shape)
-        {
-            case "slab": top = cy + ((a.GetMeta(cx, cy, cz) & 4) != 0 ? 1f : .5f); break;
-            case "stairs":
-            {
-                float lx = p.X - cx, lz = p.Z - cz; int dir = a.GetMeta(cx, cy, cz) & 3;
-                bool high = dir switch { 0 => lx >= .5f, 1 => lx < .5f, 2 => lz >= .5f, _ => lz < .5f };
-                top = cy + (high ? 1f : .5f); break;
-            }
-            case "": top = cy + 1f; break;
-            default: return;   // fences, doors, ladders, torches: no stepping
-        }
-        float rise = top - feet; if (rise < .04f || rise > .56f) return;
-        for (int y = Mathf.CeilToInt(top - .01f); y <= Mathf.FloorToInt(top + 1.75f); y++)
-        {
-            byte above = a.Get(cx, y, cz); if (above != 0 && above != 255 && Blocks.Def(above).Solid && !Blocks.Def(above).IsFluid) return;
-        }
-        GlobalPosition += Vector3.Up * (rise + .01f);
-    }
+    void StepUp(Vector3 v) { StepLift += BlockStep.StepUp(this, v); }   // the shared step (monsters and pets use it too); StepLift eases the camera/model over it
+    /// <summary>How far the hero was just lifted by a step and is still easing over (the model is drawn this much lower, shrinking to 0).</summary>
+    internal float StepLift;
 
     /// <summary>Wall side (0 +X, 1 -X, 2 +Z, 3 -Z) for a ladder or door being placed: against the clicked wall, else the way the camera faces.</summary>
     byte WallSide(Vector3I n)
@@ -99,26 +75,52 @@ public partial class Player
     byte PlaceMeta(string shape, Vector3I n) => shape switch
     {
         "ladder" or "door" => WallSide(n),
-        "stairs" => WallSide(Vector3I.Zero),
-        "slab" => (byte)(n.Y < 0 ? 4 : 0),
-        "fence" or "post" => 0,
+        // stairs face the way you look; against a ceiling or the upper half of a wall they hang upside down (meta & 4), like slabs go in the upper half
+        "stairs" => (byte)(WallSide(Vector3I.Zero) | (UpperHalf(n) ? 4 : 0)),
+        "slab" => (byte)(UpperHalf(n) ? 4 : 0),
+        "post" => (byte)(n.X != 0 || n.Z != 0 ? 1 + WallSide(n) : 0),   // a torch on a wall leans out from it (1 + wall side), else it stands
+        "chest" => (byte)(WallSide(Vector3I.Zero) ^ 1),                 // the latch faces you
+        "fence" => 0,
         _ => _rot,
     };
-
-    /// <summary>E on a door within reach toggles door / door_open (both halves, one block change each, so multiplayer sync is automatic).</summary>
-    void DoorUse(bool captured)
+    /// <summary>Placing against a ceiling, or high on a wall (the aimed point in the upper half of the face).</summary>
+    bool UpperHalf(Vector3I n)
     {
-        if (!captured || !BlockWorld.Enabled || BlockWorld.I?.Area is not { } a) return;
-        if (Aim() is not { } t || (new Vector3(t.b.X + .5f, t.b.Y + .5f, t.b.Z + .5f) - (GlobalPosition + Vector3.Up)).Length() > 3.6f) return;
-        byte did = Blocks.Id("door"), oid = Blocks.Id("door_open"); byte id = a.Get(t.b.X, t.b.Y, t.b.Z);
-        if (did == 0 || (id != did && id != oid)) return;
-        if (Prompt == "") Prompt = "[" + Inputs.KeyOf(Inputs.Use) + "] " + (id == did ? "Open door" : "Close door");
-        if (!Input.IsActionJustPressed(Inputs.Use)) return;
-        byte meta = a.GetMeta(t.b.X, t.b.Y, t.b.Z); int oy = (meta & 4) != 0 ? t.b.Y - 1 : t.b.Y + 1; byte nid = id == did ? oid : did;
-        BlockWorld.I.Change(t.b.X, t.b.Y, t.b.Z, nid, meta);
-        byte other = a.Get(t.b.X, oy, t.b.Z);
-        if (other == did || other == oid) BlockWorld.I.Change(t.b.X, oy, t.b.Z, nid, a.GetMeta(t.b.X, oy, t.b.Z));
-        Sfx.Play("click", .7f);
+        if (n.Y < 0) return true; if (n.Y > 0) return false;
+        if (ForcedTarget != null) return ForcedUpper;
+        return BlockAim.Target(GetViewport(), BlockEye, Blocks.F("world.reach", 6f)) is { } t && t.hit.Y - Mathf.Floor(t.hit.Y) > .5f;
+    }
+    /// <summary>Tests: with a ForcedTarget on a wall, place as if aimed at the upper half of the face.</summary>
+    public static bool ForcedUpper;
+    /// <summary>Tests (DevCapture blocks:stairs): the meta a block of this shape gets when placed against face n.</summary>
+    internal byte DevPlaceMeta(string shape, Vector3I n) => PlaceMeta(shape, n);
+
+    /// <summary>
+    /// E on a door within reach opens/closes it (both halves swing, BlockUse.SetDoor; block changes sync in multiplayer), E on a chest opens its
+    /// window; locked ones only for their owner. In build mode the rotate key locks or unlocks a door or chest you own.
+    /// </summary>
+    bool BlockUseInput(bool captured)
+    {
+        if (!captured || !BlockWorld.Enabled || BlockWorld.I?.Area is not { } a) return false;
+        if (Aim() is not { } t || (new Vector3(t.b.X + .5f, t.b.Y + .5f, t.b.Z + .5f) - (GlobalPosition + Vector3.Up)).Length() > 3.6f) return false;
+        byte id = a.Get(t.b.X, t.b.Y, t.b.Z); bool door = BlockUse.IsDoor(id), chest = BlockUse.IsChest(id);
+        if (!door && !chest) return false;
+        var c = BlockUse.Anchor(a, t.b.X, t.b.Y, t.b.Z); bool locked = BlockUse.Locked(a, c), may = BlockUse.MayOpen(a, c, BlockUse.Me, BlockUse.Admin);
+        bool canLock = BuildMode && BlockUse.MayLock(a, c, BlockUse.Me, BlockUse.Admin);
+        string what = door ? (BlockUse.IsOpen(id) ? "Close door" : "Open door") : "Open chest";
+        string p = may ? "[" + Inputs.KeyOf(Inputs.Use) + "] " + what + (locked ? " (locked)" : "") : "Locked" + (BlockUse.Owner(a, c) is { Length: > 0 } o ? " by " + o : "");
+        if (canLock) p += "   [" + Inputs.KeyOf(Inputs.BlockRotate) + "] " + (locked ? "Unlock" : "Lock");
+        if (Prompt == "") Prompt = p;
+        if (canLock && Input.IsActionJustPressed(Inputs.BlockRotate))
+        {
+            if (BlockUse.Owner(a, c) == "") BlockUse.SetOwner(a, c, BlockUse.Me);
+            BlockUse.SetLock(a, c, !locked); Ui.Note((locked ? "Unlocked: anyone may open it" : "Locked: only you can open it") , Ui.Dim);
+            return true;
+        }
+        if (!Input.IsActionJustPressed(Inputs.Use)) return false;
+        if (door) { if (BlockUse.UseDoor(a, t.b.X, t.b.Y, t.b.Z, BlockUse.Me, BlockUse.Admin) is { } why) Ui.Note(why, new Color(1, .6f, .5f)); }
+        else BlockUse.OpenChest(a, c);
+        return false;
     }
 
     /// <summary>Build mode input (replaces attacking while it is on). Called every physics frame.</summary>
@@ -133,9 +135,9 @@ public partial class Player
         _av?.ShowTool(on && !Mounted ? Blocks.PickModel(Game.D.Pick) : null);   // the pickaxe in the right hand, weapon and shield away
         _swingT = Mathf.Max(0, _swingT - dt);
         if (on) BarInput(captured, dt);
-        BlockHud(); DoorUse(captured);
+        BlockHud(); bool lockUsed = BlockUseInput(captured);
         if (!on) { HideBlockFx(); _digT = 0; _swingCd = 0; return; }
-        if (captured && Input.IsActionJustPressed(Inputs.BlockRotate)) { _rot = (byte)((_rot + 1) % 3); Ui.Note("Placing along " + (_rot == 0 ? "up" : _rot == 1 ? "east-west" : "north-south"), Ui.Dim); }
+        if (captured && !lockUsed && Input.IsActionJustPressed(Inputs.BlockRotate)) { _rot = (byte)((_rot + 1) % 3); Ui.Note("Placing along " + (_rot == 0 ? "up" : _rot == 1 ? "east-west" : "north-south"), Ui.Dim); }
         _placeCd = Mathf.Max(0, _placeCd - dt); _placeRep -= dt;
         _bTarget = ForcedTarget ?? Aim();
         bool act = captured || ForcedTarget != null;
@@ -154,14 +156,15 @@ public partial class Player
         {
             if (t.b != _digAt) { _digAt = t.b; _digT = 0; }
             var def = Blocks.Def(id); float need = Blocks.DigTime(def, Game.D.WType(), Game.D.Pick) * (BlockWorld.I.Frozen(t.b.X, t.b.Y, t.b.Z) ? .5f : 1f);
-            bool prot = a.Gen.Protected(t.b.X, t.b.Y, t.b.Z);
+            bool locked = BlockUse.Protects(a, t.b.X, t.b.Y, t.b.Z) && !BlockUse.MayOpen(a, BlockUse.Anchor(a, t.b.X, t.b.Y, t.b.Z), BlockUse.Me, BlockUse.Admin);
+            bool prot = a.Gen.Protected(t.b.X, t.b.Y, t.b.Z) || locked;
             _modelYaw = Rig?.Yaw ?? _modelYaw;
             if (float.IsInfinity(need) || prot)
             {
                 if (_digT == 0)
                 {
                     int needT = Blocks.PickNeeded(def);
-                    Ui.Note(!prot && def.Breakable && needT > Game.D.Pick ? $"{def.Name} needs a {Blocks.PickName(needT)}" : def.Name + " cannot be broken", Ui.Dim);
+                    Ui.Note(locked ? def.Name + " is locked: only its owner can break it" : !prot && def.Breakable && needT > Game.D.Pick ? $"{def.Name} needs a {Blocks.PickName(needT)}" : def.Name + " cannot be broken", Ui.Dim);
                 }
                 _digT = .001f; DigSwing(dt, null);
             }
@@ -201,6 +204,7 @@ public partial class Player
                 if (placed && shape == "door" && !BlockFx.Place(at.X, at.Y + 1, at.Z, bid, (byte)(pm | 4))) { BlockWorld.I.Change(at.X, at.Y, at.Z, 0); placed = false; }
                 if (placed)
                 {
+                    BlockUse.Placed(a, at.X, at.Y, at.Z, BlockUse.Me);   // doors and chests: you own them (and may lock them)
                     var m = Game.D.Mats; string k = Blocks.Item(_sel); m[k] = m.GetValueOrDefault(k) - 1; if (m[k] <= 0) m.Remove(k); Game.Notify();
                     BlockFx.PlacePuff(at.X, at.Y, at.Z, bid); _swingT = .28f; _swingSerial++; _modelYaw = Rig?.Yaw ?? _modelYaw; _barRefresh = 0;
                 }

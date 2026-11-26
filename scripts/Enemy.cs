@@ -951,6 +951,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         // the block world: monsters wade slowly through water and lava and float rather than sink like stones
         if (BlockWorld.Enabled && BlockWorld.FluidAt(GlobalPosition + Vector3.Up * .6f) != "") { spdMul *= Blocks.F("fluids.swim.enemySpeed", .55f); v.Y = Mathf.Max(v.Y, -1.5f); }
         v.X = move.X * spdMul + _kb.X; v.Z = move.Z * spdMul + _kb.Z;
+        if (BlockWorld.Enabled) BlockStep.StepUp(this, v, Mathf.Max(.42f, Def.R * .9f), Mathf.Clamp(HeightM() * .9f, .8f, 1.75f));   // stairs and slabs: monsters walk up them too
         Velocity = v;
         MoveAndSlide();
         Rotation = new Vector3(0, _yaw, 0);

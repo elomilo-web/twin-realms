@@ -194,6 +194,42 @@ public static class Spellcraft
         return e.ValueKind == JsonValueKind.Number ? e.GetSingle() : def;
     }
 
+    static List<string> RList(string path)
+    {
+        Load(); var e = _root; var l = new List<string>();
+        foreach (var part in path.Split('.')) { if (e.ValueKind != JsonValueKind.Object || !e.TryGetProperty(part, out var n)) return l; e = n; }
+        if (e.ValueKind == JsonValueKind.Array) foreach (var x in e.EnumerateArray()) l.Add(x.GetString() ?? "");
+        return l;
+    }
+    static bool RBool(string path, bool def)
+    {
+        Load(); var e = _root;
+        foreach (var part in path.Split('.')) { if (e.ValueKind != JsonValueKind.Object || !e.TryGetProperty(part, out var n)) return def; e = n; }
+        return e.ValueKind switch { JsonValueKind.True => true, JsonValueKind.False => false, JsonValueKind.Number => e.GetSingle() != 0, _ => def };
+    }
+
+    // ---------------------------------------------------------------- F-13 lingering zones (data/spellcards.json "zones")
+    /// <summary>A number from "zones" (tick, minTick, dur, rankP, maxPerCaster, maxTicks).</summary>
+    public static float ZoneNum(string key, float def) => R("zones." + key, def);
+    /// <summary>A zone's follow-ups cannot make zones of their own unless this is false (or the section holds a nest card).</summary>
+    public static bool ZoneNoNested => RBool("zones.noNested", true);
+    /// <summary>True when this section's cards make a lingering zone: an AoE carrier plus a duration card in the same section.</summary>
+    public static bool IsZoneSection(List<string> cards)
+    {
+        if (cards.Count == 0) return false; var car = RList("zones.carriers"); var du = RList("zones.durationCards");
+        if (car.Count == 0) car.Add("area"); if (du.Count == 0) du.Add("time");
+        return cards.Any(car.Contains) && cards.Any(du.Contains);
+    }
+    /// <summary>Index of the first zone section of a spell (it and every section after it repeat on each tick), or -1.</summary>
+    public static int ZoneSectionOf(CraftedSpell s) { var u = s.Used(); for (int i = 0; i < u.Count; i++) if (IsZoneSection(u[i])) return i; return -1; }
+    /// <summary>Tick seconds and duration of a zone section with these duration / tick multipliers at this rank.</summary>
+    public static (float tick, float dur) ZoneTiming(float durMul, float tickMul, int rank)
+    {
+        float tick = Mathf.Max(ZoneNum("minTick", .25f), ZoneNum("tick", 1f) * Mathf.Max(.25f, tickMul));
+        float dur = ZoneNum("dur", 4f) * Mathf.Max(.3f, durMul) * (1 + ZoneNum("rankP", 5f) / 100f * Mathf.Max(0, rank - 1));
+        return (tick, dur);
+    }
+
     public static CardDef? Card(string id) { Load(); return _c.GetValueOrDefault(id); }
     public static IEnumerable<CardDef> All { get { Load(); foreach (var k in Order) yield return _c[k]; } }
     public static bool IsCrafted(string id) => id.StartsWith(Prefix) && _base.ContainsKey(id);
@@ -330,6 +366,10 @@ public static class Spellcraft
         k.Radius *= 1 + T("aoeP") / 100f;
         float ts = 1 + T("statusP") / 100f; foreach (var s in k.Status.Values) if (s.Length > 1) s[1] *= ts;
         k.CardMods = defs.Where(x => x.Type == "modifier").Select(x => x.Mod!.Id).ToList();
+        // F-13: an AoE carrier with a duration card in this section lingers as a zone (PlayerSpellZones.cs)
+        k.X.Remove("zone"); k.X.Remove("nestZones");
+        if (IsZoneSection(cards)) k.X["zone"] = 1;
+        { var nest = RList("zones.nestCards"); if (cards.Any(nest.Contains)) k.X["nestZones"] = 1; }
         k.Req = defs.Max(x => x.Req); k.Cost = 0;
         k.Name = (eff.Adj + " " + car.Name).Trim();
         var mods = defs.Where(x => x.Type == "modifier").GroupBy(x => x.Name).Select(g => g.Count() > 1 ? $"{g.Key} x{g.Count()}" : g.Key).ToList();

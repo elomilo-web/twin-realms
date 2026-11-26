@@ -93,7 +93,8 @@ public partial class Pet : CharacterBody3D, IDamageable
         if (speed > 0 && dir.Length() > .3f) { dir = dir.Normalized(); v.X = dir.X * speed * sm; v.Z = dir.Z * speed * sm; if (!face) faceTo = goal; face = true; }
         else { v.X = Mathf.MoveToward(v.X, 0, 30 * dt); v.Z = Mathf.MoveToward(v.Z, 0, 30 * dt); }
         // a ledge or a wall in the way: hop up (pets have no climbing)
-        if (IsOnWall() && IsOnFloor() && speed > 0) v.Y = 6f;
+        bool stepped = speed > 0 && BlockWorld.Enabled && BlockStep.StepUp(this, v, .45f, 1.2f) > 0;   // stairs and slabs: walked up, not hopped
+        if (!stepped && IsOnWall() && IsOnFloor() && speed > 0) v.Y = 6f;
         Velocity = v; MoveAndSlide();
         if (face) { var f = faceTo - GlobalPosition; if (f.X * f.X + f.Z * f.Z > .01f) _yaw = Mathf.LerpAngle(_yaw, Util.YawTo(f.X, f.Z), 1f - Mathf.Exp(-10f * dt)); }
         else _yaw = Mathf.LerpAngle(_yaw, p.ModelYaw, 1f - Mathf.Exp(-2f * dt));

@@ -42,6 +42,21 @@ public static class BlockMesher
         return id * 3 + f;
     }
 
+    /// <summary>Blocks drawn by a node of their own for a moment (a door swinging, DoorSwing): the chunk mesh leaves them out. Key = BlockArea.BKey.</summary>
+    public static readonly System.Collections.Concurrent.ConcurrentDictionary<long, byte> Hidden = new();
+
+    /// <summary>A torch's lean for its meta: identity standing (meta 0), tilted away from the wall it hangs on (meta 1 + wall side 0 +X, 1 -X, 2 +Z, 3 -Z).</summary>
+    public static (Vector3 foot, Basis b) TorchPose(int x, int y, int z, byte meta)
+    {
+        int m = meta & 7;
+        if (m < 1 || m > 4) return (new Vector3(x + .5f, y, z + .5f), Basis.Identity);
+        var wall = (m - 1) switch { 0 => Vector3.Right, 1 => Vector3.Left, 2 => Vector3.Back, _ => Vector3.Forward };   // +X, -X, +Z, -Z
+        var axis = wall.Cross(Vector3.Up).Normalized();
+        return (new Vector3(x + .5f, y + .22f, z + .5f) + wall * .4f, new Basis(axis, .42f));   // the foot against the wall, the flame leaning out
+    }
+    /// <summary>Where a torch block's flame burns (the light and the flame particles sit here).</summary>
+    public static Vector3 TorchFlame(int x, int y, int z, byte meta) { var (f, b) = TorchPose(x, y, z, meta); return f + b * new Vector3(0, .66f, 0); }
+
     public static BlockMeshData Build(BlockArea a, BlockChunk c)
     {
         var d = new BlockMeshData { Version = c.Version }; var faces = new List<Vector3>();
@@ -65,6 +80,7 @@ public static class BlockMesher
                     byte id = c.Id[c.Index(lx, y, lz)]; if (id == 0 || id >= defs.Count) continue;
                     var def = defs[id]; int x = x0 + lx, z = z0 + lz;
                     if (def.IsFluid) { Fluid(def, id, x, y, z); continue; }
+                    if (!Hidden.IsEmpty && Hidden.ContainsKey(BlockArea.BKey(x, y, z))) continue;
                     byte meta = c.Meta[c.Index(lx, y, lz)];
                     // per-block hash: brightness +-9% and a slight warm/cool hue shift, same on every face of the block
                     uint h = (uint)(x * 73856093 ^ y * 19349663 ^ z * 83492791); h ^= h >> 13; h *= 1274126177u; h ^= h >> 16;
@@ -73,11 +89,37 @@ public static class BlockMesher
                     var jit = new Color(bright * (1f + (r2 - .5f) * .10f), bright, bright * (1f + (r3 - .5f) * .10f));
                     if (def.Shape == "post")
                     {
-                        // a torch: a thin stick (side material) with a flame block on top (top material, glowing), no collision
-                        Box(id, new Vector3(x + .45f, y, z + .45f), new Vector3(.1f, .55f, .1f), jit.G, false, 1);
-                        Box(id, new Vector3(x + .43f, y + .53f, z + .43f), new Vector3(.14f, .07f, .14f), jit.G * .8f, false, 2);   // charred wrap
-                        Box(id, new Vector3(x + .435f, y + .6f, z + .435f), new Vector3(.13f, .16f, .13f), 1.4f, false, 0);
-                        Box(id, new Vector3(x + .465f, y + .76f, z + .465f), new Vector3(.07f, .07f, .07f), 1.4f, false, 0);
+                        // a torch: a thin stick (side material) with a flame block on top (top material, glowing), no collision;
+                        // on a wall (meta 1-4) the same torch leans out from the face it was put on, with a small iron bracket at its foot
+                        var (foot, tb) = TorchPose(x, y, z, meta);
+                        OBox(id, foot, tb, 0f, new Vector3(.1f, .55f, .1f), jit.G, 1);
+                        OBox(id, foot, tb, .53f, new Vector3(.14f, .07f, .14f), jit.G * .8f, 2);   // charred wrap
+                        OBox(id, foot, tb, .6f, new Vector3(.13f, .16f, .13f), 1.4f, 0);
+                        OBox(id, foot, tb, .76f, new Vector3(.07f, .07f, .07f), 1.4f, 0);
+                        if ((meta & 7) is >= 1 and <= 4)
+                        {
+                            var wn = (foot - new Vector3(x + .5f, y + .22f, z + .5f)).Normalized();   // towards the wall
+                            var bc = new Vector3(x + .5f, y + .2f, z + .5f) + wn * .45f;
+                            var bs = new Vector3(Mathf.Abs(wn.X) > .5f ? .1f : .16f, .1f, Mathf.Abs(wn.Z) > .5f ? .1f : .16f);
+                            Box(id, bc - bs * .5f, bs, jit.G * .6f, false, 2);
+                        }
+                        continue;
+                    }
+                    if (def.Shape == "chest")
+                    {
+                        // a block-style crate chest: body and lid (planks), two iron bands over the lid (bottom material) and an iron latch on the front (meta & 3 = side it faces)
+                        float l0 = jit.G; int fdir = meta & 3; bool alongX = fdir >= 2;   // front on +Z/-Z: the bands run front to back (along z)
+                        Box(id, new Vector3(x + .06f, y, z + .06f), new Vector3(.88f, .6f, .88f), l0, true);
+                        Box(id, new Vector3(x + .05f, y + .6f, z + .05f), new Vector3(.9f, .26f, .9f), l0 * 1.05f, true);
+                        Box(id, new Vector3(x + .06f, y + .58f, z + .06f), new Vector3(.88f, .04f, .88f), l0 * .5f, false, 2);   // the dark seam under the lid
+                        foreach (float bo in new[] { .2f, .72f })
+                        {
+                            if (alongX) Box(id, new Vector3(x + bo, y + .02f, z + .04f), new Vector3(.08f, .86f, .92f), l0 * .9f, false, 2);
+                            else Box(id, new Vector3(x + .04f, y + .02f, z + bo), new Vector3(.92f, .86f, .08f), l0 * .9f, false, 2);
+                        }
+                        Vector3 lmn = fdir switch { 0 => new(x + .93f, y + .48f, z + .44f), 1 => new(x + .02f, y + .48f, z + .44f), 2 => new(x + .44f, y + .48f, z + .93f), _ => new(x + .44f, y + .48f, z + .02f) };
+                        Vector3 lsz = fdir < 2 ? new(.05f, .2f, .12f) : new(.12f, .2f, .05f);
+                        Box(id, lmn, lsz, l0 * 1.1f, false, 2);
                         continue;
                     }
                     if (def.Shape is "stairs" or "slab" or "fence")
@@ -90,10 +132,12 @@ public static class BlockMesher
                         }
                         else if (def.Shape == "stairs")
                         {
-                            // a half-height step plus the upper half on the side it rises towards (meta & 3: 0 +X, 1 -X, 2 +Z, 3 -Z)
-                            Box(id, new Vector3(x, y, z), new Vector3(1, .5f, 1), l0, true);
-                            var (mn, sz) = (meta & 3) switch { 0 => (new Vector3(.5f, .5f, 0), new Vector3(.5f, .5f, 1)), 1 => (new Vector3(0, .5f, 0), new Vector3(.5f, .5f, 1)),
-                                                              2 => (new Vector3(0, .5f, .5f), new Vector3(1, .5f, .5f)), _ => (new Vector3(0, .5f, 0), new Vector3(1, .5f, .5f)) };
+                            // a half-height step plus the upper half on the side it rises towards (meta & 3: 0 +X, 1 -X, 2 +Z, 3 -Z);
+                            // meta & 4 = upside down (hung from a ceiling): the full half on top, the step below it
+                            bool inv = (meta & 4) != 0; float sy = inv ? .5f : 0f, ky = inv ? 0f : .5f;
+                            Box(id, new Vector3(x, y + sy, z), new Vector3(1, .5f, 1), l0, true);
+                            var (mn, sz) = (meta & 3) switch { 0 => (new Vector3(.5f, ky, 0), new Vector3(.5f, .5f, 1)), 1 => (new Vector3(0, ky, 0), new Vector3(.5f, .5f, 1)),
+                                                              2 => (new Vector3(0, ky, .5f), new Vector3(1, .5f, .5f)), _ => (new Vector3(0, ky, 0), new Vector3(1, .5f, .5f)) };
                             Box(id, new Vector3(x, y, z) + mn, sz, l0, true);
                         }
                         else
@@ -140,6 +184,10 @@ public static class BlockMesher
                         {
                             if (def.Key.EndsWith("_open")) dir = dir switch { 0 => 2, 2 => 1, 1 => 3, _ => 0 };   // swung 90 degrees about the corner
                             Part(0f, .12f, 0f, 1f, 0f, 1f, def.Solid);
+                            int cd = meta & 3; bool hingeAt1 = def.Key.EndsWith("_open") ? cd is 0 or 2 : cd is 0 or 3;   // where DoorSwing's hinge is along the panel
+                            float h0 = hingeAt1 ? .12f : .8f;   // the handle sits away from the hinge
+                            if ((meta & 4) == 0) { Part(.12f, .17f, h0, h0 + .08f, .9f, .98f, false); Part(-.05f, 0f, h0, h0 + .08f, .9f, .98f, false); }   // the handle, both faces, at hand height
+                            else { Part(-.005f, .125f, .1f, .9f, .1f, .16f, false); Part(-.005f, .125f, .1f, .9f, .84f, .9f, false); }   // two cross-boards on the upper half
                         }
                         continue;
                     }
@@ -225,6 +273,24 @@ public static class BlockMesher
                 }
                 Tri(ps, pb);
                 if (coll) Face6(faces, q[0], q[1], q[2], q[3]);
+            }
+        }
+
+        // a box standing on a tilted axis: its bottom centre at foot + b * (0, up, 0), size in the box's own axes (wall torches); no collision
+        void OBox(byte id, Vector3 foot, Basis b, float up, Vector3 size, float lit, int face)
+        {
+            var bas = new Vector3(-size.X * .5f, up, -size.Z * .5f);
+            for (int f = 0; f < 6; f++)
+            {
+                var ps = Surf(id * 3 + face); int pb = ps.V.Count; var nn = b * new Vector3(Nrm[f].X, Nrm[f].Y, Nrm[f].Z);
+                float l = (nn.Y > .5f ? Shade[0] : nn.Y < -.5f ? Shade[1] : .86f) * lit;
+                for (int k = 0; k < 4; k++)
+                {
+                    int su = k == 1 || k == 2 ? 1 : 0, sv = k >= 2 ? 1 : 0; var u = U[f]; var v = Vv[f];
+                    var o = new Vector3(P0[f].X + su * u.X + sv * v.X, P0[f].Y + su * u.Y + sv * v.Y, P0[f].Z + su * u.Z + sv * v.Z);
+                    ps.V.Add(foot + b * (bas + o * size)); ps.N.Add(nn); ps.C.Add(new Color(l, l, l));
+                }
+                Tri(ps, pb);
             }
         }
 

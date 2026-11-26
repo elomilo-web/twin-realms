@@ -436,7 +436,7 @@ public partial class DevCapture : Node
             foreach (var k in new[] { Inputs.Forward, Inputs.Sprint, Inputs.Attack, Inputs.Roll, Inputs.Jump, "spell1" }) Input.ActionRelease(k);
             if (action == "ui:loading") LoadScreen.Hide(false);
             if (scene != "title") { Ui.I?.Close(); if (Ui.I != null) Ui.I.Visible = false; }
-            RestoreKit(); Player.BuildMode = false;
+            RestoreKit(); Player.BuildMode = false; DevBlocksCleanup();
             foreach (var sc in GetTree().GetNodesInGroup("soulcubes")) if (sc is Node scn) scn.QueueFree();   // a cube still shaking must not bind into the real save
             if (PetTrade.Open) PetTrade.Cancel(false);
             if (_petsBak != null) { var dd = Game.D; dd.Pets = _petsBak.Value.pets; dd.ActivePet = _petsBak.Value.act; dd.Cubes = _petsBak.Value.cubes; _petsBak = null; PetWorld.Despawn(); }
@@ -522,6 +522,7 @@ public partial class DevCapture : Node
             Say($"place {action[6..]} (id {id}) at {bx},{by},{bz}: {(ok ? "ok" : "failed")}");
             await Secs(.5f); return;
         }
+        if (action.StartsWith("blocks:")) { await BlocksAction(action[7..], castWait); return; }   // F-14..F-17 (DevCaptureBlocks.cs)
         if (action == "build")
         {   // build mode with the pickaxe in hand and the block hotbar: a few torches, stairs, slabs and a fence placed in front
             var m = Game.D.Mats; foreach (var k in new[] { "planks", "cobblestone", "torch", "planks_stairs", "cobble_stairs", "planks_slab", "glass", "fence", "log" }) if (Blocks.Exists(k)) m[Blocks.Item(k)] = 20;
@@ -636,6 +637,28 @@ public partial class DevCapture : Node
                 if (sp != null) { bool ok = P.DebugCast(sp); Say($"castpaths 6: crafted 3-section spell {sp}: {(ok ? "cast" : "NOT cast")}, cd left {P.CdOf(sp):0.00}s"); await Secs(3f); }
                 Player.LogCasts = false; break;
             }
+            case "zonespell":
+            {   // focus F-13: Flame Missile -> Frost Area + Time (lingering zone) -> Storm Strike, cast at a frozen foe; [CAST] lines show zone ticks
+                Player.LogCasts = true; var d = Game.D;
+                foreach (var e in GetTree().GetNodesInGroup("enemies")) if (e is Enemy en) { en.MaxHp = en.Hp = 1e7f; }   // the foe survives every tick
+                var sp = UiSpellcraft.DebugForgeZone(); Heal();
+                if (sp == null) { Say("zonespell: forge FAILED"); Player.LogCasts = false; break; }
+                int max = (int)Spellcraft.ZoneNum("maxPerCaster", 3);
+                Say($"zonespell 1: limit test, {max + 1} casts in a row (max {max} zones per caster)");
+                for (int i = 0; i < max + 1; i++)
+                {
+                    P.DebugClearCd(sp); Heal(); bool ok = P.DebugCast(sp); await Secs(1.1f);
+                    Say($"zonespell 1.{i + 1}: cast {(ok ? "ok" : "NOT cast")}, active zones {P.SpellZoneCount}/{max}");
+                }
+                await Secs(7f);
+                Say($"zonespell 2: all zones over -> active zones {P.SpellZoneCount}");
+                P.DebugClearCd(sp); Heal(); SpellFx.ClearRecent();
+                Say("zonespell 3: one cast; expect section 2 once, then zone ticks each repeating section 3");
+                bool ok2 = P.DebugCast(sp); await Secs(3.4f);
+                Say($"zonespell 3: cast {(ok2 ? "ok" : "NOT cast")}, active zones {P.SpellZoneCount} (picture mid-zone)");
+                break;   // LogCasts stays on so the rest of the ticks are logged while the picture is taken
+            }
+            case "ui:spellcraftzone": UiSpellcraft.DebugPreloadZone(); await Secs(.4f); break;
             case var u when u.StartsWith("ui:"):
                 {
                     var ui = Ui.I; if (ui == null) break;

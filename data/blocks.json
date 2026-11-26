@@ -64,10 +64,10 @@
  },
  "build": {
   "_help": "blocks you can place in build mode cycle with the mouse wheel; the first owned one is chosen",
-  "order": ["dirt", "cobblestone", "stone", "planks", "log", "torch", "glass", "planks_stairs", "cobble_stairs", "planks_slab", "cobble_slab", "fence", "brick", "dark_stone", "sand", "gravel", "sandstone", "snow", "ice", "packed_ice", "leaves", "obsidian", "grass", "ladder", "door"]
+  "order": ["dirt", "cobblestone", "stone", "planks", "log", "torch", "glass", "planks_stairs", "cobble_stairs", "planks_slab", "cobble_slab", "fence", "brick", "dark_stone", "sand", "gravel", "sandstone", "snow", "ice", "packed_ice", "leaves", "obsidian", "grass", "ladder", "door", "door_dark", "door_iron", "chest"]
  },
  "recipes": {
-  "_help": "crafting window, Blocks tab: what you get from what you pay (block ids from this file or materials from data/gather.json)",
+  "_help": "crafting window, Blocks tab: what you get from what you pay (block ids from this file or materials from data/gather.json). Doors (shape door, 2 tall): every closed door X has an open twin X_open; meta & 3 = wall side, & 4 = upper half, & 8 = locked (owner in PlayerStats.BlockOwners); 'sound': 'iron' for a metal clang. Chests (shape chest): 'capacity' item slots, contents in PlayerStats.Chests.",
   "planks":      { "out": 4, "cost": { "log": 1 } },
   "cobblestone": { "out": 1, "cost": { "stone": 1 } },
   "glass":       { "out": 1, "cost": { "sand": 2 } },
@@ -78,6 +78,9 @@
   "torch":       { "out": 4, "cost": { "planks": 1, "coal_ore": 1 } },
   "ladder":      { "out": 4, "cost": { "planks": 3 } },
   "door":        { "out": 1, "cost": { "planks": 4 } },
+  "door_dark":   { "out": 1, "cost": { "planks": 4, "coal_ore": 1 } },
+  "door_iron":   { "out": 1, "cost": { "ironore": 4 } },
+  "chest":       { "out": 1, "cost": { "planks": 8 } },
   "planks_stairs": { "out": 4, "cost": { "planks": 3 } },
   "cobble_stairs": { "out": 4, "cost": { "cobblestone": 3 } },
   "planks_slab":   { "out": 2, "cost": { "planks": 1 } },
@@ -121,7 +124,13 @@
   "crystal_ore":  { "n": "Crystal Ore",   "hardness": 4.0, "tool": "pickaxe", "drops": "crystal", "light": 0.3, "mat": { "gothic": "G_Rock", "color": "#9a80d8", "glow": 0.25, "tile": 1 } },
   "path_rut":     { "n": "Cart Rut",      "hardness": 0.6, "tool": "shovel", "drops": "dirt", "mat": { "top": { "tex": "terrain/gravel", "color": "#7e705c", "tile": 2 }, "side": { "tex": "terrain/gravel", "color": "#6b5642", "tile": 2, "lip": "#5a4c3c" }, "bottom": { "tex": "terrain/gravel", "color": "#6b5642", "tile": 2 } } },
   "ladder":       { "n": "Ladder", "step": "wood", "hardness": 0.4, "tool": "axe", "solid": false, "see": true, "shape": "ladder", "drops": "ladder", "burn": 6, "burnsTo": "", "mat": { "gothic": "G_Planks", "color": "#8a6c4a", "tile": 1 } },
-  "door":         { "n": "Door", "step": "wood", "hardness": 1.0, "tool": "axe", "see": true, "shape": "door", "drops": "door", "burn": 8, "burnsTo": "", "mat": { "gothic": "G_Planks", "color": "#8a6a48", "tile": 1 } },
-  "door_open":    { "n": "Open Door", "step": "wood", "hardness": 1.0, "tool": "axe", "solid": false, "see": true, "shape": "door", "drops": "door", "burn": 8, "burnsTo": "", "mat": { "gothic": "G_Planks", "color": "#8a6a48", "tile": 1 } }
+  "door":         { "n": "Oak Door", "step": "wood", "hardness": 1.0, "tool": "axe", "see": true, "shape": "door", "drops": "door", "burn": 8, "burnsTo": "", "mat": { "gothic": "G_Planks", "color": "#8a6a48", "tile": 1 } },
+  "door_open":    { "n": "Open Oak Door", "step": "wood", "hardness": 1.0, "tool": "axe", "solid": false, "see": true, "shape": "door", "drops": "door", "burn": 8, "burnsTo": "", "mat": { "gothic": "G_Planks", "color": "#8a6a48", "tile": 1 } },
+  "door_dark":    { "n": "Dark Wood Door", "step": "wood", "hardness": 1.2, "tool": "axe", "see": true, "shape": "door", "drops": "door_dark", "burn": 8, "burnsTo": "", "mat": { "gothic": "G_Wood", "color": "#4a3426", "tile": 1 } },
+  "door_dark_open": { "n": "Open Dark Wood Door", "step": "wood", "hardness": 1.2, "tool": "axe", "solid": false, "see": true, "shape": "door", "drops": "door_dark", "burn": 8, "burnsTo": "", "mat": { "gothic": "G_Wood", "color": "#4a3426", "tile": 1 } },
+  "door_iron":    { "n": "Iron Door", "step": "stone", "hardness": 4.0, "tool": "pickaxe", "see": true, "shape": "door", "drops": "door_iron", "sound": "iron", "mat": { "gothic": "G_Metal_Iron", "color": "#9a9ca2", "rough": 0.45, "tile": 1 } },
+  "door_iron_open": { "n": "Open Iron Door", "step": "stone", "hardness": 4.0, "tool": "pickaxe", "solid": false, "see": true, "shape": "door", "drops": "door_iron", "sound": "iron", "mat": { "gothic": "G_Metal_Iron", "color": "#9a9ca2", "rough": 0.45, "tile": 1 } },
+  "chest":        { "n": "Chest", "step": "wood", "hardness": 1.5, "tool": "axe", "see": true, "shape": "chest", "drops": "chest", "burn": 6, "burnsTo": "", "capacity": 27,
+                    "mat": { "top": { "gothic": "G_Planks", "color": "#9a7650", "tile": 1 }, "side": { "gothic": "G_Planks", "color": "#7e5e3e", "tile": 1 }, "bottom": { "gothic": "G_Metal_Iron", "color": "#55565c", "rough": 0.5, "tile": 1 } } }
  }
 }

@@ -47,7 +47,7 @@ public static class BlockFx
             {
                 if (changed >= cap) break;
                 byte id = a.Get(x, y, z); if (id == 0 || id == 255) continue;
-                var def = Blocks.Def(id); if (!def.Breakable || def.IsFluid || a.Gen.Protected(x, y, z)) continue;
+                var def = Blocks.Def(id); if (!def.Breakable || def.IsFluid || a.Gen.Protected(x, y, z) || BlockUse.Protects(a, x, y, z)) continue;
                 if (src is Src.Enemy or Src.Boss && (def.Hardness > maxHard || (dungeon && y < 0))) continue;   // monsters never sink a dungeon floor
                 float need = def.Hardness * cost * (w.Frozen(x, y, z) ? .5f : 1f), eff = S * (1 - edge * Mathf.Clamp(d / Mathf.Max(R, .01f), 0, 1));
                 if (eff < need) continue;
@@ -76,7 +76,7 @@ public static class BlockFx
             var def = Blocks.Def(id);
             bool open = a.Get(x, y + 1, z) is 0 or 255 || !Blocks.Def(a.Get(x, y + 1, z)).Opaque;   // an exposed surface
             if (frz > 0 && def.FreezesTo != "" && (def.Fluid != "water" || open) && GD.Randf() < frz) { w.Change(x, y, z, Blocks.Id(def.FreezesTo)); n++; continue; }
-            if (def.IsFluid || a.Gen.Protected(x, y, z)) continue;
+            if (def.IsFluid || a.Gen.Protected(x, y, z) || BlockUse.Protects(a, x, y, z)) continue;
             if (ign > 0 && def.Burn > 0 && GD.Randf() < ign) { if (w.Ignite(x, y, z)) n++; continue; }
             if (melt > 0 && def.MeltsTo != "?" && GD.Randf() < melt) { w.Change(x, y, z, (byte)Math.Max(0, Blocks.To(def.MeltsTo))); n++; continue; }
             if (shatter > 0 && def.Shatter && GD.Randf() < shatter) { w.Change(x, y, z, 0); n++; continue; }
@@ -113,6 +113,7 @@ public static class BlockFx
         var w = BlockWorld.I; var a = w?.Area; if (w == null || a == null) return false;
         byte id = a.Get(x, y, z); if (id == 0 || id == 255) return false; var def = Blocks.Def(id);
         if (!def.Breakable || def.IsFluid || a.Gen.Protected(x, y, z)) return false;
+        if (BlockUse.Protects(a, x, y, z) && !BlockUse.MayOpen(a, BlockUse.Anchor(a, x, y, z), BlockUse.Me, BlockUse.Admin)) return false;   // a locked door or chest: only its owner digs it out
         w.Change(x, y, z, 0);
         string item = Blocks.DropItem(def.Drops);
         if (item != "" && GD.Randf() < def.DropChance) GatherDb.Give(item, 1, new Vector3(x + .5f, y + .5f, z + .5f));

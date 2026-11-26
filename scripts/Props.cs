@@ -20,7 +20,11 @@ public partial class RealmGate : Node3D
 public partial class Torch : Node3D
 {
     public Color Col = new Color(1f, 0.6f, 0.2f); public float Size = 1f, Range = 12f, Energy = 1.4f; public bool Light = true;
-    OmniLight3D? _l; float _ph;
+    /// <summary>Block torches (BlockWorld.LightTick): the light's colour wavers with its energy (dimmer = redder); Flames off = light only, no particles.</summary>
+    public bool HueFlicker, Flames = true;
+    OmniLight3D? _l; float _ph; readonly System.Collections.Generic.List<CpuParticles3D> _fx = new();
+    /// <summary>Turns the flame and smoke particles on or off (the nearest torches keep theirs).</summary>
+    public void SetFlames(bool on) { Flames = on; foreach (var p in _fx) if (IsInstanceValid(p)) { p.Emitting = on; p.Visible = on; } }
     public override void _Ready()
     {
         _ph = GD.Randf() * 6f;
@@ -36,9 +40,18 @@ public partial class Torch : Node3D
         var smoke = new CpuParticles3D { Amount = 5, Lifetime = 2.2f, Direction = Vector3.Up, Spread = 10f, InitialVelocityMin = .4f, InitialVelocityMax = .7f, Gravity = new Vector3(.15f, .3f, 0), Emitting = true, Position = new Vector3(0, .4f * Size, 0),
             Mesh = new QuadMesh { Size = new Vector2(.6f * Size, .6f * Size), Material = Vfx.SpriteMat(false, "smoke") }, ColorRamp = sg, ScaleAmountMin = .7f, ScaleAmountMax = 1.4f };
         Vfx.Spin(smoke, "smoke", 30f); AddChild(smoke);
-        if (Light) { _l = new OmniLight3D { LightColor = Col, OmniRange = Range, LightEnergy = Energy, Position = new Vector3(0, 0.4f, 0), LightVolumetricFogEnergy = 2.5f, DistanceFadeEnabled = true, DistanceFadeBegin = 60f, DistanceFadeLength = 15f }; AddChild(_l); }
+        _fx.Add(fx); _fx.Add(smoke); if (!Flames) SetFlames(false);
+        if (Light) { _l = new OmniLight3D { LightColor = Col, OmniRange = Range, LightEnergy = Energy, Position = new Vector3(0, 0.4f * (HueFlicker ? .4f : 1f), 0), LightVolumetricFogEnergy = 2.5f, DistanceFadeEnabled = true, DistanceFadeBegin = 60f, DistanceFadeLength = 15f }; AddChild(_l); }
     }
-    public override void _Process(double delta) { if (_l != null) _l.LightEnergy = Energy * (.93f + Mathf.Sin(Game.PlayTime * 9f + _ph) * 0.14f + Mathf.Sin(Game.PlayTime * 23f + _ph) * 0.07f); }
+    static readonly Color Ember = new(1f, .42f, .12f);
+    public override void _Process(double delta)
+    {
+        if (_l == null) return;
+        // shared time-based noise (three sines per torch, phase-shifted): no per-torch state beyond the phase
+        float t = Game.PlayTime, f = Mathf.Sin(t * 9f + _ph) * 0.14f + Mathf.Sin(t * 23f + _ph) * 0.07f + (HueFlicker ? Mathf.Sin(t * 3.1f + _ph * 2f) * .05f : 0f);
+        _l.LightEnergy = Energy * (.93f + f);
+        if (HueFlicker) _l.LightColor = Col.Lerp(Ember, Mathf.Clamp(.25f - f * 1.6f, 0f, .6f));
+    }
 }
 
 public partial class Chest : Node3D, IInteractable
@@ -150,7 +163,7 @@ public partial class Npc : Node3D, IInteractable
         Color? tint = cfg is { } c && Avatar.Str(c, "tint") != "" ? Color.FromHtml(Avatar.Str(c, "tint")) : Color.FromHsv((float)rg.NextDouble(), .35f, .95f);
         string wt = cfg is { } c2 ? Avatar.Str(c2, "weapon") : "";
         _av.Dress(cfg is { } c3 ? Avatar.Outfit(c3) : _ => null, wt == "" ? "none" : wt, tint.Value, tint);
-        _av.Play(cfg is { } c4 ? Avatar.Str(c4, "idle", "idle") : "idle");
+        _idle = cfg is { } c4 ? Avatar.Str(c4, "idle", "idle") : "idle"; _av.Play(_idle);
     }
 
     // ---- villager body: legs, tunic, belt, arms with hands, head with hair, eyes and nose, plus gear by role. Upper body sways while idle.
@@ -207,10 +220,45 @@ public partial class Npc : Node3D, IInteractable
         foreach (var n in new[] { this, _upper, head, _armL, _armR }) Gfx.MergeChildren(n);
     }
 
+    // ---- walking (focus F-14/F-16; roaming schedules come with F-29): WalkTo a point; the villager follows the block surface up stairs and
+    // slabs without jumping, opens unlocked doors in its way and closes them again once past. Blocked (a wall, a locked door): it stops.
+    public Vector3? Goal; public float WalkSpeed = 1.6f; public string Stopped = "";
+    readonly System.Collections.Generic.List<Vector3I> _opened = new(); bool _walking; float _groundY = float.NaN; string _idle = "idle";
+    public void WalkTo(Vector3 to) { Goal = to; Stopped = ""; _groundY = GlobalPosition.Y; }
+    void WalkTick(float dt)
+    {
+        var a = BlockWorld.I?.Area;
+        for (int i = _opened.Count - 1; i >= 0; i--)   // close the doors we came through once we are clear of them
+        {
+            var dc = _opened[i];
+            if (new Vector2(GlobalPosition.X - dc.X - .5f, GlobalPosition.Z - dc.Z - .5f).Length() < 1.3f) continue;
+            if (a != null) BlockUse.SetDoor(a, dc.X, dc.Y, dc.Z, false);
+            _opened.RemoveAt(i);
+        }
+        if (Goal is not { } g) { if (_walking) { _walking = false; _av?.Play(_idle); } return; }
+        var to = g - GlobalPosition; to.Y = 0; float left = to.Length();
+        if (left < .12f) { Goal = null; return; }
+        var dir = to / left;
+        if (a != null && BlockUse.DoorAhead(GlobalPosition, dir) is { } door)
+        {
+            if (!BlockUse.MayOpen(a, door, "", false)) { Goal = null; Stopped = "locked door"; return; }   // villagers never open a locked door
+            BlockUse.SetDoor(a, door.X, door.Y, door.Z, true); if (!_opened.Contains(door)) _opened.Add(door);
+        }
+        if (float.IsNaN(_groundY)) _groundY = GlobalPosition.Y;
+        var next = GlobalPosition + dir * Mathf.Min(WalkSpeed * dt, left);
+        if (BlockStep.GroundY(next.X, next.Z, _groundY) is not float gy) { Goal = null; Stopped = "blocked"; return; }
+        _groundY = gy;
+        float y = Mathf.MoveToward(GlobalPosition.Y, gy, (gy > GlobalPosition.Y ? 3.2f : 6f) * dt);   // a half step eases up over ~.15 s
+        GlobalPosition = new Vector3(next.X, y, next.Z);
+        Rotation = new Vector3(0, Mathf.LerpAngle(Rotation.Y, Util.YawTo(dir.X, dir.Z), 1f - Mathf.Exp(-10f * dt)), 0);
+        if (!_walking) { _walking = true; _av?.Play("walk"); }
+    }
+
     public override void _Process(double delta)
     {
+        WalkTick((float)delta);
         var p = Player.Instance; if (p == null) return; _t += (float)delta;
-        var d = p.GlobalPosition - GlobalPosition; if (d.Length() < 8f) Rotation = new Vector3(0, Mathf.LerpAngle(Rotation.Y, Util.YawTo(d.X, d.Z), 0.08f), 0);
+        var d = p.GlobalPosition - GlobalPosition; if (d.Length() < 8f && !_walking) Rotation = new Vector3(0, Mathf.LerpAngle(Rotation.Y, Util.YawTo(d.X, d.Z), 0.08f), 0);
         if (d.Length() > 40f || _av != null) return;   // the model breathes through its idle clip
         // idle life: breathing, a slow weight shift, arms drifting
         float b = Mathf.Sin(_t * 1.6f + _phase), w = Mathf.Sin(_t * .45f + _phase);

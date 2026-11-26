@@ -188,6 +188,12 @@ public partial class Sfx : Node
             case "wand_fizzle": Crackle(s, 0, .3f, .1f, 28); Chirp(s, 0, 900f, 300f, .25f, .05f); break;
             case "orb_hit": Bell(s, 0, 82f, .4f, .5f); Whoosh(s, 0, .35f, .4f, .05f, 29); break;               // staff orb bursting
             case "punch_whiff": Whoosh(s, 0, .1f, .12f, .1f, 30); break;
+            // ---- placed blocks (BlockUse.cs): doors swing with a hinge creak, shut with a wooden knock; iron doors clang; chests creak; locks click
+            case "door_open": Bell(s, 0, 180f, .05f, .3f); Creak(s, .02f, .28f, .2f, 31); break;
+            case "door_close": Creak(s, 0, .16f, .14f, 32); Bell(s, .17f, 98f, .18f, .6f); Bell(s, .17f, 196f, .08f, .2f); Whoosh(s, .16f, .05f, .3f, .1f, 33); break;
+            case "door_iron": Bell(s, 0, 146.8f, .5f, .3f); Bell(s, 0, 311f, .35f, .12f); Bell(s, .01f, 587f, .2f, .05f); Creak(s, 0, .22f, .08f, 34); break;
+            case "chest_open": Creak(s, 0, .32f, .18f, 35); Bell(s, .3f, 130f, .1f, .25f); break;
+            case "lock": Bell(s, 0, 1568f, .05f, .2f); Bell(s, .04f, 1175f, .06f, .18f); break;
             default: Bell(s, 0, C6, .2f, .15f); break;
         }
         var wav = Make(s); Synth[id] = wav; return wav;

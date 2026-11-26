@@ -25,7 +25,10 @@ public partial class BlockWorld
     public bool Change(int x, int y, int z, byte id, byte meta = 0, bool send = true)
     {
         var a = Area; if (a == null) return false;
+        byte old = a.Get(x, y, z), oldMeta = a.GetMeta(x, y, z);
         if (!a.Set(x, y, z, id, meta)) return false;
+        // a door or chest replaced by something else (not just opened, closed or locked): its owner goes, a chest spills its contents (here only)
+        if (send && old != id && old != 255 && old != 0 && Blocks.Def(old).Shape is "door" or "chest" && (id == 0 || Blocks.Def(id).Shape != Blocks.Def(old).Shape)) BlockUse.Gone(a, x, y, z, old, oldMeta);
         long k = BlockArea.BKey(x, y, z); _burning.Remove(k); _frozen.Remove(k);
         Wake(x, y, z);
         if (send && Net.Active) _out.Add((x, y, z, id, meta));

@@ -257,11 +257,15 @@ public partial class BlockWorld : Node3D
         var keep = new HashSet<Vector3I>(want.Select(w => w.p));
         foreach (var p in _lightNodes.Keys.ToList())
             if (!keep.Contains(p)) { if (IsInstanceValid(_lightNodes[p])) _lightNodes[p].QueueFree(); _lightNodes.Remove(p); }
-        foreach (var p in keep)
+        // each light flickers in energy and colour (Torch); only the nearest few also carry the small flame and smoke particles
+        int flames = (int)Blocks.F("world.torchFlames", 8);
+        for (int i = 0; i < want.Count; i++)
         {
-            if (_lightNodes.ContainsKey(p)) continue;
+            var p = want[i].p; bool fl = i < flames;
+            if (_lightNodes.TryGetValue(p, out var have)) { if (IsInstanceValid(have)) have.SetFlames(fl); continue; }
             var d = Blocks.Def(a.Get(p.X, p.Y, p.Z));
-            var t = new Torch { Col = d.LightCol, Range = d.LightRange, Energy = d.LightEnergy, Size = .5f, Position = new Vector3(p.X + .5f, p.Y + .62f, p.Z + .5f) };
+            var pos = d.Shape == "post" ? BlockMesher.TorchFlame(p.X, p.Y, p.Z, a.GetMeta(p.X, p.Y, p.Z)) - new Vector3(0, .04f, 0) : new Vector3(p.X + .5f, p.Y + .62f, p.Z + .5f);
+            var t = new Torch { Col = d.LightCol, Range = d.LightRange, Energy = d.LightEnergy, Size = .5f, Position = pos, HueFlicker = true, Flames = fl };
             AddChild(t); _lightNodes[p] = t;
         }
     }

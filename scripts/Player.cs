@@ -835,7 +835,8 @@ public partial class Player : CharacterBody3D, IDamageable
         float roll = _rollT > 0 ? (1f - _rollT / RollTime) * Mathf.Tau : 0f;
         if (_av != null) { roll = 0; bob = breath = crouch = 0; }   // the model's clips do the roll, bob and crouch
         _model.Rotation = new Vector3(roll, _modelYaw, 0);
-        _model.Position = new Vector3(0, (Mounted ? _mountY : 0f) + bob + breath - crouch * .12f, 0);
+        StepLift = Mathf.MoveToward(Mathf.Min(StepLift, .6f), 0f, dt * 4f);   // a block step: the model eases up over ~.12 s instead of popping (PlayerBlocks.StepUp)
+        _model.Position = new Vector3(0, (Mounted ? _mountY : 0f) + bob + breath - crouch * .12f - StepLift, 0);
         _horse.Rotation = new Vector3(0, _modelYaw, 0);
         if (_petBody != null && _petMount != null && GodotObject.IsInstanceValid(_petBody)) _petBody.PetVel = new Vector3(Velocity.X, 0, Velocity.Z) / Mathf.Max(.3f, _petMount!.Scale.X);   // the ridden pet's gait follows our speed
 

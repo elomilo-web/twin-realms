@@ -51,6 +51,9 @@ public class PlayerStats
     public bool CardsGiven = false; public int SpellSeq = 0;
     public Dictionary<string, int> CraftTree = new();   // spell tree ranks (Spellcraft menu > Spell tree): node id -> rank
     public Dictionary<string, string> BlockDiffs = new();   // block world changes per area ("overworld", "dun:...") as packed diffs (BlockArea.Encode); older saves have none
+    // Placed blocks with state (BlockUse.cs): chest contents and who placed a door or chest (locks), keyed "area|x,y,z". Older saves have none.
+    public Dictionary<string, List<Item>> Chests = new();
+    public Dictionary<string, string> BlockOwners = new();
     // Pets (Bound Souls, scripts/PetDb.cs): every bound soul (party + Soul Box), the one out in the world, Soul Cubes by tier and the tier thrown. Older saves load with none.
     public List<PetState> Pets = new(); public string ActivePet = "";
     public Dictionary<string, int> Cubes = new(); public string CubeSel = "iron";
