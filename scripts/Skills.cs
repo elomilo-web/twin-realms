@@ -58,6 +58,9 @@ public class SkillCalc
     public bool Burst; public float BurstR = 4f;   // heals and buffs: a burst around you that carries the on-hit modifiers
     public Vector3? At;      // aimed skills: where the player put the preview while holding the key
     public float Charge;     // charged skills: 0..1, how long the key was held (empowers the cast)
+    public float DurMul = 1, TickMul = 1;   // the modifiers' duration and tick-rate multipliers (F-13 spell zones read them)
+    public int Rank = 1;     // the rank used (with gems)
+    public bool InZone;      // F-13: this crafted-spell section was set off by a lingering zone's tick (zones cannot nest unless allowed)
     public List<(string id, float chance, float durMul, float pow)> Status = new();
     /// <summary>A hit from this skill; a critical one deals the hero's crit multiplier.</summary>
     public HitInfo Hit(float dmg, Vector3 from, bool crit) => new() { Damage = crit ? dmg * Game.D.CritMult() : dmg, From = from, Knock = Knock, Stun = Stun, Up = Up, Crit = crit, IsPlayer = true, Attacker = Player.Instance, Type = Type, Statuses = Status, Leech = Leech, Execute = Execute, Fire = Type == "fire", Stagger = Stun > 0 || Up > 0 || Knock >= 6f };
@@ -230,6 +233,7 @@ public static class Skills
         if (support && baseDmg <= 0) baseDmg = (8 + 1.6f * d.Level) * d.SpellPow();   // heals and buffs: what their burst hits for
         c.Dmg = Mathf.Max(0, baseDmg * more * (1 + K("skillP") / 100f));
         c.Radius = k.Radius * Mathf.Max(.3f, aoe); c.Knock *= knock;
+        c.DurMul = Mathf.Max(.3f, dur); c.TickMul = Mathf.Max(.25f, tick); c.Rank = rank;
         c.Dur = k.Dur * Mathf.Max(.3f, dur); c.Tick = k.Tick; c.Heal = k.Heal * Mathf.Max(0, heal); c.ManaBack = Mathf.Min(c.ManaBack, 90f);
         c.Speed = k.Speed; c.Range = k.Range; c.Arc = k.Arc; c.Delay = k.Delay;
         c.Mp = k.Mp * Mathf.Max(0, cost) * (1f - Mathf.Clamp(d.Weapon?.Mc ?? 0f, 0f, .9f));   // a weapon's mana cost cut never makes mana negative c.St = k.St * Mathf.Max(0, cost);

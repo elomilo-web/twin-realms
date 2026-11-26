@@ -148,8 +148,10 @@ public partial class Ui
     void ScSection(Control parent, PlayerStats d, int sec, float w, int open)
     {
         bool locked = sec >= open, sel = _scSec == sec && !locked; var cards = _scWork.Sec(sec);
+        // F-13: the first zone section (AoE carrier + duration card) and every section after it repeat on each zone tick
+        int zs = Spellcraft.ZoneSectionOf(_scWork); bool repeat = !locked && zs >= 0 && sec >= zs && cards.Count > 0, isZone = repeat && sec == zs;
         var pc = new PanelContainer { CustomMinimumSize = new Vector2(w, ScBuildH), ClipContents = true }; parent.AddChild(pc);
-        pc.AddThemeStyleboxOverride("panel", UiTheme.Box(new Color(.035f, .03f, .025f, locked ? .55f : .85f), sel ? UiTheme.Highlight : UiTheme.AccentSoft, sel ? 2 : 1, 8, 6, 0));
+        pc.AddThemeStyleboxOverride("panel", UiTheme.Box(repeat ? new Color(.03f, .05f, .05f, .88f) : new Color(.035f, .03f, .025f, locked ? .55f : .85f), sel ? UiTheme.Highlight : repeat ? ScRepeatC : UiTheme.AccentSoft, sel || repeat ? 2 : 1, 8, 6, 0));
         var sv = new VBoxContainer(); sv.AddThemeConstantOverride("separation", 4); pc.AddChild(sv);
         var hr = new HBoxContainer { CustomMinimumSize = new Vector2(0, 26) }; hr.AddThemeConstantOverride("separation", 4); sv.AddChild(hr);
         var hb = Btn($"SECTION {ScR(sec)}", () => { _scSec = sec; ScAdvance(); OpenSpellcraft(null); }, true); hr.AddChild(hb);
@@ -159,7 +161,7 @@ public partial class Ui
         var hc = locked ? UiTheme.Dim : sel ? UiTheme.Highlight : UiTheme.Accent.Lerp(UiTheme.Dim, .25f);
         foreach (var cn in new[] { "font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_disabled_color" }) hb.AddThemeColorOverride(cn, hc);
         hb.AddThemeFontSizeOverride("font_size", 15); hb.Disabled = locked;
-        var sub = Lbl(sec == 0 ? "cast" : $"where {ScR(sec - 1)} ends", 11, Dim, hr); sub.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; sub.ClipText = true; sub.VerticalAlignment = VerticalAlignment.Center;
+        var sub = Lbl(isZone ? "lingering zone" : repeat ? "repeats each tick" : sec == 0 ? "cast" : $"where {ScR(sec - 1)} ends", 11, repeat ? ScRepeatC : Dim, hr); sub.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; sub.ClipText = true; sub.VerticalAlignment = VerticalAlignment.Center;
         if (!locked && sec > 0 && cards.Count > 0)
         {
             var xb = Btn("x", () => { cards.Clear(); _scSec = sec; ScAdvance(); OpenSpellcraft(null); }, true); xb.TooltipText = "Empty this section"; xb.CustomMinimumSize = new Vector2(24, 22); hr.AddChild(xb);
@@ -176,11 +178,13 @@ public partial class Ui
         }
         // carrier + effect slots, and the section's state beside them
         var sr = new HBoxContainer(); sr.AddThemeConstantOverride("separation", 8); sv.AddChild(sr);
-        ScSlot(sr, sec, 0, cards); ScSlot(sr, sec, 1, cards);
+        ScSlot(sr, sec, 0, cards, repeat); ScSlot(sr, sec, 1, cards, repeat);
         var sb = new Control { CustomMinimumSize = new Vector2(0, 100), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, ClipContents = true }; sr.AddChild(sb);
         string? err = cards.Count == 0 ? null : Spellcraft.CheckSection(cards, sec);
         string st = cards.Count == 0 ? (sec == 0 ? "Start here: a carrier (how), then an effect (what)." : $"Optional: goes off where section {ScR(sec - 1)} ends.") : err ?? $"Ready.  {cards.Count} card{(cards.Count == 1 ? "" : "s")}.";
-        var sl = Lbl(st, 11, cards.Count == 0 ? UiTheme.Dim : err != null ? ScErr : UiTheme.Highlight, sb);
+        if (err == null && isZone) { var (zt, zd, zn) = ScZoneTiming(d, cards); st = $"Lingers: repeats every {zt:0.0} s for {zd:0.#} s ({zn} ticks), with the sections after it."; }
+        else if (err == null && repeat) st = $"Repeats on every tick of section {ScR(zs)}'s zone." + (Spellcraft.IsZoneSection(cards) && Spellcraft.ZoneNoNested ? " No zone of its own: zones cannot nest." : "");
+        var sl = Lbl(st, 11, cards.Count == 0 ? UiTheme.Dim : err != null ? ScErr : repeat ? ScRepeatC : UiTheme.Highlight, sb);
         sl.AutowrapMode = TextServer.AutowrapMode.WordSmart; sl.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); sl.OffsetTop = 16;
         // modifiers
         var mods = cards.Where(x => Spellcraft.Card(x)?.Type == "modifier").ToList();
@@ -194,13 +198,36 @@ public partial class Ui
         {
             var c = Spellcraft.Card(id)!; string mid = id;
             var t = CardTile(c, ""); t.Selected = msel;
-            ScTile(mr, t, msz, pick, () => { cards.Remove(mid); _scSec = sec; _scSlot = 2; _scTab = "modifier"; OpenSpellcraft(null); }, c.Name, Spellcraft.CardColor(c), CardLines(c, "x (or right-click) takes it out."));
+            var mb = ScTile(mr, t, msz, pick, () => { cards.Remove(mid); _scSec = sec; _scSlot = 2; _scTab = "modifier"; OpenSpellcraft(null); }, c.Name, Spellcraft.CardColor(c), CardLines(c, "x (or right-click) takes it out."));
+            if (repeat) ScRepeatMark(mb);
         }
         var et = new SpellCardTile { Empty = true, Known = false, MaxRank = 0, Tint = UiTheme.Accent, Label = "add\nmodifier", Selected = msel };
         ScTile(mr, et, msz, pick, null, "Modifier slot", UiTheme.Dim, new() { ("Drop a modifier here: pick this slot, then click a modifier card below. Any number, as card slots allow.", Colors.White, 13) });
     }
 
-    void ScSlot(Control parent, int sec, int slot, List<string> cards)
+    // ---------------------------------------------------------------- F-13: cards that repeat on a zone's tick
+    static readonly Color ScRepeatC = new(.42f, .86f, .8f);
+    /// <summary>Tinted frame and a looping-arrow badge on a card that repeats on every zone tick.</summary>
+    static void ScRepeatMark(Control b)
+    {
+        var fr = new Godot.Panel { MouseFilter = Control.MouseFilterEnum.Ignore }; fr.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        var sb = new StyleBoxFlat { DrawCenter = true, BgColor = ScRepeatC with { A = .08f }, BorderColor = ScRepeatC };
+        sb.SetBorderWidthAll(2); sb.SetCornerRadiusAll(5); fr.AddThemeStyleboxOverride("panel", sb); b.AddChild(fr);
+        var lb = new LoopBadge { Col = ScRepeatC, MouseFilter = Control.MouseFilterEnum.Ignore, Position = new Vector2(1, 1), Size = new Vector2(18, 18) };
+        lb.TooltipText = "Repeats on every zone tick"; b.AddChild(lb);
+    }
+    /// <summary>Tick, duration and tick count of a zone section in the menu (its cards, the spell's sockets and rank when editing).</summary>
+    (float tick, float dur, int n) ScZoneTiming(PlayerStats d, List<string> cards)
+    {
+        var sups = cards.Select(Spellcraft.Card).Where(c => c?.Mod != null).Select(c => c!.Mod!.Id).ToList();
+        int rank = 1; if (_scEdit != "" && d.Skills.TryGetValue(_scEdit, out var ss)) { sups.AddRange(ss.Sup); rank = Math.Max(1, ss.Rank); }
+        float dm = 1, tm = 1;
+        foreach (var sid in sups) { var s = Skills.Sup(sid); if (s == null) continue; dm += s.Num.GetValueOrDefault("durP") / 100f; tm += s.Num.GetValueOrDefault("tickP") / 100f; }
+        var (t, du) = Spellcraft.ZoneTiming(Mathf.Max(.3f, dm), Mathf.Max(.25f, tm), rank);
+        return (t, du, Mathf.Clamp(Mathf.CeilToInt(du / t - .001f), 1, Math.Max(1, (int)Spellcraft.ZoneNum("maxTicks", 20))));
+    }
+
+    void ScSlot(Control parent, int sec, int slot, List<string> cards, bool repeat = false)
     {
         string type = ScTypes[slot]; bool sel = _scSec == sec && _scSlot == slot;
         var v = new VBoxContainer(); v.AddThemeConstantOverride("separation", 2); parent.AddChild(v);
@@ -217,8 +244,9 @@ public partial class Ui
         }
         var c = Spellcraft.Card(id)!; int n = cards.Count(x => x == id); string cid = id;
         var ct = CardTile(c, n > 1 ? $"x{n}" : ""); ct.Selected = sel;
-        ScTile(v, ct, size, select, () => { cards.Remove(cid); _scSec = sec; _scSlot = slot; _scTab = type; OpenSpellcraft(null); }, c.Name, Spellcraft.CardColor(c),
+        var cb = ScTile(v, ct, size, select, () => { cards.Remove(cid); _scSec = sec; _scSlot = slot; _scTab = type; OpenSpellcraft(null); }, c.Name, Spellcraft.CardColor(c),
             CardLines(c, n > 1 ? $"{n} copies. x takes one out; click a {c.Name} card below for another copy." : $"x takes it out. Click another {type} below to swap it."));
+        if (repeat) ScRepeatMark(cb);
     }
 
     void ScLibrary(Control parent, PlayerStats d)
@@ -384,20 +412,22 @@ public partial class Ui
     }
 
     /// <summary>Dev capture "spellcraft_3" (via <see cref="UiSpellcraft.DebugPreload3"/>): opens the menu on a three-section spell.</summary>
-    internal static void ScDebugPreload3()
+    internal static void ScDebugPreload3(bool zone = false)
     {
         var d = Game.D; Skills.GrantStarting(d);
         int need = Spellcraft.SectionLevel(Math.Min(2, Spellcraft.MaxSections - 1)); if (d.Level < need) d.Level = need;   // capture only: open section III
-        var secs = new List<List<string>> { new() { "missile", "fire", "damage" }, new() { "area", "frost" }, new() { "strike", "storm" } };
+        // zone: F-13 variant, section II (Area + Time) lingers and repeats itself and section III on every tick
+        var secs = zone ? new List<List<string>> { new() { "missile", "fire" }, new() { "area", "frost", "time" }, new() { "strike", "storm" } }
+                        : new List<List<string>> { new() { "missile", "fire", "damage" }, new() { "area", "frost" }, new() { "strike", "storm" } };
         foreach (var id in secs.SelectMany(x => x)) if (Spellcraft.Card(id) != null) d.Cards[id] = d.Cards.GetValueOrDefault(id) + 1;
         _scWork = new CraftedSpell { Secs = secs.Take(Spellcraft.MaxSections).ToList() }; _scWork.Sec(Spellcraft.MaxSections - 1);
         _scEdit = ""; _scTree = false; _scConfirm = false; _scSec = Math.Min(2, Spellcraft.MaxSections - 1); _scSearch = ""; ScAdvance();
         I?.OpenSpellcraft(null);
     }
     /// <summary>Test only: forges the preloaded 3-section spell and returns its skill id (null + the reason logged when it fails).</summary>
-    internal static string? ScDebugForge3()
+    internal static string? ScDebugForge3(bool zone = false)
     {
-        ScDebugPreload3(); I?.Close(); var d = Game.D; int before = d.Spells.Count;
+        ScDebugPreload3(zone); I?.Close(); var d = Game.D; int before = d.Spells.Count;
         var err = Spellcraft.Forge(d, _scWork, "");
         if (err != null) { GD.PrintErr("[DEVCAP] forge failed: " + err); return null; }
         return d.Spells.LastOrDefault()?.Id;
@@ -498,6 +528,7 @@ public partial class Ui
         if (k.Kind == "enchant" && c.Heal > 0) n.Add($"heals {c.Heal * 100:0}%");
         if (c.Radius > 0) n.Add($"{c.Radius:0.#} m radius");
         if (c.Dur > 0) n.Add($"{c.Dur:0.#} s");
+        if (k.XOr("zone", 0) > 0) { var (zt, zd) = Spellcraft.ZoneTiming(c.DurMul, c.TickMul, c.Rank); n.Add($"zone: repeats every {zt:0.0} s for {zd:0.#} s"); }
         if (c.Chain > 0) n.Add($"chains {c.Chain}"); if (c.Pierce > 0) n.Add($"pierces {c.Pierce}"); if (c.Homing) n.Add("seeks");
         if (c.Leech > 0) n.Add($"{c.Leech:0}% life steal");
         foreach (var s in c.Status.Select(x => x.id).Distinct()) n.Add(Dmg.Status(s)?.Name ?? s);
@@ -514,8 +545,26 @@ public static class UiSpellcraft
     /// raises the level to open section III. For the "spellcraft_3" capture only.</summary>
     public static void DebugPreload3() => Ui.ScDebugPreload3();
     public static string? DebugForge3() => Ui.ScDebugForge3();
+    /// <summary>F-13: the lingering-zone variant (Flame Missile -> Frost Area + Time (zone) -> Storm Strike).</summary>
+    public static void DebugPreloadZone() => Ui.ScDebugPreload3(true);
+    public static string? DebugForgeZone() => Ui.ScDebugForge3(true);
     /// <summary>The "icon_editor" capture: the spell icon window on its Editor tab.</summary>
     public static void DebugIconEditor() => Ui.IcDebugOpen();
+}
+
+/// <summary>F-13: a small looping-arrow badge on cards that repeat on every zone tick.</summary>
+public partial class LoopBadge : Control
+{
+    public Color Col = Colors.White;
+    public override void _Draw()
+    {
+        var c = Size / 2; float r = Mathf.Min(Size.X, Size.Y) * .5f;
+        DrawCircle(c, r, new Color(.02f, .04f, .04f, .9f));
+        float rr = r * .58f, a0 = -.35f, a1 = Mathf.Tau - 1.1f;
+        DrawArc(c, rr, a0, a1, 18, Col, 1.8f, true);
+        var tip = c + new Vector2(Mathf.Cos(a1), Mathf.Sin(a1)) * rr; var tan = new Vector2(-Mathf.Sin(a1), Mathf.Cos(a1)); var nrm = new Vector2(Mathf.Cos(a1), Mathf.Sin(a1));
+        DrawColoredPolygon(new[] { tip + tan * 4f, tip - nrm * 3f - tan * 1f, tip + nrm * 3f - tan * 1f }, Col);
+    }
 }
 
 /// <summary>The "then" arrow between two spell sections: lit when both hold cards.</summary>

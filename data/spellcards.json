@@ -21,6 +21,13 @@
   "powerP": [0, 0, -15],
   "cards": [0, 0, 2]
  },
+ "zones": {
+  "_help": "F-13 lingering zones (scripts/PlayerSpellZones.cs). A section whose carrier is one of 'carriers' (AoE-shaped) and that holds one of 'durationCards' IN THAT SAME SECTION (modifier cards are per section) becomes a ZONE: a lingering circle that re-runs that section's own hit every tick, and sets off every section after it from its centre on each tick, until it ends. Sections before it go off once. tick: seconds between ticks (times the section's tickP modifiers, at least minTick). dur: base seconds, times the section's durP modifiers (Time x1 = 6 s), +rankP % per spell rank past 1. maxPerCaster: active zones per hero (the oldest ends when a new one starts). noNested: a zone's follow-up sections cannot make zones of their own (they go off once per tick instead) unless the section holds one of 'nestCards'. maxTicks: hard cap per zone. Mana and stamina are paid once by the root cast (F-01).",
+  "carriers": ["area"],
+  "durationCards": ["time"],
+  "tick": 1.0, "minTick": 0.25, "dur": 4, "rankP": 5,
+  "maxPerCaster": 3, "noNested": true, "nestCards": [], "maxTicks": 20
+ },
  "classSlots": {
   "_help": "extra cards per spell by class and family",
   "mage": { "spell": 2 }, "warlock": { "spell": 2 }, "necromancer": { "spell": 2 }, "druid": { "spell": 1, "archery": 1 }, "cleric": { "spell": 1, "martial": 1 },

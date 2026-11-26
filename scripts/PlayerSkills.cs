@@ -279,6 +279,7 @@ public partial class Player
         SpellStyles.Note(c);   // F-12: impacts and beams of this skill look up its power
         if (!_castFxDone) CastFx(c, origin); _castFxDone = false;   // weapon skills and auto-casts: the cast animation plays at the impact
         _fuAt = null; _fuDelay = 0;   // where (and when) a crafted spell's second section goes off; the kinds below set it (PlayerSpellcraft.cs)
+        bool zoned = false;   // F-13: section I became a lingering zone (it sets off the later sections itself, on each tick)
         switch (k.Kind)
         {
             case "projectile":
@@ -299,6 +300,7 @@ public partial class Player
             }
             case "nova":
             {
+                if (!echo && ZoneCheck(c, 1)) { StartZone(c, Ground(GlobalPosition), 1, true); zoned = true; break; }   // F-13: section I lingers
                 NovaAt(c, GlobalPosition, true);
                 // more "projectiles": more novas burst in a ring around you, one after another
                 for (int i = 1; i < c.Count; i++)
@@ -437,7 +439,7 @@ public partial class Player
             }
             default: ExecuteExtra(c, forced, echo); break;   // the newer kinds (PlayerSkillsExtra.cs)
         }
-        if (!echo && k.Then != "" && !(k.Kind is "projectile" or "leap" or "rush" || (k.Kind == "dash" && _fuAt == null)))   // those go off where they land (Projectile.OnEnd, Land)
+        if (!echo && !zoned && k.Then != "" && !(k.Kind is "projectile" or "leap" or "rush" || (k.Kind == "dash" && _fuAt == null)))   // those go off where they land (Projectile.OnEnd, Land)
             FollowUp(c, _fuAt ?? c.At ?? (SelfKinds.Contains(k.Kind) ? GlobalPosition : Ground(Aim(40f, forced).pt)), _fuDelay);
         if (!echo && k.X.TryGetValue("hpCost", out var hpCost)) { float lose = Game.D.MaxHp() * hpCost; Hp = Mathf.Max(1, Hp - lose); FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.1f, 0), "-" + Mathf.RoundToInt(lose), new Color(.9f, .2f, .25f), .8f); }   // blood magic
         if (!echo)

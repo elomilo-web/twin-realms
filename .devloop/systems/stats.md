@@ -65,6 +65,12 @@ Attributes never count below 0. Attribute steps are split by origin: 5 base, rac
 Every ROOT cast (hotbar key, macro step, auto-cast support) goes through `PayCast()`: checks cooldown, pays mana/stamina, starts
 the cooldown. Echo / Resonance repeats cost nothing but RESTART the cooldown (ready one full cooldown after the last repeat).
 Spell-chain sections and weapon-skill impacts are covered by the root cast's cooldown. Channels (resurrect) start it at the end.
+Lingering zones (F-13, PlayerSpellZones.cs): mana/stamina are paid ONCE by the root cast. Every zone tick (the zone section's own
+hit again + every later section from the zone centre) is part of that root cast: no cost, no new cooldown, logged as
+`CastPath.Chain` "zone tick n/N". Zone = section with an AoE carrier ("zones.carriers": area) + a duration card in the SAME section
+("zones.durationCards": time; modifier cards are per section). tick = zones.tick x tickP mods (>= minTick .25 s); dur = zones.dur 4 s
+x durP mods (Time: 6 s) x (1 + rankP 5% per spell rank past 1); radius = the section's radius. Limits: maxPerCaster 3 (oldest ends),
+maxTicks 20, noNested (a zone's follow-ups go off once per tick instead of making zones, unless the section holds a "nestCards" card).
 
 ## XP curve (Progression.XpNeed, data/progression.json, overridden by tuning.json files > progression.json)
 need(L) = max(10, round(40 + 20 n + 6 n^2 + 0.15 n^3)), n = L - 1. Gain = max(0, round(xp x (1 + xpP%))), xpP >= -90%.

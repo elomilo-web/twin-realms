@@ -338,7 +338,7 @@ PHASE 3 - HOTBAR, ICONS, AND SPELLCRAFTING
       fx_perf_10, fx_projectiles, fx_novas, fx_aoe_linger, fx_buff_heal, fx_beam_summon (player_at -70,-95).
       Perf: fx_perf_base 69.8 fps, fx_perf_10 67.5 fps (0.97; earlier runs 73.0/73.4 and 71.7/70.3).
 
-[ ] F-13  LINGERING AOE IN SPELLCRAFTING (AOE + DURATION)
+[x] F-13  LINGERING AOE IN SPELLCRAFTING (AOE + DURATION)
     A chain with AoE + Duration should make a lingering zone.
     DONE WHEN:
       - The zone repeats ITS OWN PART OF THE CHAIN AND EVERYTHING AFTER IT
@@ -349,6 +349,17 @@ PHASE 3 - HOTBAR, ICONS, AND SPELLCRAFTING
         cannot create more lingering zones unless a rule allows it.
       - The spellcraft UI highlights which cards will repeat.
       - Uses the effects from F-12.
+    NOTE: scripts/PlayerSpellZones.cs (Player.StartZone/ZoneTick/ZoneCheck + SpellZone node), hooks in PlayerSpellcraft.FollowUp
+      (sections II+) and PlayerSkills.Execute nova case (section I). Zone = AoE carrier ("area") + Duration card ("time") in the SAME
+      section (modifiers are per section; Spellcraft.BuildSection sets X.zone). data/spellcards.json "zones": tick 1 s x tickP
+      (min .25), dur 4 s x durP (Time = 6 s) x +5%/rank, radius = section radius, maxPerCaster 3 (oldest ends), noNested true
+      (nestCards opt-in), maxTicks 20. SkillCalc gained DurMul/TickMul/Rank/InZone. F-12 SpellStyles.Linger circle drains with the
+      time left. Ticks are part of the root cast (no cost/cooldown, CastPath.Chain "zone tick n/N"); documented in systems/stats.md.
+      UI: repeating sections get a teal frame, "lingering zone"/"repeats each tick" subtitles, each repeating card a tinted frame +
+      looping-arrow badge (LoopBadge), zone section line "Lingers: repeats every 1.0 s for 6 s (6 ticks)"; preview adds "zone: ...".
+      DevCapture "zonespell" (UiSpellcraft.DebugForgeZone: missile+fire -> area+frost+time -> strike+storm), views zone_spell /
+      spellcraft_zone. Verified: section 2 once per cast, zone ticks 6/6 each followed by section 3 [zone repeat], 4th cast ends the
+      oldest zone after 4 ticks (3/3 active), all zones end at 6.0 s.
 
 
 ================================================================================

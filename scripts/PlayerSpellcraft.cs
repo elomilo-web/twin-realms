@@ -25,8 +25,10 @@ public partial class Player
         if (delay > 0) { GetTree().CreateTimer(delay).Timeout += () => { if (!Dead) FollowUp(c, at, 0, depth); }; return; }
         var f = Skills.Compute(then, Spellcraft.RootOf(c.Def.Id)); f.At = at;   // every section uses the spell's own rank and sockets
         if (c.Charge > 0) { f.Charge = c.Charge; f.Dmg *= 1 + .8f * c.Charge; f.Radius *= 1 + .3f * c.Charge; }   // an empowered spell empowers every section
+        f.InZone = c.InZone;   // F-13: sections set off by a zone's tick stay "in the zone" (no nested zones)
         var near = NearestFoe(14f, at); int next = depth + 1; bool more = f.Def.Then != "";
-        LogCast(CastPath.Chain, Spellcraft.RootOf(c.Def.Id), $"section {depth + 1} ({then}) (part of the root cast: no cost, no new cooldown)");
+        LogCast(CastPath.Chain, Spellcraft.RootOf(c.Def.Id), $"section {depth + 1} ({then}) (part of the root cast: no cost, no new cooldown)" + (f.InZone ? " [zone repeat]" : ""));
+        if (ZoneCheck(f, depth + 1)) { StartZone(f, Ground(at), depth + 1, false); return; }   // F-13: this section lingers and repeats itself and what follows
         switch (f.Def.Kind)
         {
             case "nova": NovaAt(f, at, false); if (f.Chain > 0) ChainFrom(f, at, f.Chain); if (more) FollowUp(f, at, .25f, next); break;
