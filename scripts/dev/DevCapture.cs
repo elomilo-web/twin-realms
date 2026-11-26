@@ -163,6 +163,20 @@ public partial class DevCapture : Node
             foreach (var k in GatherDb.Mats.Keys) { if (i++ >= n) break; d.Mats[k] = 3 + i * 7 % 60; }
             changed = true;
         }
+        if (v.TryGetProperty("gems", out _))
+        {   // "gems": n loose gem stacks (3 of each, a spread of kinds and tiers) and Gem Dust; "gem_socket": worn armor with 3 sockets, 2 filled
+            _savedGems ??= new Dictionary<string, int>(d.Gems); _savedMats ??= new Dictionary<string, int>(d.Mats);
+            int n = (int)Num(v, "gems", 0), i = 0; GemDb.Load();
+            foreach (var t in GemDb.Types.Values) { if (i >= n) break; string arg = t.Arg == "" ? "" : GemDb.Args(t).FirstOrDefault() ?? ""; if (t.Arg != "" && arg == "") continue; GemDb.Give(d, GemDb.Key(t.Id, arg, i % 4), 3); i++; }
+            d.Mats[GemDb.Dust] = 60; changed = true;
+        }
+        if (Flag(v, "gem_socket", false))
+        {
+            _savedEq ??= new Dictionary<string, Item?>(d.Eq);
+            var it = Items.Roll(20, 0, "armor", 3); it.Sockets = 3; it.Socketed = new List<string> { GemDb.Key("ruby", "", 3), GemDb.Key("diamond", "", 2), "" };
+            if (Skills.All.FirstOrDefault(s => d.Skills.ContainsKey(s.Id) && !s.Crafted) is { } sk) { var hd = Items.Roll(20, 0, "head", 3); hd.Sockets = 2; hd.Socketed = new List<string> { GemDb.Key("spellstone", sk.Id, 3), GemDb.Key("sigil", "fire", 4) }; d.Eq["head"] = hd; }
+            d.Eq["armor"] = it; changed = true;
+        }
         if (Flag(v, "learn_all", false))
         {   // every skill learned at rank 3 (menus at their fullest: the "windows never stretch" rule)
             _savedSkills ??= new Dictionary<string, SkillState>(d.Skills);
@@ -213,9 +227,10 @@ public partial class DevCapture : Node
         if (_savedInv != null) { d.Inv.Clear(); d.Inv.AddRange(_savedInv); _savedInv = null; changed = true; }
         if (_savedMats != null) { d.Mats.Clear(); foreach (var kv in _savedMats) d.Mats[kv.Key] = kv.Value; _savedMats = null; changed = true; }
         if (_savedSkills != null) { d.Skills.Clear(); foreach (var kv in _savedSkills) d.Skills[kv.Key] = kv.Value; _savedSkills = null; changed = true; }
+        if (_savedGems != null) { d.Gems.Clear(); foreach (var kv in _savedGems) d.Gems[kv.Key] = kv.Value; _savedGems = null; changed = true; }
         if (changed) Game.Notify();
     }
-    Dictionary<string, SkillState>? _savedSkills;
+    Dictionary<string, SkillState>? _savedSkills; Dictionary<string, int>? _savedGems;
 
     void Heal() { if (Player.Instance is { } p) { p.Hp = Game.D.MaxHp(); p.Mp = Game.D.MaxMp(); p.St = Game.D.MaxSt(); } }
     void ClearFoes() { foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Node nn) nn.QueueFree(); Targeting.Clear(); }
@@ -249,6 +264,7 @@ public partial class DevCapture : Node
         string name = Str(v, "name", "view"), scene = Str(v, "scene", "world"), action = Str(v, "action", "idle");
         int wait = (int)Num(v, "wait_frames", 60);
         var entry = new Dictionary<string, object> { ["name"] = name };
+        bool fpWas = Game.Set.FirstPerson;
         try
         {
             if (scene != "title")
@@ -358,6 +374,7 @@ public partial class DevCapture : Node
                     Enemy.CurrentBoss = _boss;
                 }
                 // camera: free (absolute or relative to the hero) or the follow camera
+                Game.Set.FirstPerson = Flag(v, "first_person", false);   // F-09 view switch for this view (memory only, restored in finally)
                 var cp = Vec(v, "camera_pos"); var la = Vec(v, "look_at") ?? Vector3.Zero;
                 if (lakeCam != null && cp == null) FreeCam(lakeCam.Value.from, lakeCam.Value.at);
                 else if (cp != null) { if (Flag(v, "relative", false)) { cp += P.GlobalPosition; la += P.GlobalPosition; } FreeCam(cp, la); }
@@ -406,6 +423,7 @@ public partial class DevCapture : Node
         catch (Exception e) { GD.PrintErr($"[DEVCAP] {name} failed: {e.Message}"); entry["error"] = e.Message; }
         finally
         {
+            Game.Set.FirstPerson = fpWas;   // "first_person" views: in memory only, never saved to the settings file
             foreach (var k in new[] { Inputs.Forward, Inputs.Sprint, Inputs.Attack, Inputs.Roll, Inputs.Jump, "spell1" }) Input.ActionRelease(k);
             if (action == "ui:loading") LoadScreen.Hide(false);
             if (scene != "title") { Ui.I?.Close(); if (Ui.I != null) Ui.I.Visible = false; }
@@ -619,6 +637,8 @@ public partial class DevCapture : Node
                         case "create": ui.ShowCreate(); break;
                         case "pets": ui.OpenPets(null, arg.Length > 0 ? arg : "skills"); break;
                         case "pettrade": PetTrade.DevStart(); ui.OpenPetTrade(); break;   // Odile's trade window with the first pet offered
+                        case "pack": ui.OpenPackTab(arg); break;   // ui:pack:gems / ui:pack:materials
+                        case "gemtip": ui.OpenPackTab("gems"); await Secs(.3f); ui.DevHoverItem(Game.D.Eq.GetValueOrDefault("armor")); break;   // a socketed item's tooltip (F-10)
                     }
                     await Secs(.4f); break;
                 }

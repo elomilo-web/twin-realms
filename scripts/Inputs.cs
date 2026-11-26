@@ -24,6 +24,7 @@ public static class Inputs
     public const string Flag = "playtest_flag";   // F8: screenshot + report for later review (scripts/Flag.cs)
     public const string BuildMode = "build_mode", BlockRotate = "block_rotate";   // the block world (PlayerBlocks.cs)
     public const string PetsUi = "ui_pets", ThrowCube = "throw_cube", CubeNext = "cube_next", PetStay = "pet_stay";   // pets (UiPets.cs, Cube.cs, Pet.cs)
+    public const string View = "toggle_view";   // third / first person (CameraRig.cs, Settings.FirstPerson)
 
     /// <summary>Actions shown in the Controls menu, in order, with their names.</summary>
     public static readonly (string id, string name)[] Rebindable =
@@ -38,6 +39,7 @@ public static class Inputs
         (Flag, "Flag for review (screenshot + report)"),
         (BuildMode, "Build mode (dig and place blocks)"), (BlockRotate, "Rotate block (build mode)"),
         (PetsUi, "Pets"), (ThrowCube, "Throw Soul Cube"), (CubeNext, "Next Soul Cube tier"), (PetStay, "Pet: follow / stay"),
+        (View, "Switch first / third person"),
     };
 
     static bool _done;
@@ -54,6 +56,7 @@ public static class Inputs
         Bind(Lock, Key.Tab); Bind(Unlock, Key.Q); Bind(SkillsUi, Key.L); Bind(AttacksUi, Key.O); Bind(ModsUi, Key.U); Bind(SpellcraftUi, Key.B); Bind(Flag, Key.F8);
         Bind(BuildMode, Key.N); Bind(BlockRotate, Key.Y);
         Bind(PetsUi, Key.P); Bind(ThrowCube, Key.V); Bind(CubeNext, Key.Comma); Bind(PetStay, Key.Period);
+        Bind(View, Key.F5);   // Minecraft's view key (V throws Soul Cubes)
         BindMouse(Attack, MouseButton.Left); BindMouse(Heavy, MouseButton.Right); Bind(Guard, Key.F);
         InputMap.ActionAddEvent(Lock, new InputEventMouseButton { ButtonIndex = MouseButton.Middle });   // extra default, dropped once rebound
         // the analog stick arrives already dead-zoned and rescaled (PadInput), so the move actions keep only a tiny deadzone of their own
@@ -188,6 +191,7 @@ public static class Inputs
         [Pause] = B(JoyButton.Start), [Pack] = B(JoyButton.Back), [Map] = LT(JoyButton.Back), [Journal] = LT(JoyButton.Start),
         [BuildMode] = LT(JoyButton.LeftStick), [BlockRotate] = LT(JoyButton.LeftShoulder),
         [ThrowCube] = LT(JoyButton.RightShoulder), [PetsUi] = "L+a:" + (int)JoyAxis.TriggerRight,
+        [View] = B(JoyButton.Misc1),   // Share (Xbox Series) / Mic (PS5): every LT combo and plain button is taken
     };
     static readonly HashSet<string> _moves = new() { Left, Right, Forward, Back };
     public static bool IsMove(string id) => _moves.Contains(id);

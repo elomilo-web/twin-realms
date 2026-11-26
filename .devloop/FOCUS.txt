@@ -210,7 +210,7 @@ PHASE 0 - BUGS AND FIXES (do these first)
 PHASE 1 - CAMERA AND CONTROLS
 ================================================================================
 
-[ ] F-09  FIRST-PERSON VIEW (MINECRAFT STYLE)
+[x] F-09  FIRST-PERSON VIEW (MINECRAFT STYLE)
     ASSUMPTION: "pushing" means pressing a key. Add a key (default V, can be
     rebound) that switches between third person and first person.
     DONE WHEN:
@@ -219,6 +219,24 @@ PHASE 1 - CAMERA AND CONTROLS
       - Digging, placing, combat, bow aiming, and casting all work in both
         views.
       - The view choice is saved in settings.
+    NOTE (2026-11-26): action "toggle_view" (Inputs.View, rebindable in Controls) flips Settings.FirstPerson
+      (saved like the other settings). CameraRig.FirstPerson: camera 0.16 m in front of the face at the head
+      bone (+7 cm), head bob followed softly, no spring arm / shoulder offset / lock-on framing (lock-on still
+      targets and turns the view), FOV = setting + 5 (75 by default), near plane 3 cm. Player forces the hero's
+      yaw to the camera yaw in first person. Head pieces of the local hero (hair, beard, eyes, brows, helm
+      slot, race features) draw on layer 20 only (CameraRig.HeadLayer, Avatar.OwnHeadLayer), which the
+      first-person camera culls: no clipping, their shadows stay, other cameras still draw them. HeadLook
+      (Avatar.cs) carries the right arm up and in when idle/moving so the held weapon/pickaxe shows bottom
+      right (hand keeps its animated angle); faded out in one-shot clips, so swings, digs, bow draws and
+      casts show with their own poses. GearFx sparks fade out within 0.7-1.3 m of the camera (they were
+      big squares next to the lens). Dig/place, AimPoint and spells already use the screen-centre ray.
+      Mounted or dead: third person (the choice is kept for after). DevCapture view option "first_person"
+      (memory only, restored after the view, never saved). Captures fp_idle, fp_dig, fp_bow, fp_cast.
+      Files: Inputs.cs, Game.cs, CameraRig.cs, Player.cs, Avatar.cs, GearFx.cs, dev/DevCapture.cs,
+      .devloop/viewpoints.json.
+      ASSUMPTION: default key F5 (Minecraft's view key), not V: V throws Soul Cubes. Pad default: Share
+      (Xbox Series) / Mic (PS5) button (JoyButton.Misc1), since LT+R3 (release lock) and every other
+      LT combo and plain button are already taken; rebindable in Settings > Controller.
 
 
 ================================================================================

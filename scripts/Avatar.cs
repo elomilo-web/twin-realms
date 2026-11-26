@@ -65,7 +65,7 @@ public partial class Avatar : Node3D
         if (Cfg.TryGetProperty("raceFeatures", out var rf) && rf.ValueKind == JsonValueKind.True) RaceFeatures(ap);   // off: no cones for ears, tusks or horns
         _ap = new AnimationPlayer { Name = "Anim" }; Body.AddChild(_ap); _ap.RootNode = new NodePath("..");
         _ap.AddAnimationLibrary("", Library(_sex, _sk));
-        HasModel = true; Play("idle"); CharRim.Apply(this);
+        HasModel = true; Play("idle"); CharRim.Apply(this); ApplyHeadLayer();
     }
 
     /// <summary>
@@ -445,6 +445,22 @@ public partial class Avatar : Node3D
             w.Rotation = flying ? new Vector3(-.28f, -s * .55f, s * (.12f + Mathf.Sin(t * 7f) * .45f)) :new Vector3(.15f, -s * .9f, -s * .25f + s * Mathf.Sin(t * 1.3f) * .03f);
         }
     }
+    /// <summary>
+    /// Local hero only (first person, CameraRig): head-region pieces (hair, beard, eyes, brows, helm, race features) draw on
+    /// CameraRig.HeadLayer alone, which the first-person camera culls; every other camera and the lights still see them (shadows stay).
+    /// Re-applied after Build / Dress / SetHair, since those make new meshes.
+    /// </summary>
+    public bool OwnHeadLayer { get => _ownHead; set { _ownHead = value; ApplyHeadLayer(); } }
+    bool _ownHead;
+    void ApplyHeadLayer()
+    {
+        if (!_ownHead || _sk == null) return;
+        static void L(Node n) { if (n is VisualInstance3D v) v.Layers = CameraRig.HeadLayer; foreach (var c in n.GetChildren()) L(c); }
+        foreach (var h in _hair) if (IsInstanceValid(h)) L(h);
+        foreach (var c in _sk.GetChildren())
+            if (c is MeshInstance3D mi) { var nm = mi.Name.ToString(); if (nm.Contains("Eye") || nm.Contains("brow") || nm.Contains("Teeth") || nm.Contains("Tongue") || nm.Contains("lash")) mi.Layers = CameraRig.HeadLayer; }
+        foreach (var s in new[] { "head", "race" }) foreach (var n in SlotNodes(s)) if (IsInstanceValid(n)) L(n);
+    }
     /// <summary>Shows the hair even under gear that would hide it (bosses who wear a helm-less plate but keep their hair).</summary>
     public void ShowHair() { foreach (var h in _hair) if (h is Node3D h3 && IsInstanceValid(h3)) h3.Visible = true; }
     /// <summary>A holder on a bone for a custom piece (bosses' own weapons and ornaments), placed in model space at rest like "hold".</summary>
@@ -533,7 +549,7 @@ public partial class Avatar : Node3D
         bool twoHanded = Weapons.Get(wt).Hands > 1 || Weapons.Get(wt).LeftHand;
         if (wcfg.TryGetProperty(wt, out var wc)) HoldWeapon(wt, wc, w);
         var sh = eq("shield"); if (sh != null && !twoHanded) HoldShield(sh);
-        CharRim.Apply(this);
+        CharRim.Apply(this); ApplyHeadLayer();
     }
 
     static readonly string[] MetalWords = { "Gauntlet", "Greave", "Sabaton", "Plated" };   // not Vambrace: Bracers/Vambraces = leather gloves + the iron Vambraces garment
@@ -1000,7 +1016,21 @@ public partial class HeadLook : SkeletonModifier3D
         float w = _w;
         if (w > .001f) { Apply(sk, _chest, .1f * w); Apply(sk, _neck, .3f * w); Apply(sk, _head, .6f * w); }
         if (Mathf.Abs(_lean) > .002f) { Roll(sk, _sp1, _lean * .5f); Roll(sk, _sp2, _lean * .5f); }
+        // first person (CameraRig.FirstPerson): the right arm is carried up and forward so the hand and the held item show at the bottom
+        // right of the view; faded out during one-shot clips (swings, digs, casts, bow draws), which reach into view on their own
+        if (_uaR == -2) { _uaR = sk.FindBone("upperarm_r"); _laR = sk.FindBone("lowerarm_r"); _hR = sk.FindBone("hand_r"); }
+        bool fp = Player.Instance is { } me && me.Av == Av && me.Rig is { } rg && rg.FirstPerson;
+        _fw = Mathf.MoveToward(_fw, fp && !Av.Busy ? 1f : 0f, dt * 5f);
+        if (_fw > .001f && _uaR >= 0)
+        {
+            var qU = new Quaternion(Vector3.Up, FpIn * _fw) * new Quaternion(Vector3.Right, -FpUpper * _fw); var qL = new Quaternion(Vector3.Right, -FpLower * _fw);
+            Set(sk, _uaR, qU);
+            if (_laR >= 0) Set(sk, _laR, qL);
+            if (_hR >= 0) Set(sk, _hR, (_laR >= 0 ? qL * qU : qU).Inverse());   // the hand keeps its animated angle, so the held item still points ahead
+        }
     }
+    int _uaR = -2, _laR = -1, _hR = -1; float _fw;
+    const float FpUpper = 1.3f, FpLower = .55f, FpIn = .35f;   // radians forward about the shoulder / elbow, and in toward the middle (skeleton space)
 
     void Apply(Skeleton3D sk, int b, float frac)
     {

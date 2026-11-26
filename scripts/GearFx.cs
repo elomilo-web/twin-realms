@@ -138,7 +138,9 @@ void fragment() {
         var fade = new Gradient(); fade.SetColor(0, new Color(1, 1, 1, 0)); fade.SetColor(1, new Color(1, 1, 1, 0)); fade.AddPoint(.25f, Colors.White);
         pm.ColorRamp = new GradientTexture1D { Gradient = fade };
         var mat = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, BlendMode = BaseMaterial3D.BlendModeEnum.Add, Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
-            BillboardMode = BaseMaterial3D.BillboardModeEnum.Particles, VertexColorUseAsAlbedo = true, AlbedoColor = new Color(1, 1, 1, 1) };
+            BillboardMode = BaseMaterial3D.BillboardModeEnum.Particles, VertexColorUseAsAlbedo = true, AlbedoColor = new Color(1, 1, 1, 1),
+            // first person: the held weapon is a hand's length from the camera, where these flat squares would fill the view; fade them out up close
+            DistanceFadeMode = BaseMaterial3D.DistanceFadeModeEnum.PixelAlpha, DistanceFadeMinDistance = .7f, DistanceFadeMaxDistance = 1.3f };
         return new GpuParticles3D
         {
             Amount = Mathf.Max(2, rate * 2), Lifetime = 1.4, ProcessMaterial = pm, LocalCoords = false, Position = new Vector3(0, 0, from + length * .5f),

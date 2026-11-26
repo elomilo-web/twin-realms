@@ -35,6 +35,14 @@ public partial class CameraRig : Node3D
     public void StepBob() { if (Sprinting && Game.Set.Shake > 0) _bob = .03f; }
 
     public Camera3D Camera => _cam;
+    /// <summary>
+    /// First person (Settings.FirstPerson, toggle_view key): the camera sits just in front of the hero's face at eye height and follows the
+    /// head bone's bob lightly; the hero's yaw follows the camera (Player). Head, hair, helm and race pieces are on <see cref="HeadLayer"/>,
+    /// which this camera does not draw (their shadows stay). Mounted or dead the view drops back to third person.
+    /// </summary>
+    public const uint HeadLayer = 1u << 19;
+    public bool FirstPerson => Game.Set.FirstPerson && Target is Player p && p == Player.Instance && !p.Mounted && !p.Dead;
+    Vector3 _fpRel; bool _fpWas;
     /// <summary>Horizontal facing of the camera in radians (rig yaw).</summary>
     public float Yaw => Rotation.Y;
 
@@ -104,6 +112,26 @@ public partial class CameraRig : Node3D
         _pivot.Rotation = new Vector3(_pitch, 0, 0);
     }
 
+    /// <summary>
+    /// First-person eye: the hero's (interpolated) position plus the head bone's offset, smoothed so the head bob comes through lightly,
+    /// a little above the bone and 0.16 m ahead of it along the view, which puts the camera just in front of the face (never inside it).
+    /// </summary>
+    void FirstPersonEye(Vector3 tp, float dt)
+    {
+        var rel = new Vector3(0, 1.62f, 0);
+        if (Target is Player p && p.Av?.Skel is { } sk)
+        {
+            int hb = sk.FindBone("Head");
+            if (hb >= 0) { var hp = (sk.GlobalTransform * sk.GetBoneGlobalPose(hb)).Origin - p.GlobalPosition; if (hp.Y > .5f && hp.Length() < 2.6f) rel = hp + new Vector3(0, .07f, 0); }
+        }
+        if (_fpRel == Vector3.Zero) _fpRel = rel;
+        // horizontal: follow tightly (a lag would pull the camera back into the head); vertical: softer, so steps only bob it a little
+        _fpRel = new Vector3(Mathf.Lerp(_fpRel.X, rel.X, 1f - Mathf.Exp(-30f * dt)), Mathf.Lerp(_fpRel.Y, rel.Y, 1f - Mathf.Exp(-9f * dt)), Mathf.Lerp(_fpRel.Z, rel.Z, 1f - Mathf.Exp(-30f * dt)));
+        var fwd = new Vector3(-Mathf.Sin(Rotation.Y), 0, -Mathf.Cos(Rotation.Y));
+        GlobalPosition = tp + _fpRel + fwd * .16f;
+        _pivot.Rotation = new Vector3(_pitch, 0, 0);
+    }
+
     public override void _Process(double delta)
     {
         PadLook((float)delta);
@@ -121,6 +149,7 @@ public partial class CameraRig : Node3D
             var tp = Target.PhysicsInterpolationMode == PhysicsInterpolationModeEnum.On ? Target.GetGlobalTransformInterpolated().Origin : Target.GlobalPosition; float dt = Mathf.Max((float)delta, .0001f);
             var hv = new Vector3(tp.X - _lastTp.X, 0, tp.Z - _lastTp.Z) / dt; _lastTp = tp;
             if (hv.Length() > 30f) { hv = Vector3.Zero; if (Target.PhysicsInterpolationMode == PhysicsInterpolationModeEnum.On) Target.ResetPhysicsInterpolation(); }   // teleport / respawn guard (no streak)
+            if (FirstPerson) { FirstPersonEye(tp, (float)delta); goto lockTurn; }
             bool locked = Targeting.Current is Enemy le && IsInstanceValid(le);
             _lockB = Mathf.MoveToward(_lockB, locked ? 1f : 0f, (float)delta / .3f);
             float maxLead = Sprinting ? 1.2f : 0.8f;
@@ -143,6 +172,7 @@ public partial class CameraRig : Node3D
             var goal = tp + new Vector3(0, 1.6f, 0) + _lead + _frame;
             GlobalPosition = GlobalPosition.Lerp(goal, 1f - Mathf.Exp(-14f * (float)delta));
         }
+        lockTurn:
         // lock-on: swing the camera so the target stays in view (mouse still controls pitch)
         if (Targeting.Current is Enemy t && IsInstanceValid(t) && Target != null)
         {
@@ -153,10 +183,25 @@ public partial class CameraRig : Node3D
         }
         float pulse = 0f; if (_fovT > 0) { _fovT = Mathf.Max(0, _fovT - (float)delta); float u = _fovT / Mathf.Max(.01f, Feel.FovPulseTime); pulse = Feel.FovPulse * Mathf.Sin(u * Mathf.Pi); }
         _spr = Mathf.MoveToward(_spr, Sprinting ? 1f : 0f, (float)delta / .35f); float sE = _spr * _spr * (3f - 2f * _spr);
-        _cam.Fov = Game.Set.Fov - pulse + 6f * sE;
+        bool fp = FirstPerson;
+        if (fp != _fpWas)
+        {
+            _fpWas = fp; _cam.CullMask = fp ? 0xFFFFFu & ~HeadLayer : 0xFFFFFu; _cam.Near = fp ? .03f : .05f;
+            _frame = Vector3.Zero; _frameDist = _framePitch = 0f; _lead = Vector3.Zero; _fpRel = Vector3.Zero;
+            if (!fp) _camLen = -1f;
+        }
+        _cam.Fov = (fp ? Game.Set.Fov + 5f : Game.Set.Fov) - pulse + (fp ? 3f : 6f) * sE;
         _kick *= Mathf.Exp(-16f * (float)delta); _bob *= Mathf.Exp(-9f * (float)delta);
         _arm.SpringLength = Mathf.Lerp(_arm.SpringLength, Distance + .4f * sE + _frameDist,1f - Mathf.Exp(-(10f - 4f * sE) * (float)delta));
         _shake = Mathf.Max(0, _shake - (float)delta * 1.2f);
+        if (fp)
+        {
+            // first person: no arm, no shoulder offset; shake and swing kicks stay (smaller)
+            _arm.SpringLength = 0f; _camLen = 0f; _cam.Position = Vector3.Zero;
+            _cam.HOffset = (float)GD.RandRange(-1.0, 1.0) * _shake * 0.12f + _kick.X * .4f;
+            _cam.VOffset = (float)GD.RandRange(-1.0, 1.0) * _shake * 0.12f + _kick.Y * .4f + _bob * .5f;
+            return;
+        }
         // over the right shoulder, so the aim point at screen centre is not hidden behind the hero (data/feel.json camera.shoulder)
         // collision smoothing: pull in instantly, ease back out over ~0.35 s (camera local Z, applied after the arm's own placement)
         float hit = _arm.GetHitLength();

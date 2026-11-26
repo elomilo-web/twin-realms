@@ -92,7 +92,7 @@ public partial class Player : CharacterBody3D, IDamageable
         {
             // the drawn hero: base body + separate gear models. HeroRig stays as the invisible pose source (hand targets, look-at).
             var ap = Races.Look(Game.D); _av = new Avatar { Name = "Avatar", Scale = new Vector3(1 / ap.Bulk, 1 / ap.Height, 1 / ap.Bulk) };
-            _rig.AddChild(_av); _av.Build(ap, Game.D.Name); HideRig(); _feet = FootPlant.Attach(_av, GetRid());   // feet on slopes
+            _rig.AddChild(_av); _av.Build(ap, Game.D.Name); _av.OwnHeadLayer = true; HideRig();   // head pieces on their own layer: the first-person camera skips them _feet = FootPlant.Attach(_av, GetRid());   // feet on slopes
             if (_feet != null) _feet.Stepped = at => { float sp = new Vector2(Velocity.X, Velocity.Z).Length(); if (sp > .6f && IsOnFloor() && !Mounted) { Sfx.Step(at, this, sp); Rig?.StepBob(); } };   // footsteps on the real footfalls   // the cape is an equipment slot now (Avatar.Dress)
         }
         _trail = new SwordTrail(); AddChild(_trail);
@@ -632,6 +632,11 @@ public partial class Player : CharacterBody3D, IDamageable
         if (captured && !BuildMode && Input.IsActionJustPressed(Inputs.ThrowCube)) Cubes.Throw(this);   // Soul Cubes (Cube.cs)
         if (captured && Input.IsActionJustPressed(Inputs.CubeNext)) Cubes.Cycle();
         if (captured && Input.IsActionJustPressed(Inputs.PetStay)) PetWorld.ToggleStay();
+        if (captured && Input.IsActionJustPressed(Inputs.View))   // first / third person (CameraRig.FirstPerson), saved in the settings
+        {
+            Game.Set.FirstPerson = !Game.Set.FirstPerson; Game.SaveSettings();
+            Ui.Note(Game.Set.FirstPerson ? (Mounted ? "First person (after you dismount)" : "First person") : "Third person", new Color(.8f, .85f, 1f));
+        }
         if (captured && Input.IsActionJustPressed(Inputs.Realm)) World.TryShiftRealm();
         if (captured) ScanInteract(); else Prompt = "";
         if (captured && Input.IsActionJustPressed(Inputs.Lock)) { if (Inputs.UsingPad && Targeting.Current != null) Targeting.Clear(); else Targeting.Toggle(Targeting.Current != null); }   // pad: R3 toggles, a right-stick flick switches
@@ -778,6 +783,8 @@ public partial class Player : CharacterBody3D, IDamageable
         }
         else if (_atkT <= 0 && !_blocking && _rollT <= 0 && _castT <= 0 && flat.LengthSquared() > 0.5f)
             _modelYaw = Mathf.LerpAngle(_modelYaw, Util.YawTo(flat.X, flat.Z), 1f - Mathf.Exp(-14f * dt));
+        // first person: the body always faces the view (mouse look turns the hero directly), so the head stays behind the camera
+        if (Rig != null && Rig.FirstPerson) { _modelYaw = camYaw; _spinBase = camYaw; }
 
         Velocity = v; MoveAndSlide();
         Animate(dt);
