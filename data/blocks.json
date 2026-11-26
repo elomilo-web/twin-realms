@@ -91,7 +91,12 @@
  "items": {
   "_help": "crafting window, Blocks tab: things made from blocks that are not blocks themselves, kept in the pack's materials (PlayerStats.Mats by key). boat (F-21, Boat.cs): set on water with Interact, boarded with Interact, hit it to pick it up.",
   "boat": { "n": "Boat", "sub": "Floats on any water: Interact on open water to set it there, Interact to board, W/S row, A/D turn, hit it to pick it up", "out": 1, "cost": { "planks": 5 } },
-  "lockpick": { "n": "Lockpicks", "sub": "Pick locked doors and chests that are not yours (Interact on one); a pick snaps when you force it", "out": 2, "cost": { "ironscrap": 2 } }
+  "lockpick": { "n": "Lockpicks", "sub": "Pick locked doors and chests that are not yours (Interact on one); a pick snaps when you force it", "out": 2, "cost": { "ironscrap": 2 } },
+  "leatherstrip": { "n": "Leather Strips (from an Old Boot)", "sub": "Recycle fishing junk: cut an old boot into leather strips", "out": 3, "cost": { "junk_oldboot": 1 } },
+  "ironscrap": { "n": "Iron Scrap (from Rusty Hooks)", "sub": "Recycle fishing junk: melt rusty hooks into iron scrap", "out": 2, "cost": { "junk_rustyhook": 2 } },
+  "timber": { "n": "Timber (from Soggy Sticks)", "sub": "Recycle fishing junk: bind soggy sticks into timber", "out": 1, "cost": { "junk_soggystick": 3 } },
+  "hide": { "n": "Hide (from Tangled Line)", "sub": "Recycle fishing junk: braid tangled line into a tough hide", "out": 1, "cost": { "junk_tangledline": 3 } },
+  "arcanedust": { "n": "Arcane Dust (from Seaweed)", "sub": "Recycle fishing junk: dry and grind seaweed into arcane dust", "out": 2, "cost": { "junk_seaweed": 2 } }
  },
  "blocks": {
   "bedrock":      { "n": "Bedrock",       "hardness": -1, "mat": { "gothic": "G_Rock", "color": "#3a3438" } },

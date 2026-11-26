@@ -534,13 +534,19 @@ PHASE 5 - WATER, FISHING, AND LIFE SKILLS
     counted, 5 blocks dug 8 XP, own block 0 XP, lock picked after 1 snapped pick, stats dump shows the life stage; views
     life_skills, lockpick_game verified. Untested: pad default for Sneak (unbound; rebindable), bots.
 
-[ ] F-26  EVERY ITEM HAS A PURPOSE
+[x] F-26  EVERY ITEM HAS A PURPOSE
     DONE WHEN:
       - A script lists every item in the game and what it is used for (eat,
         cook, craft, sell, quest, equip, place, fuse, etc.), saved to
         .devloop/item_uses.md.
       - Every item with no use gets one (for example berries can be eaten or
         cooked into recipes) or is removed.
+    NOTE: scripts/dev/ItemUses.cs (hook --item-uses in Main.cs) lists 305 items
+      -> .devloop/item_uses.md. Before: NO USE 0, sell-only junk 5 (the 5 junk_*
+      fish items). After: NO USE 0, sell-only 0: data/blocks.json "items" got 5
+      junk recycle recipes (old boot -> leather strips, rusty hooks -> iron
+      scrap, soggy sticks -> timber, tangled line -> hide, seaweed -> arcane
+      dust; Crafting > Blocks). No quest items exist (quests are kill/wave/duel).
 
 
 ================================================================================
