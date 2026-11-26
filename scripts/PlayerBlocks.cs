@@ -147,6 +147,7 @@ public partial class Player
             return;
         }
         var a = BlockWorld.I!.Area!;
+        ShowOutline(t.b, a.Get(t.b.X, t.b.Y, t.b.Z));
         // dig: hold attack; the pickaxe swings every SwingTime, chips fly at each blow
         byte id = a.Get(t.b.X, t.b.Y, t.b.Z);
         if (dig && id != 0 && id != 255)
@@ -288,32 +289,12 @@ public partial class Player
     internal int HotbarSel => _barSel;
     internal float HotbarNameT => _nameT;
 
-    /// <summary>The block under the crosshair within reach, by stepping through the block grid (no physics ray: water does not stop it).</summary>
-    (Vector3I b, Vector3I n)? Aim()
-    {
-        var cam = GetViewport().GetCamera3D(); var a = BlockWorld.I?.Area; if (cam == null || a == null) return null;
-        var o = cam.GlobalPosition; var dir = -cam.GlobalTransform.Basis.Z;
-        float reach = Blocks.F("world.reach", 6f), max = (o - (GlobalPosition + Vector3.Up * 1.5f)).Length() + reach;
-        var cell = new Vector3I(Mathf.FloorToInt(o.X), Mathf.FloorToInt(o.Y), Mathf.FloorToInt(o.Z));
-        var step = new Vector3I(Math.Sign(dir.X), Math.Sign(dir.Y), Math.Sign(dir.Z));
-        float T(float p, float d, int c, int s) => d == 0 ? float.PositiveInfinity : ((s > 0 ? c + 1 : c) - p) / d;
-        float tx = T(o.X, dir.X, cell.X, step.X), ty = T(o.Y, dir.Y, cell.Y, step.Y), tz = T(o.Z, dir.Z, cell.Z, step.Z);
-        float dx = step.X == 0 ? float.PositiveInfinity : Mathf.Abs(1 / dir.X), dy = step.Y == 0 ? float.PositiveInfinity : Mathf.Abs(1 / dir.Y), dz = step.Z == 0 ? float.PositiveInfinity : Mathf.Abs(1 / dir.Z);
-        var n = Vector3I.Zero; float t = 0;
-        for (int i = 0; i < 128 && t <= max; i++)
-        {
-            byte id = a.Get(cell.X, cell.Y, cell.Z);
-            if (id != 0 && id != 255 && !Blocks.Def(id).IsFluid)
-            {
-                var hit = o + dir * t; if ((hit - (GlobalPosition + Vector3.Up)).Length() > reach + 1f) return null;
-                return (cell, n);
-            }
-            if (tx < ty && tx < tz) { t = tx; tx += dx; cell.X += step.X; n = new Vector3I(-step.X, 0, 0); }
-            else if (ty < tz) { t = ty; ty += dy; cell.Y += step.Y; n = new Vector3I(0, -step.Y, 0); }
-            else { t = tz; tz += dz; cell.Z += step.Z; n = new Vector3I(0, 0, -step.Z); }
-        }
-        return null;
-    }
+    /// <summary>The hero's eye, where block reach is measured from.</summary>
+    internal Vector3 BlockEye => GlobalPosition + Vector3.Up * 1.5f;
+    /// <summary>The block under the reticle within reach (BlockAim.Target: the camera ray through the screen centre, reach from the eye).</summary>
+    (Vector3I b, Vector3I n)? Aim() => BlockAim.Target(GetViewport(), BlockEye, Blocks.F("world.reach", 6f)) is { } t ? (t.b, t.n) : null;
+    /// <summary>This frame's build-mode target (block, face normal) for tests and captures; null when nothing is in reach.</summary>
+    internal (Vector3I b, Vector3I n)? BlockTarget => BuildMode ? _bTarget : null;
 
     BuildHotbar? _bHud; CanvasLayer? _bLayer;
     /// <summary>The build-mode hotbar at the bottom centre (its own canvas layer above the HUD).</summary>
@@ -357,7 +338,46 @@ public partial class Player
         _crack.Visible = k > .02f; _crack.GlobalPosition = new Vector3(b.X + .5f, b.Y + .5f, b.Z + .5f);
         _crackMat!.AlbedoTexture = _cracks[Mathf.Clamp((int)(k * _cracks.Length), 0, _cracks.Length - 1)];
     }
-    void HideBlockFx() { if (_ghost != null && IsInstanceValid(_ghost)) _ghost.Visible = false; if (_crack != null && IsInstanceValid(_crack)) _crack.Visible = false; }
+    void HideBlockFx()
+    {
+        if (_ghost != null && IsInstanceValid(_ghost)) _ghost.Visible = false;
+        if (_crack != null && IsInstanceValid(_crack)) _crack.Visible = false;
+        if (_outline != null && IsInstanceValid(_outline)) _outline.Visible = false;
+    }
+
+    // the targeted block's outline: 12 thin edge bars (dark rims around pale cores, so it reads on light and dark blocks), unshaded, shared meshes
+    Node3D? _outline; static BoxMesh[]? _edgeMeshes; static StandardMaterial3D? _edgeDark, _edgeLight;
+    void ShowOutline(Vector3I b, byte id)
+    {
+        if (_outline == null || !IsInstanceValid(_outline))
+        {
+            const float L = 1.012f, Wd = .034f, Wl = .014f;   // a hair larger than the block, so the bars do not fight its faces
+            _edgeMeshes ??= new[]
+            {
+                new BoxMesh { Size = new Vector3(L + Wd, Wd, Wd) }, new BoxMesh { Size = new Vector3(Wd, L + Wd, Wd) }, new BoxMesh { Size = new Vector3(Wd, Wd, L + Wd) },
+                new BoxMesh { Size = new Vector3(L + Wl, Wl, Wl) }, new BoxMesh { Size = new Vector3(Wl, L + Wl, Wl) }, new BoxMesh { Size = new Vector3(Wl, Wl, L + Wl) },
+            };
+            _edgeDark ??= new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, AlbedoColor = new Color(.02f, .02f, .03f, .8f), Transparency = BaseMaterial3D.TransparencyEnum.Alpha };
+            _edgeLight ??= new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, AlbedoColor = new Color(.95f, .93f, .85f), RenderPriority = 1 };
+            _outline = new Node3D { Name = "BlockOutline", TopLevel = true }; AddChild(_outline);
+            float h = L / 2f;
+            for (int axis = 0; axis < 3; axis++)
+                foreach (var (u, v) in new[] { (-h, -h), (-h, h), (h, -h), (h, h) })
+                {
+                    var p = axis == 0 ? new Vector3(0, u, v) : axis == 1 ? new Vector3(u, 0, v) : new Vector3(u, v, 0);
+                    // the pale core sits on the outer corner of the dark bar, so both show from any side
+                    var po = p + new Vector3(axis == 0 ? 0 : Mathf.Sign(p.X) * .012f, axis == 1 ? 0 : Mathf.Sign(p.Y) * .012f, axis == 2 ? 0 : Mathf.Sign(p.Z) * .012f);
+                    _outline.AddChild(new MeshInstance3D { Mesh = _edgeMeshes[axis], MaterialOverride = _edgeDark, Position = p, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
+                    _outline.AddChild(new MeshInstance3D { Mesh = _edgeMeshes[3 + axis], MaterialOverride = _edgeLight, Position = po, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
+                }
+        }
+        _outline.Visible = true;
+        // slabs, posts and fences: the outline hugs the shape the ghost uses
+        var c = new Vector3(b.X + .5f, b.Y + .5f, b.Z + .5f); var sc = Vector3.One;
+        var a = BlockWorld.I?.Area; string shape = id != 0 && id != 255 ? Blocks.Def(id).Shape : "";
+        if (shape == "slab" && a != null) { sc = new Vector3(1, .5f, 1); c.Y += (a.GetMeta(b.X, b.Y, b.Z) & 4) != 0 ? .25f : -.25f; }
+        _outline.GlobalPosition = c; _outline.Scale = sc;
+    }
     /// <summary>Five crack stages, drawn once: random walks from the centre, more and longer each stage.</summary>
     static ImageTexture[] MakeCracks()
     {
