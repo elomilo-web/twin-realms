@@ -1,0 +1,20 @@
+{
+  "_help": "Protected town zones (scripts/TownZones.cs, F-18). Inside a zone nobody digs, places or blasts blocks (spells, monster blasts, fire, frost and melt included) unless Admin.IsAdmin. Each town is a circle on the XZ plane: either a fixed x/z (Oakhaven) or a land place ('land' + 'place' ids from lands.json, centre = that place), radius in metres. The host/server also rejects block edits inside a zone (NetBlocks.cs). 'message' uses {town}. Edit radius here only.",
+  "message": "This is {town}: building and digging are not allowed in town.",
+  "towns": [
+    { "id": "village",             "name": "Oakhaven", "x": 0, "z": 0, "radius": 55 },
+    { "land": "frost", "place": "wintermere",  "radius": 50 },
+    { "land": "frost", "place": "hollowfrost", "radius": 42 },
+    { "land": "frost", "place": "rimeholt",    "radius": 38 },
+    { "land": "sun",   "place": "kesh",        "radius": 70 },
+    { "land": "sun",   "place": "dunemere",    "radius": 38 },
+    { "land": "mire",  "place": "bogwater",    "radius": 40 },
+    { "land": "mire",  "place": "reedholm",    "radius": 36 },
+    { "land": "ember", "place": "ashford",     "radius": 64 },
+    { "land": "ember", "place": "cinderhold",  "radius": 50 },
+    { "land": "ember", "place": "emberfall",   "radius": 40 },
+    { "land": "elder", "place": "aurelion",    "radius": 84 },
+    { "land": "elder", "place": "thistledown", "radius": 40 },
+    { "land": "elder", "place": "mossbrook",   "radius": 38 }
+  ]
+}

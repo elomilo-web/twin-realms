@@ -47,7 +47,7 @@ public static class BlockFx
             {
                 if (changed >= cap) break;
                 byte id = a.Get(x, y, z); if (id == 0 || id == 255) continue;
-                var def = Blocks.Def(id); if (!def.Breakable || def.IsFluid || a.Gen.Protected(x, y, z) || BlockUse.Protects(a, x, y, z)) continue;
+                var def = Blocks.Def(id); if (!def.Breakable || def.IsFluid || a.Gen.Protected(x, y, z) || BlockUse.Protects(a, x, y, z) || TownZones.Blocks(x, z)) continue;   // F-18: no spell or blast breaks town blocks (admins aside)
                 if (src is Src.Enemy or Src.Boss && (def.Hardness > maxHard || (dungeon && y < 0))) continue;   // monsters never sink a dungeon floor
                 float need = def.Hardness * cost * (w.Frozen(x, y, z) ? .5f : 1f), eff = S * (1 - edge * Mathf.Clamp(d / Mathf.Max(R, .01f), 0, 1));
                 if (eff < need) continue;
@@ -73,6 +73,7 @@ public static class BlockFx
         {
             if (n >= cap) break;
             byte id = a.Get(x, y, z); if (id == 0 || id == 255) continue;
+            if (TownZones.Blocks(x, z)) continue;   // F-18: no ignite, freeze, melt, rot... inside a town
             var def = Blocks.Def(id);
             bool open = a.Get(x, y + 1, z) is 0 or 255 || !Blocks.Def(a.Get(x, y + 1, z)).Opaque;   // an exposed surface
             if (frz > 0 && def.FreezesTo != "" && (def.Fluid != "water" || open) && GD.Randf() < frz) { w.Change(x, y, z, Blocks.Id(def.FreezesTo)); n++; continue; }
@@ -113,6 +114,7 @@ public static class BlockFx
         var w = BlockWorld.I; var a = w?.Area; if (w == null || a == null) return false;
         byte id = a.Get(x, y, z); if (id == 0 || id == 255) return false; var def = Blocks.Def(id);
         if (!def.Breakable || def.IsFluid || a.Gen.Protected(x, y, z)) return false;
+        if (TownZones.Blocks(x, z)) return false;   // F-18 protected town zone
         if (BlockUse.Protects(a, x, y, z) && !BlockUse.MayOpen(a, BlockUse.Anchor(a, x, y, z), BlockUse.Me, BlockUse.Admin)) return false;   // a locked door or chest: only its owner digs it out
         w.Change(x, y, z, 0);
         string item = Blocks.DropItem(def.Drops);
@@ -138,6 +140,7 @@ public static class BlockFx
     {
         var a = BlockWorld.I?.Area; if (a == null) return "No block world here";
         byte cur = a.Get(x, y, z); if (cur == 255) return "Too far";
+        if (TownZones.Deny(x, z) is { } town) return town;   // F-18 protected town zone
         if (cur != 0 && !Blocks.Def(cur).IsFluid) return "Something is there";
         if (a.Gen.KeepClear(x, y, z)) return "This way must stay clear";
         var box = new Aabb(new Vector3(x, y, z), Vector3.One);

@@ -25,6 +25,20 @@ public partial class Net
     void R_BlocksUp(string area, byte[] packed)
     {
         if (!_server) return;
+        // F-18/F-44: the host rejects edits inside a protected town zone (unless the sender is an admin) and tells the sender the real blocks
+        long sender = Multiplayer.GetRemoteSenderId();
+        if (area == "overworld" && !Admin.IsPeerAdmin(sender))
+        {
+            var keep = new List<(int x, int y, int z, byte id, byte meta)>(); var back = new List<(int x, int y, int z, byte id, byte meta)>();
+            foreach (var e in BlockArea.Unpack(packed))
+            {
+                if (TownZones.AtBlock(e.x, e.z) is not { } zone) { keep.Add(e); continue; }
+                GD.Print($"[town] rejected block edit from peer {sender} at {e.x},{e.y},{e.z} (id {e.id}) inside {zone.Name}");
+                if (BlockWorld.I?.Overworld() is { } ow) back.Add((e.x, e.y, e.z, ow.Get(e.x, e.y, e.z), ow.GetMeta(e.x, e.y, e.z)));
+            }
+            if (back.Count > 0) RpcId(sender, MethodName.R_Blocks, area, BlockArea.Pack(back));
+            if (keep.Count != BlockArea.Unpack(packed).Count) { if (keep.Count == 0) return; packed = BlockArea.Pack(keep); }
+        }
         BlockWorld.I?.ApplyRemote(area, packed);
         if (Dedicated) BlockWorld.KeepServerDiff(area, packed);
         Rpc(MethodName.R_Blocks, area, packed);   // to everyone (the sender re-applies the same values: no harm)

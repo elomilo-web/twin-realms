@@ -87,6 +87,21 @@ void fragment() {
         else
         {
             foreach (var rd in World.Roads) for (int i = 0; i < rd.Length - 1; i++) DrawDashedLine(W2S(rd[i].X, rd[i].Y), W2S(rd[i + 1].X, rd[i + 1].Y), InkSoft, 1.5f, 6f);
+            // F-18: protected town zones, a dashed gold ring per town (radius in map pixels from the world scale)
+            var gold = new Color(.95f, .78f, .3f, .95f);
+            foreach (var tz in TownZones.All)
+            {
+                var c0 = W2S(tz.X, tz.Z); float rp = (W2S(tz.X + tz.R, tz.Z) - c0).Length(); if (rp < 3) continue;
+                int seg = Mathf.Clamp((int)(rp * .9f), 24, 120);
+                for (int i = 0; i < seg; i += 2) DrawArc(c0, rp, i * Mathf.Tau / seg, (i + 1) * Mathf.Tau / seg, 4, gold, 2f);
+            }
+            if (TownZones.All.Count > 0)
+            {   // legend, bottom left
+                var lp = new Vector2(18, Size.Y - 26);
+                DrawRect(new Rect2(lp + new Vector2(-8, -17), new Vector2(190, 26)), new Color(.05f, .03f, .02f, .6f));
+                for (int i = 0; i < 3; i++) DrawLine(lp + new Vector2(i * 10, -4), lp + new Vector2(i * 10 + 6, -4), gold, 2.5f);
+                Label(lp + new Vector2(38, 0), "Protected town zone", 14, new Color(.93f, .88f, .76f));
+            }
             foreach (var p in World.Pois)
             {
                 bool known = Game.D.Disc.Contains(p.Id); var s = W2S(p.X, p.Z);

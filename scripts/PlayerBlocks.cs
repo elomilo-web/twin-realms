@@ -157,11 +157,13 @@ public partial class Player
             if (t.b != _digAt) { _digAt = t.b; _digT = 0; }
             var def = Blocks.Def(id); float need = Blocks.DigTime(def, Game.D.WType(), Game.D.Pick) * (BlockWorld.I.Frozen(t.b.X, t.b.Y, t.b.Z) ? .5f : 1f);
             bool locked = BlockUse.Protects(a, t.b.X, t.b.Y, t.b.Z) && !BlockUse.MayOpen(a, BlockUse.Anchor(a, t.b.X, t.b.Y, t.b.Z), BlockUse.Me, BlockUse.Admin);
-            bool prot = a.Gen.Protected(t.b.X, t.b.Y, t.b.Z) || locked;
+            string? townMsg = TownZones.Deny(t.b.X, t.b.Z);
+            bool prot = a.Gen.Protected(t.b.X, t.b.Y, t.b.Z) || locked || townMsg != null;
             _modelYaw = Rig?.Yaw ?? _modelYaw;
             if (float.IsInfinity(need) || prot)
             {
-                if (_digT == 0)
+                if (townMsg != null) TownZones.Notify(townMsg);
+                else if (_digT == 0)
                 {
                     int needT = Blocks.PickNeeded(def);
                     Ui.Note(locked ? def.Name + " is locked: only its owner can break it" : !prot && def.Breakable && needT > Game.D.Pick ? $"{def.Name} needs a {Blocks.PickName(needT)}" : def.Name + " cannot be broken", Ui.Dim);
@@ -196,7 +198,7 @@ public partial class Player
         if ((press || (hold && _placeRep <= 0)) && _placeCd <= 0)
         {
             _placeCd = Blocks.F("world.placeCooldown", .18f); _placeRep = press ? .3f : .2f;
-            if (why != null) { if (press) Ui.Note(why, new Color(1, .6f, .5f)); }
+            if (why != null) { if (press) { if (TownZones.Deny(at.X, at.Z) != null) TownZones.Notify(why); else Ui.Note(why, new Color(1, .6f, .5f)); } }
             else
             {
                 var bid = Blocks.Id(_sel);

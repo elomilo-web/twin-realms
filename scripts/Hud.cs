@@ -141,7 +141,7 @@ public partial class HudCanvas : Control
     void DrawInfoLine(Player p, float cx, float y, int fz, float hrs)
     {
         _infoT -= (float)GetProcessDeltaTime(); int gold = Game.D.Gold;
-        if (_infoT <= 0 || gold != _lastGold) { _infoT = .4f; _lastGold = gold; _tStr = $"{(int)hrs:00}:{(int)((hrs - (int)hrs) * 60):00}"; _pStr = Dungeon.Active ? $"Depth {Dungeon.Depth}" : PlaceName(p.GlobalPosition) + (Zones.At(p.GlobalPosition.X, p.GlobalPosition.Z) is { } zn ? "  Lv " + Zones.RangeText(zn, World.Realm).Substring(6) : ""); _gStr = gold.ToString(); }
+        if (_infoT <= 0 || gold != _lastGold) { _infoT = .4f; _lastGold = gold; _tStr = $"{(int)hrs:00}:{(int)((hrs - (int)hrs) * 60):00}"; _pStr = Dungeon.Active ? $"Depth {Dungeon.Depth}" : PlaceName(p.GlobalPosition) + (TownZones.At(p.GlobalPosition.X, p.GlobalPosition.Z) is { } tz ? "  [Protected: " + tz.Name + "]" : "") + (Zones.At(p.GlobalPosition.X, p.GlobalPosition.Z) is { } zn ? "  Lv " + Zones.RangeText(zn, World.Realm).Substring(6) : ""); _gStr = gold.ToString(); }
         bool shadow = World.Realm == 1; var dim = new Color(UiTheme.Dim.Lightened(.15f), .85f);
         float iw = fz, gap = fz * .7f, tw = F.GetStringSize(_tStr, HorizontalAlignment.Left, -1, fz).X, pw = F.GetStringSize(_pStr, HorizontalAlignment.Left, -1, fz).X, gw = F.GetStringSize(_gStr, HorizontalAlignment.Left, -1, fz).X;
         float total = iw + gap + tw + gap + pw + gap + iw + 4 + gw, x = cx - total / 2, r = fz * .36f; var ic = new Vector2(x + iw / 2, y - fz * .32f);
