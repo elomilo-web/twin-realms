@@ -62,7 +62,8 @@ public partial class Avatar : Node3D
             string beard = S(Cfg.GetProperty("hair"), "beard");
             if (ap.Beard && !Female && beard != "") _hair.AddRange(AddPart(HairDir + Ext(beard), "hair", ap.Hair, true));
         }
-        if (Cfg.TryGetProperty("raceFeatures", out var rf) && rf.ValueKind == JsonValueKind.True) RaceFeatures(ap);   // off: no cones for ears, tusks or horns
+        if (Cfg.TryGetProperty("raceFeatures", out var rf) && rf.ValueKind == JsonValueKind.True) RaceFeatures(ap);   // ears, horns, tusks, tails, wings (F-35)
+        if (Mathf.Abs(ap.HeadScale - 1f) > .005f && _sk.FindBone("Head") >= 0) _sk.AddChild(new BodyShape { Name = "BodyShape", Head = ap.HeadScale });   // race head size
         _ap = new AnimationPlayer { Name = "Anim" }; Body.AddChild(_ap); _ap.RootNode = new NodePath("..");
         _ap.AddAnimationLibrary("", Library(_sex, _sk));
         HasModel = true; Play("idle"); CharRim.Apply(this); ApplyHeadLayer();
@@ -459,7 +460,7 @@ public partial class Avatar : Node3D
         foreach (var h in _hair) if (IsInstanceValid(h)) L(h);
         foreach (var c in _sk.GetChildren())
             if (c is MeshInstance3D mi) { var nm = mi.Name.ToString(); if (nm.Contains("Eye") || nm.Contains("brow") || nm.Contains("Teeth") || nm.Contains("Tongue") || nm.Contains("lash")) mi.Layers = CameraRig.HeadLayer; }
-        foreach (var s in new[] { "head", "race" }) foreach (var n in SlotNodes(s)) if (IsInstanceValid(n)) L(n);
+        foreach (var s in new[] { "head", "race", "racetop" }) foreach (var n in SlotNodes(s)) if (IsInstanceValid(n)) L(n);
     }
     /// <summary>Shows the hair even under gear that would hide it (bosses who wear a helm-less plate but keep their hair).</summary>
     public void ShowHair() { foreach (var h in _hair) if (h is Node3D h3 && IsInstanceValid(h3)) h3.Visible = true; }
@@ -468,17 +469,118 @@ public partial class Avatar : Node3D
     /// <summary>The right-hand holder a held weapon of this type would use: +Z runs along the blade from the grip.</summary>
     public Node3D HandSocket(string wt = "sword") { var (hp, hr) = WeaponHold(wt, ""); return Holder("hand_r", hp, hr, "extra"); }
 
-    // ------------------------------------------------------------------ race features (procedural for now)
+    // ------------------------------------------------------------------ race features (F-35)
+    // Small anime-style attachments on bones, fitted to the skull measured for the helmets (data/avatar.json head _help). Head bone
+    // frame, model space (+Y up, +Z = the face): skull top +0.148, eyes +0.035, half width 0.084, face 0.11 in front, back 0.09 behind.
+    // Ears and tusks: slot "race"; fox ears and horns: "racetop" (hidden under helmets and hoods with the hair); tails and wings: "racebody".
+    static StandardMaterial3D RMat(Color c, float rough = .7f, float alpha = 1f, float glow = 0f)
+    {
+        var m = new StandardMaterial3D { AlbedoColor = c with { A = alpha }, Roughness = rough };
+        if (alpha < 1f) { m.Transparency = BaseMaterial3D.TransparencyEnum.Alpha; m.CullMode = BaseMaterial3D.CullModeEnum.Disabled; }
+        if (glow > 0f) { m.EmissionEnabled = true; m.Emission = c; m.EmissionEnergyMultiplier = glow; }
+        return m;
+    }
+    static Mesh Cone(float len, float r0, float r1, int seg = 8) => new CylinderMesh { Height = len, BottomRadius = r0, TopRadius = r1, RadialSegments = seg, Rings = 1 };
+    static readonly SphereMesh UnitBall = new() { Radius = .5f, Height = 1f, RadialSegments = 14, Rings = 7 };
+    /// <summary>A mesh (built along +Y, centred) laid from <paramref name="at"/> along <paramref name="dir"/> for len metres; scale = (wide, along, thin) on its own axes, thin = thinAxis.</summary>
+    static MeshInstance3D Piece(Node3D parent, Mesh mesh, Material mat, Vector3 at, Vector3 dir, Vector3 thinAxis, float len, Vector3 scale, bool shadow = true)
+    {
+        var y = dir.Normalized(); var z = thinAxis - y * thinAxis.Dot(y);
+        z = z.LengthSquared() < 1e-6f ? (Mathf.Abs(y.Z) < .9f ? Vector3.Back : Vector3.Right) : z.Normalized();
+        var x = y.Cross(z);
+        var mi = new MeshInstance3D { Mesh = mesh, MaterialOverride = mat, CastShadow = shadow ? GeometryInstance3D.ShadowCastingSetting.On : GeometryInstance3D.ShadowCastingSetting.Off };
+        mi.Transform = new Transform3D(new Basis(x * scale.X, y * scale.Y, z * scale.Z), at + y * len * .5f);
+        parent.AddChild(mi); return mi;
+    }
+    /// <summary>A tapered horn or tail segment; returns its tip.</summary>
+    static Vector3 Seg(Node3D p, Material m, Vector3 at, Vector3 dir, float len, float r0, float r1, int seg = 8)
+    {
+        Piece(p, Cone(len, r0, r1, seg), m, at, dir, Vector3.Back, len, Vector3.One); return at + dir.Normalized() * len;
+    }
+
     void RaceFeatures(Appearance ap)
     {
-        if (!ap.PointyEars && !ap.Tusks && !ap.Horns) return;
-        var head = Holder("Head", new Vector3(0, .1f, 0), Vector3.Zero, "race");
-        var skin = new StandardMaterial3D { AlbedoColor = ap.Skin }; var bone = new StandardMaterial3D { AlbedoColor = new Color(.92f, .88f, .76f) };
-        foreach (float s in new[] { -1f, 1f })
+        string ears = ap.Ears != "" ? ap.Ears : ap.PointyEars ? "pointy" : "", horns = ap.HornKind != "" ? ap.HornKind : ap.Horns ? "curl" : "";
+        var skin = RMat(ap.Skin); var bone = RMat(new Color(.9f, .85f, .72f), .45f);
+        bool head = _sk.FindBone("Head") >= 0;
+        if (head && (ears != "" || ap.Tusks))
         {
-            if (ap.PointyEars) head.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 0, BottomRadius = .028f, Height = .13f, RadialSegments = 6 }, MaterialOverride = skin, Position = new Vector3(s * .085f, .0f, -.01f), Rotation = new Vector3(-.5f, 0, -s * 1.15f) });
-            if (ap.Tusks) head.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 0, BottomRadius = .012f, Height = .05f, RadialSegments = 5 }, MaterialOverride = bone, Position = new Vector3(s * .028f, -.07f, .085f), Rotation = new Vector3(-.3f, 0, 0) });
-            if (ap.Horns) head.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 0, BottomRadius = .028f, Height = .16f, RadialSegments = 6 }, MaterialOverride = bone, Position = new Vector3(s * .06f, .1f, .0f), Rotation = new Vector3(-.5f, 0, -s * .5f) });
+            var h = Holder("Head", Vector3.Zero, Vector3.Zero, "race");
+            var fin = RMat(ap.Skin.Lerp(new Color(.2f, .75f, .8f), .45f), .4f, .9f);
+            foreach (float s in new[] { -1f, 1f })
+            {
+                if (ears == "pointy")   // elf / fae: a flat blade sweeping back and up from the side of the head
+                    Piece(h, Cone(.078f, .026f, .002f, 8), skin, new Vector3(s * .074f, .022f, -.012f), new Vector3(s * .62f, .42f, -.66f), new Vector3(s * .7f, 0, .7f), .078f, new Vector3(1, 1, .36f));
+                else if (ears == "fin")   // tidekin: a webbed fin behind the jaw
+                {
+                    Piece(h, Cone(.09f, .036f, .002f, 3), fin, new Vector3(s * .076f, .018f, -.006f), new Vector3(s * .42f, .32f, -.85f), new Vector3(s, 0, 0), .09f, new Vector3(1, 1, .22f));
+                    Piece(h, Cone(.06f, .024f, .002f, 3), fin, new Vector3(s * .078f, -.012f, -.004f), new Vector3(s * .4f, -.1f, -.9f), new Vector3(s, 0, 0), .06f, new Vector3(1, 1, .22f));
+                }
+                if (ap.Tusks) Piece(h, Cone(.032f, .009f, .001f, 6), bone, new Vector3(s * .024f, -.052f, .086f), new Vector3(s * .15f, 1f, .2f), Vector3.Back, .032f, Vector3.One);
+            }
+        }
+        if (head && (ears == "fox" || horns != ""))
+        {
+            var t = Holder("Head", Vector3.Zero, Vector3.Zero, "racetop");
+            var fur = RMat(ap.Hair, .85f); var inner = RMat(ap.Hair.Lerp(new Color(1f, .9f, .85f), .65f), .9f);
+            var horn = horns == "oni" ? RMat(new Color(.95f, .88f, .62f), .4f) : horns == "dragon" ? RMat(ap.Skin.Darkened(.55f), .35f) : RMat(new Color(.2f, .17f, .24f), .35f);
+            foreach (float s in new[] { -1f, 1f })
+            {
+                if (ears == "fox")   // beastkin: tall triangular ears standing out of the hair
+                {
+                    Piece(t, Cone(.105f, .046f, .003f, 4), fur, new Vector3(s * .05f, .132f, -.014f), new Vector3(s * .32f, 1f, -.1f), Vector3.Back, .105f, new Vector3(1, 1, .4f));
+                    Piece(t, Cone(.075f, .03f, .002f, 4), inner, new Vector3(s * .051f, .136f, -.004f), new Vector3(s * .32f, 1f, -.1f), Vector3.Back, .075f, new Vector3(1, 1, .3f));
+                }
+                switch (horns)
+                {
+                    case "curl":   // shadowkin: ram-like horns curling back over the ears
+                    {
+                        var p = Seg(t, horn, new Vector3(s * .045f, .124f, .045f), new Vector3(s * .3f, .85f, -.35f), .06f, .022f, .016f);
+                        p = Seg(t, horn, p, new Vector3(s * .35f, .2f, -.9f), .06f, .016f, .009f);
+                        Seg(t, horn, p, new Vector3(s * .1f, -.6f, -.6f), .045f, .009f, .001f); break;
+                    }
+                    case "dragon":   // drakeling: long horns swept straight back
+                    {
+                        var p = Seg(t, horn, new Vector3(s * .04f, .128f, .035f), new Vector3(s * .2f, .6f, -.75f), .085f, .024f, .016f);
+                        p = Seg(t, horn, p, new Vector3(s * .12f, .25f, -1f), .085f, .016f, .006f);
+                        Seg(t, horn, p, new Vector3(0, .35f, -1f), .05f, .006f, .001f); break;
+                    }
+                    case "oni":   // oni: short ivory horns from the brow
+                    {
+                        var p = Seg(t, horn, new Vector3(s * .038f, .13f, .06f), new Vector3(s * .25f, 1f, .2f), .06f, .02f, .011f);
+                        Seg(t, horn, p, new Vector3(s * .1f, 1f, -.1f), .035f, .011f, .001f); break;
+                    }
+                }
+            }
+        }
+        if (ap.Tail != "" && _sk.FindBone("pelvis") >= 0)
+        {
+            var b = Holder("pelvis", Vector3.Zero, Vector3.Zero, "racebody"); var root = new Vector3(0, .04f, -.1f);
+            if (ap.Tail == "fox")   // a big fluffy tail with a pale tip
+            {
+                var fur = RMat(ap.Hair, .9f); var p = root;
+                foreach (var (d, len, r) in new[] { (new Vector3(0, -.35f, -1f), .16f, .06f), (new Vector3(0, .35f, -1f), .16f, .075f), (new Vector3(0, .9f, -.5f), .14f, .068f) })
+                { Piece(b, UnitBall, fur, p, d, Vector3.Right, len, new Vector3(r * 2f, len * 1.5f, r * 2f)); p += d.Normalized() * len; }
+                Piece(b, UnitBall, RMat(new Color(.96f, .94f, .9f), .9f), p - new Vector3(0, .9f, -.5f).Normalized() * .03f, new Vector3(0, .9f, -.5f), Vector3.Right, .09f, new Vector3(.1f, .12f, .1f));
+            }
+            else   // dragon: a scaled tail tapering to the ground behind
+            {
+                var sc = RMat(ap.Skin.Darkened(.2f), .45f); var p = root;
+                p = Seg(b, sc, p, new Vector3(0, -.4f, -1f), .2f, .055f, .04f, 10);
+                p = Seg(b, sc, p, new Vector3(0, -.75f, -.65f), .2f, .04f, .024f, 10);
+                Seg(b, sc, p, new Vector3(0, -.35f, -1f), .18f, .024f, .002f, 10);
+            }
+        }
+        if (ap.Wings == "fae" && _sk.FindBone("spine_03") >= 0)
+        {   // fae: two pairs of thin glowing dragonfly wings on the upper back
+            var b = Holder("spine_03", Vector3.Zero, Vector3.Zero, "racebody");
+            var wm = RMat(new Color(.72f, .93f, 1f), .2f, .42f, .6f);
+            foreach (float s in new[] { -1f, 1f })
+            {
+                var root = new Vector3(s * .035f, .06f, -.13f);
+                Piece(b, UnitBall, wm, root, new Vector3(s * .85f, .62f, -.35f), Vector3.Back, .42f, new Vector3(.17f, .42f, .008f), false);
+                Piece(b, UnitBall, wm, root - new Vector3(0, .03f, 0), new Vector3(s * .82f, -.45f, -.3f), Vector3.Back, .3f, new Vector3(.12f, .3f, .008f), false);
+            }
         }
     }
 
@@ -543,6 +645,7 @@ public partial class Avatar : Node3D
             if (it != null) foreach (var n in made) if (n is Node3D n3) GearFx.Apply(n3, it, false);
         }
         foreach (var h in _hair) if (h is Node3D h3) h3.Visible = !hideHair;
+        foreach (var n in SlotNodes("racetop")) if (n is Node3D r3 && IsInstanceValid(r3)) r3.Visible = !hideHair;   // fox ears and horns go under helmets and hoods
         MaskBody();
         // weapon and shield
         var w = eq("weapon"); var wcfg = Cfg.GetProperty("weapons");
@@ -1114,5 +1217,18 @@ public static partial class CharRim
             var m = Mat;
             foreach (var g in Meshes) if (GodotObject.IsInstanceValid(g)) { if (!near) { if (g.MaterialOverlay == m) g.MaterialOverlay = null; } else if (g.MaterialOverlay == null) g.MaterialOverlay = m; }
         }
+    }
+}
+
+/// <summary>F-35 race proportions: scales the Head bone after the animation (the head, its face parts and head attachments grow or shrink together).</summary>
+public partial class BodyShape : SkeletonModifier3D
+{
+    public float Head = 1f;
+    int _head = -2;
+    public override void _ProcessModificationWithDelta(double delta)
+    {
+        var sk = GetSkeleton(); if (sk == null) return;
+        if (_head == -2) _head = sk.FindBone("Head");
+        if (_head >= 0) sk.SetBonePoseScale(_head, Vector3.One * Head);
     }
 }

@@ -33,17 +33,25 @@
   "mage": { "spell": 2 }, "warlock": { "spell": 2 }, "necromancer": { "spell": 2 }, "druid": { "spell": 1, "archery": 1 }, "cleric": { "spell": 1, "martial": 1 },
   "spellblade": { "spell": 1, "martial": 1 }, "paladin": { "spell": 1, "martial": 1 },
   "warrior": { "martial": 2 }, "berserker": { "martial": 2 }, "lancer": { "martial": 2 }, "warden": { "martial": 2 },
-  "rogue": { "archery": 2 }, "assassin": { "martial": 1, "archery": 1 }
+  "rogue": { "archery": 2 }, "assassin": { "martial": 1, "archery": 1 },
+  "monk": { "martial": 2 }, "bard": { "spell": 2 }, "shaman": { "spell": 1, "martial": 1 }, "samurai": { "martial": 2 }, "chronomancer": { "spell": 2 }
  },
  "classFamilies": {
   "_help": "which starter kits a class gets",
   "mage": ["spell"], "warlock": ["spell"], "necromancer": ["spell"], "druid": ["spell", "archery"], "cleric": ["spell"],
   "spellblade": ["spell", "martial"], "paladin": ["spell", "martial"],
   "warrior": ["martial"], "berserker": ["martial"], "lancer": ["martial"], "warden": ["martial"],
-  "rogue": ["archery"], "assassin": ["martial", "archery"]
+  "rogue": ["archery"], "assassin": ["martial", "archery"],
+  "monk": ["martial"], "bard": ["spell"], "shaman": ["spell"], "samurai": ["martial"], "chronomancer": ["spell"]
  },
  "start": {
+  "_classHelp": "F-34: a key named after a class is that class's own kit (its class cards, 'cls' in cards); given with the family kits.",
   "all": { "life": 1, "damage": 1 },
+  "monk": { "palm": 2, "chi": 2 },
+  "bard": { "song": 1, "sonic": 2, "crescendo": 1 },
+  "shaman": { "totem": 1, "earth": 2 },
+  "samurai": { "iai": 2, "keen": 1 },
+  "chronomancer": { "rift": 1, "chrono": 2, "loop": 1 },
   "spell": { "missile": 2, "area": 1, "fire": 2, "frost": 1, "storm": 1, "time": 1 },
   "martial": { "slash": 2, "lunge": 1, "steel": 2, "fire": 1, "force": 1 },
   "archery": { "volley": 2, "rain": 1, "steel": 1, "venom": 1, "fire": 1, "spray": 1 }
@@ -122,6 +130,19 @@
   "efficiency": { "type": "modifier", "n": "Efficiency", "req": 1, "w": 7, "mods": { "costP": -30 },                       "d": "Costs 30% less mana or stamina." },
   "wide":     { "type": "modifier", "n": "Expanse",    "req": 2, "w": 7,  "mods": { "aoeP": 40 },                         "d": "40% larger area; on carriers without one, a reach or blast of their own." },
   "precision": { "type": "modifier", "n": "Precision", "req": 3, "w": 5,  "mods": { "critC": 12 },                        "d": "+12% critical strike chance." },
-  "reflex":   { "type": "modifier", "n": "Reflex",     "req": 5, "w": 3,  "mods": { "auto": "hit", "autoCd": 3, "dmgP": -20 }, "d": "While on your hotbar, the spell casts itself when you are hit (every 3 s at most)." }
+  "reflex":   { "type": "modifier", "n": "Reflex",     "req": 5, "w": 3,  "mods": { "auto": "hit", "autoCd": 3, "dmgP": -20 }, "d": "While on your hotbar, the spell casts itself when you are hit (every 3 s at most)." },
+
+  "palm":     { "type": "carrier", "family": "martial", "cls": "monk",    "n": "Palm",         "from": "palmstrike",   "req": 1, "w": 6, "d": "Monk card. A chi-charged palm strike that blasts a foe back.", "stackHint": "Each extra copy: reaches farther." },
+  "chi":      { "type": "effect", "cls": "monk",    "n": "Chi",    "adj": "Chi",     "etype": "physical",  "req": 1, "w": 6, "status": { "shred": [0.6, 1, 0] }, "knock": 4, "stun": 0.3, "buff": { "aspd": 15, "evade": 10 }, "ward": { "evade": 15, "tenacity": 20 }, "d": "Monk card. Physical force that sunders armor and dazes; on an enchant, quicker hands and feet." },
+  "song":     { "type": "carrier", "family": "spell",   "cls": "bard",    "n": "Song",         "from": "balladheroes", "req": 1, "w": 6, "set": { "mp": 40, "cd": 22, "dur": 12 }, "d": "Bard card. A song that blesses you and nearby allies with the effect's power.", "stackHint": "Each extra copy: lasts longer, reaches farther." },
+  "sonic":    { "type": "effect", "cls": "bard",    "n": "Sonic",  "adj": "Resonant", "etype": "lightning", "req": 1, "w": 6, "status": { "shock": [0.5, 1, 0], "weaken": [0.5, 1, 0] }, "buff": { "allP": 10, "castSpd": 10 }, "ward": { "thorns": 30 }, "d": "Bard card. Ringing sound that shocks and weakens; on a song, sharper and quicker allies." },
+  "crescendo": { "type": "modifier", "cls": "bard", "n": "Crescendo",  "req": 2, "w": 5, "mods": { "dmgP": 15, "aoeP": 25, "costP": 15 }, "d": "Bard card. +15% damage and +25% area, +15% cost." },
+  "totem":    { "type": "carrier", "family": "spell",   "cls": "shaman",  "n": "Totem",        "from": "stormtotem",   "req": 1, "w": 6, "d": "Shaman card. A spirit totem that strikes the nearest foe again and again.", "stackHint": "Each extra copy: stands longer and reaches farther." },
+  "earth":    { "type": "effect", "cls": "shaman",  "n": "Earth",  "adj": "Earthen", "etype": "physical",  "req": 1, "w": 6, "status": { "root": [0.4, 1, 0], "shred": [0.5, 1, 0] }, "knock": 2, "buff": { "def": 30, "hpP": 6 }, "ward": { "def": 25, "tenacity": 25 }, "d": "Shaman card. Stone and soil that root and sunder foes; on an enchant, a sturdier party." },
+  "iai":      { "type": "carrier", "family": "martial", "cls": "samurai", "n": "Iai",          "from": "iaido",        "req": 1, "w": 6, "d": "Samurai card. Draw and cut as you dash past: always a critical strike.", "stackHint": "Each extra copy: dash farther." },
+  "keen":     { "type": "modifier", "cls": "samurai", "n": "Keen Edge", "req": 1, "w": 5, "mods": { "critC": 15, "dmgP": 10, "costP": 10 }, "d": "Samurai card. +15% critical chance and +10% damage, +10% cost." },
+  "rift":     { "type": "carrier", "family": "spell",   "cls": "chronomancer", "n": "Rift",    "from": "temporalrift", "req": 3, "w": 5, "d": "Chronomancer card. A rift in time that drags foes in, then snaps shut.", "stackHint": "Each extra copy: a wider rift." },
+  "chrono":   { "type": "effect", "cls": "chronomancer", "n": "Chrono", "adj": "Timeless", "etype": "lightning", "req": 1, "w": 6, "status": { "chill": [1, 1.5, 0.3] }, "buff": { "castSpd": 20, "cdr": 15 }, "ward": { "tenacity": 30, "move": 10 }, "d": "Chronomancer card. Slowed time that chills foes to a stop; on an enchant, faster casting and cooldowns." },
+  "loop":     { "type": "modifier", "cls": "chronomancer", "n": "Time Loop", "req": 3, "w": 4, "mods": { "echo": 1, "dmgP": -25, "cdP": 10 }, "d": "Chronomancer card. The spell happens once more, 25% weaker; 10% longer cooldown." }
  }
 }

@@ -137,6 +137,7 @@ public partial class Obelisk : Node3D, IInteractable
 public partial class Npc : Node3D, IInteractable
 {
     public string Id = "", NpcName = "", Role = "talk"; public string[] Lines = new string[0]; public string[] QuestIds = new string[0];
+    public string Outfit = "", Sex = ""; public Color? Tint;   // F-27 (data/npcs.json): data/avatar.json "npcs" outfit role, "f"/"m", outfit colour
     int _line;
     public string Prompt => "Talk to " + NpcName;
     public bool CanInteract => true;
@@ -155,14 +156,14 @@ public partial class Npc : Node3D, IInteractable
     Avatar? _av;
     void BuildAvatar(System.Random rg)
     {
-        string role = NpcName.StartsWith("Guard") ? "guard" : Role;
+        string role = Outfit != "" && Avatar.Npc(Outfit) != null ? Outfit : NpcName.StartsWith("Guard") ? "guard" : Role;
         var skins = new[] { new Color(.96f, .82f, .7f), new Color(.86f, .66f, .5f), new Color(.62f, .44f, .32f), new Color(.98f, .86f, .78f) };
         var hairs = new[] { new Color(.15f, .1f, .06f), new Color(.45f, .3f, .15f), new Color(.8f, .65f, .38f), new Color(.68f, .68f, .7f), new Color(.55f, .22f, .1f) };
-        bool female = role != "guard" && role != "arena" && role != "smith" && rg.Next(2) == 0;
+        bool female = Sex != "" ? Sex == "f" : role != "guard" && role != "arena" && role != "smith" && rg.Next(2) == 0;
         var ap = new Appearance { Female = female, Skin = skins[rg.Next(skins.Length)], Hair = hairs[Id == "maren" ? 3 : rg.Next(hairs.Length)], Beard = !female && rg.Next(4) == 0 };
         _av = new Avatar { Name = "Avatar" }; AddChild(_av); _av.Build(ap, Id + NpcName);
         var cfg = Avatar.Npc(role) ?? Avatar.Npc("talk");
-        Color? tint = cfg is { } c && Avatar.Str(c, "tint") != "" ? Color.FromHtml(Avatar.Str(c, "tint")) : Color.FromHsv((float)rg.NextDouble(), .35f, .95f);
+        Color? tint = Tint ?? (cfg is { } c && Avatar.Str(c, "tint") != "" ? Color.FromHtml(Avatar.Str(c, "tint")) : Color.FromHsv((float)rg.NextDouble(), .35f, .95f));
         string wt = cfg is { } c2 ? Avatar.Str(c2, "weapon") : "";
         _av.Dress(cfg is { } c3 ? Avatar.Outfit(c3) : _ => null, wt == "" ? "none" : wt, tint.Value, tint);
         _idle = cfg is { } c4 ? Avatar.Str(c4, "idle", "idle") : "idle"; _av.Play(_idle);

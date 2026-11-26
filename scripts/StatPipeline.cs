@@ -79,7 +79,9 @@ public static class StatPipeline
         _mods.Clear(); _clamped.Clear(); Ver++;
         void Add(StatStage st, string src, IEnumerable<KeyValuePair<string, float>>? m) { if (m != null) foreach (var kv in m) if (kv.Value != 0) _mods.Add((kv.Key, st, src, kv.Value)); }
         var r = Races.Get(d.Race); Add(StatStage.Race, "race " + r.Name, r.Mods);
+        foreach (var p in r.Passives) Add(StatStage.Race, "racial passive " + p.Name, p.Mods);   // F-35
         var c = Classes.Get(d.Class); Add(StatStage.Class, "class " + c.Name, c.Mods);
+        foreach (var p in c.Passives) Add(StatStage.Class, "class passive " + p.Name, p.Mods);   // F-34
         foreach (var kv in d.Eq) if (kv.Value?.Mods != null) Add(StatStage.Gear, kv.Value.Name, kv.Value.Mods);   // affixes, Golden Wings
         var tmp = new TreeStats(); LootTables.Apply(d, tmp); Add(StatStage.Gear, "set bonuses", tmp.All.ToList());
         foreach (var kv in d.Eq) if (kv.Value?.Gems is { } gems) foreach (var g in gems) Add(StatStage.Gems, kv.Value.Name + " gem", g);   // F-10

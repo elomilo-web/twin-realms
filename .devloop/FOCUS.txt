@@ -607,14 +607,49 @@ PHASE 6 - NPCS AND A LIVING WORLD
 PHASE 7 - CHARACTERS
 ================================================================================
 
-[ ] F-34  MORE CLASSES
+[x] F-34  MORE CLASSES
     DONE WHEN: new classes are added, each with its own skills, passives,
     starting gear, and spellcraft cards. The full class list is written in
     the item's note.
+    NOTE: 18 classes. Existing 13: Warrior, Ranger (id rogue), Mage, Paladin,
+    Berserker, Assassin, Spellblade, Cleric, Druid, Necromancer, Warlock,
+    Lancer, Warden. New 5 (data/classes.json "passives" + "gear"):
+      Monk (fists): Palm Strike, Cyclone Kick, Chi Wave, Flying Crane, Inner
+        Peace, Iron Body; Flowing Water / Iron Fist / Inner Chi; Robe, Hand
+        Wraps, Sandals; cards Palm (carrier), Chi (effect).
+      Bard (wand): Sonic Riff, Discordant Chord, Lullaby, Ballad of Heroes,
+        Mending Verse; Virtuoso / Inspiring Presence / Silver Tongue;
+        Longcoat, Feathered Cap, Boots, Cape; cards Song, Sonic, Crescendo.
+      Shaman (staff): Storm Totem, Lava Burst, Earth Shock, Healing Spring,
+        Windfury; Storm Caller / Ancestral Ward / Spirit Link; Hide Jerkin,
+        Bone Bracers, Fur Boots, Spirit Shroud; cards Totem, Earth.
+      Samurai (katana): Iaido Draw, Crescent Moon, Wind Scythe, Kiai,
+        Thousand Cuts; Way of the Blade / Bushido / Focused Mind; Lamellar
+        Cuirass, Kabuto Helm, Bracers, Tabi Boots; cards Iai, Keen Edge.
+      Chronomancer (staff): Chrono Bolt, Rewind, Accelerate, Stasis,
+        Temporal Rift; Borrowed Time / Clockwork Mind / Slipstream; Chrono
+        Vestments, Silver Circlet, Boots, Starlit Cape; cards Rift, Chrono,
+        Time Loop.
+    25 new skills with their own icons (95 total, 0 duplicates). Class cards
+    ("cls") are in the class's starter kit and only drop for that class. New
+    classes start on a kindred class's tree arm (Monk>Lancer, Bard>Cleric,
+    Shaman>Druid, Samurai>Berserker, Chronomancer>Mage). Seen: class_lineup.
 
-[ ] F-35  MORE RACES
+[x] F-35  MORE RACES
     DONE WHEN: new races are added. Each has stat bonuses, a racial passive,
     and its own model or body proportion options.
+    NOTE: 13 races. Existing 8: Human, Elf, Dwarf, Orc, Halfling, Shadowkin,
+    Drakeling, Lumen. New 5 (data/races.json "passive"):
+      Beastkin (fox ears + tail; Wild Instincts: climb +50%, jump +15%,
+        sneak +25%), Fae (small, big head, pointy ears, glowing wings;
+        Gossamer Wings: jump +40%, mana regen), Undying (pale, glowing eyes;
+        Deathless: cheat death every 3 min, breath +400%), Tidekin (blue
+        skin, ear fins; Gills: breath +500%, swim +50%), Oni (tall, ivory
+        horns, tusks; Oni Might: power attacks +15%, knockback, tenacity).
+    Body options per race: height, bulk, head size (BodyShape modifier on the
+    Head bone) and attachments refitted to the measured skull (raceFeatures
+    on again: elf ears, orc tusks, shadowkin/drakeling horns, drakeling
+    tail). Seen: race_lineup, race_lineup_back, race_heads, create_screen.
 
 [ ] F-36  FULL CHARACTER CREATOR
     DONE WHEN: the character creator includes:

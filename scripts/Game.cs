@@ -158,8 +158,7 @@ public static class Game
         var c = Classes.Get(cls); var r = Races.Get(race);
         void Attr(Dictionary<string, int> a) { foreach (var kv in a) switch (kv.Key) { case "str": D.Str += kv.Value; break; case "dex": D.Dex += kv.Value; break; case "vit": D.Vit += kv.Value; break; case "mag": D.Mag += kv.Value; break; } }
         Attr(c.Attr); Attr(r.Attr); D.SkillPts += r.Pts;
-        D.Eq["weapon"] = new Item { Name = c.WName, Slot = "weapon", Wt = c.Wt, Dmg = c.WDmg, Sp = c.WSp, Two = Weapons.Get(c.Wt).Hands > 1 };
-        D.Eq["shield"] = c.Shield ? new Item { Name = "Oak Buckler", Slot = "shield", Def = 2 } : null;
+        foreach (var kv in Classes.StartGear(c)) D.Eq[kv.Key] = kv.Value;   // weapon, shield and the class gear set (F-34)
         Skills.GrantStarting(D); TreeDb.Load(); D.TreeVer = TreeDb.Version;
         PlayTime = 0; RecalcTree();
     }

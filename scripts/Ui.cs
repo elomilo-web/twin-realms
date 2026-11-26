@@ -239,6 +239,12 @@ public partial class Ui : CanvasLayer
         {
             DlgOpt(v, ++k, "Trade a pet", () => { PetTrade.StartNpc(); OpenPetTrade(); });
         }
+        if (NpcDb.Get(n.Id) is { } nr)
+        {   // F-27: the role's own options and a word about themselves (data/npcs.json personality)
+            if (n.Role == "talk" && NpcDb.Trades(nr)) DlgOpt(v, ++k, "Show me your wares", () => OpenShop("buy"));
+            if (n.Role == "talk" && NpcDb.Smiths(nr)) DlgOpt(v, ++k, "I need some smithing done", OpenSmith);
+            DlgOpt(v, ++k, "Tell me about yourself", () => Say(n, NpcDb.About(nr), ("Back", () => Talk(n))));
+        }
         DlgOpt(v, ++k, "Farewell", Close);
     }
     void Say(Npc n, string text, params (string, Action)[] opts)
@@ -761,6 +767,9 @@ public partial class Ui : CanvasLayer
         }
     }
 
+    /// <summary>Dev captures: preselect a race and class on the create screen.</summary>
+    public static void DevPick(string race, string cls) { if (race != "") _pickRace = race; if (cls != "") _pickClass = cls; }
+
     /// <summary>New hero for the selected slot: race, class, name.</summary>
     public void ShowCreate()
     {
@@ -772,9 +781,13 @@ public partial class Ui : CanvasLayer
         var cols = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; cols.AddThemeConstantOverride("separation", 14); sc.AddChild(cols);
         void Cap(Node p, string t) { var l = Lbl(t, 13, Gold, p); l.AddThemeFontOverride("font", new FontVariation { BaseFont = ThemeDB.FallbackFont, SpacingGlyph = 3 }); var ln = new ColorRect { Color = Line with { A = .6f }, CustomMinimumSize = new Vector2(0, 1) }; p.AddChild(ln); }
         var rc = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; rc.AddThemeConstantOverride("separation", 0); cols.AddChild(rc); Cap(rc, "RACE");
-        foreach (var r in Races.All) { string id = r.Id; PickRow(rc, r.Name, id == _pickRace, () => { _pickRace = id; ShowCreate(); }); }
+        // F-34/F-35: more races and classes than one column holds: two columns each
+        GridContainer Grid(Node p) { var g = new GridContainer { Columns = 2, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; g.AddThemeConstantOverride("h_separation", 4); g.AddThemeConstantOverride("v_separation", 0); p.AddChild(g); return g; }
+        var rg = Grid(rc);
+        foreach (var r in Races.All) { string id = r.Id; PickRow(rg, r.Name, id == _pickRace, () => { _pickRace = id; ShowCreate(); }, 16).SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; }
         var cc = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; cc.AddThemeConstantOverride("separation", 0); cols.AddChild(cc); Cap(cc, "CLASS");
-        foreach (var c in Classes.All) { string id = c.Id; PickRow(cc, c.Name, id == _pickClass, () => { _pickClass = id; ShowCreate(); }); }
+        var cg = Grid(cc);
+        foreach (var c in Classes.All) { string id = c.Id; PickRow(cg, c.Name, id == _pickClass, () => { _pickClass = id; ShowCreate(); }, 16).SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; }
         // ---- body, name, begin
         var foot = new VBoxContainer(); foot.AddThemeConstantOverride("separation", 8); v.AddChild(foot); Cap(foot, "BODY");
         var bodies = new HBoxContainer(); bodies.AddThemeConstantOverride("separation", 8); foot.AddChild(bodies);
@@ -813,8 +826,10 @@ public partial class Ui : CanvasLayer
             foreach (var kv in mods) Lbl(TreeDb.StatText(kv.Key, kv.Value), 13, Dim, fl);
         }
         Stats("RACE BONUSES", rd.Attr, rd.Mods, rd.Pts > 0 ? $"+{rd.Pts} skill point" : "");
+        foreach (var p in rd.Passives) Row(dc, $"Racial passive - {p.Name}: {string.Join(", ", p.Mods.Select(kv => TreeDb.StatText(kv.Key, kv.Value)))}", Parch, 13);   // F-35
         Stats("CLASS BONUSES", cd.Attr, cd.Mods, "");
-        Row(dc, $"Weapon: {cd.WName} ({Weapons.Get(cd.Wt).Name}{(cd.Shield ? " and shield" : "")})", Parch, 14);
+        foreach (var p in cd.Passives) Row(dc, $"{p.Name}: {string.Join(", ", p.Mods.Select(kv => TreeDb.StatText(kv.Key, kv.Value)))}", Parch, 13);   // F-34 class passives
+        Row(dc, $"Weapon: {(cd.Wt == "unarmed" ? "bare fists" : $"{cd.WName} ({Weapons.Get(cd.Wt).Name}{(cd.Shield ? " and shield" : "")})")}" + (cd.Gear.Count > 0 ? "   Gear: " + string.Join(", ", cd.Gear.Values.Select(g => g.n)) : ""), Parch, 14);
         Cap(dc, "STARTING SKILLS");
         var chips = new HFlowContainer(); chips.AddThemeConstantOverride("h_separation", 8); chips.AddThemeConstantOverride("v_separation", 8); dc.AddChild(chips);
         foreach (var sid in cd.Skills)

@@ -40,6 +40,7 @@ public class CraftedSpell
 public class CardDef
 {
     public string Id = "", Type = "", Family = "", Name = "", Adj = "", Desc = "", Hint = "", From = "", EType = "physical";
+    public string Cls = "";   // F-34 class card: only that class finds it (its starter kit: "start".<class>)
     public int Req = 1; public float W = 1, Leech, Knock, Stun, Heal;
     public Dictionary<string, float> Set = new(), Buff = new(), WardBuff = new(), X = new();
     public Dictionary<string, float[]> Status = new();
@@ -106,7 +107,7 @@ public static class Spellcraft
                 Id = p.Name, Type = JsonUtil.S(e, "type"), Family = JsonUtil.S(e, "family", "spell"), Name = JsonUtil.S(e, "n", p.Name), Adj = JsonUtil.S(e, "adj", JsonUtil.S(e, "n", p.Name)),
                 Desc = JsonUtil.S(e, "d"), Hint = JsonUtil.S(e, "stackHint"), From = JsonUtil.S(e, "from"), EType = JsonUtil.S(e, "etype", "physical"),
                 Req = (int)JsonUtil.F(e, "req", 1), W = JsonUtil.F(e, "w", 1), Leech = JsonUtil.F(e, "leech"), Knock = JsonUtil.F(e, "knock"), Stun = JsonUtil.F(e, "stun"), Heal = JsonUtil.F(e, "heal"),
-                Set = Nums(e, "set"), Buff = Nums(e, "buff"), WardBuff = Nums(e, "ward"), X = Nums(e, "x"), Status = Stat(e, "status"),
+                Set = Nums(e, "set"), Buff = Nums(e, "buff"), WardBuff = Nums(e, "ward"), X = Nums(e, "x"), Status = Stat(e, "status"), Cls = JsonUtil.S(e, "cls"),
             };
             if (e.TryGetProperty("fx", out var fx)) foreach (var q in fx.EnumerateObject()) c.Fx[q.Name] = q.Value.GetString() ?? "";
             if (c.Type == "carrier" && Skills.Get(c.From) == null) { GD.PrintErr($"[SPELLCRAFT] card {c.Id}: unknown skill '{c.From}'"); continue; }
@@ -442,6 +443,7 @@ public static class Spellcraft
         if (_root.TryGetProperty("classFamilies", out var cf) && cf.TryGetProperty(d.Class, out var arr) && arr.ValueKind == JsonValueKind.Array) foreach (var x in arr.EnumerateArray()) fams.Add(x.GetString() ?? "");
         if (fams.Count == 0) fams.Add("spell");
         foreach (var f in fams) Kit(f);
+        Kit(d.Class);   // F-34: the class's own cards
     }
 
     // ---------------------------------------------------------------- the spell being edited (preview in the menu)
@@ -483,7 +485,8 @@ public static class Spellcraft
         Load(); int ahead = (int)R("drops.reqAhead", 2);
         var types = new[] { "carrier", "effect", "modifier" }; float tw = types.Sum(t => R("drops.types." + t, 1)), r = GD.Randf() * tw; string type = types[^1];
         foreach (var t in types) { r -= R("drops.types." + t, 1); if (r <= 0) { type = t; break; } }
-        var pool = _c.Values.Where(c => c.Type == type && c.Req <= level + ahead).ToList(); if (pool.Count == 0) return null;
+        string cls = Game.D?.Class ?? "";
+        var pool = _c.Values.Where(c => c.Type == type && c.Req <= level + ahead && (c.Cls == "" || c.Cls == cls)).ToList(); if (pool.Count == 0) return null;   // class cards drop only for their class
         float sum = pool.Sum(c => c.W), x = GD.Randf() * sum;
         foreach (var c in pool) { x -= c.W; if (x <= 0) return c; }
         return pool[^1];

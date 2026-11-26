@@ -266,8 +266,10 @@ public static class IconArt
 
     static Pal Tweak(Pal p, string id)
     {   // a few skills borrow a palette that reads better than their damage type
-        return id switch { "bloodrite" or "bloodpact" => PalOf("blood"), "mirrorward" or "arcanesurge" or "chronofield" or "chronoblessing" => PalOf("arcane"), _ => p };
+        return id switch { "bloodrite" or "bloodpact" => PalOf("blood"), "mirrorward" or "arcanesurge" or "chronofield" or "chronoblessing" => PalOf("arcane"), _ when Arcane(id) => PalOf("arcane"), _ => p };
     }
+    /// <summary>The Chronomancer's time skills (F-34) read as arcane, not lightning.</summary>
+    static bool Arcane(string id) => id is "chronobolt" or "rewind" or "accelerate" or "stasis" or "temporalrift";
 
     /// <summary>The element motif in the lower right corner (none for plain physical skills).</summary>
     static Sdf? Motif(string type) => type switch
@@ -279,7 +281,7 @@ public static class IconArt
     public static Image Render(string id, string type, int n = Size)
     {
         var g = new IconPainter(n); var e = Tweak(PalOf(type), id); var cx = new Ctx { G = g, E = e, Id = id };
-        string motifType = id is "bloodrite" or "bloodpact" ? "blood" : id is "mirrorward" or "arcanesurge" or "chronofield" or "chronoblessing" ? "arcane" : type;
+        string motifType = id is "bloodrite" or "bloodpact" ? "blood" : id is "mirrorward" or "arcanesurge" or "chronofield" or "chronoblessing" || Arcane(id) ? "arcane" : type;
         Background(g, e, Seed(id));
         g.Clip = S.Grow(Badge, -.05f);
         if (!Symbol(cx, id)) GD.PushWarning($"[ICONS] no symbol drawing for {id}");
@@ -565,6 +567,96 @@ public static class IconArt
             case "rain":   // arrows falling from a cloud
                 c.Sym(S.X(Cloud(.8f), V(0, -.48f)), new Color(.5f, .52f, .6f), new Color(.85f, .87f, .95f), .2f);
                 foreach (var x in new[] { -.35f, 0f, .35f }) c.Steel(S.X(Arrow(.42f), V(x, .2f + MathF.Abs(x) * .3f), 1, MathF.PI), .2f);
+                break;
+            // ---- F-34 Monk
+            case "palmstrike":   // an open palm with a chi burst in front of it
+                c.Sym(S.Ring(V(-.05f, -.3f), .3f, .03f), new Color(1f, .85f, .5f), glow: .8f);
+                c.Sym(S.U(S.Box(V(0, .18f), V(.26f, .26f), .1f), S.Box(V(-.18f, -.18f), V(.05f, .2f), .05f), S.Box(V(-.06f, -.24f), V(.05f, .24f), .05f), S.Box(V(.06f, -.22f), V(.05f, .22f), .05f), S.Box(V(.18f, -.16f), V(.05f, .18f), .05f), S.Box(V(.33f, .12f), V(.05f, .16f), .05f, -.6f)), new Color(.95f, .78f, .6f), new Color(1f, .95f, .85f)); break;
+            case "cyclonekick":   // a foot in a whirl of three arcs
+                foreach (int k in new[] { 0, 1, 2 }) c.Sym(S.Arc(Vector2.Zero, .5f - k * .1f, .035f, k * 2.1f, k * 2.1f + 2.4f), new Color(.85f, .9f, 1f), glow: .5f);
+                c.Sym(S.X(Footprint(.55f), V(0, .02f), 1, .5f), new Color(.95f, .8f, .62f), new Color(1f, .95f, .85f)); break;
+            case "chiwave":   // a fist inside a widening double ring
+                c.Sym(S.Ring(Vector2.Zero, .6f, .04f), new Color(1f, .8f, .4f), glow: .9f); c.Sym(S.Ring(Vector2.Zero, .45f, .025f), new Color(1f, .9f, .6f), glow: .5f);
+                c.Sym(Fist(.55f), new Color(.95f, .78f, .6f), new Color(1f, .95f, .85f)); break;
+            case "cranekick":   // a crane's wing over a descending arrow
+                c.Sym(S.X(Wing(.75f), V(-.05f, -.2f)), new Color(.95f, .95f, 1f), new Color(1f, 1f, 1f), .5f);
+                c.Gold(S.X(ArrowUp(.5f), V(.2f, .3f), 1, MathF.PI)); break;
+            case "innerpeace":   // a lotus: five petals over a calm line
+                for (int k = -2; k <= 2; k++) c.Sym(S.X(Leaf(.42f, 0), V(k * .16f, -.05f + MathF.Abs(k) * .06f), 1, k * .42f), new Color(1f, .75f, .85f), new Color(1f, .95f, .97f), .5f);
+                c.Sym(S.Box(V(0, .4f), V(.5f, .035f), .02f), new Color(.6f, .9f, 1f)); break;
+            case "ironbody":   // an iron torso plate with a shield ring
+                c.Sym(S.Ring(Vector2.Zero, .62f, .035f), new Color(.8f, .85f, .95f), glow: .6f);
+                c.Steel(S.P(-.36f, -.42f, .36f, -.42f, .42f, -.05f, .2f, .5f, -.2f, .5f, -.42f, -.05f));
+                g.Fill(S.Seg(V(0, -.36f), V(0, .42f), .02f), new Color(.3f, .32f, .38f, .9f)); g.Fill(S.Seg(V(-.3f, -.05f), V(.3f, -.05f), .02f), new Color(.3f, .32f, .38f, .9f)); break;
+            // ---- F-34 Bard
+            case "sonicriff":   // a note shooting sound waves
+                c.Sym(S.X(Note(.65f), V(-.22f, .05f)));
+                foreach (float r in new[] { .3f, .45f, .6f }) c.Sym(S.Arc(V(-.1f, 0), r, .03f, -.7f, .7f), glow: .4f, outline: .015f); break;
+            case "discord":   // two crossed broken notes in a burst
+                c.Sym(S.Star(Vector2.Zero, .66f, .3f, 7), e.Dark.Lerp(e.Sym, .5f), e.Sym, .6f);
+                c.Sym(S.X(Note(.5f), V(-.12f, 0), 1, -.35f), e.Light); c.Sym(S.X(Note(.42f), V(.2f, .05f), 1, .4f), e.Light); break;
+            case "lullaby":   // a crescent moon with a note and sleepy stars
+                c.Sym(S.X(Moon(.95f), V(-.1f, 0)), new Color(.75f, .85f, 1f), new Color(1f, 1f, 1f));
+                c.Sym(S.X(Note(.38f), V(.3f, -.2f)), e.Light); c.Sym(S.X(Spark4(.25f), V(.32f, .32f)), e.Light, outline: .01f); break;
+            case "balladheroes":   // a lyre with a sword through its arms
+                c.Gold(S.U(S.Arc(V(-.25f, -.05f), .3f, .045f, 1.6f, 4.7f), S.Arc(V(.25f, -.05f), .3f, .045f, -1.55f, 1.55f), S.Box(V(0, .3f), V(.3f, .05f), .02f)));
+                foreach (float x in new[] { -.12f, 0f, .12f }) g.Fill(S.Seg(V(x, -.25f), V(x, .28f), .012f), new Color(1f, .97f, .8f, .9f));
+                c.Steel(S.X(Sword(.55f), V(0, -.25f)), .3f); break;
+            case "mendingverse":   // a heart with notes rising from it
+                c.Sym(Heart(.75f), new Color(.95f, .45f, .55f), new Color(1f, .85f, .88f));
+                c.Sym(S.X(Note(.3f), V(-.4f, -.45f)), e.Light, outline: .015f); c.Sym(S.X(Note(.25f), V(.42f, -.5f)), e.Light, outline: .015f); break;
+            // ---- F-34 Shaman
+            case "stormtotem":   // a carved totem pole struck by a bolt
+                c.Wood(S.U(S.Box(V(0, .15f), V(.18f, .5f), .04f), S.Box(V(0, -.28f), V(.34f, .07f), .03f)));
+                g.Fill(S.U(S.Circle(V(-.07f, .02f), .04f), S.Circle(V(.07f, .02f), .04f), S.Box(V(0, .2f), V(.08f, .025f))), new Color(.15f, .08f, .04f));
+                c.Sym(S.X(Bolt(.5f), V(0, -.55f))); break;
+            case "lavaburst":   // a molten rock with cracks of fire
+                c.Sym(S.Taper(V(.1f, -.1f), V(-.6f, .55f), .3f, .02f), new Color(1f, .5f, .1f), glow: .7f);
+                c.Sym(S.X(Rock(.6f), V(.12f, -.12f)), new Color(.3f, .15f, .1f), new Color(.6f, .3f, .2f));
+                g.Fill(S.X(S.Polyline(.03f, V(-.3f, -.1f), V(0, .05f), V(.1f, -.2f), V(.3f, 0)), V(.12f, -.12f), .6f), new Color(1f, .75f, .25f)); break;
+            case "earthshock":   // rock spikes bursting from a crack
+                c.Sym(S.U(Tooth(V(-.3f, .35f), .14f, .55f, 0), Tooth(V(.05f, .35f), .18f, .8f, 0), Tooth(V(.36f, .35f), .12f, .45f, 0)), new Color(.55f, .45f, .35f), new Color(.85f, .75f, .6f), .3f);
+                c.Sym(S.Box(V(0, .45f), V(.62f, .07f), .03f), new Color(.4f, .32f, .25f), new Color(.6f, .5f, .4f), 0); break;
+            case "healingspring":   // a water drop over a pool with a leaf
+                c.Sym(S.Ellipse(V(0, .42f), V(.55f, .12f)), new Color(.45f, .8f, 1f), new Color(.85f, .97f, 1f), .5f);
+                c.Sym(S.X(Drop(.7f), V(0, -.1f)), new Color(.5f, .85f, 1f), new Color(.95f, 1f, 1f));
+                c.Sym(S.X(Leaf(.35f), V(.35f, -.35f)), new Color(.4f, .85f, .35f)); break;
+            case "windfury":   // three swirling wind gusts
+                foreach (int k in new[] { -1, 0, 1 }) c.Sym(S.U(S.Seg(V(-.55f, k * .25f), V(.2f, k * .25f), .035f), S.Arc(V(.2f, k * .25f - .1f), .1f, .035f, -1.6f, 1.6f)), new Color(.8f, .95f, 1f), new Color(1f, 1f, 1f), .5f);
+                break;
+            // ---- F-34 Samurai
+            case "iaido":   // a katana half drawn from its scabbard with a flash
+                c.Sym(S.Seg(V(-.55f, .45f), V(.0f, -.1f), .07f), new Color(.2f, .15f, .2f), new Color(.45f, .35f, .45f), 0);
+                c.Steel(S.Taper(V(-.05f, -.05f), V(.62f, -.6f), .05f, .015f));
+                c.Sym(S.X(Spark4(.35f), V(.05f, -.12f)), new Color(1f, 1f, .8f), new Color(1f, 1f, 1f)); break;
+            case "crescentslash":   // a big crescent arc of a cut
+                c.Sym(S.Sub(S.Circle(Vector2.Zero, .62f), S.Circle(V(.18f, -.12f), .55f)), new Color(.85f, .9f, 1f), new Color(1f, 1f, 1f), .8f);
+                c.Steel(S.X(Sword(.45f, 0, .7f, 1.2f), V(.25f, .1f), 1, .6f), .3f); break;
+            case "windscythe":   // a flying sickle of wind
+                c.Sym(S.Arc(V(.1f, .1f), .5f, .07f, 3.6f, 5.9f), new Color(.75f, 1f, .9f), new Color(1f, 1f, 1f), .8f);
+                c.Lines(3, V(.7f, -.7f).Normalized(), V(-.2f, .3f), .14f, .35f, new Color(.85f, 1f, .95f)); break;
+            case "kiai":   // a shouting mouth: a wedge with sound bars
+                c.Sym(S.P(-.55f, -.1f, .0f, -.3f, .0f, .3f, -.55f, .1f), new Color(.9f, .2f, .2f), new Color(1f, .7f, .6f));
+                foreach (float r in new[] { .2f, .38f, .56f }) c.Sym(S.Arc(V(-.1f, 0), r, .035f, -.8f, .8f), new Color(1f, .85f, .4f), glow: .5f, outline: .015f); break;
+            case "thousandcuts":   // many slashes criss-crossing
+                for (int k = 0; k < 6; k++) { float a = k * .52f + .2f; var d = new Vector2(MathF.Cos(a), MathF.Sin(a)); c.Sym(S.Taper(-d * .55f, d * .55f, .02f, .005f), new Color(.85f, .9f, 1f), new Color(1f, 1f, 1f), .4f, .012f); }
+                c.Sym(S.Circle(Vector2.Zero, .1f), new Color(.9f, .2f, .25f)); break;
+            // ---- F-34 Chronomancer
+            case "chronobolt":   // a small clock flying with a trail
+                c.Sym(S.Taper(V(.1f, -.1f), V(-.62f, .55f), .26f, .02f), e.Sym with { A = .85f }, glow: .6f);
+                c.Sym(S.X(Clock(.6f), V(.15f, -.15f)), e.Light, e.Sym); break;
+            case "rewind":   // an hourglass inside a counter-clockwise arrow
+                c.Sym(S.U(S.Arc(Vector2.Zero, .55f, .045f, .6f, 5.6f), S.X(S.P(0, -.12f, .14f, .1f, -.14f, .1f), V(.47f, -.28f), 1, 2.2f)), glow: .6f);
+                c.Gold(Hourglass(.55f)); break;
+            case "accelerate":   // clock hands with speed lines
+                c.Sym(S.X(Clock(.75f), V(.12f, 0)));
+                c.Lines(3, V(1, 0), V(-.45f, 0), .2f, .3f, e.Light); break;
+            case "stasis":   // a figure frozen inside a diamond of time
+                c.Sym(S.Grow(S.P(0, -.66f, .55f, 0, 0, .66f, -.55f, 0), .02f), e.Dark.Lerp(e.Sym, .4f), e.Sym, .8f);
+                c.Sym(S.X(Hourglass(.45f), Vector2.Zero), e.Light); break;
+            case "temporalrift":   // a spiral rift with clock ticks around it
+                c.Sym(Spiral(1f), glow: .8f);
+                for (int k = 0; k < 12; k++) { var d = new Vector2(MathF.Cos(k * MathF.Tau / 12), MathF.Sin(k * MathF.Tau / 12)); g.Fill(S.Seg(d * .62f, d * (k % 3 == 0 ? .5f : .56f), .015f), e.Light with { A = .8f }); }
                 break;
             default: return false;
         }

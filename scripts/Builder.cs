@@ -48,7 +48,9 @@ public static class Builder
             int hx = Mathf.FloorToInt(h.x), hz = Mathf.FloorToInt(h.z); uint seed = (uint)Math.Abs((int)(h.x * 7 + h.z * 13));
             int W = Math.Max(5, Mathf.RoundToInt(h.w) | 1), D = Math.Max(5, Mathf.RoundToInt(h.d) | 1);
             b.Merge(StructGen.House(StructGen.StyleFor("home", seed), W, D, h.h > 3.6f ? 2 : 1, seed), hx, Dy(hx, hz), hz, Structures.RotOfYaw(h.r));
+            NpcHomes.Add("village", 0, oy + Dy(hx, hz), 0, hx, hz, Structures.RotOfYaw(h.r), D / 2);   // F-27: NPC homes
         }
+        NpcHomes.SetFrame("village", 0, oy, 0, 0);
         b.Merge(StructGen.Well(Bk("stone_bricks"), Bk("roof_slab")), 0, 0, 0);
         b.Merge(StructGen.Stall(Bk("awning_red"), true, 1), -9, Dy(-9, 8), 8, 2);   // Brynn's stall: counter towards her, plaza side
         foreach (var (sx, sz, yaw, aw, lit) in new[] { (-3.5f, -9.6f, .08f, "awning_red", true), (9.8f, -5.6f, -1.1f, "awning_tan", true), (11.2f, 8.8f, -1.9f, "awning_blue", false) })
@@ -760,8 +762,10 @@ void fragment(){
             var lines = new List<string>(); if (n.TryGetProperty("lines", out var l)) foreach (var s in l.EnumerateArray()) lines.Add(s.GetString() ?? "");
             var qids = new List<string>(); if (n.TryGetProperty("quests", out var q)) foreach (var s in q.EnumerateArray()) qids.Add(s.GetString() ?? "");
             float x = JsonUtil.F(n, "x"), z = JsonUtil.F(n, "z");
-            over.AddChild(new Npc { Id = JsonUtil.S(n, "id"), NpcName = JsonUtil.S(n, "name"), Role = JsonUtil.S(n, "role", "talk"), Lines = lines.ToArray(), QuestIds = qids.ToArray(), Position = World.OnGround(x, z) });
+            var npc = new Npc { Id = JsonUtil.S(n, "id"), NpcName = JsonUtil.S(n, "name"), Role = JsonUtil.S(n, "role", "talk"), Lines = lines.ToArray(), QuestIds = qids.ToArray(), Position = World.OnGround(x, z) };
+            over.AddChild(npc); NpcSchedule.Bind(npc);
         }
+        NpcDb.Load(); over.AddChild(new NpcSchedule { Name = "NpcSchedule" });   // F-27: the ~100 people of data/npcs.json and their days
     }
 
     // ---------------------------------------------------------------- camps and enemies

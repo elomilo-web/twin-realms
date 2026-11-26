@@ -543,6 +543,7 @@ public static class Lands
             default: BVillage(p, b, reg, seed, false, g); break;
         }
         g.Rotation = new Vector3(0, rot * Mathf.Pi / 2, 0);
+        NpcHomes.SetFrame(L.Id + "_" + p.Id, ox, oy, oz, rot);   // F-27: NPC spots are offsets in this frame
         if (p.Kind == "cave") { K(g, "dungeon/brazier", new Vector3(-3, 0, 3), 0, 1.2f); K(g, "dungeon/brazier", new Vector3(3, 0, 3), 0, 1.2f); }
         if (p.Kind == "castle") { int s3 = Mathf.RoundToInt(p.R * .62f) - 3; K(g, "castle/banner_red", new Vector3(-4, 0, s3), 0, 1.3f, false); K(g, "castle/banner_red", new Vector3(4, 0, s3), 0, 1.3f, false); }
         Structures.Place(b, ox, oy, oz, rot);
@@ -556,6 +557,7 @@ public static class Lands
             int px = Mathf.RoundToInt(Mathf.Cos(a) * rad), pz = Mathf.RoundToInt(Mathf.Sin(a) * rad); int rot = Structures.RotFacing(-px, -pz);
             uint hs = StructGen.Hash(px, i, pz, seed); var st = StructGen.StyleFor(reg, hs);
             int W = hs % 3 == 0 ? 7 : 5, D = hs % 5 == 0 ? 7 : 5, fl = hs % 4 == 0 ? 2 : 1;
+            NpcHomes.Add(reg + "_" + p.Id, Mathf.FloorToInt(p.X), Structures.Floor(p.H), Mathf.FloorToInt(p.Z), px, pz, rot, D / 2, stilts ? 3 : 0, stilts ? 5 : 2);   // F-27: NPC homes
             if (!stilts) { b.Merge(StructGen.House(st, W, D, fl, hs), px, 0, pz, rot); continue; }
             // on stilts: the house on a plank platform 3 up, log posts to the ground, a stair ramp down at the front
             var sh = new Blueprint(); const int lift = 3; int hw = W / 2, hd = D / 2;
@@ -604,6 +606,7 @@ public static class Lands
                 _rg(); float sc = R(1.3f, 1.55f);
                 int hx = Mathf.RoundToInt(x), hz = Mathf.RoundToInt(z); uint hs = StructGen.Hash(hx, 3, hz, seed);
                 b.Merge(StructGen.House(StructGen.StyleFor(reg, hs), sc > 1.42f ? 9 : 7, 7, 2 + (int)(hs % 2), hs), hx, 0, hz, Structures.RotFacing(-x, -z));
+                NpcHomes.Add(reg + "_" + p.Id, Mathf.FloorToInt(p.X), Structures.Floor(p.H), Mathf.FloorToInt(p.Z), hx, hz, Structures.RotFacing(-x, -z), 3);   // F-27: NPC homes
             }
         foreach (var ga in gates)
             for (float d = plaza + 4; d < p.R - 4; d += 12f)

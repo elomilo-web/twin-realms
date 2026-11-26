@@ -189,12 +189,7 @@ public partial class DevCapture : Node
         if ((Str(v, "body").Length > 0 || Str(v, "race").Length > 0) && Player.Instance != null && Avatar.Available)
         {
             var ap = Races.Look(d);
-            if (Str(v, "race") is { Length: > 0 } rid)
-            {
-                var src = Races.Get(rid).Look;
-                ap.Skin = src.Skin; ap.Hair = src.Hair; ap.Eyes = src.Eyes; ap.Height = src.Height; ap.Bulk = src.Bulk;
-                ap.PointyEars = src.PointyEars; ap.Tusks = src.Tusks; ap.Beard = src.Beard; ap.Horns = src.Horns;
-            }
+            if (Str(v, "race") is { Length: > 0 } rid) ap = Races.LookFor(rid, d.Class, ap.Female);   // the whole race look (F-35 proportions and attachments)
             if (Str(v, "body") is { Length: > 0 } bs) ap.Female = bs == "female";
             _standIn = new Avatar { Name = "DevStandIn" }; Game.Root!.AddChild(_standIn);
             _standIn.GlobalTransform = P.GlobalTransform;
@@ -203,6 +198,24 @@ public partial class DevCapture : Node
             if (Flag(v, "fly", false)) _standIn.FlapWings(Num(v, "fly_t", .2f), true);   // Golden Wings spread as in flight
             // "pose": a clip key of data/avatar.json "clips" (run, jump, fall, melee, cast...) or a clip name, held at "pose_t" (0..1)
             if (Str(v, "pose") is { Length: > 0 } pk) _standIn.PoseAt(pk, Num(v, "pose_t", .4f));
+            P.Visible = false;
+        }
+        // "lineup": [{ "race", "class", "body" }...] (F-34/F-35): stand-ins in a row across the hero's spot, each in its class's
+        // starting gear ("class"; else the hero's gear), "spacing" metres apart; the hero is hidden; removed after the view
+        if (v.TryGetProperty("lineup", out var lu) && lu.ValueKind == JsonValueKind.Array && Player.Instance != null && Avatar.Available)
+        {
+            var list = lu.EnumerateArray().ToList(); float gap = Num(v, "spacing", 1f); var xf = P.GlobalTransform; var right = xf.Basis.X.Normalized();
+            for (int i = 0; i < list.Count; i++)
+            {
+                var e = list[i]; string race = Str(e, "race", d.Race), cls = Str(e, "class", d.Class);
+                var av = new Avatar { Name = "DevLineup" + i }; Game.Root!.AddChild(av); _lineup.Add(av);
+                var at = xf.Origin + right * ((i - (list.Count - 1) / 2f) * gap);
+                av.GlobalTransform = new Transform3D(xf.Basis.Rotated(Vector3.Up, Mathf.DegToRad(Num(v, "turn", 0f))), at);   // "turn": degrees (180 = facing back toward +Z)
+                av.Build(Races.LookFor(race, cls, Str(e, "body", "male") == "female"), d.Name + i);
+                var c = Classes.Get(cls); var eq = Str(e, "class").Length > 0 ? Classes.StartGear(c) : new Dictionary<string, Item?>(d.Eq);
+                av.Dress(s => eq.GetValueOrDefault(s), eq.GetValueOrDefault("weapon")?.Wt ?? "unarmed", c.Tunic);
+                Say($"lineup {i}: {race} {cls} {Str(e, "body", "male")} at {at}");
+            }
             P.Visible = false;
         }
         // "probe": radius in metres; logs every visible mesh near the hero (what is that object in the picture?)
@@ -218,11 +231,12 @@ public partial class DevCapture : Node
             Walk(Game.Root!);
         }
     }
-    Avatar? _standIn;
+    Avatar? _standIn; readonly List<Avatar> _lineup = new();
     void RestoreKit()
     {
         var d = Game.D; bool changed = false;
         if (_standIn != null) { if (GodotObject.IsInstanceValid(_standIn)) _standIn.QueueFree(); _standIn = null; if (Player.Instance != null) P.Visible = true; }
+        if (_lineup.Count > 0) { foreach (var a in _lineup) if (GodotObject.IsInstanceValid(a)) a.QueueFree(); _lineup.Clear(); if (Player.Instance != null) P.Visible = true; }
         if (_savedEq != null) { d.Eq.Clear(); foreach (var kv in _savedEq) d.Eq[kv.Key] = kv.Value; _savedEq = null; changed = true; }
         if (_savedInv != null) { d.Inv.Clear(); d.Inv.AddRange(_savedInv); _savedInv = null; changed = true; }
         if (_savedMats != null) { d.Mats.Clear(); foreach (var kv in _savedMats) d.Mats[kv.Key] = kv.Value; _savedMats = null; changed = true; }
@@ -692,7 +706,7 @@ public partial class DevCapture : Node
                         case "totals": ui.OpenTotals(); break;
                         case "multiplayer": ui.OpenMultiplayer(); break;
                         case "stash": ui.OpenStash(); break;
-                        case "create": ui.ShowCreate(); break;
+                        case "create": if (arg.Split('/') is { Length: 2 } rc) Ui.DevPick(rc[0], rc[1]); ui.ShowCreate(); break;   // ui:create:race/class
                         case "pets": ui.OpenPets(null, arg.Length > 0 ? arg : "skills"); break;
                         case "pettrade": PetTrade.DevStart(); ui.OpenPetTrade(); break;   // Odile's trade window with the first pet offered
                         case "pack": ui.OpenPackTab(arg); break;   // ui:pack:gems / ui:pack:materials

@@ -34,7 +34,11 @@ public static class TreeDb
     public static int Version = 1;
     static bool _loaded;
     /// <summary>The tree node a class begins on (free; everything grows from it).</summary>
-    public static int StartFor(string cls) { Load(); return Starts.TryGetValue(cls, out var s) ? s : 0; }
+    public static int StartFor(string cls)
+    {
+        Load(); if (Starts.TryGetValue(cls, out var s)) return s;
+        return Starts.TryGetValue(Classes.Get(cls).Start, out var s2) ? s2 : 0;   // F-34 classes without an arm of their own start on a kindred class's arm
+    }
 
     /// <summary>
     /// Every stat key the game reads. Tree nodes, races, classes and skill buffs may only use these (the bot checks it).
@@ -46,7 +50,8 @@ public static class TreeDb
         var k = new HashSet<string> { "meleeP", "rangedP", "spellP", "allP", "hp", "hpP", "mp", "mpP", "st", "def", "crit", "critD", "aspd", "move", "cdr", "leech", "mleech", "regenHp", "regenMp",
             "block", "thorns", "chain", "burn", "magToDmg", "magToBow", "strToBow", "mcost", "cleave", "multi", "pierce", "manaShield", "undying", "rage",
             "armorPen", "armorPenP", "magicPen", "magicPenP", "mr", "tenacity", "evade", "statusP", "healP", "xpP", "skillP", "aoeP", "castSpd",
-            "finisherP", "finisherStun", "finisherUp", "powerP", "knockP", "reach", "healIn", "statusImmune", "ccImmune", "luck", "goldP" };
+            "finisherP", "finisherStun", "finisherUp", "powerP", "knockP", "reach", "healIn", "statusImmune", "ccImmune", "luck", "goldP",
+            "breathP", "swimP", "climbP", "jumpP", "sneakP", "stealthP", "fishLuck", "rideP" };   // life keys (F-25), used by racial passives (F-35)
         foreach (var t in new[] { "physical", "fire", "frost", "lightning", "poison", "shadow", "holy" }) { k.Add(t + "P"); k.Add("res_" + t); }
         foreach (var s in new[] { "burn", "poison", "bleed", "chill", "freeze", "root", "shock", "judged", "weaken", "shred", "stun" }) { k.Add(s + "Chance"); k.Add(s + "P"); }
         foreach (var w in new[] { "sword", "katana", "greatsword", "axe", "mace", "dagger", "spear", "bow", "wand", "staff" }) k.Add(w + "P");
@@ -126,6 +131,9 @@ public static class TreeDb
             "healP" => $"+{s(v)}% healing", "xpP" => $"+{s(v)}% experience", "skillP" => $"+{s(v)}% skill damage", "aoeP" => $"+{s(v)}% skill area", "castSpd" => $"+{s(v)}% cast speed",
             "finisherP" => $"+{s(v)}% combo finisher damage", "finisherStun" => $"Combo finishers stun for +{s(v)} s", "finisherUp" => $"Combo finishers knock foes up ({s(v)})", "powerP" => $"+{s(v)}% power attack damage",
             "knockP" => $"+{s(v)}% knockback", "reach" => $"+{s(v)}% melee reach", "healIn" => $"{(v > 0 ? "+" : "")}{s(v)}% healing received", "statusImmune" => "Immune to all statuses", "luck" => $"+{s(v)} luck (more and rarer drops for your whole party)", "goldP" => $"+{s(v)}% gold found", "ccImmune" => "Immune to stuns, roots, freezes, chills and flinching",
+            "breathP" => $"+{s(v)}% breath under water", "swimP" => $"+{s(v)}% swimming speed", "climbP" => $"+{s(v)}% climbing speed", "jumpP" => $"+{s(v)}% jump height",
+            "sneakP" => $"+{s(v)}% sneaking speed", "stealthP" => $"+{s(v)}% stealth", "fishLuck" => $"+{s(v)} fishing luck", "rideP" => $"+{s(v)}% riding speed",
+            "undying" => "Cheat death: a killing blow leaves you at 30% health (every 3 min)",
             "str" => $"+{s(v)} Strength", "dex" => $"+{s(v)} Dexterity", "vit" => $"+{s(v)} Vitality", "mag" => $"+{s(v)} Magic",
             _ when k.StartsWith("skill_") => $"+{s(v)} to {Skills.Get(k[6..])?.Name ?? k[6..]} level",
             _ when k.StartsWith("school_") => $"+{s(v)} to all {k[7..]} skill levels",
