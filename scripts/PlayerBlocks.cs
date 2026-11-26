@@ -28,19 +28,17 @@ public partial class Player
     void BlockMove(float dt, ref Vector3 v)
     {
         _fluidSpeed = 1f; _accelMul = 1f;
+        bool water = SwimMove(dt, ref v);   // water blocks and the smooth lakes: float, swim, dive, breath (PlayerSwim.cs, F-20)
         if (!BlockWorld.Enabled) return;
-        string body = BlockWorld.FluidAt(GlobalPosition + Vector3.Up * .9f), head = BlockWorld.FluidAt(GlobalPosition + Vector3.Up * 1.5f);
-        if (body == "water" && !_wasWater) Sfx.Play("splash", .8f, 1f);
-        _wasWater = body == "water";
-        if (body != "")
+        string body = water ? "water" : BlockWorld.FluidAt(GlobalPosition + Vector3.Up * .9f);
+        if (body == "lava")
         {
-            // swimming: sink slowly, Jump rises; slower on the move
+            // wading in lava: sink slowly, Jump rises; slower on the move
             v.Y += _gravity * dt * .85f;
             bool up = Input.MouseMode == Input.MouseModeEnum.Captured && Input.IsActionPressed(Inputs.Jump);
             v.Y = Mathf.MoveToward(v.Y, up ? Blocks.F("fluids.swim.rise", 3.2f) : -Blocks.F("fluids.swim.sink", 1.6f), 9f * dt);
-            if (up && head == "" && IsOnWall()) v.Y = Mathf.Max(v.Y, JumpVelocity * .8f);   // climb out onto the bank
+            if (up && BlockWorld.FluidAt(GlobalPosition + Vector3.Up * 1.5f) == "" && IsOnWall()) v.Y = Mathf.Max(v.Y, JumpVelocity * .8f);   // climb out onto the bank
             _fluidSpeed = Blocks.F("fluids.swim.speed", .6f);
-            if (body == "lava")
             {
                 _lavaT -= dt; _fluidSpeed *= .5f;
                 if (_lavaT <= 0) { _lavaT = .5f; TakeHit(new HitInfo { Damage = Blocks.F("fluids.lavaDps", 18) * .5f * (1 - Mathf.Clamp(Game.TS["res_fire"], -100, 75) / 100f), From = GlobalPosition + Vector3.Down, NoBlock = true, Type = "fire", Fire = true }); }

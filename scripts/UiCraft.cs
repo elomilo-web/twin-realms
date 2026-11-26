@@ -164,6 +164,40 @@ public partial class Ui
                         },
                     });
                 }
+                // things made from blocks that are not blocks (data/blocks.json "items"): the boat (F-21, Boat.cs), kept in the materials bag
+                if (Blocks.Root.TryGetProperty("items", out var bItems))
+                    foreach (var p in bItems.EnumerateObject())
+                    {
+                        if (p.Value.ValueKind != JsonValueKind.Object) continue;
+                        string key = p.Name, nm = p.Value.TryGetProperty("n", out var nmE) ? nmE.GetString() ?? key : key; int n = (int)JsonUtil.F(p.Value, "out", 1);
+                        var cost = new Dictionary<string, int>();
+                        foreach (var k in p.Value.GetProperty("cost").EnumerateObject()) cost[Blocks.DropItem(k.Name)] = k.Value.GetInt32();
+                        recs.Add(new CraftRec
+                        {
+                            Title = nm, Sub = p.Value.TryGetProperty("sub", out var sb) ? sb.GetString() ?? "" : $"Makes {n} {nm}", Cost = cost, Out = n, Col = Colors.White, Repeat = true,
+                            Cube = Blocks.Exists("planks") ? (Color?)Blocks.Tint(Blocks.Def(Blocks.Id("planks"))) : null,
+                            Do = () =>
+                            {
+                                if (!CanPay(cost)) { Note("Not enough blocks", new Color(1, .5f, .5f)); return false; }
+                                Pay(cost); d.Mats[key] = d.Mats.GetValueOrDefault(key) + n;
+                                Note($"Crafted {n} {nm} (you have {d.Mats[key]})", UiTheme.Highlight); Sfx.Play("level"); Game.Notify(); return true;
+                            },
+                        });
+                    }
+                // the fishing rod (data/fishing.json "rod": timber and leather strips; Fishing.cs)
+                if (d.Rod <= 0)
+                {
+                    var rodCost = new Dictionary<string, int>(); if (FishDb.RodData().TryGetProperty("cost", out var rcj)) foreach (var k in rcj.EnumerateObject()) rodCost[k.Name] = k.Value.GetInt32();
+                    recs.Add(new CraftRec
+                    {
+                        Group = "Tools", Title = "Fishing Rod", Sub = "Take it out with 7; attack casts, strikes and reels", Cost = rodCost, Col = UiTheme.Highlight, Btn = "Craft", Icon = "fishing_rod",
+                        Do = () =>
+                        {
+                            if (d.Rod > 0) return false; if (!CanPay(rodCost)) { Note("Not enough materials", new Color(1, .5f, .5f)); return false; }
+                            Pay(rodCost); d.Rod = 1; Note("Crafted a Fishing Rod: press 7 to take it out", UiTheme.Highlight); Sfx.Play("level"); Game.Notify(); return true;
+                        },
+                    });
+                }
                 // the pickaxe (data/blocks.json dig.pickaxes): each tier is made from the one before; the next tier only, as alternatives
                 if (Blocks.Node("dig.pickaxes.tiers") is { ValueKind: JsonValueKind.Array } tiers)
                     for (int ti = 2; ti <= tiers.GetArrayLength(); ti++)

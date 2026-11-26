@@ -87,6 +87,10 @@
   "cobble_slab":   { "out": 2, "cost": { "cobblestone": 1 } },
   "fence":         { "out": 3, "cost": { "planks": 2, "log": 1 } }
  },
+ "items": {
+  "_help": "crafting window, Blocks tab: things made from blocks that are not blocks themselves, kept in the pack's materials (PlayerStats.Mats by key). boat (F-21, Boat.cs): set on water with Interact, boarded with Interact, hit it to pick it up.",
+  "boat": { "n": "Boat", "sub": "Floats on any water: Interact on open water to set it there, Interact to board, W/S row, A/D turn, hit it to pick it up", "out": 1, "cost": { "planks": 5 } }
+ },
  "blocks": {
   "bedrock":      { "n": "Bedrock",       "hardness": -1, "mat": { "gothic": "G_Rock", "color": "#3a3438" } },
   "stone":        { "n": "Stone", "step": "stone",         "hardness": 1.5, "tool": "pickaxe", "drops": "cobblestone", "blessTo": "", "withersTo": "dark_stone", "mat": { "gothic": "G_Rock", "color": "#8a8682", "tile": 2.5 } },
@@ -131,6 +135,35 @@
   "door_iron":    { "n": "Iron Door", "step": "stone", "hardness": 4.0, "tool": "pickaxe", "see": true, "shape": "door", "drops": "door_iron", "sound": "iron", "mat": { "gothic": "G_Metal_Iron", "color": "#9a9ca2", "rough": 0.45, "tile": 1 } },
   "door_iron_open": { "n": "Open Iron Door", "step": "stone", "hardness": 4.0, "tool": "pickaxe", "solid": false, "see": true, "shape": "door", "drops": "door_iron", "sound": "iron", "mat": { "gothic": "G_Metal_Iron", "color": "#9a9ca2", "rough": 0.45, "tile": 1 } },
   "chest":        { "n": "Chest", "step": "wood", "hardness": 1.5, "tool": "axe", "see": true, "shape": "chest", "drops": "chest", "burn": 6, "burnsTo": "", "capacity": 27,
-                    "mat": { "top": { "gothic": "G_Planks", "color": "#9a7650", "tile": 1 }, "side": { "gothic": "G_Planks", "color": "#7e5e3e", "tile": 1 }, "bottom": { "gothic": "G_Metal_Iron", "color": "#55565c", "rough": 0.5, "tile": 1 } } }
+                    "mat": { "top": { "gothic": "G_Planks", "color": "#9a7650", "tile": 1 }, "side": { "gothic": "G_Planks", "color": "#7e5e3e", "tile": 1 }, "bottom": { "gothic": "G_Metal_Iron", "color": "#55565c", "rough": 0.5, "tile": 1 } } },
+  "stone_bricks": { "n": "Stone Bricks",  "hardness": 2.5, "tool": "pickaxe", "drops": "stone_bricks", "mat": { "gothic": "G_Stone", "color": "#a29c94", "tile": 1 } },
+  "mossy_bricks": { "n": "Mossy Stone Bricks", "hardness": 2.5, "tool": "pickaxe", "drops": "mossy_bricks", "mat": { "top": { "gothic": "G_Moss", "color": "#7e8c5c", "tile": 1 }, "side": { "gothic": "G_Stone", "color": "#848a70", "tile": 1 }, "bottom": { "gothic": "G_Stone", "color": "#848a70", "tile": 1 } } },
+  "brick_stairs": { "n": "Stone Brick Stairs", "step": "stone", "hardness": 2.5, "tool": "pickaxe", "see": true, "shape": "stairs", "drops": "brick_stairs", "mat": { "gothic": "G_Stone", "color": "#a29c94", "tile": 1 } },
+  "brick_slab":   { "n": "Stone Brick Slab", "step": "stone", "hardness": 2.5, "tool": "pickaxe", "see": true, "shape": "slab", "drops": "brick_slab", "mat": { "gothic": "G_Stone", "color": "#a29c94", "tile": 1 } },
+  "plaster":      { "n": "Plaster Wall",  "hardness": 1.5, "tool": "pickaxe", "drops": "plaster", "mat": { "gothic": "G_Plaster", "color": "#e4d8c2", "tile": 2 } },
+  "dark_planks":  { "n": "Dark Planks", "step": "wood", "hardness": 2.0, "tool": "axe", "drops": "dark_planks", "burn": 10, "burnsTo": "", "mat": { "gothic": "G_Planks", "color": "#6a5038", "tile": 1.5 } },
+  "roof_tiles":   { "n": "Roof Tiles", "step": "stone", "hardness": 1.5, "tool": "pickaxe", "drops": "roof_tiles", "mat": { "gothic": "G_Slate", "color": "#9a5a44", "tile": 1 } },
+  "roof_stairs":  { "n": "Roof Tile Stairs", "step": "stone", "hardness": 1.5, "tool": "pickaxe", "see": true, "shape": "stairs", "drops": "roof_stairs", "mat": { "gothic": "G_Slate", "color": "#9a5a44", "tile": 1 } },
+  "roof_slab":    { "n": "Roof Tile Slab", "step": "stone", "hardness": 1.5, "tool": "pickaxe", "see": true, "shape": "slab", "drops": "roof_slab", "mat": { "gothic": "G_Slate", "color": "#9a5a44", "tile": 1 } },
+  "slate":        { "n": "Slate", "step": "stone", "hardness": 1.8, "tool": "pickaxe", "drops": "slate", "mat": { "gothic": "G_Slate", "color": "#6a7484", "tile": 1 } },
+  "slate_stairs": { "n": "Slate Stairs", "step": "stone", "hardness": 1.8, "tool": "pickaxe", "see": true, "shape": "stairs", "drops": "slate_stairs", "mat": { "gothic": "G_Slate", "color": "#6a7484", "tile": 1 } },
+  "slate_slab":   { "n": "Slate Slab", "step": "stone", "hardness": 1.8, "tool": "pickaxe", "see": true, "shape": "slab", "drops": "slate_slab", "mat": { "gothic": "G_Slate", "color": "#6a7484", "tile": 1 } },
+  "thatch":       { "n": "Thatch", "step": "grass", "hardness": 0.5, "tool": "axe", "drops": "thatch", "burn": 4, "burnsTo": "", "mat": { "gothic": "G_Wood", "color": "#c8a868", "tile": 0.6 } },
+  "thatch_stairs": { "n": "Thatch Stairs", "step": "grass", "hardness": 0.5, "tool": "axe", "see": true, "shape": "stairs", "drops": "thatch_stairs", "burn": 4, "burnsTo": "", "mat": { "gothic": "G_Wood", "color": "#c8a868", "tile": 0.6 } },
+  "sandstone_stairs": { "n": "Sandstone Stairs", "step": "stone", "hardness": 1.2, "tool": "pickaxe", "see": true, "shape": "stairs", "drops": "sandstone_stairs", "mat": { "gothic": "G_Plaster", "color": "#d6c49c", "tile": 2 } },
+  "sandstone_slab": { "n": "Sandstone Slab", "step": "stone", "hardness": 1.2, "tool": "pickaxe", "see": true, "shape": "slab", "drops": "sandstone_slab", "mat": { "gothic": "G_Plaster", "color": "#d6c49c", "tile": 2 } },
+  "cloth_red":    { "n": "Red Cloth", "step": "grass", "hardness": 0.3, "tool": "axe", "drops": "cloth_red", "burn": 3, "burnsTo": "", "mat": { "gothic": "G_Cloth", "color": "#9a3028", "tile": 1 } },
+  "cloth_tan":    { "n": "Canvas", "step": "grass", "hardness": 0.3, "tool": "axe", "drops": "cloth_tan", "burn": 3, "burnsTo": "", "mat": { "gothic": "G_Cloth_Linen", "color": "#d2c09a", "tile": 1 } },
+  "cloth_blue":   { "n": "Blue Cloth", "step": "grass", "hardness": 0.3, "tool": "axe", "drops": "cloth_blue", "burn": 3, "burnsTo": "", "mat": { "gothic": "G_Cloth_Blue", "color": "#4a6a8e", "tile": 1 } },
+  "awning_red":   { "n": "Red Awning", "step": "grass", "hardness": 0.3, "tool": "axe", "see": true, "shape": "slab", "drops": "awning_red", "burn": 3, "burnsTo": "", "mat": { "gothic": "G_Cloth", "color": "#9a3028", "tile": 1 } },
+  "awning_tan":   { "n": "Canvas Awning", "step": "grass", "hardness": 0.3, "tool": "axe", "see": true, "shape": "slab", "drops": "awning_tan", "burn": 3, "burnsTo": "", "mat": { "gothic": "G_Cloth_Linen", "color": "#d2c09a", "tile": 1 } },
+  "awning_blue":  { "n": "Blue Awning", "step": "grass", "hardness": 0.3, "tool": "axe", "see": true, "shape": "slab", "drops": "awning_blue", "burn": 3, "burnsTo": "", "mat": { "gothic": "G_Cloth_Blue", "color": "#4a6a8e", "tile": 1 } },
+  "rune_stone":   { "n": "Rune Stone", "hardness": 4.0, "tool": "pickaxe", "drops": "rune_stone", "mat": { "top": { "gothic": "G_Slate", "color": "#40385a", "tile": 1 }, "side": { "gothic": "G_Slate", "color": "#c8a0ff", "glow": 1.4, "tile": 1 }, "bottom": { "gothic": "G_Slate", "color": "#40385a", "tile": 1 } } },
+  "campfire":     { "n": "Campfire", "step": "wood", "hardness": 0.5, "tool": "axe", "see": true, "shape": "slab", "drops": "log", "light": { "color": "ff9a48", "range": 10, "energy": 1.9 },
+                    "mat": { "top": { "color": "#ff8a3a", "glow": 2.6, "rough": 1.0 }, "side": { "gothic": "G_Wood", "color": "#4a3426", "tile": 1 }, "bottom": { "gothic": "G_Wood", "color": "#4a3426", "tile": 1 } } }
+ },
+ "structures": {
+  "_help": "F-19 block structures (scripts/Structures.cs): every town, castle, bridge, shrine, camp and dungeon mouth is a block blueprint stamped into the generated world (the same on every machine; player edits are kept on top). blockStructures false = the old mesh buildings. farRange = metres the merged far-view meshes of the structures are drawn to (beyond the block radius).",
+  "blockStructures": true, "farRange": 900
  }
 }

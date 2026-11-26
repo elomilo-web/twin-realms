@@ -278,6 +278,7 @@ void fragment(){
           _env.VolumetricFogAnisotropy = Mathf.Lerp(.6f, LF("godraysAniso", .7f), gr);
           _env.VolumetricFogLength = Mathf.Lerp(160f, LF("godraysLength", 120f), gr);
           Sun.LightVolumetricFogEnergy = LF("sunShafts", 1.2f) + LF("godraysEnergy", 2f) * gr; }
+        Underwater.Env(_env);   // the camera under water: thick blue fog (Water.cs, F-20)
         if (force || Mathf.Abs(RealmT - _lastRealmT) > 0.001f)
         {
             _lastRealmT = RealmT; _terrMat.SetShaderParameter("realm_t", RealmT);

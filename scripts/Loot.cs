@@ -106,7 +106,15 @@ public partial class Loot : Node3D
         // settle onto the ground
         var q = PhysicsRayQueryParameters3D.Create(GlobalPosition + Vector3.Up * 2, GlobalPosition + Vector3.Down * 6, 1);
         var hit = GetWorld3D().DirectSpaceState.IntersectRay(q);
-        if (hit.Count > 0) { var gy = ((Vector3)hit["position"]).Y + .45f + Mathf.Sin(_t * 3f) * .08f; GlobalPosition = new Vector3(GlobalPosition.X, Mathf.Lerp(GlobalPosition.Y, gy, .2f), GlobalPosition.Z); }
+        if (Water.SurfaceAt(GlobalPosition) is { } ws && (hit.Count == 0 || ((Vector3)hit["position"]).Y < ws - .1f))
+        {   // in water (F-20): float at the surface with a slow bob and drift with the current until the shore
+            float dt = (float)delta; var gp = GlobalPosition; var nx = gp + Water.Current(gp.X, gp.Z) * dt;
+            if (Water.SurfaceAt(new Vector3(nx.X, ws, nx.Z)) is { } ns && Mathf.Abs(ns - ws) < .5f && Water.DepthAt(nx.X, nx.Z, ns) > .3f) gp = nx;
+            float fy = ws + .12f + Mathf.Sin(_t * 2.2f) * .06f;
+            GlobalPosition = new Vector3(gp.X, Mathf.Lerp(gp.Y, fy, .12f), gp.Z);
+            Rotation = new Vector3(Mathf.Sin(_t * 1.7f) * .18f, Rotation.Y, Mathf.Cos(_t * 1.3f) * .15f);   // rocking on the ripples
+        }
+        else if (hit.Count > 0) { var gy = ((Vector3)hit["position"]).Y + .45f + Mathf.Sin(_t * 3f) * .08f; GlobalPosition = new Vector3(GlobalPosition.X, Mathf.Lerp(GlobalPosition.Y, gy, .2f), GlobalPosition.Z); }
         float dist = p.DistanceTo(pl.GlobalPosition);
         if (Hold) { if (dist > 3.5f) Hold = false; return; }
         if (_t > .4f && dist < 2.3f) Collect(pl);

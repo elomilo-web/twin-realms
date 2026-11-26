@@ -25,6 +25,7 @@ public static class Inputs
     public const string BuildMode = "build_mode", BlockRotate = "block_rotate";   // the block world (PlayerBlocks.cs)
     public const string PetsUi = "ui_pets", ThrowCube = "throw_cube", CubeNext = "cube_next", PetStay = "pet_stay";   // pets (UiPets.cs, Cube.cs, Pet.cs)
     public const string View = "toggle_view";   // third / first person (CameraRig.cs, Settings.FirstPerson)
+    public const string Dive = "swim_down";     // swimming: dive / swim down (Roll does it too, so the pad's B / Circle dives) (PlayerSwim.cs)
 
     /// <summary>Actions shown in the Controls menu, in order, with their names.</summary>
     public static readonly (string id, string name)[] Rebindable =
@@ -39,7 +40,7 @@ public static class Inputs
         (Flag, "Flag for review (screenshot + report)"),
         (BuildMode, "Build mode (dig and place blocks)"), (BlockRotate, "Rotate block (build mode)"),
         (PetsUi, "Pets"), (ThrowCube, "Throw Soul Cube"), (CubeNext, "Next Soul Cube tier"), (PetStay, "Pet: follow / stay"),
-        (View, "Switch first / third person"),
+        (View, "Switch first / third person"), (Dive, "Swim down / dive (in water; Roll also dives)"),
     };
 
     static bool _done;
@@ -57,6 +58,7 @@ public static class Inputs
         Bind(BuildMode, Key.N); Bind(BlockRotate, Key.Y);
         Bind(PetsUi, Key.P); Bind(ThrowCube, Key.V); Bind(CubeNext, Key.Comma); Bind(PetStay, Key.Period);
         Bind(View, Key.F5);   // Minecraft's view key (V throws Soul Cubes)
+        Bind(Dive, Key.Ctrl);
         BindMouse(Attack, MouseButton.Left); BindMouse(Heavy, MouseButton.Right); Bind(Guard, Key.F);
         InputMap.ActionAddEvent(Lock, new InputEventMouseButton { ButtonIndex = MouseButton.Middle });   // extra default, dropped once rebound
         // the analog stick arrives already dead-zoned and rescaled (PadInput), so the move actions keep only a tiny deadzone of their own
