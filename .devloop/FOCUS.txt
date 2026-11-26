@@ -98,19 +98,40 @@ PHASE 0 - BUGS AND FIXES (do these first)
       Files: StatPipeline.cs, Commands.cs (new), Stats.cs, Game.cs, Tree.cs (TreeStats.Ver/All), Items.cs (Gems), Skills.cs,
       Main.cs (F9 node), dev/DevCapture.cs, data/stats.json, .devloop/viewpoints.json, .devloop/systems/stats.md.
 
-[ ] F-03  PLAYER MODEL LIMBS AND HEAD DETACHED
+[x] F-03  PLAYER MODEL LIMBS AND HEAD DETACHED
     The head and limbs look separated from the body and look odd.
     DONE WHEN:
       - All body parts are skinned or parented to the correct bones, with no
         gaps at the neck, shoulders, or hips.
       - Checked in idle, run, jump, attack, cast, and swim poses.
+    NOTE (2026-11-26): The body, hair and garments were already one skinned mesh each on the same Skeleton3D (bound by bone
+      name; the HeroRig pose source is fully hidden by Player.HideRig). The "detached" look came from Avatar.MaskBody: it
+      deleted every body triangle within 4.5 cm of ANY cloth vertex, so skin was cut up to 4.5 cm past each hem; at the
+      collar (and sleeve/leg openings) a ragged hole showed the dark inside of the shirt, so the head looked cut off. Now a
+      body vertex counts as covered only when cloth lies over it along its normal (sideways offset < 2 cm), the neck column
+      down to the collarbones is always kept, and open hem edges (welded boundary edges) are kept too (the TR garments are
+      closed shells, so this last rule rarely fires). Also: hair style seed used string.GetHashCode (random per run) ->
+      stable hash, so the hero keeps one hairstyle. Checked (male + female, default outfit and Plate): f03_m/f_front/back/
+      side/neck, f03_m_plate, posed stand-ins f03_m_run/jump/attack/cast + f03_f_run/attack/cast, live hero f03_hero_run/
+      jump/swing/cast/swim (Dunemere lake). New DevCapture: "pose"/"pose_t" (stand-in held in a clip), actions "jump",
+      "swim", "camspin". Files: scripts/Avatar.cs, scripts/dev/DevCapture.cs, .devloop/viewpoints.json.
 
-[ ] F-04  HAIR AND BODY PARTS FLASH OPAQUE WHITE WHEN THE CAMERA MOVES
+[x] F-04  HAIR AND BODY PARTS FLASH OPAQUE WHITE WHEN THE CAMERA MOVES
     Likely causes: transparency sorting, depth or alpha problems in a shader,
     LOD switching, or a rim light that blows out.
     DONE WHEN:
       - The cause is found and written in the item's note.
       - Turning the camera fast around the player shows no flashing.
+    NOTE (2026-11-26): Cause: the CharRim fresnel overlay (unshaded, blend_add, no alpha test) was put on the alpha-scissor
+      hair strand cards, so it drew every WHOLE card quad additively; at grazing angles (camera turning round the hero) the
+      fresnel term goes to 1 and the hair washed out grey-white (same bug the wing feathers had). Fix: RealHair marks hair
+      "norim", and CharRim.Apply now skips any mesh with an alpha-tested/blended surface. Secondary: the imported auto-LODs
+      (generate_lods=true on TR_Hair/Body/garment glbs) collapse flat cards and thin shells as screen size changes -> hair
+      LodBias 128, body/garments LodBias 4 (set in code, no reimport). Verified with multi-shot camera turns: f04_spin,
+      f04_spin_night (live hero) and f04_spin_f (female stand-in), 8 frames each while the camera yaws 0.22-0.25 rad/frame:
+      hair stays dark in every frame (before: grey-white in half of them). The soft white disc that drifts past in some
+      frames is a world ambient mote near the camera, not a hero mesh (probe: no mesh there). New DevCapture view options
+      "spin", "frames", "frame_gap". Files: scripts/Avatar.cs (RealHair, AddPart, Build, CharRim), scripts/dev/DevCapture.cs.
 
 [ ] F-05  WEAPON SOUNDS PER WEAPON TYPE
     The sword sound plays for weapons that are not swords.

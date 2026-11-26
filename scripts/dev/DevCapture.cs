@@ -454,9 +454,9 @@ public partial class DevCapture : Node
                 var miss = await Swing(wait);
                 var at = P.GlobalPosition + fwd * (ranged ? 6f : 1.8f);
                 var foe = new Enemy { Type = "golem", Level = 30, AnyRealm = true, NoLeash = true, Position = World.OnGround(at.X, at.Z, .3f) };
-                Game.Root!.AddChild(foe); await Secs(.6f); foe.SetProcess(false); foe.SetPhysicsProcess(false);
+                Game.Root!.AddChild(foe); await Secs(.6f); foe.SetProcess(false); foe.SetPhysicsProcess(false); Targeting.Set(foe);   // locked: shots fly at it
                 var hit = await Swing(wait);
-                if (GodotObject.IsInstanceValid(foe)) foe.QueueFree();
+                Targeting.Clear(); if (GodotObject.IsInstanceValid(foe)) foe.QueueFree();
                 await Secs(.3f);
                 Say($"sfxlog {wt}: empty swing [{string.Join(", ", miss)}] | swing at foe [{string.Join(", ", hit)}]");
             }
@@ -531,7 +531,7 @@ public partial class DevCapture : Node
             case "jump": Input.ActionPress(Inputs.Jump); await Secs(.05f); Input.ActionRelease(Inputs.Jump); await Secs(.25f); break;
             case "swim":
                 {   // into the middle of the first lake, swimming forward
-                    var lk = Lands.All.SelectMany(l => l.Lakes).FirstOrDefault();
+                    var lk = Lands.All.SelectMany(l => l.Lakes).Where(l => !l.Name.Contains("Frost")).OrderBy(l => l.X * l.X + l.Z * l.Z).FirstOrDefault();   // nearest open (unfrozen) lake
                     if (lk != null) { P.Teleport(new Vector3(lk.X, lk.Level - .9f, lk.Z), 0f); await Secs(.8f); }
                     Input.ActionPress(Inputs.Forward); await Secs(.8f);
                     Say($"swim: lake {lk?.Name} level {lk?.Level:0.00}, hero at {P.GlobalPosition}");

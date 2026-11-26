@@ -46,6 +46,7 @@ public partial class Avatar : Node3D
         foreach (var c in _sk.GetChildren())
             if (c is MeshInstance3D mi)
             {
+                mi.LodBias = 4f;   // the body's auto-LOD would open seams against the garments as the camera distance changes
                 if (mi.Name.ToString().Contains("Eye") && !mi.Name.ToString().Contains("brow")) { if (ap.GlowEyes) Tint(mi, null, ap.Eyes, 2.5f); continue; }
                 if (mi.Name.ToString().Contains("brow")) { Tint(mi, null, ap.Hair.Darkened(.2f), 0, true, 0, Genshin.Kind.Hair); continue; }
                 if (RealSkin(mi, ap.Skin)) continue;   // gothic realism body (tools/blender_gothic/humans.py): textured skin
@@ -54,7 +55,8 @@ public partial class Avatar : Node3D
         // hair, picked from the list by the seed so a hero always keeps the same style
         var hl = L(Cfg.GetProperty("hair"), _sex); if (hl.Count > 0)
         {
-            int h = Math.Abs(seed.GetHashCode()) % hl.Count;
+            int sh = 17; foreach (char ch in seed) sh = unchecked(sh * 31 + ch);   // string.GetHashCode is randomised per run in .NET: the style changed every launch
+            int h = (int)((uint)sh % (uint)hl.Count);
             string Ext(string n) => n.EndsWith(".glb") || n.EndsWith(".gltf") ? n : n + ".gltf";   // TR_* hair is .glb
             _hair.AddRange(AddPart(HairDir + Ext(hl[h]), "hair", ap.Hair, true));
             string beard = S(Cfg.GetProperty("hair"), "beard");
@@ -106,6 +108,9 @@ public partial class Avatar : Node3D
             d.SpecularMode = BaseMaterial3D.SpecularModeEnum.SchlickGgx;
             mi.SetSurfaceOverrideMaterial(s, d); mi.CastShadow = GeometryInstance3D.ShadowCastingSetting.On; any = true;
         }
+        // F-04: the CharRim overlay has no alpha test, so on strand cards it drew every WHOLE card additively: at grazing angles
+        // (the camera turning round the hero) the hair washed out grey-white. Cards keep only their own alpha-cut material.
+        if (any) mi.SetMeta("norim", true);
         return any;
     }
 
@@ -160,6 +165,7 @@ public partial class Avatar : Node3D
                         if (bn == "" && bb >= 0 && bb < psk.GetBoneCount()) skin.SetBindName(i, psk.GetBoneName(bb));   // bind by name, not index
                     }
                 psk.RemoveChild(mi); mi.Owner = null; _sk.AddChild(mi); mi.Skeleton = new NodePath(".."); mi.Skin = skin;
+                mi.LodBias = slot == "hair" ? 128f : 4f;   // F-04: imported auto-LODs collapse flat strand cards and thin cloth shells as the camera moves; always full detail up close
                 float grow = slot == "hair" ? 0f : .006f;
                 var kind = slot == "hair" ? Genshin.Kind.Hair : Genshin.Kind.Cloth;
                 if (RealHair(mi, tint)) { res.Add(mi); continue; }   // gothic realism strand cards (tools/blender_gothic/humans.py)
@@ -255,25 +261,62 @@ public partial class Avatar : Node3D
         if (_bodyMi == null || _bodyFull == null) return;
         // cloth vertices bucketed in 3 cm cells; a body vertex is "under cloth" if a cloth vertex is within R of it.
         // The head slot is left out: hoods are loose, and their face opening would otherwise cut into the face.
-        const float R = .045f; var grid = new Dictionary<Vector3I, List<Vector3>>(); var key = new System.Text.StringBuilder(_sex);
+        // F-03: skin near a garment OPENING (collar, sleeve ends, leg holes, glove cuffs, boot tops) is always kept. Cutting it
+        // left a ragged hole R wide past the hem, so the inside of the shirt showed as a dark band at the neck, shoulders and hips
+        // and the head and limbs looked detached from the body. Openings = boundary edges of the welded cloth mesh.
+        const float R = .045f, E = .055f; var grid = new Dictionary<Vector3I, List<Vector3>>(); var edge = new Dictionary<Vector3I, List<Vector3>>(); var key = new System.Text.StringBuilder(_sex);
+        void Put(Dictionary<Vector3I, List<Vector3>> g, Vector3 v, float r) { var c = Cell(v, r); if (!g.TryGetValue(c, out var cl)) g[c] = cl = new List<Vector3>(); cl.Add(v); }
+        var cloth = new List<MeshInstance3D>();
         foreach (var slot in new[] { "armor", "hands", "feet" })
             if (_slot.TryGetValue(slot, out var l))
-                foreach (var n in l) if (n is MeshInstance3D mi && mi.Mesh != null && mi.Skin != null)
+                foreach (var n in l) if (n is MeshInstance3D mi && mi.Mesh != null && mi.Skin != null) { cloth.Add(mi); key.Append('|').Append(mi.Mesh.ResourcePath).Append(mi.Name); }
+        if (!_masked.ContainsKey(key.ToString()))   // cloth grids are only needed to build a new masked body
+                foreach (var mi in cloth)
                     {
-                        key.Append('|').Append(mi.Mesh.ResourcePath).Append(mi.Name);
+                        var edges = new Dictionary<(Vector3I, Vector3I), int>(); var at = new Dictionary<Vector3I, Vector3>();
+                        Vector3I Q(Vector3 v) { var q = new Vector3I(Mathf.RoundToInt(v.X * 1000), Mathf.RoundToInt(v.Y * 1000), Mathf.RoundToInt(v.Z * 1000)); at[q] = v; return q; }   // welded at 1 mm (UV seams split vertices)
                         for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
-                            foreach (var v in (Vector3[])mi.Mesh.SurfaceGetArrays(s)[(int)Mesh.ArrayType.Vertex])
-                            { var c = Cell(v, R); if (!grid.TryGetValue(c, out var cl)) grid[c] = cl = new List<Vector3>(); cl.Add(v); }
+                        {
+                            var sa = mi.Mesh.SurfaceGetArrays(s); var cv = (Vector3[])sa[(int)Mesh.ArrayType.Vertex];
+                            foreach (var v in cv) Put(grid, v, R);
+                            var ci = sa[(int)Mesh.ArrayType.Index].VariantType == Variant.Type.Nil ? Enumerable.Range(0, cv.Length).ToArray() : (int[])sa[(int)Mesh.ArrayType.Index];
+                            for (int t = 0; t + 2 < ci.Length; t += 3)
+                                for (int e = 0; e < 3; e++)
+                                {
+                                    var a = Q(cv[ci[t + e]]); var b = Q(cv[ci[t + (e + 1) % 3]]); if (a == b) continue;
+                                    var ek = a.X < b.X || a.X == b.X && (a.Y < b.Y || a.Y == b.Y && a.Z < b.Z) ? (a, b) : (b, a);
+                                    edges[ek] = edges.GetValueOrDefault(ek) + 1;
+                                }
+                        }
+                        foreach (var (ek, cnt) in edges) if (cnt == 1) { Put(edge, at[ek.Item1], E); Put(edge, at[ek.Item2], E); }
                     }
-        bool Under(Vector3 p)
+        bool Near(Dictionary<Vector3I, List<Vector3>> g, Vector3 p, float r)
+        {
+            var c = Cell(p, r);
+            for (int x = -1; x <= 1; x++) for (int y = -1; y <= 1; y++) for (int z = -1; z <= 1; z++)
+                        if (g.TryGetValue(c + new Vector3I(x, y, z), out var cl)) foreach (var q in cl) if (q.DistanceSquaredTo(p) < r * r) return true;
+            return false;
+        }
+        // ...and a body vertex only counts as covered when cloth lies OVER it (along its normal), not merely beside it: past a hem
+        // the nearest cloth vertex sits sideways along the skin. (Garment shells with a closed rim have no open edges at all.)
+        const float T = .02f;
+        bool Over(Vector3 p, Vector3 nrm)
         {
             var c = Cell(p, R);
             for (int x = -1; x <= 1; x++) for (int y = -1; y <= 1; y++) for (int z = -1; z <= 1; z++)
-                        if (grid.TryGetValue(c + new Vector3I(x, y, z), out var cl)) foreach (var q in cl) if (q.DistanceSquaredTo(p) < R * R) return true;
+                        if (grid.TryGetValue(c + new Vector3I(x, y, z), out var cl))
+                            foreach (var q in cl)
+                            {
+                                var d = q - p; if (d.LengthSquared() >= R * R) continue;
+                                float along = d.Dot(nrm); if (along < -.01f) continue;   // cloth must be outside the skin
+                                if ((d - nrm * along).LengthSquared() < T * T) return true;
+                            }
             return false;
         }
+        bool Under(Vector3 p, Vector3 nrm) => (nrm == Vector3.Zero ? Near(grid, p, R) : Over(p, nrm)) && !Near(edge, p, E);
         string k = key.ToString(); int nb = _sk.FindBone("neck_01");
         float neckY = nb >= 0 ? _sk.GetBoneGlobalRest(nb).Origin.Y + .02f : 1.5f;
+        float neckX = nb >= 0 ? _sk.GetBoneGlobalRest(nb).Origin.X : 0f, neckZ = nb >= 0 ? _sk.GetBoneGlobalRest(nb).Origin.Z : 0f;
         if (!_masked.TryGetValue(k, out var masked))
         {
             masked = new ArrayMesh();
@@ -283,7 +326,11 @@ public partial class Avatar : Node3D
             {
                 var arr = _bodyFull.SurfaceGetArrays(s); var verts = (Vector3[])arr[(int)Mesh.ArrayType.Vertex]; var idx = (int[])arr[(int)Mesh.ArrayType.Index];
                 bool[] under = new bool[verts.Length];
-                for (int i = 0; i < verts.Length; i++) under[i] = verts[i].Y < neckY && Under(verts[i]);   // never cut the face (collars and scarves sit close to the chin)
+                var nrms = arr[(int)Mesh.ArrayType.Normal].VariantType == Variant.Type.Nil ? null : (Vector3[])arr[(int)Mesh.ArrayType.Normal];
+                // the neck column down to the collarbones always stays: a collar never sits tight enough to hide it fully, and
+                // a hole there shows the inside of the shirt as a dark band (the head looked cut off from the body)
+                bool NeckCol(Vector3 p) => p.Y > neckY - .11f && new Vector2(p.X - neckX, p.Z - neckZ).Length() < .085f;
+                for (int i = 0; i < verts.Length; i++) under[i] = verts[i].Y < neckY && !NeckCol(verts[i]) && Under(verts[i], nrms != null && i < nrms.Length ? nrms[i].Normalized() : Vector3.Zero);   // never cut the face (collars and scarves sit close to the chin)
                 var keep = new List<int>(idx.Length);
                 for (int t = 0; t + 2 < idx.Length; t += 3) if (!(under[idx[t]] && under[idx[t + 1]] && under[idx[t + 2]])) { keep.Add(idx[t]); keep.Add(idx[t + 1]); keep.Add(idx[t + 2]); }
                 arr[(int)Mesh.ArrayType.Index] = keep.ToArray();
@@ -1003,9 +1050,17 @@ public static partial class CharRim
     {
         if (Game.Set.Quality < 2) return;
         var m = Mat; var list = new List<GeometryInstance3D>();
-        void Walk(Node n) { foreach (var c in n.GetChildren()) { if (c is GeometryInstance3D g && g.MaterialOverlay == null && !g.HasMeta("norim")) { g.MaterialOverlay = m; list.Add(g); } Walk(c); } }   // norim: alpha-cut cards (wing feathers)
+        void Walk(Node n) { foreach (var c in n.GetChildren()) { if (c is GeometryInstance3D g && g.MaterialOverlay == null && !g.HasMeta("norim") && !AlphaCut(g)) { g.MaterialOverlay = m; list.Add(g); } Walk(c); } }   // norim: alpha-cut cards (wing feathers, hair)
         Walk(root);
         if (list.Count > 0 && root is Node3D r3) root.AddChild(new RimLod { Root = r3, Meshes = list });
+    }
+    /// <summary>True when a mesh draws any alpha-tested or blended surface: the overlay has no alpha test and would light the whole card.</summary>
+    static bool AlphaCut(GeometryInstance3D g)
+    {
+        if (g is not MeshInstance3D mi || mi.Mesh == null) return false;
+        for (int s = 0; s < mi.Mesh.GetSurfaceCount(); s++)
+            if (mi.GetActiveMaterial(s) is BaseMaterial3D b && b.Transparency != BaseMaterial3D.TransparencyEnum.Disabled) return true;
+        return false;
     }
     /// <summary>Drops the rim overlay (an extra draw pass per surface) on characters farther than 40 m from the camera; checked every 0.5 s.</summary>
     sealed partial class RimLod : Node
