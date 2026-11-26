@@ -322,6 +322,15 @@ public partial class DevCapture : Node
                 {
                     P.Teleport(World.OnGround(place.X + 4, place.Z + place.R * .3f, .6f), Num(v, "yaw", Mathf.Pi * .8f)); await Secs(1.2f);
                 }
+                else if (v.TryGetProperty("bridge", out _) && Lands.BridgeSpots.Count > 0)
+                {   // F-19: the n-th block bridge (Lands.BridgeSpots: river bridges' middles, then near the start of each sea bridge)
+                    var bs = Lands.BridgeSpots[Math.Clamp((int)Num(v, "bridge", 0f), 0, Lands.BridgeSpots.Count - 1)];
+                    P.Teleport(World.OnGround(bs.X + 6, bs.Z + 6, .6f), 0f); await Secs(1.2f);
+                    Say($"bridge view at {bs} ({Lands.BridgeSpots.Count} bridges)");
+                }
+                // "wait_blocks": wait (up to 12 s) until the block chunks around the hero are shown, so block structures are in the picture
+                if (Flag(v, "wait_blocks", false) && BlockWorld.I != null)
+                    for (int t = 0; t < 120 && !BlockWorld.I.ReadyAround(P.GlobalPosition, 3); t++) await Secs(.1f);
                 // wild foes near the hero spoil the pictures (hit flash, damage numbers): clear them before spawning the view's own foes
                 foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Enemy we && we.GlobalPosition.DistanceTo(P.GlobalPosition) < 60f) we.QueueFree();
                 if (scene.StartsWith("dungeon:") || scene == "arena") { foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Enemy e && e.GlobalPosition.DistanceTo(P.GlobalPosition) < 10f) e.QueueFree(); }
@@ -436,7 +445,7 @@ public partial class DevCapture : Node
             foreach (var k in new[] { Inputs.Forward, Inputs.Sprint, Inputs.Attack, Inputs.Roll, Inputs.Jump, "spell1" }) Input.ActionRelease(k);
             if (action == "ui:loading") LoadScreen.Hide(false);
             if (scene != "title") { Ui.I?.Close(); if (Ui.I != null) Ui.I.Visible = false; }
-            RestoreKit(); Player.BuildMode = false; DevBlocksCleanup();
+            RestoreKit(); Player.BuildMode = false; DevBlocksCleanup(); DevWaterCleanup(); Fishing.I?.DevReset();
             foreach (var sc in GetTree().GetNodesInGroup("soulcubes")) if (sc is Node scn) scn.QueueFree();   // a cube still shaking must not bind into the real save
             if (PetTrade.Open) PetTrade.Cancel(false);
             if (_petsBak != null) { var dd = Game.D; dd.Pets = _petsBak.Value.pets; dd.ActivePet = _petsBak.Value.act; dd.Cubes = _petsBak.Value.cubes; _petsBak = null; PetWorld.Despawn(); }
@@ -522,6 +531,9 @@ public partial class DevCapture : Node
             Say($"place {action[6..]} (id {id}) at {bx},{by},{bz}: {(ok ? "ok" : "failed")}");
             await Secs(.5f); return;
         }
+        if (action == "protect_test") { await ProtectTest(); return; }   // F-18 (DevCaptureTowns.cs)
+        if (action.StartsWith("fish:")) { await FishAction(action[5..]); return; }   // F-22/F-23 (DevCaptureFish.cs)
+        if (action.StartsWith("water:")) { await WaterAction(action[6..]); return; }   // F-20 / F-21 (DevCaptureWater.cs)
         if (action.StartsWith("blocks:")) { await BlocksAction(action[7..], castWait); return; }   // F-14..F-17 (DevCaptureBlocks.cs)
         if (action == "build")
         {   // build mode with the pickaxe in hand and the block hotbar: a few torches, stairs, slabs and a fence placed in front

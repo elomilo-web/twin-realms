@@ -1,0 +1,57 @@
+{
+ "_comment": "Fish in the water (scripts/Fish.cs, F-22) and fishing (scripts/Fishing.cs, F-23). biomes: Lands biome ids (data/lands.json; '*' any; the home island is 'meadow'). water: lake, river, sea, pond (placed block water). depth: metres below the surface the fish swims at. size in cm. time: any/day/night/dawn/dusk. weather: any/clear/rain/storm. Caught fish and junk become pack materials (GatherDb) for cooking (F-24).",
+ "field": { "maxFish": 64, "groups": 9, "radius": 30, "flee": 4.0, "cruise": 0.9, "fleeSpeed": 3.6, "perSpecies": 32 },
+ "rod": { "n": "Fishing Rod", "price": 120, "cost": { "timber": 3, "leatherstrip": 2 }, "key": "7", "range": [4, 13] },
+ "bite": { "wait": [3.5, 11], "rainMul": 0.75, "nightMul": 0.9, "levelMul": 0.025, "window": 1.4 },
+ "reel": { "zone": 0.3, "zoneDiff": 0.14, "zoneLevel": 0.006, "gain": 0.34, "drain": 0.24, "start": 0.3, "lift": 2.6, "fall": 2.0 },
+ "skill": { "id": "fishing", "base": 40, "growth": 1.35, "max": 50 },
+ "categories": {
+  "fish":     { "w": 72, "perLevel": 0 },
+  "junk":     { "w": 18, "perLevel": -0.6, "min": 3 },
+  "treasure": { "w": 8,  "perLevel": 0.25 },
+  "gem":      { "w": 2,  "perLevel": 0.08 }
+ },
+ "modifiers": {
+  "water":   { "sea": { "treasure": 1.6, "gem": 1.3 }, "river": { "junk": 1.3 }, "pond": { "junk": 0.6, "treasure": 0.4, "gem": 0.3 } },
+  "weather": { "rain": { "fish": 1.15 }, "storm": { "treasure": 1.8, "gem": 1.6, "junk": 1.3 } },
+  "time":    { "night": { "gem": 1.5 }, "dawn": { "fish": 1.2 }, "dusk": { "fish": 1.2 } }
+ },
+ "rarities": {
+  "common":    { "w": 60, "perLevel": -0.012, "color": "#d8d2c0" },
+  "uncommon":  { "w": 26, "perLevel": 0.02,  "color": "#6fd36a" },
+  "rare":      { "w": 10, "perLevel": 0.06,  "color": "#5f9bff" },
+  "epic":      { "w": 3,  "perLevel": 0.1,   "color": "#c07cff" },
+  "legendary": { "w": 1,  "perLevel": 0.14,  "color": "#ffb340" }
+ },
+ "fish": {
+  "minnow":     { "n": "Silver Minnow",  "color": "#9aa8ae", "belly": "#e8eef0", "biomes": ["*"], "water": ["lake", "river", "pond", "sea"], "depth": [0.2, 1.2], "school": [6, 10], "rarity": "common", "size": [5, 9],  "value": 2,  "xp": 4,  "diff": 0.1 },
+  "perch":      { "n": "Striped Perch",  "color": "#7c8a3a", "belly": "#e6c35a", "biomes": ["meadow", "forest", "ancient", "autumn"], "water": ["lake", "river", "pond"], "depth": [0.5, 2.5], "school": [4, 6], "rarity": "common", "size": [15, 30], "value": 5, "xp": 7, "diff": 0.25 },
+  "trout":      { "n": "Brook Trout",    "color": "#6a7f6a", "belly": "#f0b8a0", "biomes": ["meadow", "pine", "highland", "forest", "tundra", "ancient"], "water": ["river", "lake"], "depth": [0.6, 2.5], "school": [2, 4], "rarity": "uncommon", "size": [25, 50], "value": 9, "xp": 11, "diff": 0.4, "time": "any" },
+  "carp":       { "n": "Mud Carp",       "color": "#8a7040", "belly": "#d8c080", "biomes": ["meadow", "swamp", "savanna", "autumn"], "water": ["lake", "pond"], "depth": [1.2, 4], "school": [2, 3], "rarity": "common", "size": [30, 60], "value": 6, "xp": 8, "diff": 0.3 },
+  "pike":       { "n": "Reed Pike",      "color": "#4f6b3a", "belly": "#d8e0a0", "biomes": ["meadow", "forest", "swamp", "pine"], "water": ["lake", "river"], "depth": [1, 3.5], "school": [1, 1], "rarity": "rare", "size": [50, 110], "value": 22, "xp": 22, "diff": 0.6 },
+  "catfish":    { "n": "Bog Catfish",    "color": "#3c3a30", "belly": "#a09878", "biomes": ["swamp", "meadow", "savanna"], "water": ["lake", "river"], "depth": [1.5, 5], "school": [1, 1], "rarity": "uncommon", "size": [40, 90], "value": 14, "xp": 15, "diff": 0.5, "time": "night" },
+  "icechar":    { "n": "Frost Char",     "color": "#5a7890", "belly": "#f4f8ff", "biomes": ["tundra", "pine", "highland"], "water": ["lake", "river"], "depth": [1, 4], "school": [3, 5], "rarity": "uncommon", "size": [25, 55], "value": 12, "xp": 13, "diff": 0.45 },
+  "sandfin":    { "n": "Oasis Sandfin",  "color": "#c8a060", "belly": "#f8e8c0", "biomes": ["desert", "savanna"], "water": ["lake", "river", "pond"], "depth": [0.4, 2], "school": [5, 8], "rarity": "common", "size": [12, 25], "value": 6, "xp": 7, "diff": 0.25 },
+  "emberscale": { "n": "Emberscale",     "color": "#b03a1a", "belly": "#ffb040", "biomes": ["volcanic", "autumn"], "water": ["lake", "river"], "depth": [0.8, 3], "school": [2, 3], "rarity": "rare", "size": [20, 45], "value": 30, "xp": 26, "diff": 0.65 },
+  "glowgill":   { "n": "Glowgill",       "color": "#2a5a6a", "belly": "#7ff0e0", "biomes": ["ancient", "swamp"], "water": ["lake", "river"], "depth": [1, 4], "school": [1, 2], "rarity": "rare", "size": [15, 35], "value": 34, "xp": 28, "diff": 0.6, "time": "night" },
+  "koi":        { "n": "Golden Koi",     "color": "#e8a020", "belly": "#fff0d0", "biomes": ["meadow", "ancient"], "water": ["lake", "pond"], "depth": [0.4, 2], "school": [1, 1], "rarity": "legendary", "size": [40, 80], "value": 120, "xp": 70, "diff": 0.8, "minLevel": 5, "time": "dawn" },
+  "mackerel":   { "n": "Blue Mackerel",  "color": "#2f5f8a", "belly": "#e0eef8", "biomes": ["*"], "water": ["sea"], "depth": [0.5, 3], "school": [8, 12], "rarity": "common", "size": [25, 40], "value": 6, "xp": 7, "diff": 0.3 },
+  "bream":      { "n": "Sea Bream",      "color": "#8a96a0", "belly": "#f0e0e0", "biomes": ["*"], "water": ["sea"], "depth": [1, 4], "school": [3, 5], "rarity": "uncommon", "size": [25, 50], "value": 11, "xp": 12, "diff": 0.4 },
+  "stormeel":   { "n": "Storm Eel",      "color": "#3a3060", "belly": "#b0a0ff", "biomes": ["*"], "water": ["sea", "river"], "depth": [1, 5], "school": [1, 1], "rarity": "epic", "size": [70, 150], "value": 60, "xp": 45, "diff": 0.75, "weather": "storm" },
+  "moonray":    { "n": "Moonray",        "color": "#30405a", "belly": "#d8e8ff", "biomes": ["*"], "water": ["sea"], "depth": [2, 7], "school": [1, 1], "rarity": "epic", "size": [60, 140], "value": 80, "xp": 50, "diff": 0.8, "time": "night", "minLevel": 3 }
+ },
+ "junk": {
+  "oldboot":     { "n": "Old Boot",      "color": "#5a4632", "value": 1, "w": 4, "water": ["lake", "river", "sea", "pond"] },
+  "soggystick":  { "n": "Soggy Stick",   "color": "#7a5a38", "value": 1, "w": 5, "water": ["lake", "river", "pond"] },
+  "tangledline": { "n": "Tangled Line",  "color": "#c8c0a8", "value": 1, "w": 3, "water": ["lake", "river", "sea", "pond"] },
+  "seaweed":     { "n": "Seaweed",       "color": "#3f7a40", "value": 2, "w": 4, "water": ["sea"] },
+  "rustyhook":   { "n": "Rusty Hook",    "color": "#8a5a3a", "value": 2, "w": 2, "water": ["lake", "river", "sea"] }
+ },
+ "treasure": [
+  { "kind": "gold", "gold": [12, 45], "w": 5 },
+  { "kind": "gold", "gold": [60, 140], "w": 1.5, "water": ["sea"] },
+  { "kind": "chest", "rar": [1, 3], "gold": [10, 30], "w": 2 },
+  { "kind": "mat", "mat": "crystal", "n": [1, 2], "w": 1.5 },
+  { "kind": "mat", "mat": "ironore", "n": [2, 3], "w": 2 }
+ ]
+}

@@ -19,6 +19,7 @@ public static class GatherDb
         using var doc = JsonUtil.Load("res://data/gather.json"); var r = doc.RootElement; _seed = (int)JsonUtil.F(r, "seed", 9137);
         foreach (var p in r.GetProperty("materials").EnumerateObject())
             Mats[p.Name] = new MatDef { Id = p.Name, Name = JsonUtil.S(p.Value, "n", p.Name), Value = (int)JsonUtil.F(p.Value, "value", 1), Col = Color.FromHtml(JsonUtil.S(p.Value, "color", "#ffffff")), Scrap = p.Value.TryGetProperty("scrap", out var sc) && sc.ValueKind == System.Text.Json.JsonValueKind.True };
+        FishDb.AddMats(Mats);   // caught fish and fishing junk are materials too (data/fishing.json, F-23)
         foreach (var p in r.GetProperty("nodes").EnumerateObject())
         {
             var e = p.Value; var d = new NodeDef { Id = p.Name, Shape = JsonUtil.S(e, "shape", "herb"), Verb = JsonUtil.S(e, "verb", "Gather"), Mat = JsonUtil.S(e, "mat"), Count = (int)JsonUtil.F(e, "count"), Where = JsonUtil.S(e, "where", "meadow"),

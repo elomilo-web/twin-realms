@@ -260,7 +260,7 @@ public partial class Player : CharacterBody3D, IDamageable
     void Die()
     {
         Flag.Event("DIED"); CancelChannel(); CancelCast(); Dead = true; Statuses.Clear(); Flying = false;   // death cleanses: nothing burns or slows the hero after respawning
-        Hp = 0; _deadT = 0; _atkT = 0; _blocking = false; if (Mounted) ToggleMount(true);
+        Hp = 0; _deadT = 0; _atkT = 0; _blocking = false; if (Mounted) ToggleMount(true); if (InBoat != null) LeaveBoat(); Breath = MaxBreath;
         if (LairRules) Ui.Note($"You are down. A party member can revive you; press {Inputs.KeyOf(Inputs.Use)} to give up.", new Color(1f, .7f, .5f));
         Sfx.Play("die");
         if (Arenas.Active) Arenas.OnPlayerDeath();
@@ -279,6 +279,7 @@ public partial class Player : CharacterBody3D, IDamageable
 
     public void Teleport(Vector3 pos, float yaw = 0f)
     {
+        if (InBoat != null) { if (IsInstanceValid(InBoat)) InBoat.Rider = null; InBoat = null; }   // a long jump leaves the boat behind
         GlobalPosition = pos; Velocity = Vector3.Zero; _kb = Vector3.Zero; _hitKb = Vector3.Zero; _walkV = Vector3.Zero; _hasQueue = false; if (_castT > 0 || _atkSkill != null || _moveT > 0 || _spinLeft > 0) { CancelCast(); _moveT = 0; _moveSkill = null; }   // a leap in flight would drag us back
         if (Rig != null) { Rig.GlobalPosition = pos + new Vector3(0, 1.6f, 0); Rig.Rotation = new Vector3(0, yaw, 0); }
         _modelYaw = yaw;
@@ -615,6 +616,8 @@ public partial class Player : CharacterBody3D, IDamageable
         if (LairIntro.Active) { v.X = v.Z = 0; Velocity = v; MoveAndSlide(); Animate(dt); return; }   // the boss intro: stand and watch
         if (Statuses.Stunned) _stagger = Mathf.Max(_stagger, .1f);
         if (SkillTick(dt)) { Animate(dt); return; }   // leap or dash in progress
+        Underwater.Ensure(this);   // the underwater camera tint, fog and wobble (Water.cs)
+        if (BoatRide(dt)) return;   // in a boat: rowing and steering, nothing else (PlayerSwim.cs, F-21)
 
         bool captured = Input.MouseMode == Input.MouseModeEnum.Captured;
         var input = Input.GetVector(Inputs.Left, Inputs.Right, Inputs.Forward, Inputs.Back);
@@ -639,6 +642,7 @@ public partial class Player : CharacterBody3D, IDamageable
         }
         if (captured && Input.IsActionJustPressed(Inputs.Realm)) World.TryShiftRealm();
         if (captured) ScanInteract(); else Prompt = "";
+        BoatPlaceScan(captured);   // a boat in the pack: Interact on open water sets it there (PlayerSwim.cs)
         if (captured && Input.IsActionJustPressed(Inputs.Lock)) { if (Inputs.UsingPad && Targeting.Current != null) Targeting.Clear(); else Targeting.Toggle(Targeting.Current != null); }   // pad: R3 toggles, a right-stick flick switches
         if (captured && Input.IsActionJustPressed(Inputs.Unlock)) Targeting.Clear();
         Targeting.Tick(this);
@@ -657,7 +661,7 @@ public partial class Player : CharacterBody3D, IDamageable
         // attack (left mouse): tap = next step of the chain, hold = keep swinging the chain.
         // heavy (right mouse): pressing starts a short gather; the heavy attack fires by itself when it ends (not on release)
         BlockInput(dt, captured);   // build mode: dig and place instead of attacking (PlayerBlocks.cs)
-        bool building = BuildMode && BlockWorld.Enabled;
+        bool building = BuildMode && BlockWorld.Enabled || Fishing.Busy;   // the fishing rod in hand: attack casts and reels (Fishing.cs) instead of swinging
         bool lmb = captured && !building && Input.IsActionPressed(Inputs.Attack);
         // a press during a swing or its recovery waits for them (it used to give up after 0.3 s, so a press early in a slow swing was lost)
         if (building) { }
@@ -826,7 +830,7 @@ public partial class Player : CharacterBody3D, IDamageable
             SwingR = s * Feel.LegSwing * amt + crouch * .35f, SwingL = -s * Feel.LegSwing * amt - crouch * .1f,
             KneeR = Mathf.Max(0, Mathf.Sin(_walkPh + 1.3f)) * 1.1f * amt + .06f + crouch * .7f, KneeL = Mathf.Max(0, Mathf.Sin(_walkPh + 1.3f + Mathf.Pi)) * 1.1f * amt + .06f + crouch * .45f,
         };
-        if (Mounted) { legs.SwingR = legs.SwingL = 1.2f; legs.KneeR = legs.KneeL = 1.4f; legs.Splay = .35f; }
+        if (Mounted || InBoat != null) { legs.SwingR = legs.SwingL = 1.2f; legs.KneeR = legs.KneeL = 1.4f; legs.Splay = .35f; }
         else if (!floor && _rollT <= 0) { legs.SwingR = .7f; legs.KneeR = 1.3f; legs.SwingL = -.15f; legs.KneeL = .5f; }
         else if (_rollT > 0) { legs.SwingR = legs.SwingL = 1.4f; legs.KneeR = legs.KneeL = 2f; }
         float bob = Mathf.Abs(Mathf.Cos(_walkPh)) * Feel.Bob * amt - Feel.Bob * 0.5f * amt;     // two bounces per stride
@@ -834,9 +838,12 @@ public partial class Player : CharacterBody3D, IDamageable
         float lean = Feel.Lean * amt * amt;                                                       // forward lean grows with speed
         float roll = _rollT > 0 ? (1f - _rollT / RollTime) * Mathf.Tau : 0f;
         if (_av != null) { roll = 0; bob = breath = crouch = 0; }   // the model's clips do the roll, bob and crouch
-        _model.Rotation = new Vector3(roll, _modelYaw, 0);
+        float tilt = SwimTilt(dt, hv);   // swimming along: the body lies forward about the hips (PlayerSwim.cs)
+        _model.Rotation = new Vector3(roll - tilt * 1.3f, _modelYaw, 0);
         StepLift = Mathf.MoveToward(Mathf.Min(StepLift, .6f), 0f, dt * 4f);   // a block step: the model eases up over ~.12 s instead of popping (PlayerBlocks.StepUp)
-        _model.Position = new Vector3(0, (Mounted ? _mountY : 0f) + bob + breath - crouch * .12f - StepLift, 0);
+        var swimOff = Vector3.Zero;
+        if (tilt > .001f) { var piv = new Vector3(0, 1.05f, 0); swimOff = piv - Basis.FromEuler(_model.Rotation) * piv; }
+        _model.Position = new Vector3(0, (Mounted ? _mountY : 0f) + bob + breath - crouch * .12f - StepLift, 0) + swimOff;
         _horse.Rotation = new Vector3(0, _modelYaw, 0);
         if (_petBody != null && _petMount != null && GodotObject.IsInstanceValid(_petBody)) _petBody.PetVel = new Vector3(Velocity.X, 0, Velocity.Z) / Mathf.Max(.3f, _petMount!.Scale.X);   // the ridden pet's gait follows our speed
 
@@ -905,7 +912,8 @@ public partial class Player : CharacterBody3D, IDamageable
         a.FlapWings(Game.PlayTime, Flying);   // Golden Wings beat in flight, fold at rest
         if (Channeling) { a.Play("channel", .2f); return; }
         bool rolling = _rollT > 0; bool rollStart = rolling && !_avRolling; _avRolling = rolling;
-        if (Mounted) { a.Play("sit"); return; }
+        if (Mounted || InBoat != null) { a.Play("sit"); return; }
+        if (Swimming && !rolling && !atk && _castT <= 0) { a.Play("idle", .25f); a.SwimPose(_swimPh, _swimTilt); return; }   // breaststroke / treading water (AvatarSwim.cs)
         if (rolling) { a.Play("roll", .06f, RollTime, rollStart); return; }
         if (_stagger > 0) { bool fresh = _hurtSerial != _avHurt; _avHurt = _hurtSerial; a.Play("hit", .04f, 0, fresh); return; }   // every blow restarts the flinch
         if (BuildSwing(a)) return;   // build mode: the pickaxe swing (PlayerBlocks.cs)

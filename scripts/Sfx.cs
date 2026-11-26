@@ -194,6 +194,12 @@ public partial class Sfx : Node
             case "door_iron": Bell(s, 0, 146.8f, .5f, .3f); Bell(s, 0, 311f, .35f, .12f); Bell(s, .01f, 587f, .2f, .05f); Creak(s, 0, .22f, .08f, 34); break;
             case "chest_open": Creak(s, 0, .32f, .18f, 35); Bell(s, .3f, 130f, .1f, .25f); break;
             case "lock": Bell(s, 0, 1568f, .05f, .2f); Bell(s, .04f, 1175f, .06f, .18f); break;
+            // ---- fishing (Fishing.cs, F-23): the cast swish, the bobber plop, a bite tug, reel clicks, the catch
+            case "fish_cast": Whoosh(s, 0, .3f, .3f, .3f, 61); Pluck(s, .02f, 330f, .25f, .12f, 62); break;
+            case "fish_splash": Whoosh(s, 0, .22f, .4f, .09f, 63); Bell(s, 0, 140f, .12f, .25f); Chirp(s, .01f, 520f, 260f, .1f, .08f); break;
+            case "fish_bite": Bell(s, 0, 98f, .15f, .45f); Whoosh(s, 0, .3f, .45f, .07f, 64); Chirp(s, .04f, 700f, 300f, .12f, .1f); break;
+            case "fish_reel": for (int k = 0; k < 4; k++) Bell(s, k * .045f, 1900f, .025f, .12f); break;
+            case "fish_catch": { float[] n = { G5, C6, E5 * 2 }; for (int k = 0; k < 3; k++) Bell(s, k * .08f, n[k], .7f, .2f); Whoosh(s, 0, .3f, .3f, .1f, 65); break; }
             default: Bell(s, 0, C6, .2f, .15f); break;
         }
         var wav = Make(s); Synth[id] = wav; return wav;

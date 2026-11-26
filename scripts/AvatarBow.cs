@@ -156,7 +156,7 @@ public partial class ArmPose : SkeletonModifier3D
     }
 
     /// <summary>Pre-multiplies a skeleton-space rotation onto a bone's current global pose.</summary>
-    static void RotGlobal(Skeleton3D sk, int b, Quaternion q)
+    internal static void RotGlobal(Skeleton3D sk, int b, Quaternion q)
     {
         int par = sk.GetBoneParent(b); var pg = par >= 0 ? sk.GetBoneGlobalPose(par).Basis.Orthonormalized() : Basis.Identity;
         var g = sk.GetBoneGlobalPose(b).Basis.Orthonormalized();
@@ -174,7 +174,7 @@ public partial class ArmPose : SkeletonModifier3D
         sk.SetBonePoseRotation(b, cur.Slerp(tgt, w).Normalized());
     }
     /// <summary>Two-bone IK (upper arm, forearm, hand) toward target in skeleton space; the elbow bends toward pole; weight w blends with the clip.</summary>
-    static void Solve(Skeleton3D sk, int iu, int il, int ih, Vector3 target, Vector3 pole, float w, Basis? handGlobal)
+    internal static void Solve(Skeleton3D sk, int iu, int il, int ih, Vector3 target, Vector3 pole, float w, Basis? handGlobal)   // (also the swim stroke, AvatarSwim.cs)
     {
         var gU = sk.GetBoneGlobalPose(iu); var gL = sk.GetBoneGlobalPose(il); var gH = sk.GetBoneGlobalPose(ih);
         Vector3 S = gU.Origin, E = gL.Origin, H = gH.Origin;

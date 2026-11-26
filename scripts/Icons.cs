@@ -229,6 +229,27 @@ public static class Icons
             {
                 // scraps and other materials without a drawing: a cut gem in the material's colour
                 if (GemDb.IconColor(id) != null) { GemDb.Draw(ci, id[4..], c, size * 1.15f, alpha); break; }   // "gem:<key>" (Gems.cs)
+                if (FishDb.FishByName(id) is { } fd)
+                {   // caught fish (data/fishing.json): a side view in its colours
+                    Poly(ci, P(c, s, -.75f, 0, -.2f, -.42f, .4f, -.3f, .55f, 0, .4f, .3f, -.2f, .4f), A(fd.Col), ol);
+                    Poly(ci, P(c, s, -.6f, .05f, -.1f, .32f, .4f, .22f, .5f, .05f), A(fd.Belly with { A = .85f }));
+                    Poly(ci, P(c, s, .5f, 0, .9f, -.4f, .82f, 0, .9f, .4f), A(fd.Col.Darkened(.2f)), ol);
+                    ci.DrawCircle(c + new Vector2(-.48f, -.08f) * s, s * .07f, A(Colors.Black));
+                    break;
+                }
+                if (id is "fishing_rod" or "Fishing Rod")
+                {
+                    ci.DrawLine(c + new Vector2(-.7f, .75f) * s, c + new Vector2(.7f, -.8f) * s, A(new Color(.45f, .3f, .18f)), Mathf.Max(2.5f, s * .12f), true);
+                    ci.DrawLine(c + new Vector2(-.7f, .75f) * s, c + new Vector2(-.4f, .42f) * s, A(new Color(.78f, .62f, .4f)), Mathf.Max(3.5f, s * .2f), true);
+                    ci.DrawLine(c + new Vector2(.7f, -.8f) * s, c + new Vector2(.75f, .45f) * s, A(new Color(.9f, .9f, .85f)), 1.2f, true);
+                    ci.DrawCircle(c + new Vector2(.75f, .5f) * s, s * .1f, A(new Color(.9f, .2f, .15f)));
+                    break;
+                }
+                if (id == "Old Boot")
+                {
+                    Poly(ci, P(c, s, -.35f, -.75f, .15f, -.75f, .15f, .2f, .75f, .35f, .75f, .7f, -.4f, .7f), A(new Color(.42f, .32f, .22f)), ol);
+                    break;
+                }
                 var gc = GatherDb.ColorOfName(id) ?? UiTheme.Accent;
                 Poly(ci, P(c, s, 0, -.7f, .6f, 0, 0, .7f, -.6f, 0), A(gc), ol);
                 Poly(ci, P(c, s, 0, -.7f, .3f, -.1f, 0, .05f, -.3f, -.1f), A(gc.Lightened(.45f) with { A = .8f }));

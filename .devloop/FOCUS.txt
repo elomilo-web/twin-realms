@@ -426,21 +426,33 @@ PHASE 4 - BUILDING BLOCKS AND PROTECTED AREAS
 PHASE 5 - WATER, FISHING, AND LIFE SKILLS
 ================================================================================
 
-[ ] F-20  SWIMMABLE WATER
+[x] F-20  SWIMMABLE WATER
     DONE WHEN: players can swim on the surface and dive, with a breath meter.
     There is an underwater camera effect. Items dropped in water float and
     drift.
+    NOTE: Water.cs (block water + smooth lakes), PlayerSwim.cs (float at the surface, Jump up, Dive = Ctrl / Roll / pad B
+    down, 12 s breath, drowning 8%/s), HudWater.cs breath bar (only under water), Underwater layer (tint, fog, wobble),
+    AvatarSwim.cs procedural breaststroke / treading, Loot floats + drifts with Water.Current. Views swim_surface,
+    swim_underwater, loot_float verified. The test lake is only ~2 m deep, so the follow camera seldom dips under there.
 
-[ ] F-21  BOATS
+[x] F-21  BOATS
     DONE WHEN: boats can be crafted, placed on water, boarded, and steered.
     They carry the player across water and can be picked back up.
+    NOTE: Boat.cs + PlayerSwim.cs. Blocks craft tab (data/blocks.json "items".boat: 5 planks, kept in Mats["boat"]);
+    Interact on open water places it, Interact boards / gets out (nearest land), W/S + A/D (left stick) steer, stops at
+    shores, hit it (attack) when empty to pick it up. Friends see your boat (net flag 2 in the Mounted slot). View
+    boat_ride verified. Placed boats are not saved (quitting with a boat on the water loses it).
 
-[ ] F-22  FISH IN THE WATER
+[x] F-22  FISH IN THE WATER
     DONE WHEN: fish swim in the water, in schools and alone. Fish types
     differ by biome and depth. Fish swim away when the player gets close and
     never leave the water.
+    NOTE: scripts/Fish.cs FishField (Main.cs): up to 64 fish in 9 schools/loners seated in water within 30 m of the hero,
+    one MultiMesh per species (code-built low-poly fish), boids steering, flee inside 4 m; a step out of water (blocks or
+    lake/river/sea level vs ground) is refused. Species, biomes, water kinds, depth bands, school sizes in data/fishing.json
+    "fish". View fish_school: 0 of 7650 fish-frames outside the water, flee 3.2 m -> 6.0 m; lake fish differ per biome.
 
-[ ] F-23  FISHING
+[x] F-23  FISHING
     DONE WHEN:
       - The fishing rod has cast, wait, bite, and reel steps, and a small
         timing minigame decides the catch.
@@ -448,6 +460,12 @@ PHASE 5 - WATER, FISHING, AND LIFE SKILLS
         of day, weather, and fishing level. Loot includes common fish, rare
         fish, junk, treasure, and the occasional gem.
       - Fishing gives fishing skill XP.
+    NOTE: scripts/Fishing.cs (rod: PlayerStats.Rod, crafted in Crafting > Blocks from 3 timber + 2 leather strips or bought
+    from the merchant for 120g; key 7 / d-pad down takes it out; attack casts, strikes on the bite, holds the reel zone).
+    Minigame: keep the darting fish inside your green zone until the bar fills. Loot: data/fishing.json (categories +
+    water/weather/time modifiers + per-level shifts, rarity weights, junk, treasure, gems via GemDb). Fish/junk are GatherDb
+    mats "fish_<id>"/"junk_<id>" with icons. scripts/LifeSkills.cs: PlayerStats.Life xp, Level, Gain (for F-24).
+    Views fishing_bite, fishing_minigame, fishing_catch, fishing_sim (200 catches; tables differ by every axis) verified.
 
 [ ] F-24  LIFE SKILLS: MINING, FISHING, COOKING
     DONE WHEN:

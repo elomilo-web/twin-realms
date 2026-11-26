@@ -171,6 +171,7 @@ public partial class Main : Node3D
         AddChild(new BlockWorld());   // the ground around the player as blocks (BlockWorld.cs)
         AddChild(new Hud { Name = "Hud" });
         AddChild(new Ambient { Name = "Ambient" }); AddChild(new Weather { Name = "Weather" });
+        AddChild(new FishField { Name = "FishField" }); AddChild(new Fishing { Name = "Fishing" });   // fish in the water and the fishing rod (F-22, F-23)
         Ui.InGame = true; Input.MouseMode = Input.MouseModeEnum.Captured;
         if (LoadScreen.Busy) LoadScreen.SetProgress(.97f, "Lighting the lamps");
         Warmup.Run(this);   // fire each lazily-built effect once so the first real use does not hitch (Warmup.cs)

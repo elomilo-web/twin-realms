@@ -605,12 +605,17 @@ public partial class Avatar : Node3D
     }
 
     string? _tool;
+    /// <summary>A held item shown when ShowTool gets no build tool ("code:rod" while fishing, Fishing.cs); null: none.</summary>
+    public string? HeldOverride;
+    /// <summary>Tools built in code, by "code:..." name: the builder returns the model pointing -Z, grip at the origin.</summary>
+    public static readonly Dictionary<string, Func<Node3D>> CodeTools = new();
     /// <summary>
     /// Build mode: a tool (kit model name in assets/models/kit/weapons, e.g. "pickaxe_iron") in the right hand instead of the weapon,
     /// weapon and shield hidden; null puts the weapon and shield back. Cheap to call every frame; survives a re-dress.
     /// </summary>
     public void ShowTool(string? kitModel)
     {
+        if (string.IsNullOrEmpty(kitModel)) kitModel = HeldOverride;   // no build tool: a held item (the fishing rod) if any
         bool on = !string.IsNullOrEmpty(kitModel);
         var have = SlotNodes("tool");
         bool valid = have.Count > 0 && have.All(n => IsInstanceValid(n));
@@ -621,7 +626,10 @@ public partial class Avatar : Node3D
             var (hp, hr) = WeaponHold("axe", "");
             var h = Holder("hand_r", hp, hr, "tool");
             var turn = new Node3D { Rotation = new Vector3(0, Mathf.Pi, 0) }; h.AddChild(turn);   // kit models point -Z after BuildKit; the hold wants +Z
-            if (!Weapons.BuildTool(turn, kitModel!)) { Clear("tool"); _tool = null; }
+            bool built;
+            if (kitModel!.StartsWith("code:")) { built = CodeTools.TryGetValue(kitModel, out var mk); if (built) turn.AddChild(mk!()); }   // a tool built in code (Fishing.cs rod)
+            else built = Weapons.BuildTool(turn, kitModel!);
+            if (!built) { Clear("tool"); _tool = null; }
         }
         foreach (var s in new[] { "weapon", "shield" }) foreach (var n in SlotNodes(s)) if (n is Node3D n3 && IsInstanceValid(n3)) n3.Visible = !on || _tool == null;
     }

@@ -127,6 +127,7 @@ public partial class BlockWorld : Node3D
     public override void _Process(double delta)
     {
         if (Net.Dedicated) return;
+        if (!Structures.Ready) return;   // the world build is still stamping its block structures (F-19)
         if (Area == null && !Dungeon.Active && World.I != null) UseOverworld();
         var a = Area; var p = Player.Instance; if (a == null || p == null || !IsInstanceValid(p)) return;
         int S = a.S, pcx = a.CFloor(Mathf.FloorToInt(p.GlobalPosition.X)), pcz = a.CFloor(Mathf.FloorToInt(p.GlobalPosition.Z));

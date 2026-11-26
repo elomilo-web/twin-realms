@@ -9,6 +9,7 @@ public partial class Wayshrine : Node3D
 {
     static readonly Dictionary<string, Wayshrine> All = new();
     static Mesh? _plinth, _obe, _band, _sigil; static StandardMaterial3D? _stone, _off, _on; static Mesh? _mote; static StandardMaterial3D? _moteMat;
+    bool _blocks; float _sigilY = 4.4f;
     string _id = ""; MeshInstance3D? _bandMi, _sigilMi; OmniLight3D? _light; CpuParticles3D? _motes; float _flash, _t;
 
     public static void BuildAll(Node3D parent)
@@ -32,7 +33,13 @@ public partial class Wayshrine : Node3D
             // lakes and shores: walk outward until the ground is above the water
             for (int k = 0; k < 12 && !p.Sky && Lands.WaterAt(x, z) > World.GroundAt(x, z) - .2f; k++) { var dir = off.Normalized(); x += dir.X * 4f; z += dir.Y * 4f; }
             float y = p.Sky ? p.Y : World.GroundAt(x, z);
-            var w = new Wayshrine { _id = p.Id, Position = new Vector3(x, y, z) };
+            bool blk = Structures.On && !p.Sky;   // F-19: plinth and column as blocks (the sky islands have no blocks)
+            if (blk)
+            {
+                int bx = Mathf.FloorToInt(x), bz = Mathf.FloorToInt(z), by = Structures.Floor(y);
+                Structures.Place(StructGen.Wayshrine(), bx, by, bz); x = bx + .5f; z = bz + .5f; y = by;
+            }
+            var w = new Wayshrine { _id = p.Id, Position = new Vector3(x, y, z), _blocks = blk };
             parent.AddChild(w); w.Setup(Game.D.Disc.Contains(p.Id)); All[p.Id] = w;
         }
     }
@@ -41,11 +48,15 @@ public partial class Wayshrine : Node3D
 
     void Setup(bool lit)
     {
-        var pl = new MeshInstance3D { Mesh = _plinth, MaterialOverride = _stone, Position = Vector3.Up * .25f }; AddChild(pl);
-        AddChild(new MeshInstance3D { Mesh = _obe, MaterialOverride = _stone, Position = Vector3.Up * 2.1f });
-        _bandMi = new MeshInstance3D { Mesh = _band, Position = Vector3.Up * 2.3f, Scale = new Vector3(1.0f, 1f, 1.0f), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off }; AddChild(_bandMi);
-        _sigilMi = new MeshInstance3D { Mesh = _sigil, Position = Vector3.Up * 4.4f, RotationDegrees = new Vector3(90, 0, 0), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off }; AddChild(_sigilMi);
-        _light = new OmniLight3D { Position = Vector3.Up * 2.6f, OmniRange = 6f, LightEnergy = 1.2f, LightColor = new Color(1f, .82f, .45f), ShadowEnabled = false, DistanceFadeEnabled = true, DistanceFadeBegin = 70f, DistanceFadeLength = 10f, Visible = false }; AddChild(_light);
+        if (!_blocks)
+        {
+            var pl = new MeshInstance3D { Mesh = _plinth, MaterialOverride = _stone, Position = Vector3.Up * .25f }; AddChild(pl);
+            AddChild(new MeshInstance3D { Mesh = _obe, MaterialOverride = _stone, Position = Vector3.Up * 2.1f });
+        }
+        else _sigilY = 5.6f;   // the block column (StructGen.Wayshrine) is 4.5 high, the rune stone at 2-3
+        _bandMi = new MeshInstance3D { Mesh = _band, Position = Vector3.Up * (_blocks ? 3.05f : 2.3f), Scale = _blocks ? new Vector3(2.4f, 1.6f, 2.4f) : Vector3.One, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off }; AddChild(_bandMi);
+        _sigilMi = new MeshInstance3D { Mesh = _sigil, Position = Vector3.Up * _sigilY, RotationDegrees = new Vector3(90, 0, 0), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off }; AddChild(_sigilMi);
+        _light = new OmniLight3D { Position = Vector3.Up * (_blocks ? 3.2f : 2.6f), OmniRange = 6f, LightEnergy = 1.2f, LightColor = new Color(1f, .82f, .45f), ShadowEnabled = false, DistanceFadeEnabled = true, DistanceFadeBegin = 70f, DistanceFadeLength = 10f, Visible = false }; AddChild(_light);
         _motes = new CpuParticles3D { Amount = 8, Lifetime = 2.5f, Emitting = false, Mesh = _mote, MaterialOverride = _moteMat, Position = Vector3.Up * .6f, EmissionShape = CpuParticles3D.EmissionShapeEnum.Sphere, EmissionSphereRadius = .5f,
             Direction = Vector3.Up, Spread = 10f, InitialVelocityMin = .5f, InitialVelocityMax = .9f, Gravity = Vector3.Zero, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off }; AddChild(_motes);
         Light(lit, false);
@@ -61,7 +72,7 @@ public partial class Wayshrine : Node3D
     public override void _Process(double delta)
     {
         float d = (float)delta; _t += d;
-        if (_sigilMi != null) { _sigilMi.RotateY(d * .8f); _sigilMi.Position = new Vector3(0, 4.4f + Mathf.Sin(_t * 1.5f) * .12f, 0); }
+        if (_sigilMi != null) { _sigilMi.RotateY(d * .8f); _sigilMi.Position = new Vector3(0, _sigilY + Mathf.Sin(_t * 1.5f) * .12f, 0); }
         if (_light != null) { _flash = Mathf.Max(0, _flash - d); _light.LightEnergy = 1.2f + _flash * 6f; }
     }
 }

@@ -355,6 +355,7 @@ public partial class HudCanvas : Control
             DrawRect(new Rect2(sz.X * .2f, by, sz.X * .6f, 1), gold); DrawRect(new Rect2(sz.X * .2f, by + bh, sz.X * .6f, 1), gold);
             Txt(new Vector2(0, sz.Y / 2 - fs(4.2f)), "F  A  L  L  E  N", fs(6f), new Color(.55f, .06f, .07f, k), HorizontalAlignment.Center, sz.X);
         }
+        DrawBreath(p, sz, u, fs(1f), dtv);   // under water: the breath bar (HudWater.cs, F-20)
         // channelling (Resurrection, reviving a friend): a bar under the crosshair
         if (p.ChannelFrac >= 0)
         {
