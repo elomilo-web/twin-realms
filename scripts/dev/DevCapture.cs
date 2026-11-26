@@ -441,7 +441,17 @@ public partial class DevCapture : Node
         var fwd = -P.GlobalTransform.Basis.Z with { Y = 0 }; fwd = fwd.LengthSquared() > .01f ? fwd.Normalized() : Vector3.Forward;
         async Task<List<string>> Swing(float wait)
         {
-            Sfx.Played.Clear(); Heal(); Input.ActionPress(Inputs.Attack); await Secs(.05f); Input.ActionRelease(Inputs.Attack); await Secs(wait);
+            Sfx.Played.Clear(); Heal(); Input.ActionPress(Inputs.Attack); await Secs(.05f); Input.ActionRelease(Inputs.Attack);
+            // ranged: where the shot leaves from, against the held bow's arrow rest and the left hand (F-06)
+            int n0 = Projectile.SpawnedByPlayer; float waited = .05f; var av = P.FindChildren("*", "", true, false).OfType<Avatar>().FirstOrDefault();
+            Vector3? nock = null, hand = null;
+            while (Projectile.SpawnedByPlayer == n0 && waited < 1.5f) { nock = av?.BowNock(); hand = av?.HandPos(true); await ToSignal(GetTree(), SceneTree.SignalName.PhysicsFrame); waited += (float)GetPhysicsProcessDeltaTime(); }
+            if (Projectile.SpawnedByPlayer > n0 && GetTree().GetNodesInGroup("projectiles").OfType<Projectile>().LastOrDefault(p => p.Own == 'p') is { } shot)
+            {   // the shot may have flown a frame already: measure how far a point lies off its flight line
+                var vd = shot.Vel.Normalized(); float Off(Vector3 q) => (q - shot.GlobalPosition).Cross(vd).Length();
+                Say($"sfxlog shot line: {(nock is { } nk ? $"{Off(nk):0.000} m off the bow's arrow rest" : "no bow")}, {(hand is { } h ? $"{Off(h):0.000} m off the left hand bone" : "")}");
+            }
+            await Secs(Mathf.Max(.1f, wait - waited));
             return new List<string>(Sfx.Played);
         }
         Sfx.Log = true;

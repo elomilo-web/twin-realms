@@ -133,7 +133,7 @@ PHASE 0 - BUGS AND FIXES (do these first)
       frames is a world ambient mote near the camera, not a hero mesh (probe: no mesh there). New DevCapture view options
       "spin", "frames", "frame_gap". Files: scripts/Avatar.cs (RealHair, AddPart, Build, CharRim), scripts/dev/DevCapture.cs.
 
-[ ] F-05  WEAPON SOUNDS PER WEAPON TYPE
+[x] F-05  WEAPON SOUNDS PER WEAPON TYPE
     The sword sound plays for weapons that are not swords.
     DONE WHEN:
       - Every weapon type (sword, axe, mace, dagger, spear, staff, bow,
@@ -141,13 +141,34 @@ PHASE 0 - BUGS AND FIXES (do these first)
         set in the weapon's data rather than hard-coded.
       - A fallback sound plays only when a type has no sounds, and a warning
         is logged when that happens.
+    NOTE (2026-11-26): data/weapons.json types.<type>.sfx {swing, shoot (ranged release), hit, miss}: lists of {id, vol,
+      pitch [min,max]} for all 11 types (unarmed, sword, katana, greatsword, axe, mace, dagger, spear, bow, wand, staff).
+      ASSUMPTION: there is no pistol/gun weapon type in the game, so none was added. Sfx.Weapon(type, event) plays them;
+      a type/event without a list plays the generic sound and logs "[SFX] weapon type 'x' has no 'y' sounds" once
+      (code path only: every type has all its lists). New synthesized ids in Sfx.Gen (a same-named file overrides):
+      whoosh_quick/heavy/blunt, swish_wood, whiff(_heavy), slash/chop/blunt/wood_hit, bow_draw (creak), bow_twang
+      (plucked string + whoosh), arrow_hit/miss, wand_zap/hit/fizzle, orb_hit, punch_whiff. Hooks: swing at attack
+      start (TryAttack), hit/miss in ResolveMelee (miss = 0 foes hit), finisher and crit layers use the weapon's hit,
+      shoot in FireWeapon, shot hit/miss in Projectile (Wpn field). Test: capture view sfx_log (DevCapture
+      "sfxlog:all"): every type logs its own swing+miss on an empty swing and swing+hit on a golem, no fallbacks.
+      Files: scripts/Sfx.cs, Weapons.cs, Player.cs, Projectile.cs, dev/DevCapture.cs, data/weapons.json.
 
-[ ] F-06  BOW RAISE AND DRAW ANIMATION
+[x] F-06  BOW RAISE AND DRAW ANIMATION
     The bow uses the pistol animation.
     DONE WHEN:
       - The bow has its own raise, draw/hold, release, and lower animations,
         and the animation tree picks them by weapon type.
       - Arrows leave from the bow, not from the pistol's hand position.
+    NOTE (2026-11-26): The animation libraries have no bow/archery clips (checked UAL2_Standard.glb and
+      AL_Standard.fbx), so the bow is procedural: scripts/AvatarBow.cs ArmPose (SkeletonModifier3D after HeadLook):
+      chest turns the bow shoulder forward (neck turns back), two-bone IK puts the bow hand on the aim line at arm's
+      reach with the bow upright, the string hand goes from the bow (nock) to the cheek, flicks back on release; fades
+      in (raise) and out (lower). A nocked arrow shows while drawn. Driven from the attack timeline in
+      Player.AnimateAvatar (raise > draw > hold > release > lower) over the walk/idle clip. Picking by weapon type is
+      data: data/avatar.json "weaponAnims" (bow: pose "bow" + all timings/offsets; wand/staff: shoot clip key).
+      ASSUMPTION: there is no AnimationTree; "picked by weapon type" = this data table. Arrows: MuzzlePos uses
+      Avatar.BowNock() (the held bow's grip holder + 5 cm up). Test: views bow_draw / bow_release (drawn to the cheek,
+      release flick); sfx_log logs each arrow's flight line 0.000 m off the arrow rest (0.71 m off the old hand point).
 
 [x] F-07  RETICLE MATCHES DIGGING AND PLACING
     DONE WHEN:

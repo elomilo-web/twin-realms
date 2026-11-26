@@ -331,8 +331,19 @@ public partial class Player : CharacterBody3D, IDamageable
     Vector3 MuzzlePos()
     {
         var fw = new Vector3(-Mathf.Sin(_modelYaw), 0, -Mathf.Cos(_modelYaw));
+        // bows: the arrow rest on the held bow (just above the grip hand), not the pistol hand position
+        if (_av != null && !Mounted && W.Id == "bow" && _av.BowNock() is { } nk && nk.DistanceTo(GlobalPosition) < 2.5f) return nk;
         if (_av != null && !Mounted && _av.HandPos(true) is { } h && h.DistanceTo(GlobalPosition) < 2.5f) return h + fw * .25f;
         return GlobalPosition + new Vector3(0, 1.45f + (Mounted ? _mountY : 0f), 0) + fw * 0.6f;
+    }
+    /// <summary>World direction the bow pose aims (from the shoulders to the aim point; pitch kept within 50 degrees).</summary>
+    Vector3 BowAim()
+    {
+        var (tp, _) = AimPoint(80f); var d = tp - (GlobalPosition + new Vector3(0, 1.45f, 0));
+        var fw = new Vector3(-Mathf.Sin(_modelYaw), 0, -Mathf.Cos(_modelYaw));
+        if (d.LengthSquared() < .01f) return fw;
+        d = d.Normalized(); float flat = new Vector2(d.X, d.Z).Length(); float pitch = Mathf.Clamp(Mathf.Atan2(d.Y, flat), -.87f, .87f);
+        return fw * Mathf.Cos(pitch) + Vector3.Up * Mathf.Sin(pitch);   // along the body's facing, so the arms never twist across it
     }
 
     // ------------------------------------------------------------------ attacks
@@ -378,7 +389,7 @@ public partial class Player : CharacterBody3D, IDamageable
         }
         if (_magnet != null && _magnet.GlobalPosition.DistanceTo(GlobalPosition) - _magnet.Def.R * _magnet.ScaleF() > _atk.Range + 2.4f) _magnet = null;
         _modelYaw = face; _spinBase = face;
-        if (w.Id == "unarmed") Sfx.Play("punch_swing", .6f); else Sfx.Play("swing");   // fists: a short soft cloth whoosh, not the blade's
+        Sfx.Weapon(w.Id, "swing");   // the weapon type's own swing (data/weapons.json "sfx"): blade whoosh, heavy whoosh, bow creak...
         return true;
     }
 
@@ -429,13 +440,14 @@ public partial class Player : CharacterBody3D, IDamageable
             if (crit) CritFx(e, hitPt, new Vector3(d.X, 0, d.Z).Normalized());
             hits++;
         }
-        if (hits > 0) { Rig?.Shake(_atkPower ? Tune.F("heavy.shake", .32f) : fin ? 0.15f : 0.08f); if (W.Id == "unarmed") Sfx.Play("punch_hit"); else Sfx.Play("hit"); if (_atkPower) Fx.Dust(GlobalPosition + GlobalTransform.Basis.Z * -1.2f, Tune.F("heavy.dust", 1.4f)); }   // a connecting heavy blow kicks up dust
+        if (hits > 0) { Rig?.Shake(_atkPower ? Tune.F("heavy.shake", .32f) : fin ? 0.15f : 0.08f); Sfx.Weapon(W.Id, "hit"); if (_atkPower) Fx.Dust(GlobalPosition + GlobalTransform.Basis.Z * -1.2f, Tune.F("heavy.dust", 1.4f)); }   // a connecting heavy blow kicks up dust
+        else Sfx.Weapon(W.Id, "miss");   // the swing connected nothing
         if (fin && hits > 0 && !_atkPower)
         {   // finisher lands: gold shockwave + dust + low thump
             var gp = GlobalPosition + Vector3.Up * .08f;
             Vfx.Ring(gp, Mathf.Max(2f, range * Feel.ComboF("ringScale", 1.1f)), new Color(1f, .82f, .4f), Feel.ComboF("ringTime", .45f));
             Fx.Dust(GlobalPosition + GlobalTransform.Basis.Z * -1f, Feel.ComboF("dust", 1.2f)); Rig?.Shake(Feel.ComboF("shake", .22f));
-            Sfx.Play("hit", Feel.ComboF("thumpPitch", .75f));
+            Sfx.Weapon(W.Id, "hit", Feel.ComboF("thumpPitch", .75f), .8f);   // the finisher: the weapon's own hit, lower
             if (_allPerfect && _combo > 0) FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.4f, 0), "Rhythm", new Color(1f, .85f, .4f), 1f);
         }
         if ((_atkPower || fin) && (a.Up > 0 || a.Arc >= 180 || stun > .5f)) { Vfx.Ring(GlobalPosition + Vector3.Up * .08f, range * .9f, w.Trail, .35f); }
@@ -456,7 +468,7 @@ public partial class Player : CharacterBody3D, IDamageable
         GetParent().AddChild(streak); streak.GlobalPosition = pt;
         streak.LookAtFromPosition(pt, pt + dir, Vector3.Up); streak.RotateObjectLocal(Vector3.Up, Mathf.Pi / 2);   // quad's long axis (local X) along the swing
         var tw = streak.CreateTween(); tw.TweenProperty(mat, "albedo_color:a", 0f, Cf("streakTime", .12f)); tw.TweenCallback(Callable.From(streak.QueueFree));
-        Sfx.Play("hit", 1f, Cf("hitPitch", 1.05f)); Sfx.Play("block", Cf("clashVol", .7f), Cf("clashPitch", 1.6f));
+        Sfx.Weapon(W.Id, "hit", 1f, Cf("hitPitch", 1.05f)); Sfx.Play("block", Cf("clashVol", .7f), Cf("clashPitch", 1.6f));
         if (e.Dead)
         {
             Feel.SlowMo(Cf("killSlowScale", .25f), Cf("killSlowTime", .12f));
@@ -490,6 +502,7 @@ public partial class Player : CharacterBody3D, IDamageable
         {
             var p = Projectile.Spawn(kind, 'p', origin, d * speed + (kind == "arrow" ? Vector3.Up * 0.6f : Vector3.Zero), pdmg, life, crit, pierce, aoe, big, kind == "bolt" && !big ? tint : null);
             if (st != null && st.Status.Count > 0) p.Statuses = st.Status;
+            p.Wpn = wt;   // its hit / miss sounds come from the weapon type
         }
         void Muzzle(bool big)
         {
@@ -503,20 +516,20 @@ public partial class Player : CharacterBody3D, IDamageable
         {
             int n = Mathf.Max(shots, TS.Has("multi") ? 3 : 1); float sp = _atkPower ? 64f : 50f, pd = dmg * sm * (_atkPower ? 2f : 1f) * (TS.Has("multi") && shots <= 1 ? 0.55f : 1f);
             for (int k = 0; k < n; k++) Shoot("arrow", Fan(k, n), sp, pd, 2.4f, _atkPower || sPierce || TS.Has("pierce"));
-            Sfx.Play("swing");
+            Sfx.Weapon(wt, "shoot");   // string twang + arrow whoosh
         }
         else if (wt == "wand")
         {
             float cost = (_atkPower ? 8f : 3f) * Mathf.Max(1, shots * .6f); bool ok = Mp >= cost; Mp = Mathf.Max(0, Mp - cost); if (!ok) dmg *= 0.5f;
             for (int k = 0; k < shots; k++) Shoot("bolt", Fan(k, shots), 44f, dmg * sm * (_atkPower ? 1.9f : 1f), 1.6f, sPierce || TS.Has("pierce"), st?.Aoe ?? 0);
-            Muzzle(false); Sfx.Play("zap");
+            Muzzle(false); Sfx.Weapon(wt, "shoot");
         }
         else
         {
             float cost = (_atkPower ? 16f : 8f) * Mathf.Max(1, shots * .6f); bool ok = Mp >= cost; Mp = Mathf.Max(0, Mp - cost); if (!ok) dmg *= 0.5f;
             float aoe = st != null && st.Aoe > 0 ? st.Aoe : _atkPower ? 3.4f : 2.2f;
             for (int k = 0; k < shots; k++) Shoot("bolt", Fan(k, shots), 28f, dmg * sm * (_atkPower ? 2.6f : 1.35f), 2.2f, false, aoe, true);
-            Muzzle(true); Sfx.Play("fire");
+            Muzzle(true); Sfx.Weapon(wt, "shoot");
         }
     }
 
@@ -891,16 +904,23 @@ public partial class Player : CharacterBody3D, IDamageable
         if (atk)
         {
             bool fresh = _atkSerial != _avAtk; _avAtk = _atkSerial;
-            if (w.Id == "bow" && _atk != null)
+            var wa = Avatar.WeaponAnim(w.Id);   // data/avatar.json "weaponAnims": how this weapon type's attack is animated
+            if (wa is { } bw && Avatar.Str(bw, "pose") == "bow" && _atk != null)
             {
-                // bow: draw (aim) through the wind-up, then the release at the shot
-                float prog = 1f - _atkT / Mathf.Max(.01f, _atkDur);
-                if (prog < _atk.Hit) a.Play("aim", fresh ? .08f : .12f); else a.Play("shoot", .04f, Mathf.Max(.15f, _atkT), a.Cur != Avatar.Clip("shoot"));
+                // bow (procedural, scripts/AvatarBow.cs): raise, draw to the cheek through the wind-up, hold, release at the shot, then lower
+                float t = (1f - _atkT / Mathf.Max(.01f, _atkDur)) * _atkDur, tHit = _atk.Hit * _atkDur;
+                float ds = Mathf.Min(JsonUtil.F(bw, "raise", .2f) * .6f, tHit * .4f), de = Mathf.Max(ds + .02f, tHit * JsonUtil.F(bw, "drawEnd", .88f));
+                float u = Mathf.Clamp((t - ds) / (de - ds), 0, 1); u = u * u * (3 - 2 * u);
+                bool released = t >= tHit;
+                if (!released || t < tHit + JsonUtil.F(bw, "hold", .12f))
+                    a.BowPose(released ? 1f : u, released ? 1f : 0f, BowAim(), released ? "release" : t < ds ? "raise" : u < 1f ? "draw" : "hold");
+                a.Move(hv, floor, false, false, _backpedal);   // the legs keep their own clip under the arms
                 return;
             }
             // the step's own animation (data/attacks.json "anim"), timed so its blow lands when the damage does; else the old clips
             if (_step != null && _step.Anim != "" && _atk != null && a.PlayAttack(_step.Anim, _atk.Hit * _atkDur, fresh)) return;
-            string key = w.Ranged ? (w.LeftHand ? "shoot" : "cast") : _atkPower ? (w.Hands > 1 ? "powerHeavy" : "power") : w.Hands > 1 ? "heavy" : "melee";
+            string shootKey = wa is { } sw && Avatar.Str(sw, "shoot") != "" ? Avatar.Str(sw, "shoot") : w.LeftHand ? "shoot" : "cast";
+            string key = w.Ranged ? shootKey : _atkPower ? (w.Hands > 1 ? "powerHeavy" : "power") : w.Hands > 1 ? "heavy" : "melee";
             a.Play(key, .06f, _atkDur, fresh, _step != null ? _step.AnimStep : Mathf.Max(0, _combo - 1)); return;
         }
         // the follow-through of a heavy swing or finisher, while standing (moving hands the legs back at once)

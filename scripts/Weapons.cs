@@ -34,7 +34,12 @@ public class WeaponDef
     public Color Trail = new(.45f, .85f, 1f);
     public HandPose Rest, Aim, Draw;
     public List<AttackDef> Combo = new(); public AttackDef Power = new();
+    /// <summary>Sounds per event ("swing" at attack start, "shoot" at a ranged release, "hit", "miss"), from data/weapons.json "sfx" (Sfx.Weapon plays them).</summary>
+    public Dictionary<string, List<SfxPick>> Sfx = new();
 }
+
+/// <summary>One weapon sound choice: an Sfx id, its loudness and a random pitch range.</summary>
+public readonly record struct SfxPick(string Id, float Vol, float P0, float P1);
 
 /// <summary>Weapon types from data/weapons.json, and the meshes for each type (grip at the origin, weapon along -Z).</summary>
 public static class Weapons
@@ -153,6 +158,20 @@ public static class Weapons
             if (e.TryGetProperty("onHit", out var oh)) foreach (var x in oh.EnumerateObject()) w.OnHit[x.Name] = x.Value.GetSingle();
             foreach (var c in e.GetProperty("combo").EnumerateArray()) w.Combo.Add(A(c));
             w.Power = A(e.GetProperty("power"));
+            if (e.TryGetProperty("sfx", out var sx) && sx.ValueKind == JsonValueKind.Object)
+                foreach (var ev in sx.EnumerateObject())
+                {
+                    if (ev.Name.StartsWith("_") || ev.Value.ValueKind != JsonValueKind.Array) continue;
+                    var l = new List<SfxPick>();
+                    foreach (var x in ev.Value.EnumerateArray())
+                    {
+                        if (x.ValueKind == JsonValueKind.String) { l.Add(new SfxPick(x.GetString() ?? "", 1f, 1f, 1f)); continue; }
+                        float p0 = 1f, p1 = 1f;
+                        if (x.TryGetProperty("pitch", out var pv)) { if (pv.ValueKind == JsonValueKind.Array) { p0 = pv[0].GetSingle(); p1 = pv.GetArrayLength() > 1 ? pv[1].GetSingle() : p0; } else p0 = p1 = pv.GetSingle(); }
+                        l.Add(new SfxPick(JsonUtil.S(x, "id"), JsonUtil.F(x, "vol", 1f), p0, p1));
+                    }
+                    w.Sfx[ev.Name] = l;
+                }
             _d[t.Name] = w;
         }
     }

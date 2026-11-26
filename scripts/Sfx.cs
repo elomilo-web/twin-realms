@@ -81,6 +81,66 @@ public partial class Sfx : Node
             lp += (nz - lp) * bright; lp2 += (lp - lp2) * bright; s[i0 + i] += lp2 * env * vol * 3f;
         }
     }
+    /// <summary>Plucked string (Karplus-Strong): a noise burst through a damped delay line at f Hz.</summary>
+    static void Pluck(float[] s, float at, float f, float dur, float vol, int seed)
+    {
+        var rng = new Random(seed); int i0 = (int)(at * Rate), n = (int)(dur * Rate), p = Math.Max(2, (int)(Rate / f)); var buf = new float[p];
+        for (int i = 0; i < p; i++) buf[i] = (float)(rng.NextDouble() * 2 - 1);
+        for (int i = 0; i < n && i0 + i < s.Length; i++)
+        {
+            int k = i % p; float v = buf[k]; buf[k] = (v + buf[(k + 1) % p]) * .5f * .996f;
+            s[i0 + i] += v * vol * Mathf.Exp(-i / (float)n * 3f);
+        }
+    }
+    /// <summary>Wood creak: stick-slip clicks whose rate rises (40 to 110 a second), low-passed.</summary>
+    static void Creak(float[] s, float at, float dur, float vol, int seed)
+    {
+        var rng = new Random(seed); int i0 = (int)(at * Rate), n = (int)(dur * Rate); float lp = 0, next = 0, ph = 0;
+        for (int i = 0; i < n && i0 + i < s.Length; i++)
+        {
+            float k = i / (float)n; ph += 1f / Rate;
+            float x = 0; if (ph >= next) { x = (float)(rng.NextDouble() * .6 + .7); ph = 0; next = 1f / Mathf.Lerp(40f, 110f, k) * (float)(rng.NextDouble() * .4 + .8); }
+            lp += (x - lp) * .25f; s[i0 + i] += lp * vol * 4f * Mathf.Sin(Mathf.Pi * k);
+        }
+    }
+    /// <summary>Sine sweep from f0 to f1 Hz (magic zaps).</summary>
+    static void Chirp(float[] s, float at, float f0, float f1, float dur, float vol)
+    {
+        int i0 = (int)(at * Rate), n = (int)(dur * Rate); float ph = 0;
+        for (int i = 0; i < n && i0 + i < s.Length; i++) { float k = i / (float)n; ph += Mathf.Tau * Mathf.Lerp(f0, f1, k) / Rate; s[i0 + i] += Mathf.Sin(ph) * vol * Mathf.Min(1f, i / (Rate * .004f)) * (1f - k); }
+    }
+    /// <summary>Sparse bright crackle (electric sparks).</summary>
+    static void Crackle(float[] s, float at, float dur, float vol, int seed)
+    {
+        var rng = new Random(seed); int i0 = (int)(at * Rate), n = (int)(dur * Rate);
+        for (int i = 0; i < n && i0 + i < s.Length; i++) if (rng.NextDouble() < .03) s[i0 + i] += (float)(rng.NextDouble() * 2 - 1) * vol * 3f * (1f - i / (float)n);
+    }
+
+    // ------------------------------------------------------------------ weapon sounds (data/weapons.json "sfx")
+    /// <summary>Dev (DevCapture "sfxlog:"): every played id is printed and kept in Played.</summary>
+    public static bool Log; public static readonly List<string> Played = new();
+    static readonly HashSet<string> _warned = new();
+    /// <summary>
+    /// A weapon type's sound for an event ("swing", "shoot", "hit", "miss"): a random pick from its data/weapons.json "sfx" list, at its volume
+    /// and a random pitch in its range. A type with no sounds for the event plays the generic one, with a warning once per type and event.
+    /// </summary>
+    public static void Weapon(string wt, string ev, float vol = 1f, float pitch = 1f)
+    {
+        var w = Weapons.Get(wt);
+        if (!w.Sfx.TryGetValue(ev, out var l) || l.Count == 0)
+        {
+            if (_warned.Add(wt + "/" + ev)) GD.PushWarning($"[SFX] weapon type '{wt}' has no '{ev}' sounds in data/weapons.json; playing the fallback");
+            string fb = ev switch { "hit" => "hit", "miss" => "whiff", "shoot" => "swing", _ => "swing" };
+            if (Log) Note($"{wt}.{ev} FALLBACK {fb}");
+            Play(fb, vol); return;
+        }
+        var p = l[(int)(GD.Randi() % (uint)l.Count)];
+        if (p.Id == "") return;   // an explicit silence
+        if (Log) Note($"{wt}.{ev} -> {p.Id}");
+        Play(p.Id, vol * p.Vol, pitch * (p.P0 + GD.Randf() * (p.P1 - p.P0)));
+    }
+    static void Note(string s) { Played.Add(s); GD.Print("[SFX] " + s); }
+
     static AudioStream Gen(string id)
     {
         if (Synth.TryGetValue(id, out var w)) return w;
@@ -108,6 +168,26 @@ public partial class Sfx : Node
             case "shift": Bell(s, 0, 196f, 1.8f, .25f); Bell(s, .15f, 293.66f, 1.6f, .18f); Bell(s, .3f, 392f, 1.4f, .12f); Whoosh(s, 0, 1.5f, .18f, .03f, 5); break;
             case "die": { float[] n = { G5, E5, C5, G5 / 2 }; for (int k = 0; k < 4; k++) Bell(s, k * .2f, n[k], 1f, .2f); break; }
             case "roar": Whoosh(s, 0, 1.1f, .5f, .02f, 6); Bell(s, 0, 98f, 1.1f, .3f); break;
+            // ---- weapon families (data/weapons.json "sfx"; a file with the same id overrides these)
+            case "whoosh_quick": Whoosh(s, 0, .12f, .3f, .38f, 11); break;                                   // dagger / katana: short, high
+            case "whoosh_heavy": Whoosh(s, 0, .4f, .42f, .045f, 12); Bell(s, .05f, 62f, .3f, .12f); break;     // greatsword / axe: long, deep
+            case "whoosh_blunt": Whoosh(s, 0, .27f, .36f, .07f, 13); break;                                 // mace: dark, round
+            case "swish_wood": Whoosh(s, 0, .24f, .3f, .12f, 14); Bell(s, .03f, 196f, .12f, .06f); break;      // staff / spear: airy, a hollow wooden note
+            case "whiff": Whoosh(s, 0, .16f, .14f, .25f, 15); break;                                        // a miss: a thin trailing tail of air
+            case "whiff_heavy": Whoosh(s, 0, .3f, .2f, .05f, 16); break;
+            case "slash_hit": Bell(s, 0, 210f, .1f, .35f); Whoosh(s, 0, .06f, .35f, .4f, 17); break;          // quick blades: a bright cut
+            case "chop_hit": Bell(s, 0, 104f, .22f, .6f); Whoosh(s, 0, .09f, .45f, .1f, 18); break;           // heavy blades: a deep chop
+            case "blunt_hit": Bell(s, 0, 70f, .26f, .75f); Bell(s, 0, 140f, .1f, .2f); Whoosh(s, 0, .07f, .5f, .04f, 19); break;   // mace: a heavy thud
+            case "wood_hit": Bell(s, 0, 262f, .09f, .4f); Bell(s, 0, 392f, .07f, .15f); Whoosh(s, 0, .04f, .25f, .2f, 20); break;   // staff / spear shaft: a wooden knock
+            case "bow_draw": Creak(s, 0, .34f, .22f, 21); break;                                             // the bow bends: a soft creak
+            case "bow_twang": Pluck(s, 0, 98f, .45f, .55f, 22); Whoosh(s, .01f, .16f, .3f, .3f, 23); break;   // the string snaps and the arrow leaves
+            case "arrow_hit": Bell(s, 0, 175f, .08f, .5f); Whoosh(s, 0, .035f, .4f, .3f, 24); break;          // a tight thunk
+            case "arrow_miss": Bell(s, 0, 120f, .07f, .2f); Whoosh(s, 0, .05f, .2f, .1f, 25); break;          // into the ground
+            case "wand_zap": Chirp(s, 0, 1900f, 620f, .16f, .16f); Crackle(s, 0, .12f, .12f, 26); break;         // a falling magic chirp
+            case "wand_hit": { float[] n = { G5 * 2, C6 * 2, E5 * 4 }; for (int k = 0; k < 3; k++) Bell(s, k * .02f, n[k], .2f, .1f); Crackle(s, 0, .1f, .18f, 27); break; }
+            case "wand_fizzle": Crackle(s, 0, .3f, .1f, 28); Chirp(s, 0, 900f, 300f, .25f, .05f); break;
+            case "orb_hit": Bell(s, 0, 82f, .4f, .5f); Whoosh(s, 0, .35f, .4f, .05f, 29); break;               // staff orb bursting
+            case "punch_whiff": Whoosh(s, 0, .1f, .12f, .1f, 30); break;
             default: Bell(s, 0, C6, .2f, .15f); break;
         }
         var wav = Make(s); Synth[id] = wav; return wav;

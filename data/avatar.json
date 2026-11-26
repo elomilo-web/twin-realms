@@ -116,6 +116,14 @@
     "power": "Sword_Regular_Combo", "powerHeavy": "Melee_Hook", "unarmed": ["Punch_Jab", "Punch_Cross"],
     "talk": "Idle_Talking", "guard": "Idle_FoldArms", "smith": "TreeChopping", "sit": "Sitting_Idle", "cheer": "Yes"
   },
+  "weaponAnims": {
+    "_help": "How each ranged weapon type's basic attack is animated (Player.AnimateAvatar). shoot = the clip key played through the attack (a key of 'clips'). pose = 'bow': the Universal Animation Library has no archery clips, so the bow is a procedural pose over the walk/idle clip (scripts/AvatarBow.cs ArmPose, two-bone IK on both arms): raise (bow arm comes up, fade-in s), draw (string hand pulls from the bow to the cheek, ending at drawEnd of the wind-up) and hold, release at the shot (string hand flicks back, snap s), held for hold s, then lower (fade-out s). Offsets are metres in the hero's frame [right, up, forward]: cheek = the anchor point from the Head bone; snapOffset = how far the string hand flicks after release; nock = where the string hand starts (m behind the bow hand); poles = which way the elbows bend. twist = degrees the chest turns so the bow shoulder leads (the head turns back to the target). reach = bow arm extension (fraction of arm length). cant = degrees the bow top leans out.",
+    "bow": { "pose": "bow", "raise": 0.2, "drawEnd": 0.88, "snap": 0.06, "hold": 0.12, "lower": 0.28, "reach": 0.97, "twist": 38, "cant": 8,
+             "cheek": [0.05, 0.05, 0.1], "snapOffset": [0.1, 0.02, -0.14], "nock": 0.16,
+             "poleLeft": [-0.5, -0.85, 0.0], "poleRight": [0.45, 0.2, -1.0] },
+    "wand": { "shoot": "cast" },
+    "staff": { "shoot": "cast" }
+  },
   "attackAnims": {
     "_help": "Attack animations the basic-attack steps use (data/attacks.json \"anim\" / \"rec\"). clip = a clip from the animation libraries; from / to = the part of it to play (fractions of its length); reverse = play backwards (a slash becomes a rising cut); hit = when the blow lands, as a fraction of the part (measured with: godot --headless --path . -- --measure-attacks, which writes bot_out/attack_clips.txt). The game times each animation so its blow lands exactly when the attack deals damage. After adding a new source clip, rebuild: godot --headless --path . -- --bake-anims.",
     "slashA":    { "clip": "Sword_Regular_A", "hit": 0.57 },
