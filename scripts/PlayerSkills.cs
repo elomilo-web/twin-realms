@@ -18,6 +18,8 @@ public partial class Player
     public float CdOf(string? id) => id != null && _skillCd.TryGetValue(id, out var v) ? v : 0;
     /// <summary>Every skill ready again (test bots).</summary>
     public void ResetCooldowns() { _skillCd.Clear(); _skillCdMax.Clear(); _autoCd.Clear(); }
+    /// <summary>Dev captures: a skill shown mid-cooldown (left of max seconds).</summary>
+    public void DevSetCd(string id, float left, float max) { _skillCd[id] = left; _skillCdMax[id] = max; }
     public bool Staggered => _stagger > 0; public bool Casting => _castT > 0;
     public float CdMaxOf(string? id) => id != null && _skillCdMax.TryGetValue(id, out var v) ? Mathf.Max(.01f, v) : 1;
     public bool Busy => _castT > 0 || _atkT > 0 || _moveT > 0 || _spinLeft > 0 || ChannelT > 0;
@@ -221,7 +223,7 @@ public partial class Player
         {
             // whirlwind: hits all around once per turn
             _spinLeft -= dt; _modelYaw += dt * Mathf.Tau * 2.2f; _spinStep -= dt;
-            if (_spinStep <= 0 && _spinHits > 0) { _spinStep = _atkSkill.SpinStep; _spinHits--; AreaHit(_atkSkill, GlobalPosition, _atkSkill.Radius, 1f, true); Vfx.Ring(GlobalPosition + Vector3.Up * .1f, _atkSkill.Radius, W.Trail, .25f); }
+            if (_spinStep <= 0 && _spinHits > 0) { _spinStep = _atkSkill.SpinStep; _spinHits--; AreaHit(_atkSkill, GlobalPosition, _atkSkill.Radius, 1f, true); SpellStyles.Nova(GlobalPosition, _atkSkill.Radius, _atkSkill.Type, SpellStyles.PowerOf(_atkSkill) * .7f); }
             if (_spinLeft <= 0) _atkSkill = null;
         }
         if (_moveT > 0 && _moveSkill != null)
@@ -274,6 +276,7 @@ public partial class Player
     void Execute(SkillCalc c, Enemy? forced = null, bool echo = false)
     {
         var k = c.Def; var origin = MuzzlePos(); var col = Dmg.TypeColor(c.Type);
+        SpellStyles.Note(c);   // F-12: impacts and beams of this skill look up its power
         if (!_castFxDone) CastFx(c, origin); _castFxDone = false;   // weapon skills and auto-casts: the cast animation plays at the impact
         _fuAt = null; _fuDelay = 0;   // where (and when) a crafted spell's second section goes off; the kinds below set it (PlayerSpellcraft.cs)
         switch (k.Kind)
@@ -330,7 +333,7 @@ public partial class Player
             {
                 bool cr = Crit(c);   // critical heals restore half again as much
                 float amt = Game.D.MaxHp() * c.Heal * (1 + Game.TS["healP"] / 100f) * HealIn * (cr ? 1.5f : 1f); Hp = Mathf.Min(Game.D.MaxHp(), Hp + amt); Statuses.List.RemoveAll(s => s.Def.Kind is "dot" or "slow" or "weaken");
-                Vfx.HealPillar(this); FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.2f, 0), "+" + Mathf.RoundToInt(amt) + (cr ? "!" : ""), new Color(0.5f, 1f, 0.6f));
+                SpellStyles.Heal(this, SpellStyles.PowerOf(c)); FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.2f, 0), "+" + Mathf.RoundToInt(amt) + (cr ? "!" : ""), new Color(0.5f, 1f, 0.6f));
                 // more "projectiles": follow-up pulses, each a third of the heal
                 for (int i = 1; i < c.Count; i++)
                     GetTree().CreateTimer(.5f * i).Timeout += () =>
@@ -421,7 +424,8 @@ public partial class Player
             case "buff":
             {
                 Buffs.RemoveAll(b => b.id == k.Id); Buffs.Add((k.Id, new Dictionary<string, float>(k.Buff), c.Dur)); Game.RecalcTree();
-                Vfx.Ring(GlobalPosition + Vector3.Up * .1f, Mathf.Max(3, c.Radius), col.Lerp(new Color(1, .8f, .4f), .4f), .5f);
+                SpellStyles.Buff(this, c.Type, SpellStyles.PowerOf(c), SpellStyles.BuffColor(k));
+                if (c.Radius > 0) SpellStyles.Nova(GlobalPosition, Mathf.Max(3, c.Radius), c.Type, .8f);
                 SpellFx.Skill(k.Id, "ground", GlobalPosition, FxFit(k.Id, "ground", Mathf.Max(3, c.Radius)));
                 FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.4f, 0), k.Name, new Color(1, .85f, .45f));
                 // a war cry's ring carries only its statuses, unless on-hit modifiers make it a real burst; buffs without a ring get one then
@@ -464,6 +468,7 @@ public partial class Player
     /// <summary>A beam segment; looping beams (drain) are cut short so they do not linger.</summary>
     static void BeamFx(string id, Vector3 a, Vector3 b)
     {
+        SpellStyles.BeamFor(id, a, b, .32f);   // F-12: the element's ribbon on every segment
         string n = SpellFx.For(id, "beam"); if (n == "") return;
         var s = SpellFx.Beam(n, a, b); if (s != null && s.Loop) s.Life = .35f;
     }
@@ -531,7 +536,7 @@ public partial class Player
     void Slam(SkillCalc c, Vector3 at, float mul)
     {
         float r = Mathf.Max(2.5f, c.Radius);
-        AreaHit(c, at, r, mul); SpellFx.Skill(c.Def.Id, "hit", at, FxFit(c.Def.Id, "hit", r)); Vfx.Ring(at + Vector3.Up * .1f, r, W.Trail, .35f);
+        AreaHit(c, at, r, mul); SpellFx.Skill(c.Def.Id, "hit", at, FxFit(c.Def.Id, "hit", r)); SpellStyles.Aoe(at, r, c.Type, SpellStyles.PowerOf(c) * mul);
         var dust = new Gradient(); dust.SetColor(0, new Color(.55f, .48f, .4f, .8f)); dust.SetColor(1, new Color(.5f, .45f, .4f, 0));
         Vfx.Sparks(at, dust, mul >= 1 ? 24 : 12, 6, .6f, .7f, -8f, false, 180f, null, .3f, "dirt");   // thrown-up earth
         if (mul >= 1) Vfx.GroundMark(at, "scorch", r * 1.3f, new Color(.12f, .1f, .08f, .7f), 2f, 2f);   // a dent in the ground
@@ -555,7 +560,8 @@ public partial class Player
     void NovaAt(SkillCalc c, Vector3 at, bool main)
     {
         var col = Dmg.TypeColor(c.Type);
-        if (c.Type == "frost") Vfx.FrostNova(at, c.Radius); else { Vfx.Ring(at + Vector3.Up * .1f, c.Radius, col, .45f); Vfx.Flash(at + Vector3.Up, col, 4f, c.Radius * 2, .5f); }
+        if (c.Type == "frost") Vfx.FrostNova(at, c.Radius); else Vfx.Flash(at + Vector3.Up, col, 4f, c.Radius * 2, .5f);
+        SpellStyles.Nova(at, c.Radius, c.Type, SpellStyles.PowerOf(c) * (main ? 1f : .75f));   // F-12
         SpellFx.Skill(c.Def.Id, "ground", at, FxFit(c.Def.Id, "ground", c.Radius));
         Rig?.Shake(main ? .15f : .06f); AreaHit(c, at, c.Radius, 1f, true);
     }
@@ -571,7 +577,7 @@ public partial class Player
         var col = Dmg.TypeColor(c.Type); var seen = new HashSet<Enemy>(); var cur = NearestFoe(Mathf.Max(c.Jump, 8f), from, seen); var prev = from + Vector3.Up;
         for (int j = 0; j < n && cur != null; j++)
         {
-            var pt = cur.GlobalPosition + Vector3.Up * cur.HeightM() * .55f; Vfx.Lightning(prev, pt, col, .25f);
+            var pt = cur.GlobalPosition + Vector3.Up * cur.HeightM() * .55f; Vfx.Lightning(prev, pt, col, .25f); SpellStyles.Beam(prev, pt, c.Type, SpellStyles.PowerOf(c) * .7f, .3f);
             cur.TakeHit(c.Hit(c.Dmg * .5f, from, Crit(c))); seen.Add(cur); prev = pt; cur = NearestFoe(c.Jump, cur.GlobalPosition, seen);
         }
     }
@@ -586,17 +592,16 @@ public partial class SkillZone : Node3D
     public SkillCalc Calc = null!; public Color Col; public bool Strike, Rain;
     public bool Follow;   // stays on the hero (Consecrate); extra copies from modifiers stay where they land
     public float Late;    // extra strikes from modifiers land this much later
-    float _t, _tick; MeshInstance3D? _disc; CpuParticles3D? _fx;
+    float _t, _tick; CpuParticles3D? _fx;
+    /// <summary>The zone's ground effect (F-12 SpellStyles.Linger): radius rim that drains with the time left. A strike's shows the countdown to impact.</summary>
+    public LingerFx? Fx;
+    readonly HashSet<Enemy> _cursed = new();
     public override void _Ready()
     {
         float r = Calc.Radius;
-        _disc = new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = r, BottomRadius = r, Height = .04f, RadialSegments = 40 }, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off, Position = Vector3.Up * .06f,
-            MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(Col.Darkened(.2f), Strike ? .13f : .16f), ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, BlendMode = BaseMaterial3D.BlendModeEnum.Add } };
-        AddChild(_disc);
+        Fx = SpellStyles.Linger(Vector3.Zero, r, Strike ? Mathf.Max(.1f, Calc.Delay + Late) : Mathf.Max(.2f, Calc.Dur), Calc.Type, SpellStyles.PowerOf(Calc), this);
         { float sz = SpellFx.SizeOf(SpellFx.For(Calc.Def.Id, "ground")); SpellFx.SkillAttach(Calc.Def.Id, "ground", this, Vector3.Up * .1f, sz > 0 && r > 0 ? 2f * r / sz : 1f); }
-        AddChild(new MeshInstance3D { Mesh = new TorusMesh { InnerRadius = r * .93f, OuterRadius = r, Rings = 48, RingSegments = 3 }, Position = Vector3.Up * .08f, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
-            MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(Col.Darkened(.15f), .6f), ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, BlendMode = BaseMaterial3D.BlendModeEnum.Add } });
-        if (!Strike)
+        if (!Strike && Rain)
         {
             var g = new Gradient(); g.SetColor(0, new Color(Col, 0)); g.AddPoint(.3f, new Color(Col, .8f)); g.SetColor(1, new Color(Col, 0));
             _fx = new CpuParticles3D { Amount = Rain ? 60 : 30, Lifetime = Rain ? .5f : 1.2f, EmissionShape = CpuParticles3D.EmissionShapeEnum.Box, EmissionBoxExtents = new Vector3(r * .8f, .1f, r * .8f), Position = Vector3.Up * (Rain ? 9f : .2f),
@@ -605,7 +610,7 @@ public partial class SkillZone : Node3D
             if (!Rain) Vfx.Spin(_fx, "magic", 90f);   // swirling wisps rise from the zone
             AddChild(_fx);
         }
-        else if (Calc.Type == "fire")
+        else if (Strike && Calc.Type == "fire")
         {
             // meteor: a burning rock falls during the delay
             var rock = new MeshInstance3D { Mesh = Gfx.Boulder(2), Scale = Vector3.One * .9f, Position = new Vector3(6, 22, 6), MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(.3f, .15f, .1f), EmissionEnabled = true, Emission = new Color(1, .4f, .1f), EmissionEnergyMultiplier = 2f } };
@@ -622,6 +627,7 @@ public partial class SkillZone : Node3D
             else { Vfx.HealPillarAt(GlobalPosition, Col, Calc.Radius); }
             var id = Calc.Def.Id; float big = SpellFx.SizeOf(SpellFx.For(id, "hit"));
             SpellFx.Skill(id, "hit", GlobalPosition + Vector3.Up * big * .4f);
+            SpellStyles.Aoe(GlobalPosition, Calc.Radius, Calc.Type, SpellStyles.PowerOf(Calc)); SpellStyles.Nova(GlobalPosition, Calc.Radius * 1.3f, Calc.Type, SpellStyles.PowerOf(Calc));   // F-12
             { float sz = SpellFx.SizeOf(SpellFx.For(id, "after")); SpellFx.Skill(id, "after", GlobalPosition, sz > 0 ? 2f * Calc.Radius / sz : 1f); }
             Hit(1f); p?.Rig?.Shake(.2f); QueueFree(); return;
         }
@@ -635,7 +641,7 @@ public partial class SkillZone : Node3D
             foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Enemy e && !e.Dead && e.Active) { float dd = new Vector2(e.GlobalPosition.X - GlobalPosition.X, e.GlobalPosition.Z - GlobalPosition.Z).Length(); if (dd < bd) { bd = dd; best = e; } }
             if (best != null && bd > .4f) { var to = best.GlobalPosition - GlobalPosition; to.Y = 0; var np = GlobalPosition + to.Normalized() * Mathf.Min(bd, 2.5f * dt); np.Y = Dungeon.Active ? GlobalPosition.Y : World.GroundAt(np.X, np.Z); GlobalPosition = np; }
         }
-        if (_t > Calc.Dur) { if (_fx != null) _fx.Emitting = false; Scale = Scale.Lerp(Vector3.Zero, .2f); if (_t > Calc.Dur + .4f) QueueFree(); }
+        if (_t > Calc.Dur) { if (_fx != null) _fx.Emitting = false; Fx?.Stop(); Scale = Scale.Lerp(Vector3.Zero, .2f); if (_t > Calc.Dur + .4f) QueueFree(); }
     }
     void Hit(float mul)
     {
@@ -647,6 +653,8 @@ public partial class SkillZone : Node3D
                 bool cr = Calc.Def.Crit || GD.Randf() < Game.D.CritChance() + Calc.CritC / 100f;
                 var h = Calc.Hit(Calc.Dmg * mul, GlobalPosition, cr); if (!Strike) h.Knock *= .5f; e.TakeHit(h);   // zones have no knockback of their own; knockback modifiers give them a gentle push
                 if (!Strike) SpellFx.Skill(Calc.Def.Id, "hit", e.GlobalPosition + Vector3.Up * e.HeightM() * .5f, 1f, Mathf.Min(1f, Calc.Tick * 2f));
+                // F-12: a harmful zone curses what stands in it (one swirl per foe per zone, for the time the zone has left)
+                if (!Strike && Calc.Heal <= 0 && Calc.Type != "physical" && _cursed.Add(e)) SpellStyles.Debuff(e, Calc.Type, Calc.Dur - _t, e.HeightM());
             }
     }
 }

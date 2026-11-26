@@ -309,7 +309,7 @@ PHASE 3 - HOTBAR, ICONS, AND SPELLCRAFTING
       - Custom icons are saved with the spell and work online (sent as data,
         with a size limit).
 
-[ ] F-12  SPELL AND SKILL EFFECTS
+[x] F-12  SPELL AND SKILL EFFECTS
     DONE WHEN:
       - Every spell element and shape has its own effect: projectiles, beams,
         novas, AoE circles, buffs, debuffs, heals, summons, and impacts.
@@ -319,6 +319,24 @@ PHASE 3 - HOTBAR, ICONS, AND SPELLCRAFTING
       - Effects scale with spell power and size, so stronger spells look
         stronger.
       - With 10 effects active, FPS stays within 15% of the FPS before.
+    NOTE (2026-11-26): effect library scripts/SpellStyles.cs, data/spellfx.json "styles" (defaults -> element -> shape ->
+      "<element>.<shape>" overrides: core/glow/edge/dark colours, particle sprite set, spikes, runes, scroll, amount/life/speed/size;
+      buffColors per buff stat). 8 elements x 10 shapes (projectile, beam, nova, aoe, linger, buff, debuff, heal, summon, impact).
+      Drawn with 5 cached shaders (ground decal: shock ring / rune circle / sigil / swirl; billboard flare with sharp core + soft
+      glow + star spikes; light pillar; scrolling beam ribbon, jagged for lightning) whose per-effect numbers are instance uniforms,
+      and GpuParticles3D (Forward+ renderer: GPU everywhere; counts x quality 0.35/0.65/1/1; process materials, ramps and sprite
+      quads cached). Power = 1 + 0.35*log2(Dmg/refDmg 30), clamped 0.7..2.2 (x charge; heals by heal share): sizes, counts, flashes.
+      Hooks: every skill hit (SpellFx.Skill "hit" -> Impact), spell bolts (Projectile: library core+glow+GPU trail replaces the orb),
+      nova/spin/enchant (Nova), chain/hook/blink segments (Beam), SkillBeam (persistent Beam), zones/walls/vortex (Linger; strikes
+      show a countdown Linger then Aoe+Nova), harmful zones + marks (Debuff), slam/trap/mark/blink (Aoe), buff/ward/enchant (Buff,
+      colour by buff), heal/resurrect/heal enchants (Heal), turret/orbit (Summon), glaives (Projectile). F-13 API:
+      SpellStyles.Linger(at, radius, dur, element, power, parent) -> LingerFx { SetTimeLeft(s), SetRadius(r), Stop(), TimeLeft };
+      SkillZone.Fx is its zone's handle. Linger rim lights only the time-left fraction (drains like a clock, bright tick at the
+      edge) and the circle/fill fade with it; ground circles snap to the floor (ray, layer 1). Startup audit: "style audit: 80
+      element x shape styles (8 x 10), 0 missing" (+ every skill kind maps to shapes). Warmup fires every element x shape.
+      DevCapture actions fxclear / fx10 / fxshow:<projectiles|novas|aoe_linger|buff_heal|beam_summon|impacts>; views fx_perf_base,
+      fx_perf_10, fx_projectiles, fx_novas, fx_aoe_linger, fx_buff_heal, fx_beam_summon (player_at -70,-95).
+      Perf: fx_perf_base 69.8 fps, fx_perf_10 67.5 fps (0.97; earlier runs 73.0/73.4 and 71.7/70.3).
 
 [ ] F-13  LINGERING AOE IN SPELLCRAFTING (AOE + DURATION)
     A chain with AoE + Duration should make a lingering zone.

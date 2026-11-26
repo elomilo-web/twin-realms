@@ -131,11 +131,21 @@ public partial class Projectile : Node3D
     /// </summary>
     public static string TrailSet(string type) => type switch { "frost" => "star", "lightning" => "spark", "shadow" or "poison" => "smoke", "holy" => "light", "fire" => "fire", _ => "magic" };
     /// <summary>The id of the look a shot of this kind and element flies with (logged by the SpellFx audit and DevCapture).</summary>
-    public static string TravelFx(string kind, string type) => kind == "arrow" ? "proj:arrow" : kind == "fire" || type == "fire" ? "proj:fireball+fire" : "proj:orb+comet+" + TrailSet(type);
+    public static string TravelFx(string kind, string type) => kind == "arrow" ? "proj:arrow" : "style:" + SpellStyles.El(type) + ".projectile" + (kind == "fire" ? "" : "+comet");
     /// <summary>A skill's element is known only after Spawn (Calc is set after _Ready): its trail sprites are swapped in on the first tick.</summary>
     void ElementTrail()
     {
-        if (_boltTrail == null || Calc == null) return;
+        if (Calc == null) return;
+        if (Kind != "arrow" && Own == 'p')
+        {
+            // F-12: skill bolts fly as the effect library draws their element (core + glow + GPU trail, SpellStyles.Projectile);
+            // the stand-in orb, halo and CPU trail go (the comet streak and the light stay)
+            foreach (var ch in GetChildren()) if (ch is MeshInstance3D or CpuParticles3D) ch.QueueFree();
+            _boltTrail = null;
+            SpellStyles.Projectile(this, Calc.Type, SpellStyles.PowerOf(Calc) * (Big ? 1.3f : 1f), Kind == "fire" ? 1.25f : 1f);
+            return;
+        }
+        if (_boltTrail == null) return;
         string set = TrailSet(Calc.Type); if (set == "magic" || set == "fire") return;
         if (_boltTrail.Mesh is QuadMesh q) { q.Material = Vfx.SpriteMat(true, set); Vfx.Spin(_boltTrail, set, 180f); }
     }
@@ -226,7 +236,8 @@ public partial class Projectile : Node3D
             if (Wpn != "") Sfx.Weapon(Wpn, Aoe > 0 || hitE != null ? "hit" : "miss");   // the weapon type's own impact, or its miss
             if (Aoe > 0)
             {
-                Vfx.Explosion(to, Aoe); if (Wpn == "") Sfx.Play("hit"); Player.Instance?.Rig?.Shake(0.18f);
+                Vfx.Explosion(to, Aoe); if (Wpn == "") Sfx.Play("hit");
+                if (Calc != null) SpellStyles.Aoe(to, Aoe, Calc.Type, SpellStyles.PowerOf(Calc), .15f);   // F-12: the blast's rune circle shows its reach Player.Instance?.Rig?.Shake(0.18f);
                 foreach (var n in GetTree().GetNodesInGroup("enemies"))
                 {
                     if (n is not Enemy e || e.Dead || !e.Active) continue;

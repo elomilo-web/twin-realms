@@ -93,6 +93,7 @@ void fragment() {
             if (fx == "") { bad++; GD.PrintErr($"[SPELLFX] audit: skill {k.Id} ({k.Kind}, {k.Type}) resolves to no effect at all"); }
         }
         GD.Print($"[SPELLFX] audit: {n} skills checked, {_banned.Count} banned sheets, {bad} problems");
+        SpellStyles.Audit();   // F-12: every element x shape has a style, every skill kind has its shapes
     }
 
     /// <summary>
@@ -109,6 +110,7 @@ void fragment() {
             if (k.Kind == "projectile") parts.Add("travel=" + Projectile.TravelFx(k.Arrow || (k.Scale == "weapon" && k.Type == "physical") ? "arrow" : k.Type == "fire" ? "fire" : "bolt", k.Type));
             else if (BuiltInKinds.Contains(k.Kind)) parts.Add("look=kind:" + k.Kind);
             if (d != null && (d.ContainsKey("hit") || d.ContainsKey("ground")) && Vfx.HasElementImpact(k.Type)) parts.Add("impact=vfx:" + k.Type);
+            if (SpellStyles.Describe(k.Kind, k.Type) is { Length: > 0 } st) parts.Add(st);
         }
         return string.Join(" ", parts);
     }
@@ -140,6 +142,8 @@ void fragment() {
     public static bool Remote;
     public static SpellFxSprite? Skill(string skillId, string moment, Vector3 pos, float scale = 1f, float life = 0f)
     {
+        // F-12: every skill hit gets the library's element impact, scaled by the skill's power (zone ticks, with a life, a little smaller)
+        if (moment == "hit" && Skills.Get(Spellcraft.FxOf(skillId)) is { } hk) SpellStyles.Impact(pos, hk.Type, SpellStyles.PowerOf(skillId) * (life > 0 ? .7f : 1f));
         string n = For(skillId, moment); if (n == "") return null;
         if (!Remote) Net.I?.Fx(Spellcraft.FxOf(skillId), moment, pos, scale, life, false);   // (friends do not know our crafted spells, only what they look like)   // multiplayer: friends nearby see our skills (Settings > Game)
         if (moment is "hit" or "ground" && Skills.Get(Spellcraft.FxOf(skillId)) is { } sd) Vfx.ElementImpact(sd.Type, pos, scale * 1.5f);   // holy / shadow / poison impact extras (no-op for other elements)

@@ -1,5 +1,48 @@
 {
  "_help": "Spell and skill animations (tools/kit_gen/fx_gen.py). Sheets are res://assets/vfx/flipbooks/<name>.png, 4x4 frames. kind: billboard (faces the camera), ground (lies flat on the floor), strip (stretched between two points, tiles along its length). size = metres across. skills = which animations each skill in data/skills.json should play; played by scripts/SpellFx.cs.",
+ "styles": {
+  "_help": "F-12 effect library (scripts/SpellStyles.cs): element x shape -> colours, particle sprites (Vfx texture sets) and shader params. A style = defaults, then the element, then the shape, then overrides \"<element>.<shape>\". core = the white-hot centre, glow = the soft gradient, edge = rims / runes, dark = debuff swirl. Power (log scale of damage vs refDmg, clamped) scales sizes, particle counts and brightness. quality = particle-count factor per Gfx quality (low, medium, high, ultra).",
+  "refDmg": 30, "powerMin": 0.7, "powerMax": 2.2,
+  "quality": [0.35, 0.65, 1.0, 1.0],
+  "defaults": { "core": "#ffffff", "glow": "#9fc4ff", "edge": "#6f9bff", "dark": "#1a1030", "set": "magic", "add": true, "gravity": 0, "spin": 90, "spikes": 4, "runes": 8, "scroll": 6, "amount": 16, "life": 0.5, "speed": 3, "size": 0.3 },
+  "elements": {
+   "physical":  { "core": "#fffaf0", "glow": "#ffd9a0", "edge": "#f2b45a", "dark": "#2a1a10", "set": "spark", "gravity": -6, "spikes": 4, "runes": 6 },
+   "fire":      { "core": "#fff4c8", "glow": "#ff8a1e", "edge": "#ff4a12", "dark": "#3a0a00", "set": "fire", "add": false, "gravity": 3, "spikes": 6, "runes": 8, "scroll": 7 },
+   "frost":     { "core": "#ffffff", "glow": "#8fe0ff", "edge": "#3fb0ff", "dark": "#0a2040", "set": "star", "gravity": -1, "spikes": 6, "runes": 12, "scroll": 4 },
+   "lightning": { "core": "#ffffff", "glow": "#c8b8ff", "edge": "#7f6bff", "dark": "#14104a", "set": "spark", "gravity": 0, "spikes": 8, "runes": 10, "scroll": 14, "speed": 5 },
+   "poison":    { "core": "#f2ffc8", "glow": "#8fe03a", "edge": "#3fae2a", "dark": "#10300a", "set": "smoke", "add": false, "gravity": 0.6, "spikes": 0, "runes": 7, "scroll": 3 },
+   "shadow":    { "core": "#f0d8ff", "glow": "#a050ff", "edge": "#6a20d0", "dark": "#12001e", "set": "twirl", "gravity": 0.4, "spikes": 5, "runes": 9, "scroll": 5 },
+   "holy":      { "core": "#ffffff", "glow": "#ffe58a", "edge": "#ffc23a", "dark": "#3a2a00", "set": "light", "gravity": 1.2, "spikes": 8, "runes": 12, "scroll": 5 },
+   "arcane":    { "core": "#ffffff", "glow": "#ff9cf2", "edge": "#d24bff", "dark": "#200a30", "set": "magic", "spikes": 4, "runes": 8 }
+  },
+  "shapes": {
+   "projectile": { "amount": 28, "life": 0.35, "speed": 0.6, "size": 0.32 },
+   "beam":       { "amount": 18, "life": 0.35, "speed": 3.5, "size": 0.22 },
+   "nova":       { "amount": 40, "life": 0.55, "speed": 9, "size": 0.35 },
+   "aoe":        { "amount": 26, "life": 0.8, "speed": 2.5, "size": 0.3 },
+   "linger":     { "amount": 14, "life": 1.2, "speed": 1.0, "size": 0.32 },
+   "buff":       { "amount": 22, "life": 1.0, "speed": 1.8, "size": 0.22, "gravity": 2.5 },
+   "debuff":     { "amount": 14, "life": 1.1, "speed": 0.6, "size": 0.35, "set": "smoke", "add": false, "gravity": -0.6 },
+   "heal":       { "amount": 26, "life": 1.3, "speed": 1.2, "size": 0.2, "core": "#ffffff", "glow": "#8dff9a", "edge": "#ffd75a", "set": "star", "add": true, "gravity": 2.2, "spikes": 4 },
+   "summon":     { "amount": 30, "life": 0.9, "speed": 5, "size": 0.25, "gravity": 4 },
+   "impact":     { "amount": 20, "life": 0.4, "speed": 7, "size": 0.18 }
+  },
+  "overrides": {
+   "fire.projectile": { "amount": 40, "size": 0.42, "speed": 1.0 },
+   "fire.nova": { "size": 0.6 },
+   "fire.impact": { "set": "spark", "add": true, "gravity": -5 },
+   "frost.nova": { "amount": 48 },
+   "lightning.beam": { "scroll": 22, "amount": 26 },
+   "lightning.impact": { "amount": 28, "speed": 11 },
+   "poison.impact": { "set": "smoke", "speed": 2.5, "size": 0.35, "life": 0.7 },
+   "poison.linger": { "amount": 20, "size": 0.5 },
+   "shadow.debuff": { "set": "twirl" },
+   "shadow.impact": { "set": "twirl", "speed": 4 },
+   "holy.heal": { "glow": "#fff0a0" },
+   "physical.linger": { "set": "dirt", "add": false, "gravity": -2 }
+  },
+  "buffColors": { "allP": "#ff6a4a", "spellP": "#d24bff", "critD": "#ff9a3a", "def": "#a8c4e8", "mr": "#a8c4e8", "tenacity": "#e0b070", "thorns": "#c8b8ff", "move": "#6ff0ff", "aspd": "#ffd060", "castSpd": "#ff9cf2", "cdr": "#c8b8ff", "leech": "#ff3050", "hpP": "#ff3050", "poisonChance": "#8fe03a", "statusImmune": "#ffffff", "ccImmune": "#ffffff", "res_fire": "#8fe0ff" }
+ },
  "fx": {
   "fire_burst": {
    "frames": 16,

@@ -78,6 +78,7 @@ public partial class Player
             {
                 foreach (var n in GetTree().GetNodesInGroup("orbits")) if (n is OrbitRing o && o.C.Def.Id == k.Id) o.QueueFree();   // recasting renews it
                 var r = new OrbitRing { C = c, Col = col }; Game.Root!.AddChild(r); r.GlobalPosition = GlobalPosition;
+                SpellStyles.Summon(GlobalPosition, c.Type, SpellStyles.PowerOf(c));
                 break;
             }
             case "turret":
@@ -112,10 +113,11 @@ public partial class Player
             case "blinkto":
             {
                 var from = GlobalPosition; var to = c.At ?? AimGround(k);
-                Vfx.Flash(from + Vector3.Up, col, 4f, 6f, .3f); Vfx.Ring(from + Vector3.Up * .1f, c.Radius, col, .3f); AreaHit(c, from, c.Radius, k.XOr("start", .5f), true);
+                Vfx.Flash(from + Vector3.Up, col, 4f, 6f, .3f); SpellStyles.Aoe(from, c.Radius, c.Type, SpellStyles.PowerOf(c) * .7f, .15f); AreaHit(c, from, c.Radius, k.XOr("start", .5f), true);
                 GlobalPosition = to + Vector3.Up * .2f; Velocity = Vector3.Zero; _inv = Mathf.Max(_inv, .3f);
-                Vfx.Flash(to + Vector3.Up, col, 5f, 8f, .35f); Vfx.Ring(to + Vector3.Up * .1f, c.Radius, col, .35f); AreaHit(c, to, c.Radius, k.XOr("end", 1f), true);
+                Vfx.Flash(to + Vector3.Up, col, 5f, 8f, .35f); SpellStyles.Aoe(to, c.Radius, c.Type, SpellStyles.PowerOf(c), .2f); AreaHit(c, to, c.Radius, k.XOr("end", 1f), true);
                 if (c.Type == "lightning") Vfx.Lightning(from + Vector3.Up, to + Vector3.Up, col, .3f);
+                SpellStyles.Beam(from + Vector3.Up, to + Vector3.Up, c.Type, SpellStyles.PowerOf(c) * .6f, .3f);
                 Rig?.Shake(.12f);
                 break;
             }
@@ -129,7 +131,7 @@ public partial class Player
             {
                 Ward = Mathf.Max(Ward, Game.D.MaxHp() * c.Heal); WardT = c.Dur; ShowWard();
                 if (k.Buff.Count > 0) { Buffs.RemoveAll(b => b.id == k.Id); Buffs.Add((k.Id, new Dictionary<string, float>(k.Buff), c.Dur)); Game.RecalcTree(); }
-                Vfx.Ring(GlobalPosition + Vector3.Up * .1f, 2.5f, col.Lerp(new Color(.7f, .9f, 1f), .5f), .4f); FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.4f, 0), $"{k.Name} ({Mathf.RoundToInt(Ward)})", new Color(.7f, .9f, 1f), .8f);
+                SpellStyles.Buff(this, c.Type, SpellStyles.PowerOf(c), k.Buff.Count > 0 ? SpellStyles.BuffColor(k) : col.Lerp(new Color(.7f, .9f, 1f), .5f)); FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.4f, 0), $"{k.Name} ({Mathf.RoundToInt(Ward)})", new Color(.7f, .9f, 1f), .8f);
                 if (c.Burst) Burst(c, GlobalPosition);
                 break;
             }
@@ -144,7 +146,7 @@ public partial class Player
                     if (along < fd) { fd = along; first = e; }
                 }
                 var end = first != null ? first.GlobalPosition + Vector3.Up * first.HeightM() * .5f : from + dir * c.Range;
-                Vfx.Lightning(from, end, new Color(.75f, .7f, .65f), .35f); Vfx.Lightning(from, end, col, .25f);
+                Vfx.Lightning(from, end, new Color(.75f, .7f, .65f), .35f); SpellStyles.Beam(from, end, c.Type, SpellStyles.PowerOf(c) * .6f, .35f);
                 if (first != null)
                 {
                     first.TakeHit(c.Hit(c.Dmg, from, Crit(c)));
@@ -198,7 +200,7 @@ public partial class Player
             }
         }
         var col = new Color(1f, .85f, .45f).Lerp(Dmg.TypeColor(c.Type), .4f);
-        Vfx.Ring(GlobalPosition + Vector3.Up * .15f, c.Radius, col, .7f); Vfx.Flash(GlobalPosition + Vector3.Up * 2f, col, 4f, c.Radius, .5f);
+        SpellStyles.Nova(GlobalPosition, c.Radius, c.Type, .8f); Vfx.Flash(GlobalPosition + Vector3.Up * 2f, col, 4f, c.Radius, .5f);
         SpellFx.Skill(k.Id, "ground", GlobalPosition, FxFit(k.Id, "ground", c.Radius));
         if (n > 1) Ui.Note($"{k.Name} reaches {n - 1} {(n == 2 ? "ally" : "allies")}", col);
     }
@@ -215,7 +217,8 @@ public partial class Player
         if (k.X.TryGetValue("ward", out var w)) { Ward = Mathf.Max(Ward, Game.D.MaxHp() * w * pot); WardT = Mathf.Max(WardT, dur); ShowWard(); }
         if (k.X.ContainsKey("cleanse")) Statuses.Clear();
         if (k.X.TryGetValue("hot", out var hot)) _hots.Add((hot * pot, dur));
-        Vfx.Ring(GlobalPosition + Vector3.Up * .1f, 1.8f, new Color(1f, .9f, .55f), .4f);
+        if (k.Heal > 0 || k.X.ContainsKey("hot")) SpellStyles.Heal(this, pot);
+        else SpellStyles.Buff(this, k.Type, pot, k.Buff.Count > 0 ? SpellStyles.BuffColor(k) : null);   // F-12: the enchantment's aura on whoever it lands on
         FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.6f, 0), k.Name + (from != Game.D.Name ? $" ({from})" : ""), new Color(1f, .88f, .5f), .7f);
     }
 }
@@ -275,6 +278,7 @@ public partial class Glaive : Node3D
         _spin.AddChild(new MeshInstance3D { Mesh = new TorusMesh { InnerRadius = .3f, OuterRadius = .62f, Rings = 24, RingSegments = 6 }, MaterialOverride = SkillHits.Glow(Col, 1.8f), Scale = new Vector3(1, .25f, 1) });
         for (int i = 0; i < 3; i++) _spin.AddChild(new MeshInstance3D { Mesh = new PrismMesh { Size = new Vector3(.25f, .5f, .05f) }, MaterialOverride = SkillHits.Glow(Col.Lightened(.3f), 2.4f), Position = new Vector3(Mathf.Cos(i * 2.1f) * .7f, 0, Mathf.Sin(i * 2.1f) * .7f), Rotation = new Vector3(Mathf.Pi / 2, -i * 2.1f, 0) });
         AddChild(new OmniLight3D { LightColor = Col, OmniRange = 4f, LightEnergy = 1f, ShadowEnabled = false });
+        SpellStyles.Projectile(this, C.Type, SpellStyles.PowerOf(C), .8f);   // F-12: element core + trail
     }
     public override void _Process(double delta)
     {
@@ -330,7 +334,7 @@ public partial class Sentry : Node3D
         _top = new Node3D { Position = Vector3.Up * 1.8f }; AddChild(_top);
         _top.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = .32f, Height = .64f, RadialSegments = 4, Rings = 2 }, MaterialOverride = SkillHits.Glow(Col, 2.5f) });
         _top.AddChild(new OmniLight3D { LightColor = Col, OmniRange = 5f, LightEnergy = 1.2f, ShadowEnabled = false });
-        Vfx.Ring(GlobalPosition + Vector3.Up * .1f, 1.5f, Col, .3f);
+        SpellStyles.Summon(GlobalPosition, C.Type, SpellStyles.PowerOf(C));   // F-12: sigil + flash as it is called up
     }
     public override void _Process(double delta)
     {
@@ -354,11 +358,12 @@ public partial class Sentry : Node3D
 /// <summary>A ray from the hero toward the crosshair for the skill's duration, burning everything along it each tick.</summary>
 public partial class SkillBeam : Node3D
 {
-    public SkillCalc C = null!; public Color Col; float _t, _tick; MeshInstance3D _m = null!, _core = null!; OmniLight3D _l = null!;
+    public SkillCalc C = null!; public Color Col; float _t, _tick; BeamFx? _fx; OmniLight3D _l = null!;
     public override void _Ready()
     {
-        _m = new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = .5f, BottomRadius = .5f, Height = 1f, RadialSegments = 12 }, MaterialOverride = SkillHits.Glow(Col, 2.5f, .45f), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off }; AddChild(_m);
-        _core = new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = .5f, BottomRadius = .5f, Height = 1f, RadialSegments = 8 }, MaterialOverride = SkillHits.Glow(Colors.White, 3f, .85f), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off }; AddChild(_core);
+        // F-12: the element's scrolling ribbon (SpellStyles.Beam), wider with the skill's area, brighter with its power
+        float wide = 1 + .3f * (C.Radius > 0 ? C.Radius - 1 : 0);
+        _fx = SpellStyles.Beam(Vector3.Zero, Vector3.Forward, C.Type, SpellStyles.PowerOf(C) * wide, 0f, this);
         _l = new OmniLight3D { LightColor = Col, OmniRange = 8f, LightEnergy = 2f, ShadowEnabled = false }; AddChild(_l);
     }
     public override void _Process(double delta)
@@ -368,10 +373,7 @@ public partial class SkillBeam : Node3D
         float range = C.Range > 3 ? C.Range : 28f;
         var from = p.GlobalPosition + Vector3.Up * 1.35f + p.Facing() * .5f; var to = p.AimPoint(range).point; var dir = to - from;
         if (dir.Length() < 1f) dir = p.Facing(); float len = Mathf.Min(range, Mathf.Max(1f, dir.Length())); dir = dir.Normalized();
-        var z = Mathf.Abs(dir.Y) > .95f ? Vector3.Right : Vector3.Up.Cross(dir).Normalized(); var x = dir.Cross(z).Normalized(); z = x.Cross(dir).Normalized();
-        float w = (.32f + .08f * Mathf.Sin(_t * 30f)) * (1 + .3f * (C.Radius > 0 ? C.Radius - 1 : 0)), fade = Mathf.Clamp((C.Dur - _t) * 4f, 0, 1);
-        var mid = from + dir * len / 2;
-        _m.GlobalTransform = new Transform3D(new Basis(x * w * fade, dir * len, z * w * fade), mid); _core.GlobalTransform = new Transform3D(new Basis(x * w * .35f * fade, dir * len, z * w * .35f * fade), mid);
+        _fx?.Set(from, from + dir * len); if (C.Dur - _t < .25f) _fx?.Stop();
         _l.GlobalPosition = from + dir * Mathf.Min(len, 3f);
         _tick -= dt; if (_tick > 0) return; _tick = Mathf.Max(.1f, C.Tick);
         foreach (var n in GetTree().GetNodesInGroup("enemies"))
@@ -394,6 +396,7 @@ public partial class Vortex : Node3D
         _fx = new CpuParticles3D { Amount = 60, Lifetime = .9f, EmissionShape = CpuParticles3D.EmissionShapeEnum.Ring, EmissionRingRadius = C.Radius * 1.5f, EmissionRingInnerRadius = C.Radius, EmissionRingHeight = .3f, EmissionRingAxis = Vector3.Up,
             RadialAccelMin = -C.Radius * 3f, RadialAccelMax = -C.Radius * 3f, TangentialAccelMin = 14f, TangentialAccelMax = 14f, Gravity = Vector3.Zero, Position = Vector3.Up * .8f, ColorRamp = g, Mesh = new QuadMesh { Size = new Vector2(.3f, .3f), Material = Vfx.SpriteMat(true, "magic") } };
         AddChild(_fx); AddChild(new OmniLight3D { LightColor = Col, OmniRange = C.Radius * 2.5f, LightEnergy = 1.5f, Position = Vector3.Up * 1.5f, ShadowEnabled = false });
+        SpellStyles.Linger(Vector3.Zero, C.Radius * 1.5f, Mathf.Max(1f, C.Dur), C.Type, SpellStyles.PowerOf(C), this);   // F-12: the well's reach and its time left
     }
     public override void _Process(double delta)
     {
@@ -407,7 +410,7 @@ public partial class Vortex : Node3D
         }
         _tick -= dt; if (_tick <= 0) { _tick = .5f; foreach (var e in SkillHits.Near(GetTree(), GlobalPosition, C.Radius)) SkillHits.Hit(C, e, GlobalPosition, C.Def.XOr("grind", .15f)); }
         if (_t < dur) return;
-        Vfx.Flash(GlobalPosition + Vector3.Up, Col, 6f, C.Radius * 3f, .4f); Vfx.Ring(GlobalPosition + Vector3.Up * .1f, C.Radius * 1.4f, Col, .4f); Player.Instance?.Rig?.Shake(.2f);
+        Vfx.Flash(GlobalPosition + Vector3.Up, Col, 6f, C.Radius * 3f, .4f); SpellStyles.Nova(GlobalPosition, C.Radius * 1.4f, C.Type, SpellStyles.PowerOf(C)); Player.Instance?.Rig?.Shake(.2f);
         foreach (var e in SkillHits.Near(GetTree(), GlobalPosition, C.Radius * 1.3f)) SkillHits.Hit(C, e, GlobalPosition, 1f);
         QueueFree();
     }
@@ -423,6 +426,7 @@ public partial class SkillMark : Node3D
         AddChild(new MeshInstance3D { Mesh = new TorusMesh { InnerRadius = .45f, OuterRadius = .6f, Rings = 24, RingSegments = 4 }, MaterialOverride = SkillHits.Glow(Col, 2.5f) });
         AddChild(new MeshInstance3D { Mesh = new PrismMesh { Size = new Vector3(.4f, .4f, .05f) }, MaterialOverride = SkillHits.Glow(Col.Lightened(.3f), 3f), Rotation = new Vector3(Mathf.Pi, 0, 0) });
         FloatText.Spawn(Target, Target.GlobalPosition + Vector3.Up * (Target.HeightM() + .8f), "Marked", Col, .6f);
+        SpellStyles.Debuff(Target, C.Type, C.Dur, Target.HeightM() + .5f);   // F-12: the curse swirls over the foe until it goes off
     }
     public override void _Process(double delta)
     {
@@ -434,7 +438,8 @@ public partial class SkillMark : Node3D
         if (ok && !Target.Dead) Target.TakeHit(C.Hit(C.Dmg + stored, _last, GD.Randf() < Game.D.CritChance() + C.CritC / 100f));
         float spread = C.Def.XOr("spread", 0);
         if (spread > 0) foreach (var e in SkillHits.Near(GetTree(), _last, Mathf.Max(3f, C.Radius))) if (e != Target) SkillHits.Hit(C, e, _last, spread);
-        if (C.Type == "fire") Vfx.Explosion(_last + Vector3.Up * .8f, Mathf.Max(2f, C.Radius)); else { Vfx.Flash(_last + Vector3.Up, Col, 5f, 8f, .35f); Vfx.Ring(_last + Vector3.Up * .1f, Mathf.Max(2f, C.Radius), Col, .35f); }
+        if (C.Type == "fire") Vfx.Explosion(_last + Vector3.Up * .8f, Mathf.Max(2f, C.Radius)); else Vfx.Flash(_last + Vector3.Up, Col, 5f, 8f, .35f);
+        SpellStyles.Aoe(_last, Mathf.Max(2f, C.Radius), C.Type, SpellStyles.Power(C.Dmg + stored), .2f);   // stored damage: a bigger blast looks bigger
         QueueFree();
     }
 }
@@ -463,7 +468,8 @@ public partial class SkillTrap : Node3D
         _sprung = true; Sfx.Play("block");
         foreach (var e in SkillHits.Near(GetTree(), GlobalPosition, C.Radius * 1.5f)) SkillHits.Hit(C, e, GlobalPosition, 1f);
         _jaws.CreateTween().TweenProperty(_jaws, "scale", new Vector3(.3f, 1.6f, .3f), .08f);
-        if (C.Type == "fire") Vfx.Explosion(GlobalPosition + Vector3.Up * .4f, C.Radius * 1.5f); else { Vfx.Flash(GlobalPosition + Vector3.Up * .5f, Col, 4f, C.Radius * 3f, .3f); Vfx.Ring(GlobalPosition + Vector3.Up * .1f, C.Radius * 1.5f, Col, .3f); }
+        if (C.Type == "fire") Vfx.Explosion(GlobalPosition + Vector3.Up * .4f, C.Radius * 1.5f); else Vfx.Flash(GlobalPosition + Vector3.Up * .5f, Col, 4f, C.Radius * 3f, .3f);
+        SpellStyles.Aoe(GlobalPosition, C.Radius * 1.5f, C.Type, SpellStyles.PowerOf(C), .2f);   // F-12
         GetTree().CreateTimer(.6f).Timeout += QueueFree;
     }
 }

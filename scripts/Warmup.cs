@@ -39,6 +39,8 @@ public static class Warmup
             Fx.Burst(p, white); Fx.Dust(p, 1f); Fx.Ring(p, 1f, white); Fx.Line(p, p + Vector3.Up, white);
             foreach (var t in new[] { "fire", "frost", "holy", "shadow", "poison", "lightning" })
             { try { Vfx.ElementImpact(t, p, 1.5f); } catch { } }
+            SpellFx.SizeOf("fire_burst");   // loads data/spellfx.json now: its audit (flipbooks + effect-library styles) lands in the startup log
+            SpellStyles.WarmAll(p);   // F-12: every element x shape of the effect library (shaders, GPU particle process shaders, meshes)
         }
         catch (System.Exception e) { GD.Print($"[WARMUP] effect failed: {e.Message}"); }
         // only what the calls above made (synchronously): enemies, loot or anything else added in the next frames stay

@@ -552,6 +552,18 @@ public partial class DevCapture : Node
         }
         if (action.StartsWith("padnav:")) { await PadNav(action[7..]); return; }
         if (action.StartsWith("sfxlog:")) { await SfxLog(action[7..]); return; }
+        if (action == "fx10" || action == "fxclear" || action.StartsWith("fxshow:"))
+        {   // F-12 effect library: "fxclear" (the perf base: same spot, nothing), "fx10" (10 mixed effects, 3 lingering AoEs), "fxshow:<shape>" (one per element in a row)
+            SpellStyles.ClearAll(GetTree()); await Frames(2);
+            var fwd = -P.GlobalTransform.Basis.Z with { Y = 0 }; fwd = fwd.LengthSquared() > .01f ? fwd.Normalized() : Vector3.Forward;
+            var right = fwd.Cross(Vector3.Up).Normalized(); var center = P.GlobalPosition + fwd * 7f;
+            int made0 = SpellStyles.Made;
+            if (action == "fx10") SpellStyles.Fx10(center, right, fwd);
+            else if (action.StartsWith("fxshow:")) SpellStyles.Show(action[7..], center, right, fwd);
+            await Secs(castWait);
+            Say($"{action}: {SpellStyles.Made - made0} library effects started, {GetTree().GetNodesInGroup("spellstyles").Count} nodes live, quality {Game.Set.Quality}");
+            return;
+        }
         if (action == "souls:start")
         {   // a Soul Duel with the view's pets (no rewards, no saving); the picture lands after the first turn's first attack
             Arenas.Start("souls", Game.D.Pets.Take(3).Select(p => p.Id).ToList(), true); await LoadDone();
