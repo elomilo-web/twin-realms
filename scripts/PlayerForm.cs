@@ -42,6 +42,7 @@ public partial class Player
             Mp = Mathf.Min(Game.D.MaxMp(), Mp + c.Mp); _skillCd[f.Key] = 0; _skillCdMax[f.Key] = 0; return;
         }
         if (Mounted) ToggleMount(true);
+        MountBlock = "You cannot ride while transformed";   // A-19: PlayerMount refuses the mount key while this is set
         Form = f; _formDur = _formT = Mathf.Max(5f, f.Dur * (1 + FK("formDurP") / 100f)); _formLock = .25f; _fDashT = 0; _formFlying = false;
         Array.Clear(_fCd, 0, _fCd.Length); Array.Clear(_fCdMax, 0, _fCdMax.Length);
         _skillCd[f.Key] = 0; _skillCdMax[f.Key] = 0;   // the cooldown runs from the moment the form ends (FormRevert)
@@ -93,7 +94,7 @@ public partial class Player
     /// <summary>Back to the hero's own body. silent: no effect or note (death, shifting straight into another form).</summary>
     public void FormRevert(bool silent = false)
     {
-        var f = Form; if (f == null) return; Form = null;
+        var f = Form; if (f == null) return; Form = null; MountBlock = "";
         if (_formHolder != null && IsInstanceValid(_formHolder)) _formHolder.QueueFree(); _formHolder = null; _formBody = null;
         if (_formUi != null && IsInstanceValid(_formUi)) _formUi.QueueFree(); _formUi = null;
         _model.Visible = true; CollisionMask = 1 | 2;
