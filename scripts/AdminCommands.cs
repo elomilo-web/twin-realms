@@ -359,7 +359,7 @@ public static class AdminCommands
         Commands.Add(new Cmd
         {
             Name = "mute", Usage = "/mute <player> [time]", Server = true,
-            Help = "mutes the account (time like 30m, 2h; none = for good). Stored on the account for chat; the game has no chat yet, so today it only shows in /whois",
+            Help = "mutes the account (time like 30m, 2h; none = for good). Stored on the account: a muted player cannot send chat (World, Local, Party, whispers) until it ends (NetChat.cs)",
             Complete = (i, _) => i == 0 ? PlayerNames() : i == 1 ? new[] { "10m", "1h", "1d" } : None,
             Run = (x, a) =>
             {
@@ -369,7 +369,7 @@ public static class AdminCommands
                 long until = span > 0 ? DateTimeOffset.UtcNow.ToUnixTimeSeconds() + span : long.MaxValue;
                 if (!Accounts.Update(key, acc => acc.MuteUntil = until)) return "the account file could not be written";
                 if (peer != 0) { Net.I!.SetMuted(peer, until); Net.I.AdminDo(peer, "note", "You were muted by an admin" + (span > 0 ? " for " + a[1] : "") + "."); }
-                return $"muted {label}{(span > 0 ? " for " + a[1] : " for good")} (no chat exists yet: stored on the account)";
+                return $"muted {label}{(span > 0 ? " for " + a[1] : " for good")} (they cannot use the chat; stored on the account)";
             }
         });
         Commands.Add(new Cmd

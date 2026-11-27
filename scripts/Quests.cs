@@ -32,7 +32,7 @@ public static class Quests
 
     static void Progress(QuestDef q)
     {
-        var s = Game.Q(q.Id); s.N++;
+        var s = Game.Q(q.Id); s.N++; PartyQuests.OldProgress(q.Id, s.N);   // A-29: the party gets the same count (NetQuests.cs)
         if (s.N >= q.Need) { s.S = 2; Ui.Banner(q.Name, "objective complete"); Ui.Note("Return to " + GiverName(q.Giver) + " to claim your reward", new Color(.89f, .69f, .29f)); Sfx.Play("level"); }
         else Ui.Note(q.Name + ": " + s.N + " / " + q.Need, new Color(.89f, .69f, .29f));
     }
@@ -45,12 +45,13 @@ public static class Quests
     public static void OnDuel(int streak) { Load(); foreach (var q in All) if (Game.Q(q.Id).S == 1 && q.Kind == "duel" && streak >= q.MinStreak) Progress(q); }
     public static void OnRealmShift(int realm) { }
 
-    public static void Accept(QuestDef q) { var s = Game.Q(q.Id); s.S = 1; s.N = 0; Ui.Note("Quest started: " + q.Name, new Color(.89f, .69f, .29f)); Sfx.Play("click"); Game.Save(); }
+    public static void Accept(QuestDef q) { var s = Game.Q(q.Id); s.S = 1; s.N = 0; Ui.Note("Quest started: " + q.Name, new Color(.89f, .69f, .29f)); Sfx.Play("click"); Game.Save(); PartyQuests.OldAccepted(q.Id); }   // A-29: party members without it are offered it
     public static void Reward(QuestDef q)
     {
+        PartyQuests.OldDone(q.Id);   // A-29: turned in for the whole party (each member gets their own reward)
         var s = Game.Q(q.Id); s.S = 3; var d = Game.D; d.Gold += q.Gold; Player.Instance?.AddXp(q.Xp, Player.Instance.GlobalPosition);
-        var it = Items.Roll(Math.Max(2, d.Level + 1), q.Bonus + 1);
-        if (d.Inv.Count < 28) { d.Inv.Add(it); Ui.Note("Reward: " + it.Describe(), it.Color); }
+        if (Uniques.ForOldQuest(q.Id) is { } uq && !Uniques.Has(uq.Id)) Uniques.Give(uq.Id);   // A-18: this quest's named unique (data/uniques.json "oldQuest"), once
+        else { var it = Items.Roll(Math.Max(2, d.Level + 1), q.Bonus + 1); if (d.Inv.Count < 28) { d.Inv.Add(it); Ui.Note("Reward: " + it.Describe(), it.Color); } }
         Ui.Note("+" + q.Gold + " gold, +" + q.Xp + " xp", new Color(1f, .82f, .29f)); Sfx.Play("coin"); Game.Save();
     }
 }

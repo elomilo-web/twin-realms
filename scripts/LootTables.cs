@@ -141,7 +141,7 @@ public static class LootTables
     public static void Apply(PlayerStats d, TreeStats ts)
     {
         Load(); var counts = new Dictionary<string, int>();
-        foreach (var it in d.Eq.Values) if (it?.Set != null) counts[it.Set] = counts.GetValueOrDefault(it.Set) + 1;
+        foreach (var it in d.Eq.Values) if (it?.Set != null && !Durability.Broken(it)) counts[it.Set] = counts.GetValueOrDefault(it.Set) + 1;   // (A-13: a worn-out piece does not count toward its set)
         foreach (var (id, n) in counts)
         {
             if (!Sets.TryGetValue(id, out var s)) continue;

@@ -4,6 +4,11 @@
                    "scarletta":  {
                                   "_help":  "Raid lair (scripts/DungeonLair.cs): Scarletta's Rotting Hollow, entered from the shrine on Lumen Aerie. No monster rooms: one great chamber of giant mushrooms and oozing slime, and the boss.",
                                   "name":  "The Rotting Hollow",
+                                  "_shades": "A-23 mirrored shades of the party (three times the old numbers: hall 18 -> 54, passage groups 2 -> 6, chamber rim 24 -> 72). hall = shades in the hall of shades; passage = shades per group, one group every passageEvery passage cells; chamber = shades around the rim of the great chamber in groups of chamberGroup, none within chamberClear metres of the boss. levels = [offset from the lair's level, weight]. eliteChance: an Elite shade is eliteMin..eliteMax levels up with eliteHp / eliteDmg multipliers and eliteReward x drops. maxAwake = at most this many shades hunt at once (the rest wait their turn), maxAwakeBoss while Scarletta is fighting. Drops scale by rewardPerLevel per level over the lair's, within rewardMin..rewardMax.",
+                                  "shades":  { "hall": 54, "passage": 6, "passageEvery": 10, "chamber": 72, "chamberGroup": 3, "chamberClear": 200,
+                                               "levels": [ [-3, 6], [-2, 10], [-1, 16], [0, 22], [1, 18], [2, 13], [3, 9], [4, 6] ],
+                                               "eliteChance": 0.06, "eliteMin": 5, "eliteMax": 7, "eliteHp": 1.6, "eliteDmg": 1.25, "eliteReward": 2.5,
+                                               "maxAwake": 14, "maxAwakeBoss": 4, "rewardPerLevel": 0.12, "rewardMin": 0.6, "rewardMax": 2.2 },
                                   "mobs":  [ "myconid" ],
                                   "boss":  "scarletta",
                                   "wall":  3816760,

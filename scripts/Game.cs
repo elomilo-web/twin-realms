@@ -149,7 +149,8 @@ public static class Game
             if (d == null) return false;
             D = d; TreeDb.Load();
             D.GainXp(0);   // the levelling curve changed: settle any experience already past the next level
-            if (D.TreeVer < TreeDb.Version) { D.SkillPts += D.Tree.Count; D.Tree.Clear(); D.TreeVer = TreeDb.Version; TreeRefunded = true; }   // the tree was rebuilt: refund every point
+            if (D.TreeVer < TreeDb.Version) { D.SkillPts += D.Tree.Count + Progression.TreeRetro(D.TreeVer, D.Level); D.Tree.Clear(); D.TreeVer = TreeDb.Version; TreeRefunded = true; }   // the tree was rebuilt: refund every point (base and advanced nodes share D.Tree); A-15: plus the points the new per-level rate would have given
+            D.Tree.RemoveAll(id => TreeDb.Get(id) == null);   // (an id no layout has: dropped, never a crash)
             Skills.GrantStarting(D); RecalcTree(); return true;
         }
         catch (Exception e) { GD.PushError("load failed: " + e.Message); return false; }
@@ -159,7 +160,7 @@ public static class Game
     {
         D = new PlayerStats { Name = string.IsNullOrWhiteSpace(name) ? "Hero" : name, Class = cls, Race = race };
         var c = Classes.Get(cls); var r = Races.Get(race);
-        void Attr(Dictionary<string, int> a) { foreach (var kv in a) switch (kv.Key) { case "str": D.Str += kv.Value; break; case "dex": D.Dex += kv.Value; break; case "vit": D.Vit += kv.Value; break; case "mag": D.Mag += kv.Value; break; } }
+        void Attr(Dictionary<string, int> a) { foreach (var kv in a) D.AddAttr(kv.Key, kv.Value); }   // (A-14: also wis, agi, lck, end)
         Attr(c.Attr); Attr(r.Attr); D.SkillPts += r.Pts;
         foreach (var kv in Classes.StartGear(c)) D.Eq[kv.Key] = kv.Value;   // weapon, shield and the class gear set (F-34)
         Skills.GrantStarting(D); TreeDb.Load(); D.TreeVer = TreeDb.Version;

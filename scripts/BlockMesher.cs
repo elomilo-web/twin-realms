@@ -143,18 +143,68 @@ public static class BlockMesher
                         else
                         {
                             // fence: a post with two rails to each neighbouring fence or solid block
-                            Box(id, new Vector3(x + .375f, y, z + .375f), new Vector3(.25f, 1f, .25f), l0, true);
+                            // A-25: the collision is its own shape, 1.5 blocks high (post and a wall under each rail run), so neither the hero nor animals hop over it
+                            Box(id, new Vector3(x + .375f, y, z + .375f), new Vector3(.25f, 1f, .25f), l0, false);
+                            Coll(new Vector3(x + .375f, y, z + .375f), new Vector3(.25f, 1.5f, .25f));
                             for (int f = 2; f < 6; f++)
                             {
                                 var n = Nrm[f]; byte nb = At(x + n.X, y, z + n.Z);
-                                if (nb == 0 || nb >= defs.Count || !(defs[nb].Shape == "fence" || defs[nb].Opaque)) continue;
+                                if (nb == 0 || nb >= defs.Count || !(defs[nb].Shape is "fence" or "gate" || defs[nb].Opaque)) continue;
                                 for (int r = 0; r < 2; r++)
                                 {
                                     float ry = r == 0 ? .3f : .7f;
                                     Vector3 mn = n.X > 0 ? new(.625f, ry, .44f) : n.X < 0 ? new(0, ry, .44f) : n.Z > 0 ? new(.44f, ry, .625f) : new(.44f, ry, 0);
                                     Vector3 sz = n.X != 0 ? new(.375f, .12f, .12f) : new(.12f, .12f, .375f);
-                                    Box(id, new Vector3(x, y, z) + mn, sz, l0 * .95f, true);
+                                    Box(id, new Vector3(x, y, z) + mn, sz, l0 * .95f, false);
                                 }
+                                Vector3 cm = n.X > 0 ? new(.625f, 0, .44f) : n.X < 0 ? new(0, 0, .44f) : n.Z > 0 ? new(.44f, 0, .625f) : new(.44f, 0, 0);
+                                Coll(new Vector3(x, y, z) + cm, n.X != 0 ? new Vector3(.375f, 1.5f, .12f) : new Vector3(.12f, 1.5f, .375f));
+                            }
+                        }
+                        continue;
+                    }
+                    if (def.Shape == "gate")
+                    {
+                        // A-25 a fence gate: meta & 3 = the side it faces (0 +X, 1 -X: the gate bars the way along x and spans z; 2 +Z, 3 -Z: spans x).
+                        // Closed: two posts, two rails and a board between them, collision 1.5 high. Open (X_open, not solid): the leaves stand along the way.
+                        float l0 = jit.G; bool spanZ = (meta & 3) < 2, gopen = def.Key.EndsWith("_open"); var go = new Vector3(x, y, z);
+                        Vector3 GP(float along, float h, float across) => spanZ ? new Vector3(across, h, along) : new Vector3(along, h, across);
+                        Box(id, go + GP(0f, 0, .4f), GP(.14f, 1f, .2f), l0, false); Box(id, go + GP(.86f, 0, .4f), GP(.14f, 1f, .2f), l0, false);
+                        if (!gopen)
+                        {
+                            foreach (float ry in new[] { .3f, .7f }) Box(id, go + GP(.14f, ry, .44f), GP(.72f, .12f, .12f), l0 * .95f, false);
+                            Box(id, go + GP(.42f, .3f, .45f), GP(.16f, .52f, .1f), l0 * .9f, false);
+                            Coll(go + GP(0f, 0, .4f), GP(1f, 1.5f, .2f));
+                        }
+                        else
+                        {
+                            float dirS = (meta & 3) is 0 or 2 ? 0f : -.36f;   // the leaves swing towards the side the gate faces
+                            foreach (float al in new[] { .02f, .88f })
+                                foreach (float ry in new[] { .3f, .7f }) Box(id, go + GP(al, ry, .5f + dirS), GP(.1f, .12f, .36f), l0 * .95f, false);
+                        }
+                        continue;
+                    }
+                    if (def.Shape == "crop")
+                    {
+                        // A-24 a crop: two crossed blades growing with the stage (meta & 3: 0 seedling .. 3 ripe), leaf colour (side material);
+                        // ripe: ears on the stalks or a fruit (top material), sized by the block's cropH / cropFruit. No collision.
+                        int stage = meta & 3; float hgt = Mathf.Max(.12f, def.CropH * (stage + 1) / 4f), l0 = jit.G, cw = .5f + stage * .1f;
+                        var c0 = new Vector3(x + .5f + (r1 - .5f) * .16f, y, z + .5f + (r2 - .5f) * .16f);
+                        Box(id, c0 + new Vector3(-cw / 2, 0, -.03f), new Vector3(cw, hgt, .06f), l0, false, 1);
+                        Box(id, c0 + new Vector3(-.03f, 0, -cw / 2), new Vector3(.06f, hgt, cw), l0 * .92f, false, 1);
+                        if (stage >= 3)
+                        {
+                            float fs = def.CropFruit;
+                            if (fs >= .4f) Box(id, c0 + new Vector3(-fs / 2, 0, -fs / 2), new Vector3(fs, fs * .8f, fs), l0, false, 0);
+                            else if (fs > 0)
+                            {
+                                foreach (var (fx, fz, fy) in new[] { (.2f, .1f, .75f), (-.18f, -.12f, .55f), (.05f, -.22f, .9f), (-.1f, .2f, .68f) })
+                                    Box(id, c0 + new Vector3(fx - fs / 2, hgt * fy - fs / 2, fz - fs / 2), new Vector3(fs, fs, fs), l0 * 1.1f, false, 0);
+                            }
+                            else
+                            {   // ears: the top quarter of the stalks in the ripe colour
+                                Box(id, c0 + new Vector3(-cw / 2, hgt * .72f, -.045f), new Vector3(cw, hgt * .28f, .09f), l0 * 1.1f, false, 0);
+                                Box(id, c0 + new Vector3(-.045f, hgt * .72f, -cw / 2), new Vector3(.09f, hgt * .28f, cw), l0, false, 0);
                             }
                         }
                         continue;
@@ -273,6 +323,21 @@ public static class BlockMesher
                 }
                 Tri(ps, pb);
                 if (coll) Face6(faces, q[0], q[1], q[2], q[3]);
+            }
+        }
+
+        // collision only: an axis-aligned box (min corner + size) in the chunk's collision faces, drawn by nothing (fences and gates are 1.5 high to walkers)
+        void Coll(Vector3 bas, Vector3 size)
+        {
+            for (int f = 0; f < 6; f++)
+            {
+                var q = new Vector3[4];
+                for (int k = 0; k < 4; k++)
+                {
+                    int su = k == 1 || k == 2 ? 1 : 0, sv = k >= 2 ? 1 : 0; var u = U[f]; var v = Vv[f];
+                    q[k] = bas + new Vector3(P0[f].X + su * u.X + sv * v.X, P0[f].Y + su * u.Y + sv * v.Y, P0[f].Z + su * u.Z + sv * v.Z) * size;
+                }
+                Face6(faces, q[0], q[1], q[2], q[3]);
             }
         }
 

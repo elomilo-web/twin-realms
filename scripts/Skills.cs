@@ -141,6 +141,7 @@ public static class Skills
     public static void GrantStarting(PlayerStats d)
     {
         Load(); Spellcraft.Sync(d);   // the hero's crafted spells become skills, new heroes get their starter cards
+        Forms.Register(d);   // A-16: animal and spirit forms are skills too (Transform.cs)
         foreach (var id in Classes.Get(d.Class).Skills) if (_s.ContainsKey(id) && !d.Skills.ContainsKey(id) && !d.Forgot.Contains(id)) d.Skills[id] = new SkillState();   // (not the ones you chose to unlearn)
         if (d.Skills.Count == 0 && d.Forgot.Count == 0) foreach (var id in new[] { "fire", "nova", "heal", "zap" }) d.Skills[id] = new SkillState();
         if (d.Bar == null || d.Bar.Length < 6) { var nb = new string[6]; if (d.Bar != null) Array.Copy(d.Bar, nb, d.Bar.Length); d.Bar = nb; }

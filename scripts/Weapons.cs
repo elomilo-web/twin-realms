@@ -36,6 +36,19 @@ public class WeaponDef
     public List<AttackDef> Combo = new(); public AttackDef Power = new();
     /// <summary>Sounds per event ("swing" at attack start, "shoot" at a ranged release, "hit", "miss"), from data/weapons.json "sfx" (Sfx.Weapon plays them).</summary>
     public Dictionary<string, List<SfxPick>> Sfx = new();
+    // A-11 (all optional in data/weapons.json): light = quick small weapon (dagger rules for stamina, swing weight and recovery), heavy = the
+    // heavy impact feel, icon = inventory icon id, drop = weight when loot rolls a weapon type, affinity = class id -> +% damage with this
+    // type, shot = a thrown or shot missile for ranged types that are not bow / wand / staff.
+    public bool Light, Heavy; public string Icon = ""; public float Drop = 1;
+    public Dictionary<string, float> Affinity = new();
+    public ShotDef? Shot;
+}
+
+/// <summary>A-11: the missile of a thrown or mechanical ranged weapon (data/weapons.json type "shot").</summary>
+public class ShotDef
+{
+    public string Kind = "arrow"; public float Speed = 50, PowerSpeed = 60, Life = 2, Lift = .5f, Aoe;
+    public bool Pierce, PowerPierce; public int PowerShots = 1; public float PowerSpread;
 }
 
 /// <summary>One weapon sound choice: an Sfx id, its loudness and a random pitch range.</summary>
@@ -77,7 +90,46 @@ public static class Weapons
     static readonly Dictionary<string, string[]> _hint = new();
     static bool _useKit; static float _jitter = .06f, _elemTint = .3f;
     static readonly Dictionary<string, PackedScene?> _kitScenes = new();
-    static readonly HashSet<string> Melee = new() { "sword", "katana", "greatsword", "axe", "mace", "dagger", "spear" };
+
+    // ---------------------------------------------------------------- A-11: item sizes and drop weights (data/weapons.json "size")
+    static float _szMin = .85f, _szMax = 1.2f, _szReach = 1f, _szArc = .35f, _szSpeed = .5f;
+    static readonly List<(float upTo, string name)> _szNames = new();
+    /// <summary>A new weapon's size factor: two rolls averaged, so most are near the middle and few are Short or Great.</summary>
+    public static float RollSize() { Load(); float t = (GD.Randf() + GD.Randf()) * .5f; return Mathf.Round(Mathf.Lerp(_szMin, _szMax, t) * 100f) / 100f; }
+    /// <summary>"Short", "Long", "Great"... for a size factor ("" for the plain middle sizes).</summary>
+    public static string SizeName(float size) { Load(); foreach (var (upTo, n) in _szNames) if (size <= upTo) return n; return ""; }
+    static float SizeOf(Item? it) => it == null || it.Size <= 0 ? 1f : Mathf.Clamp(it.Size, .5f, 2f);
+    /// <summary>Reach, arc and speed factors of an item's size (1 for a plain item): longer reaches farther, sweeps a little wider, swings a little slower.</summary>
+    public static float SizeReach(Item? it) { Load(); return 1f + (SizeOf(it) - 1f) * _szReach; }
+    public static float SizeArc(Item? it) { Load(); return 1f + (SizeOf(it) - 1f) * _szArc; }
+    public static float SizeSpeed(Item? it) { Load(); return Mathf.Clamp(1f - (SizeOf(it) - 1f) * _szSpeed, .5f, 1.5f); }
+    /// <summary>The swing with the item's size applied to its reach and arc (a copy; the weapon data is not touched).</summary>
+    public static AttackDef Sized(AttackDef a, Item? it)
+    {
+        float s = SizeOf(it); if (Mathf.Abs(s - 1f) < .005f) return a;
+        return new AttackDef { Dur = a.Dur, Wind = a.Wind, Hit = a.Hit, Dmg = a.Dmg, Arc = Mathf.Min(180, a.Arc * SizeArc(it)), Range = a.Range * SizeReach(it), Knock = a.Knock, Stun = a.Stun, Up = a.Up,
+            Lunge = a.Lunge, Spin = a.Spin, CritBonus = a.CritBonus, Finisher = a.Finisher, Pierce = a.Pierce, Keys = a.Keys };
+    }
+    /// <summary>A random weapon type from the list, by each type's "drop" weight.</summary>
+    public static string RollType(List<string> types)
+    {
+        Load(); float tot = 0; foreach (var t in types) tot += Mathf.Max(0, Get(t).Drop);
+        if (tot <= 0) return types[(int)(GD.Randf() * types.Count) % types.Count];
+        float r = GD.Randf() * tot; foreach (var t in types) { r -= Mathf.Max(0, Get(t).Drop); if (r <= 0) return t; }
+        return types[^1];
+    }
+    /// <summary>Inventory icon of a weapon type: its own "icon" in data, a drawn one, else the sword.</summary>
+    public static string IconOf(string wt)
+    {
+        if (wt is "bow" or "wand" or "staff" or "greatsword" or "axe" or "mace" or "dagger" or "spear") return wt;
+        var ic = wt == "" ? "" : Get(wt).Icon; return ic != "" ? ic : "sword";
+    }
+
+    // ---------------------------------------------------------------- A-12: dual wield numbers (data/weapons.json "dual")
+    static readonly Dictionary<string, float> _dual = new(); static readonly List<string> _dualAnims = new();
+    public static float Dual(string key, float def) { Load(); return _dual.TryGetValue(key, out var v) ? v : def; }
+    /// <summary>Attack animations an off-hand swing plays instead of the step's own (empty = the step's own).</summary>
+    public static IReadOnlyList<string> DualOffAnims { get { Load(); return _dualAnims; } }
 
     /// <summary>Every kit model a weapon type can show (for tests and previews).</summary>
     public static IReadOnlyList<string> KitModels(string type)
@@ -145,6 +197,20 @@ public static class Weapons
             if (km.TryGetProperty("elementModels", out var em))
                 foreach (var e in em.EnumerateObject()) _hint[e.Name] = e.Value.EnumerateArray().Select(x => x.GetString() ?? "").ToArray();
         }
+        if (doc.RootElement.TryGetProperty("size", out var sz) && sz.ValueKind == JsonValueKind.Object)
+        {
+            _szMin = JsonUtil.F(sz, "min", .85f); _szMax = Mathf.Max(_szMin, JsonUtil.F(sz, "max", 1.2f));
+            _szReach = JsonUtil.F(sz, "reachPer", 1f); _szArc = JsonUtil.F(sz, "arcPer", .35f); _szSpeed = JsonUtil.F(sz, "speedPer", .5f);
+            if (sz.TryGetProperty("names", out var sn) && sn.ValueKind == JsonValueKind.Array)
+                foreach (var x in sn.EnumerateArray()) if (x.ValueKind == JsonValueKind.Array && x.GetArrayLength() >= 2) _szNames.Add((x[0].GetSingle(), x[1].GetString() ?? ""));
+        }
+        if (doc.RootElement.TryGetProperty("dual", out var du) && du.ValueKind == JsonValueKind.Object)
+            foreach (var x in du.EnumerateObject())
+            {
+                if (x.Value.ValueKind == JsonValueKind.Number) _dual[x.Name] = x.Value.GetSingle();
+                else if (x.Name == "offAnims" && x.Value.ValueKind == JsonValueKind.Array) foreach (var a in x.Value.EnumerateArray()) _dualAnims.Add(a.GetString() ?? "");
+            }
+        var keysFrom = new List<(WeaponDef w, string from)>();
         foreach (var t in doc.RootElement.GetProperty("types").EnumerateObject())
         {
             var e = t.Value; var w = new WeaponDef
@@ -172,7 +238,27 @@ public static class Weapons
                     }
                     w.Sfx[ev.Name] = l;
                 }
+            // A-11 extras
+            bool B(string k) => e.TryGetProperty(k, out var bv) && bv.ValueKind == JsonValueKind.True;
+            w.Light = B("light") || t.Name is "dagger" or "unarmed"; w.Heavy = B("heavy") || t.Name is "greatsword" or "mace" or "axe";
+            w.Icon = JsonUtil.S(e, "icon"); w.Drop = JsonUtil.F(e, "drop", 1f);
+            if (e.TryGetProperty("affinity", out var af) && af.ValueKind == JsonValueKind.Object) foreach (var x in af.EnumerateObject()) if (x.Value.ValueKind == JsonValueKind.Number) w.Affinity[x.Name] = x.Value.GetSingle();
+            if (e.TryGetProperty("shot", out var sh) && sh.ValueKind == JsonValueKind.Object)
+                w.Shot = new ShotDef
+                {
+                    Kind = JsonUtil.S(sh, "kind", "arrow"), Speed = JsonUtil.F(sh, "speed", 50), PowerSpeed = JsonUtil.F(sh, "powerSpeed", JsonUtil.F(sh, "speed", 50) * 1.2f), Life = JsonUtil.F(sh, "life", 2f),
+                    Lift = JsonUtil.F(sh, "lift", .5f), Aoe = JsonUtil.F(sh, "aoe"), Pierce = sh.TryGetProperty("pierce", out var sp1) && sp1.ValueKind == JsonValueKind.True,
+                    PowerPierce = sh.TryGetProperty("powerPierce", out var sp2) && sp2.ValueKind == JsonValueKind.True, PowerShots = Math.Max(1, (int)JsonUtil.F(sh, "powerShots", 1)), PowerSpread = JsonUtil.F(sh, "powerSpread"),
+                };
+            if (JsonUtil.S(e, "keysFrom") != "") keysFrom.Add((w, JsonUtil.S(e, "keysFrom")));
             _d[t.Name] = w;
+        }
+        // "keysFrom": a type without hand poses of its own borrows another type's (swing i from its swing i, the power attack's from its power attack)
+        foreach (var (w, from) in keysFrom)
+        {
+            if (!_d.TryGetValue(from, out var src) || src.Combo.Count == 0) continue;
+            for (int i = 0; i < w.Combo.Count; i++) if (w.Combo[i].Keys.Length == 0) w.Combo[i].Keys = src.Combo[Math.Min(i, src.Combo.Count - 1)].Keys;
+            if (w.Power.Keys.Length == 0) w.Power.Keys = src.Power.Keys;
         }
     }
 
@@ -202,9 +288,26 @@ public static class Weapons
         var accent = rar >= 3 ? gold : rar >= 1 ? M(rc.Darkened(.25f), .7f, .35f) : dark;
         if (rar >= 4) { steel.EmissionEnabled = true; steel.Emission = rc; steel.EmissionEnergyMultiplier = .08f; steel.AlbedoColor = steel.AlbedoColor.Lerp(rc, .12f); }
         Node3D? b = null, t = null;
-        Node3D Mark(float z) { var n = new Node3D { Position = new Vector3(0, 0, z) }; parent.AddChild(n); return n; }
+        float size = SizeOf(it);   // A-11: the built-in meshes grow with the item's size too (the marks with them)
+        Node3D Mark(float z) { var n = new Node3D { Position = new Vector3(0, 0, z * size) }; parent.AddChild(n); return n; }
+        int before = parent.GetChildCount();
         switch (wt)
         {
+            case "whip":
+                // A-11: a short handle and a lash of tapering segments that droops toward the tip
+                Add(parent, new CylinderMesh { TopRadius = .024f, BottomRadius = .028f, Height = .26f, RadialSegments = 8 }, wrap, new Vector3(0, 0, .02f), new Vector3(H, 0, 0));
+                Add(parent, new SphereMesh { Radius = .034f, Height = .068f, RadialSegments = 8, Rings = 4 }, accent, new Vector3(0, 0, .16f));
+                {
+                    const int seg = 12; Vector3 Pt(float u) => new(0, -.55f * u * u, -.1f - 2.3f * u);
+                    for (int k = 0; k < seg; k++)
+                    {
+                        var p0 = Pt(k / (float)seg); var p1 = Pt((k + 1) / (float)seg); var y = (p1 - p0).Normalized(); var x = Vector3.Right; var z = x.Cross(y).Normalized();
+                        float r = .02f - .015f * (k / (float)seg);
+                        parent.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = r, BottomRadius = r, Height = (p1 - p0).Length() + .01f, RadialSegments = 5 }, MaterialOverride = wrap, Transform = new Transform3D(new Basis(x, y, z), (p0 + p1) / 2) });
+                    }
+                }
+                Add(parent, new SphereMesh { Radius = .028f, Height = .056f, RadialSegments = 6, Rings = 3 }, gem, new Vector3(0, -.55f, -2.4f));
+                b = Mark(-.6f); t = Mark(-2.4f); break;
             case "greatsword":
                 Add(parent, Gfx.Blade(1.25f, .13f, .03f), steel, new Vector3(0, 0, -.2f));
                 Add(parent, new BoxMesh { Size = new Vector3(.5f, .05f, .06f) }, accent, new Vector3(0, 0, -.17f));
@@ -274,6 +377,9 @@ public static class Weapons
                 Add(parent, new SphereMesh { Radius = .04f, Height = .08f, RadialSegments = 8, Rings = 4 }, rar >= 1 ? gem : accent, new Vector3(0, 0, .11f));
                 b = Mark(-.28f); t = Mark(-1.15f); break;
         }
+        if (Mathf.Abs(size - 1f) > .005f)
+            for (int i = before; i < parent.GetChildCount(); i++)
+                if (parent.GetChild(i) is MeshInstance3D sm) { sm.Position *= size; sm.Scale *= size; }   // the marks were placed at their scaled spot already
         Gfx.MergeChildren(parent);
         return (b, t);
     }
@@ -290,7 +396,8 @@ public static class Weapons
         if (!_kitScenes.TryGetValue(name, out var ps)) _kitScenes[name] = ps = ResourceLoader.Exists(KitPath(name)) ? GD.Load<PackedScene>(KitPath(name)) : null;
         if (ps?.Instantiate() is not Node3D model) { GD.PushWarning("[WEAPONS] missing kit model " + name); return null; }
         // size: the listed scale for this name, and a small stable variation per item so two swords of a kind differ
-        float jit = 1f + (((Hash((it?.Name ?? "") + "#size") % 1000) / 1000f) * 2f - 1f) * _jitter, sc = pick.Scale * jit;
+        // (A-11: an item with a rolled size uses that instead of the name jitter, so the model matches its reach)
+        float jit = it != null && Mathf.Abs(it.Size - 1f) > .005f ? SizeOf(it) : 1f + (((Hash((it?.Name ?? "") + "#size") % 1000) / 1000f) * 2f - 1f) * _jitter, sc = pick.Scale * jit;
         model.Scale = Vector3.One * sc;
         if (wt != "bow") model.Rotation = new Vector3(-H, 0, 0);
         parent.AddChild(model);
@@ -311,7 +418,7 @@ public static class Weapons
         foreach (var mi in model.FindChildren("*", "MeshInstance3D", true, false)) if (mi is MeshInstance3D m && m.Mesh != null) len = Mathf.Max(len, (m.Transform * m.Mesh.GetAabb()).End.Y);
         len *= sc;
         Node3D? b = null, t = null;
-        if (Melee.Contains(wt) && len > .1f)
+        if (wt != "tool" && _d.TryGetValue(wt, out var kd) && !kd.Ranged && wt != "unarmed" && len > .1f)
         {
             b = new Node3D { Position = new Vector3(0, 0, -len * .3f) }; parent.AddChild(b);
             t = new Node3D { Position = new Vector3(0, 0, -len) }; parent.AddChild(t);

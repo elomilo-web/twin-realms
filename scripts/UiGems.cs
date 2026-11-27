@@ -17,10 +17,10 @@ public partial class Ui
 
     void GemsPane(GridContainer host, int cell, int gap, float width)
     {
-        var d = Game.D; var all = new VBoxContainer { CustomMinimumSize = new Vector2(width, 0) }; all.AddThemeConstantOverride("separation", 6); host.AddChild(all);
+        var d = Game.D; var all = new VBoxContainer { CustomMinimumSize = new Vector2(width, 0) }; all.AddThemeConstantOverride("separation", UiTheme.Gap); host.AddChild(all);
         // worn gear's sockets first (always in view), the loose gems under them
-        var sv = new VBoxContainer(); sv.AddThemeConstantOverride("separation", 6); all.AddChild(sv);
-        var v = new VBoxContainer(); v.AddThemeConstantOverride("separation", 6); all.AddChild(v);
+        var sv = new VBoxContainer(); sv.AddThemeConstantOverride("separation", UiTheme.RowGap); all.AddChild(sv);
+        var v = new VBoxContainer(); v.AddThemeConstantOverride("separation", UiTheme.RowGap); all.AddChild(v);
         var stacks = GemDb.Stacks(d); if (_gemSel != "" && GemDb.Count(d, _gemSel) <= 0) _gemSel = "";
         Lbl($"LOOSE GEMS   {GemDb.Total(d)} gems, {d.Mats.GetValueOrDefault(GemDb.Dust)} Gem Dust", 13, UiTheme.Accent, v);
         if (stacks.Count == 0) { var l = Row(v, "No gems yet. Monsters drop them now and then (more, and finer ones, deep in dungeons); you can also cut them from Gem Dust at Crafting > Gems.", Dim, 13); l.CustomMinimumSize = new Vector2(width, 0); }
@@ -41,14 +41,14 @@ public partial class Ui
         {
             var it = d.Eq.GetValueOrDefault(slot); if (it == null || it.Sockets <= 0) continue; rows++;
             var h = new HBoxContainer(); h.AddThemeConstantOverride("separation", 6); sv.AddChild(h);
-            var ic = new ItemSlot { Item = it, CustomMinimumSize = new Vector2(40, 40) }; h.AddChild(ic);
+            var ic = new ItemSlot { Item = it, CustomMinimumSize = new Vector2(36, 36) }; h.AddChild(ic);
             ic.Hover += on => ShowTip(on ? it : null, ic, null); ic.DropGem = k => SocketGem(it, -1, k);
             ic.Clicked += right => { if (!right && _gemSel != "") SocketGem(it, -1, _gemSel); };
             var nm = Lbl(it.Name, 13, it.Color.Lightened(.15f), h); nm.CustomMinimumSize = new Vector2(150, 0); nm.ClipText = true; nm.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis; nm.VerticalAlignment = VerticalAlignment.Center;
             for (int i = 0; i < it.Sockets; i++)
             {
                 int si = i; string have = GemDb.At(it, i);
-                var s = new ItemSlot { Gem = have, Socket = have == "", CustomMinimumSize = new Vector2(40, 40), TooltipText = have == "" ? "Empty socket: drop a gem here" : "" }; h.AddChild(s);
+                var s = new ItemSlot { Gem = have, Socket = have == "", CustomMinimumSize = new Vector2(36, 36), TooltipText = have == "" ? "Empty socket: drop a gem here" : "" }; h.AddChild(s);
                 if (have != "") s.Hover += on => { if (on) ShowGemTip(have, s, true); else HideTip(); };
                 s.DropGem = k =>
                 {
@@ -87,8 +87,8 @@ public partial class Ui
         _tip.ShowGem(key, socketed ? 0 : GemDb.Count(Game.D, key), anchor.GetGlobalRect(), GetViewport().GetVisibleRect().Size);
     }
 
-    /// <summary>Opens the pack on a tab: "items", "materials" or "gems" (dev capture views).</summary>
-    public void OpenPackTab(string tab) { _packTab = tab == "gems" ? 2 : tab == "materials" ? 1 : 0; OpenPack(); }
+    /// <summary>Opens the pack on a tab: "items", "materials", "gems" or "filter" (dev capture views).</summary>
+    public void OpenPackTab(string tab) { _packTab = tab == "filter" ? 3 : tab == "gems" ? 2 : tab == "materials" ? 1 : 0; OpenPack(); }
     /// <summary>Dev capture: the tooltip of the open window's cell showing this item.</summary>
     public void DevHoverItem(Item? it)
     {

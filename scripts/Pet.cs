@@ -55,7 +55,7 @@ public partial class Pet : CharacterBody3D, IDamageable
         if (_ko) { _koT += dt; Body.PetVel = Vector3.Zero; if (_koT > 1.6f) Visible = false; return; }
         _hurtT += dt; _guardT -= dt; _buffT -= dt; if (_buffT <= 0) _buffMul = 1;
         foreach (var k in new List<string>(_cd.Keys)) _cd[k] -= dt;
-        if (_hurtT > PetDb.World("regenDelay", 5)) Hp = Mathf.Min(MaxHp, Hp + MaxHp * PetDb.World("regen", .03f) * dt);
+        if (_hurtT > PetDb.World("regenDelay", 5)) Hp = Mathf.Min(MaxHp, Hp + MaxHp * PetDb.World("regen", .03f) * (1 + PetTree.Mod(S, "regenP") / 100f) * dt);
         // a blow in flight lands
         if (_pending is { } pd) { var pv = pd; pv.t -= dt; _pending = pv; if (pv.t <= 0) { _pending = null; Land(pv.e, pv.sk); } }
 
@@ -138,7 +138,7 @@ public partial class Pet : CharacterBody3D, IDamageable
         // auto-loot when not fighting
         if (_foe != null || S.Loot == 0) { _loot = null; return; }
         if (_loot != null && IsInstanceValid(_loot) && !_loot.IsQueuedForDeletion()) return;
-        _loot = null; float lr = PetDb.R("lootRange", 15), bl = lr;
+        _loot = null; float lr = PetDb.R("lootRange", 15) + PetTree.Mod(S, "lootRange"), bl = lr;
         foreach (var n in GetTree().GetNodesInGroup("loot"))
         {
             if (n is not Loot l || l.Hold || l.IsQueuedForDeletion() || _skipLoot.Contains(l.GetInstanceId())) continue;
@@ -181,7 +181,7 @@ public partial class Pet : CharacterBody3D, IDamageable
     // ------------------------------------------------------------------ skills
     void Use(PetSkillDef sk, Enemy foe)
     {
-        _cd[sk.Id] = sk.Cd; var col = sk.Elem == "physical" ? new Color(1f, .85f, .7f) : Dmg.TypeColor(sk.Elem);
+        _cd[sk.Id] = sk.Cd * Mathf.Max(.3f, 1 + PetTree.Mod(S, "cdP") / 100f); var col = sk.Elem == "physical" ? new Color(1f, .85f, .7f) : Dmg.TypeColor(sk.Elem);
         switch (sk.Kind)
         {
             case "heal":
@@ -234,7 +234,8 @@ public partial class Pet : CharacterBody3D, IDamageable
         foreach (var e in targets)
         {
             if (GD.Randf() * 100 > sk.Acc) { FloatText.Spawn(e, e.GlobalPosition + Vector3.Up * (e.HeightM() + .2f), "Miss", Dim, .6f); continue; }
-            bool crit = GD.Randf() < .06f;
+            bool crit = GD.Randf() < .06f + PetTree.Mod(S, "critP") / 100f;
+            float leech = PetTree.Mod(S, "leechP"); if (leech > 0) Hp = Mathf.Min(MaxHp, Hp + dmg * leech / 100f);
             var h = new HitInfo { Damage = dmg * (float)GD.RandRange(.9, 1.1) * (crit ? 1.6f : 1), From = GlobalPosition, Knock = sk.Fx == "nova" ? 4 : 2, IsPlayer = true, Attacker = this, Type = sk.Elem, Crit = crit, IsProjectile = sk.Fx == "bolt" };
             if (sk.Effect != "" && sk.Chance > 0) h.With(sk.Effect, sk.Chance);
             e.TakeHit(h);
@@ -249,7 +250,7 @@ public partial class Pet : CharacterBody3D, IDamageable
     {
         if (_ko || !Visible) return;
         float def = S.Stats().Def * PetDb.World("defK", 1.5f);
-        float dmg = h.Damage * 100f / (100f + def) * (_guardT > 0 ? .5f : 1f);
+        float dmg = h.Damage * 100f / (100f + def) * (_guardT > 0 ? .5f : 1f) * Mathf.Max(.3f, 1 + PetTree.Mod(S, "guardP") / 100f);
         int n = Mathf.Max(1, Mathf.RoundToInt(dmg)); Hp -= n; _hurtT = 0; _lastHitBy = h.Attacker;
         FloatText.Spawn(this, GlobalPosition + Vector3.Up * 1.5f, "-" + n, new Color(1f, .6f, .45f), .75f);
         Body.PetFlinch(h.From);
@@ -277,13 +278,45 @@ public static class PetWorld
 
     public static PetState? Active { get { var d = Game.D; return d.ActivePet == "" ? null : d.Pets.Find(p => p.Id == d.ActivePet); } }
     public static bool CanMount => Active is { } a && a.Mountable() && !a.Ko();
-    public static float MountSpeed => Active is { } a ? Mathf.Min(PetDb.R("mountSpeedMax", 15), PetDb.R("mountSpeedBase", 9) + a.Stats().Spd * PetDb.R("mountSpeedPerSpd", .03f)) : 10.5f;
+    public static float MountSpeed => Active is { } a ? PetDb.Mount(a.Species, a.Level, a).Speed : 10.5f;
+    /// <summary>The active pet is out and within rules.mountNear metres of the hero (riding starts from beside it).</summary>
+    public static bool NearHero(Player p) => Out != null && GodotObject.IsInstanceValid(Out) && !Out.Dead && Out.Visible && Out.GlobalPosition.DistanceTo(p.GlobalPosition) <= PetDb.R("mountNear", 7);
+
+    // ---- the rider's pet skill (A-19): while riding, the pet order key makes the mount use its strongest ready attack on your target
+    static float _riderCd;
+    public static void RiderSkill(Player p)
+    {
+        var a = Active; if (a == null || !Riding) return;
+        if (_riderCd > 0) { Ui.Note($"{a.Name()} is not ready ({_riderCd:0.0} s)", new Color(.8f, .8f, .9f)); return; }
+        PetSkillDef? best = null; foreach (var id in a.Skills) if (PetDb.Skill(id) is { Kind: "attack" } sk && (best == null || sk.Power > best.Power)) best = sk;
+        if (best == null) { Ui.Note($"{a.Name()} knows no attack", new Color(.8f, .8f, .9f)); return; }
+        float range = Mathf.Max(best.Range, 3.2f) + 1.5f; Enemy? foe = Targeting.Aim is Enemy t && GodotObject.IsInstanceValid(t) && !t.Dead ? t : p.AimPoint(range + 4).enemy;
+        if (foe == null || foe.Dead || foe.PetBody || foe.GlobalPosition.DistanceTo(p.GlobalPosition) > range + foe.Def.R * foe.ScaleF())
+        {   // nothing aimed at: the nearest foe in front
+            foe = null; float bd = range; var f = p.Facing();
+            foreach (var n in p.GetTree().GetNodesInGroup("enemies"))
+            {
+                if (n is not Enemy e || e.Dead || !e.Visible || !e.Active || e.PetBody || e.Def.Flee) continue; var to = e.GlobalPosition - p.GlobalPosition; to.Y = 0; float d = to.Length() - e.Def.R * e.ScaleF();
+                if (d < bd && (d < 1.5f || to.Normalized().Dot(f) > .3f)) { bd = d; foe = e; }
+            }
+        }
+        if (foe == null) { Ui.Note("No foe in reach", new Color(.8f, .8f, .9f)); return; }
+        _riderCd = Mathf.Max(PetDb.R("mountSkillCd", 2.5f), best.Cd * (1 + PetTree.Mod(a, "cdP") / 100f));
+        var col = best.Elem == "physical" ? new Color(1f, .85f, .7f) : Dmg.TypeColor(best.Elem);
+        float dmg = WorldDamage(a, best); bool crit = GD.Randf() < .06f + PetTree.Mod(a, "critP") / 100f;
+        var h = new HitInfo { Damage = dmg * (float)GD.RandRange(.9, 1.1) * (crit ? 1.6f : 1), From = p.GlobalPosition, Knock = 3, IsPlayer = true, Attacker = p, Type = best.Elem, Crit = crit, NoText = false };
+        if (best.Effect != "" && best.Chance > 0) h.With(best.Effect, best.Chance);
+        p.MountSwing(); foe.TakeHit(h);
+        Fx.Burst(foe.GlobalPosition + Vector3.Up * foe.HeightM() * .55f, col, 8, 3f, .3f, .08f); Sfx.Play(best.Fx == "bolt" ? "zap" : "hit", .6f, 1.1f);
+        FloatText.Spawn(p, p.GlobalPosition + Vector3.Up * 2.6f, best.Name, col, .7f);
+    }
     static bool Allowed => !Arenas.Active;   // arena fights stay hero against monsters (Soul Duels bring pets in their own way)
 
     /// <summary>Every physics tick from Player: knock-out timers, bond, and keeping the right pet out.</summary>
     public static void Tick(Player p, float dt)
     {
         var d = Game.D;
+        p.MountTick(dt); if (_riderCd > 0) _riderCd -= dt;   // riding: stamina, and the places and states that end a ride (PlayerMount.cs)
         if (!PetTrade.Open && (d.TradeEscrow.Count > 0 || d.TradeEscrowGold > 0)) PetTrade.RestoreEscrow();   // a trade cut off (crash, quit): its pets come home
         foreach (var pet in d.Pets) if (pet.KoT > 0) { pet.KoT -= dt; if (pet.KoT <= 0) { pet.KoT = 0; pet.HpFrac = 1; if (pet.Id == d.ActivePet) Ui.Note($"{pet.Name()} has recovered", new Color(.6f, 1f, .7f)); } }
         _heroFoeT -= dt; if (_heroFoeT <= 0) HeroFoe = null;
@@ -306,6 +339,7 @@ public static class PetWorld
     /// <summary>The order key: follow / stay (and calls a pet that is in its cube out again).</summary>
     public static void ToggleStay()
     {
+        if (Riding && Player.Instance != null) { RiderSkill(Player.Instance); return; }   // riding: the key is the mount's attack
         var a = Active; if (a == null) { Ui.Note($"No pet. Throw a Soul Cube ({Inputs.KeyOf(Inputs.ThrowCube)}) at a weakened foe.", new Color(.8f, .75f, .9f)); return; }
         if (a.Ko()) { Ui.Note($"{a.Name()} is still in its cube ({a.KoT:0} s)", new Color(1f, .7f, .6f)); return; }
         a.Stay = !a.Stay; if (Out != null && GodotObject.IsInstanceValid(Out)) { Out.Teleport(Out.GlobalPosition); Out.ClearFoe(); }
@@ -313,11 +347,12 @@ public static class PetWorld
     }
 
     /// <summary>A skill's damage in the world: the pet's attack (or magic for elements) against the hero's own level of power.</summary>
-    public static float WorldDamage(Pet pet, PetSkillDef sk)
+    public static float WorldDamage(Pet pet, PetSkillDef sk) => WorldDamage(pet.S, sk);
+    public static float WorldDamage(PetState s, PetSkillDef sk)
     {
-        var st = pet.S.Stats(); float stat = sk.Elem == "physical" ? st.Atk : Mathf.Max(st.Mag, st.Atk * .8f);
+        var st = s.Stats(); float stat = sk.Elem == "physical" ? st.Atk : Mathf.Max(st.Mag, st.Atk * .8f);
         float b = Mathf.Max(stat * PetDb.World("dmgMul", .9f), Game.D.WpnDmg() * PetDb.World("dmgFloor", .35f));
-        return b * sk.Power / 45f;
+        return b * sk.Power / 45f * PetTree.SkillPower(s, sk.Id);   // (the pet's skill tree: power of all skills and of this one)
     }
 
     /// <summary>A monster died: the pet out nearby takes a share of its experience.</summary>
@@ -325,7 +360,7 @@ public static class PetWorld
     {
         if (xp <= 0 || Out == null || !GodotObject.IsInstanceValid(Out) || Out.Dead) return;
         if (Out.GlobalPosition.DistanceTo(e.GlobalPosition) > PetDb.R("xpRange", 30)) return;
-        int n = Mathf.Max(1, Mathf.RoundToInt(xp * PetDb.R("xpShare", .6f)));
+        int n = Mathf.Max(1, Mathf.RoundToInt(xp * PetDb.R("xpShare", .6f) * (1 + PetTree.Mod(Out.S, "xpP") / 100f)));
         var s = Out.S; int lv0 = s.Learned.Count; int ups = s.GainXp(n);
         if (ups > 0)
         {

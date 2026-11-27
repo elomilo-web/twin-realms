@@ -49,12 +49,12 @@
         "descend": { "text": "Reach the Depths and defeat the guardian golem.", "objectives": [ { "type": "reach", "poi": "depths" }, { "type": "kill", "enemy": "golem", "n": 1 } ], "then": "choice" },
         "choice": { "text": "The guardian is broken. Decide the Rift's fate with Elder Maren.",
           "talks": [ { "npc": "maren", "ask": "The guardian has fallen", "say": "Then it lies open, and so does the choice. A Holy Core could seal it for good. Or the hermit could bind it, if you trust him. Or we walk away and pray.",
-            "choices": [ { "text": "Seal it. (1 Holy Core)", "if": { "mat": { "holycore": 1 } }, "do": { "mat": { "holycore": -1 }, "flag": "rift_sealed", "townRep": { "village": 12 }, "npc": { "maren": { "line": "The stones are quiet at last. You gave us that, child." } } }, "reply": "It closes. Oh, it closes. Listen. Nothing. I had forgotten what nothing sounds like.", "goto": "done:sealed" },
-                         { "text": "Let Ossian bind it and learn from it.", "if": { "flag": "rift_ossian" }, "do": { "flag": "rift_bound", "rep": { "wild_ossian": 20, "maren": -8 }, "mat": { "riftprism": 1 }, "npc": { "wild_ossian": { "line": "It hums in the jar. Do not touch the jar." }, "maren": { "line": "You gave it to the hermit. I pray you chose well." } } }, "reply": "To Ossian. Hm. Then it is his burden now, and yours. Take this; he will want you to have it.", "goto": "done:bound" },
+            "choices": [ { "text": "Seal it. (1 Holy Core)", "if": { "mat": { "holycore": 1 } }, "do": { "unique": "sealstone_aegis", "mat": { "holycore": -1 }, "flag": "rift_sealed", "townRep": { "village": 12 }, "npc": { "maren": { "line": "The stones are quiet at last. You gave us that, child." } } }, "reply": "It closes. Oh, it closes. Listen. Nothing. I had forgotten what nothing sounds like.", "goto": "done:sealed" },
+                         { "text": "Let Ossian bind it and learn from it.", "if": { "flag": "rift_ossian" }, "do": { "unique": "riftbinder", "flag": "rift_bound", "rep": { "wild_ossian": 20, "maren": -8 }, "mat": { "riftprism": 1 }, "npc": { "wild_ossian": { "line": "It hums in the jar. Do not touch the jar." }, "maren": { "line": "You gave it to the hermit. I pray you chose well." } } }, "reply": "To Ossian. Hm. Then it is his burden now, and yours. Take this; he will want you to have it.", "goto": "done:bound" },
                          { "text": "It is beyond me. I am sorry.", "reply": "Then the next one will have to be braver. Go, {name}.", "goto": "fail:you left the Rift open" } ] } ] }
       },
       "endings": { "sealed": "The Rift under the Verdant Isle is sealed. The stones are silent.", "bound": "Ossian keeps the Rift bound in his hermitage, and studies it." },
-      "rewards": { "xp": 900, "gold": 400, "item": 2 }, "onFail": { "townRep": { "village": -8 }, "npc": { "maren": { "line": "The stones still sing. I had hoped for more from you." } } } },
+      "rewards": { "xp": 900, "gold": 400 }, "onFail": { "townRep": { "village": -8 }, "npc": { "maren": { "line": "The stones still sing. I had hoped for more from you." } } } },
 
     { "id": "crown_taxes", "name": "The Keep's Due", "arc": "crown", "giver": "ch_emrys", "motive": "Emrys believes a lord who is not paid is a lord who is not obeyed.",
       "summary": "Lord Emrys Vantrell wants Ashford's late taxes collected.",
@@ -108,13 +108,13 @@
         "sides": { "text": "Decide who rules the Ember Highlands: speak to Captain Morwen in Ashford or Lord Emrys in Cinderhold.",
           "talks": [
             { "npc": "as_morwen", "early": true, "ask": "I have chosen", "say": "Then say it, and I will carry it out.",
-              "choices": [ { "text": "Ashford should rule itself.", "do": { "flag": "crown_ashford", "townRep": { "ember_ashford": 15, "ember_cinderhold": -15 }, "npc": { "ch_emrys": { "gone": true }, "as_morwen": { "line": "Ashford answers to no lord now. We remember who stood with us." }, "ch_gwenna": { "line": "His lordship rode south in the night. I serve the keep, not the man." } } }, "reply": "Then the keep's writ ends at its own gate. I will see it done without blood, if he lets me.", "goto": "done:ashford" } ] },
+              "choices": [ { "text": "Ashford should rule itself.", "do": { "unique": "freefolk_edge", "flag": "crown_ashford", "townRep": { "ember_ashford": 15, "ember_cinderhold": -15 }, "npc": { "ch_emrys": { "gone": true }, "as_morwen": { "line": "Ashford answers to no lord now. We remember who stood with us." }, "ch_gwenna": { "line": "His lordship rode south in the night. I serve the keep, not the man." } } }, "reply": "Then the keep's writ ends at its own gate. I will see it done without blood, if he lets me.", "goto": "done:ashford" } ] },
             { "npc": "ch_emrys", "early": true, "ask": "I have chosen", "say": "You come to tell a lord his fate. Amusing. Go on.",
-              "choices": [ { "text": "The keep must hold the highlands together.", "do": { "flag": "crown_keep", "townRep": { "ember_cinderhold": 15, "ember_ashford": -15 }, "npc": { "as_bryher": { "gone": true }, "ch_emrys": { "line": "Order is restored. You have the gratitude of Cinderhold." }, "as_morwen": { "line": "The keep's banners hang in our square. I hope you sleep well." } } }, "reply": "At last, someone with sense. Bryher Vann will find trade better elsewhere.", "goto": "done:keep" },
-                           { "text": "Share the forges and the tax. Make peace.", "if": { "townRep": { "ember_ashford": 10, "ember_cinderhold": 10 } }, "do": { "flag": "crown_peace", "townRep": { "ember_ashford": 10, "ember_cinderhold": 10 }, "npc": { "ch_emrys": { "line": "Ashford's council dines at my table now. It is... tolerable." }, "as_morwen": { "line": "Peace. I had a speech ready for the other thing." } } }, "reply": "Both towns speak well of you. Irritating. Very well: a council. Tell Ashford before I change my mind.", "goto": "done:peace" } ] } ] }
+              "choices": [ { "text": "The keep must hold the highlands together.", "do": { "unique": "cinderhold_plate", "flag": "crown_keep", "townRep": { "ember_cinderhold": 15, "ember_ashford": -15 }, "npc": { "as_bryher": { "gone": true }, "ch_emrys": { "line": "Order is restored. You have the gratitude of Cinderhold." }, "as_morwen": { "line": "The keep's banners hang in our square. I hope you sleep well." } } }, "reply": "At last, someone with sense. Bryher Vann will find trade better elsewhere.", "goto": "done:keep" },
+                           { "text": "Share the forges and the tax. Make peace.", "if": { "townRep": { "ember_ashford": 10, "ember_cinderhold": 10 } }, "do": { "unique": "shared_crown", "flag": "crown_peace", "townRep": { "ember_ashford": 10, "ember_cinderhold": 10 }, "npc": { "ch_emrys": { "line": "Ashford's council dines at my table now. It is... tolerable." }, "as_morwen": { "line": "Peace. I had a speech ready for the other thing." } } }, "reply": "Both towns speak well of you. Irritating. Very well: a council. Tell Ashford before I change my mind.", "goto": "done:peace" } ] } ] }
       },
       "endings": { "ashford": "Ashford rules itself. Lord Emrys left the highlands.", "keep": "Cinderhold holds the highlands. Bryher Vann was driven out of Ashford.", "peace": "Keep and town share one council. The highlands are at peace." },
-      "rewards": { "xp": 1000, "gold": 450, "item": 2 } },
+      "rewards": { "xp": 1000, "gold": 450 } },
 
     { "id": "tides_bells", "name": "Bells Under the Water", "arc": "tides", "giver": "rd_wila", "motive": "Wila's mother went to the Drowned Bastion to silence the bells and did not come back.",
       "summary": "Wila Hush asks you to go to the Drowned Bastion and listen for its bells.",
@@ -155,12 +155,12 @@
         "bell": { "text": "The court is broken. Ring the bell for Wila, or raise the crown with Mott Silt.",
           "talks": [
             { "npc": "rd_wila", "ask": "The court is broken", "say": "Then it is time. Will you ring it with me?",
-              "choices": [ { "text": "Ring the bell. Let them rest.", "do": { "flag": "tides_rest", "townRep": { "mire_reedholm": 12, "mire_bogwater": 8 }, "rep": { "rd_wila": 20 }, "npc": { "rd_wila": { "line": "No bells last night. I slept. Thirty years, and I slept." } } }, "reply": "Listen. One note. And now... nothing. Goodbye, mother.", "goto": "done:rest" } ] },
+              "choices": [ { "text": "Ring the bell. Let them rest.", "do": { "unique": "bell_of_rest", "flag": "tides_rest", "townRep": { "mire_reedholm": 12, "mire_bogwater": 8 }, "rep": { "rd_wila": 20 }, "npc": { "rd_wila": { "line": "No bells last night. I slept. Thirty years, and I slept." } } }, "reply": "Listen. One note. And now... nothing. Goodbye, mother.", "goto": "done:rest" } ] },
             { "npc": "wild_mott", "ask": "About that crown", "say": "Knew you would come round. Court's gone, water's calm, crown's just sitting there. Even split. The dead have no use for gold.",
-              "choices": [ { "text": "Raise the crown. (400 gold)", "do": { "gold": 400, "flag": "tides_crown", "townRep": { "mire_reedholm": -12 }, "rep": { "rd_wila": -25 }, "npc": { "wild_mott": { "gone": true }, "rd_wila": { "line": "The bells ring louder now. That is your doing." } } }, "reply": "Ha! Heavy. I am for Kesh before the mud notices. Pleasure, friend.", "goto": "done:crown" } ] } ] }
+              "choices": [ { "text": "Raise the crown. (400 gold)", "do": { "unique": "drowned_crown", "gold": 400, "flag": "tides_crown", "townRep": { "mire_reedholm": -12 }, "rep": { "rd_wila": -25 }, "npc": { "wild_mott": { "gone": true }, "rd_wila": { "line": "The bells ring louder now. That is your doing." } } }, "reply": "Ha! Heavy. I am for Kesh before the mud notices. Pleasure, friend.", "goto": "done:crown" } ] } ] }
       },
       "endings": { "rest": "The bell rang once. The Drowned King's court sleeps.", "crown": "You raised the Drowned King's crown with Mott Silt. The bells ring louder." },
-      "rewards": { "xp": 950, "gold": 300, "item": 2 } },
+      "rewards": { "xp": 950, "gold": 300 } },
 
     { "id": "sands_tablets", "name": "What the Dead Wrote", "arc": "sands", "giver": "ks_amaru", "motive": "Amaru wants the old tablets because they name who truly owns the wells of Kesh.",
       "summary": "Vizier Amaru Tesh wants the tablets of the Tombs of Atheru.",
@@ -207,14 +207,14 @@
         "weigh": { "text": "Decide Kesh Amaran's fate: speak to Captain Rahim, Vizier Amaru or Merit Anuke.",
           "talks": [
             { "npc": "ks_rahim", "early": true, "if": { "flag": "sands_exposed" }, "ask": "It is time to act on what we know", "say": "Give the word and I take him at his own table.",
-              "choices": [ { "text": "Arrest the Vizier.", "do": { "flag": "sands_justice", "townRep": { "sun_kesh": 12 }, "npc": { "ks_amaru": { "gone": true }, "ks_rahim": { "line": "The Vizier sits in a cell, and the city breathes easier." }, "ks_merit": { "line": "The scale came down on the side of the light. You tipped it." } } }, "reply": "It is done. He went quietly. Men like that always believe they will be back.", "goto": "done:justice" } ] },
+              "choices": [ { "text": "Arrest the Vizier.", "do": { "unique": "scale_of_merit", "flag": "sands_justice", "townRep": { "sun_kesh": 12 }, "npc": { "ks_amaru": { "gone": true }, "ks_rahim": { "line": "The Vizier sits in a cell, and the city breathes easier." }, "ks_merit": { "line": "The scale came down on the side of the light. You tipped it." } } }, "reply": "It is done. He went quietly. Men like that always believe they will be back.", "goto": "done:justice" } ] },
             { "npc": "ks_amaru", "early": true, "ask": "About Captain Rahim", "say": "The good captain has become tiresome. A word from a hero, and the day watch could have a new commander.",
-              "choices": [ { "text": "Move him to the night watch. (500 gold)", "do": { "gold": 500, "flag": "sands_power", "townRep": { "sun_kesh": -12 }, "npc": { "ks_rahim": { "schedule": "guard_night", "line": "Night watch. After twenty years. Ask the Vizier's pet why." }, "ks_amaru": { "line": "Ah, my most reasonable friend. The city is so much quieter now." } } }, "reply": "Done before you finished speaking. Your gold, with my warmest regard.", "goto": "done:power" } ] },
+              "choices": [ { "text": "Move him to the night watch. (500 gold)", "do": { "unique": "viziers_signet", "gold": 500, "flag": "sands_power", "townRep": { "sun_kesh": -12 }, "npc": { "ks_rahim": { "schedule": "guard_night", "line": "Night watch. After twenty years. Ask the Vizier's pet why." }, "ks_amaru": { "line": "Ah, my most reasonable friend. The city is so much quieter now." } } }, "reply": "Done before you finished speaking. Your gold, with my warmest regard.", "goto": "done:power" } ] },
             { "npc": "ks_merit", "early": true, "ask": "Perhaps nothing should be done", "say": "Nothing is also a weight on the scale. Say it, if you mean it.",
-              "choices": [ { "text": "Burn the proof. Kesh needs quiet more than truth.", "do": { "flag": "sands_quiet", "rep": { "ks_merit": -10, "ks_rahim": -10 } }, "reply": "Then it is ash. I will light a candle for what might have been.", "goto": "done:quiet" } ] } ] }
+              "choices": [ { "text": "Burn the proof. Kesh needs quiet more than truth.", "do": { "unique": "ashes_of_proof", "flag": "sands_quiet", "rep": { "ks_merit": -10, "ks_rahim": -10 } }, "reply": "Then it is ash. I will light a candle for what might have been.", "goto": "done:quiet" } ] } ] }
       },
       "endings": { "justice": "Vizier Amaru Tesh was arrested. Captain Rahim keeps Kesh Amaran.", "power": "Captain Rahim was sent to the night watch. The Vizier's hand is free.", "quiet": "The proof was burned. Kesh Amaran goes on as before." },
-      "rewards": { "xp": 950, "gold": 300, "item": 2 } },
+      "rewards": { "xp": 950, "gold": 300 } },
 
     { "id": "frost_supply", "name": "Before the Passes Close", "arc": "frost", "giver": "wm_halvard", "motive": "Halvard counted the stores twice and came up short both times.",
       "summary": "Steward Halvard Eiken needs meat and timber before the storm closes the passes.",
@@ -239,12 +239,12 @@
         "credit": { "text": "The beasts are dead. Tell Captain Sigrun, or let Eyra Fennick take the credit.",
           "talks": [
             { "npc": "wm_sigrun", "ask": "The beasts are dead", "say": "Dead. Show me. ...Good. The keep owes you.",
-              "choices": [ { "text": "It was my hunt.", "do": { "rep": { "wm_sigrun": 15 }, "townRep": { "frost_wintermere": 8 } }, "reply": "Then drink at my table tonight. That is an order.", "goto": "done:hero" } ] },
+              "choices": [ { "text": "It was my hunt.", "do": { "unique": "yetibane", "rep": { "wm_sigrun": 15 }, "townRep": { "frost_wintermere": 8 } }, "reply": "Then drink at my table tonight. That is an order.", "goto": "done:hero" } ] },
             { "npc": "hf_eyra", "ask": "The beasts are dead", "say": "All three? Ha! I would have paid to see it.",
-              "choices": [ { "text": "Say it was your kill. Hollowfrost needs a hero more than I do.", "do": { "rep": { "hf_eyra": 20 }, "townRep": { "frost_hollowfrost": 10 }, "npc": { "hf_eyra": { "line": "They call me Yeti-bane now. We both know better. Thank you." } } }, "reply": "You would give that away? ...Then I will be worth the lie. Thank you.", "goto": "done:eyra" } ] } ] }
+              "choices": [ { "text": "Say it was your kill. Hollowfrost needs a hero more than I do.", "do": { "unique": "fennick_thanks", "rep": { "hf_eyra": 20 }, "townRep": { "frost_hollowfrost": 10 }, "npc": { "hf_eyra": { "line": "They call me Yeti-bane now. We both know better. Thank you." } } }, "reply": "You would give that away? ...Then I will be worth the lie. Thank you.", "goto": "done:eyra" } ] } ] }
       },
       "endings": { "hero": "You slew the beasts that hunted Wintermere's sentries.", "eyra": "Hollowfrost believes Eyra Fennick slew the beasts. She knows better." },
-      "rewards": { "xp": 520, "gold": 200, "item": 1 } },
+      "rewards": { "xp": 520, "gold": 200 } },
 
     { "id": "roots_blight", "name": "Sour Sap", "arc": "roots", "giver": "au_thalorin", "motive": "Thalorin has read of this blight in three dead languages and seen it in none.",
       "summary": "Archivist Thalorin Ves wants the blight at Hollowroot examined.",
@@ -267,12 +267,12 @@
       "stages": {
         "ink": { "text": "Bring Archivist Thalorin 2 Rune Shards and 3 Arcane Dust.", "objectives": [ { "type": "have", "mat": "runeshard", "n": 2 }, { "type": "have", "mat": "arcanedust", "n": 3 } ],
           "talks": [ { "npc": "au_thalorin", "ask": "Shards and dust for your book", "say": "Splendid. Now the harder matter: an open shelf, or a locked one?",
-            "choices": [ { "text": "Open. Let every healer read the druid's rite.", "if": { "flag": "roots_healed" }, "do": { "mat": { "runeshard": -2, "arcanedust": -3 }, "flag": "roots_open", "townRep": { "elder_aurelion": 10, "elder_mossbrook": 6 }, "npc": { "mb_elowen": { "line": "I read the rite in the archive. Three gardens saved already." } } }, "reply": "Then it goes on the first shelf by the door. Knowledge wants a door.", "goto": "done:open" },
-                         { "text": "Open. Let every alchemist read Sylwen's notes.", "if": { "flag": "roots_sample" }, "do": { "mat": { "runeshard": -2, "arcanedust": -3 }, "flag": "roots_open", "townRep": { "elder_aurelion": 6 }, "npc": { "au_sylwen": { "line": "My notes are in the archive. With my name on them. Spelled correctly." } } }, "reply": "Experiments, hm. Well. It is knowledge of a kind.", "goto": "done:open" },
-                         { "text": "Locked. Some cures are also recipes for the disease.", "do": { "mat": { "runeshard": -2, "arcanedust": -3 }, "flag": "roots_locked", "rep": { "au_thalorin": 10 } }, "reply": "Prudent. Sad, but prudent. The key stays with me.", "goto": "done:locked" } ] } ] }
+            "choices": [ { "text": "Open. Let every healer read the druid's rite.", "if": { "flag": "roots_healed" }, "do": { "unique": "open_shelf_codex", "mat": { "runeshard": -2, "arcanedust": -3 }, "flag": "roots_open", "townRep": { "elder_aurelion": 10, "elder_mossbrook": 6 }, "npc": { "mb_elowen": { "line": "I read the rite in the archive. Three gardens saved already." } } }, "reply": "Then it goes on the first shelf by the door. Knowledge wants a door.", "goto": "done:open" },
+                         { "text": "Open. Let every alchemist read Sylwen's notes.", "if": { "flag": "roots_sample" }, "do": { "unique": "open_shelf_codex", "mat": { "runeshard": -2, "arcanedust": -3 }, "flag": "roots_open", "townRep": { "elder_aurelion": 6 }, "npc": { "au_sylwen": { "line": "My notes are in the archive. With my name on them. Spelled correctly." } } }, "reply": "Experiments, hm. Well. It is knowledge of a kind.", "goto": "done:open" },
+                         { "text": "Locked. Some cures are also recipes for the disease.", "do": { "unique": "keepers_key", "mat": { "runeshard": -2, "arcanedust": -3 }, "flag": "roots_locked", "rep": { "au_thalorin": 10 } }, "reply": "Prudent. Sad, but prudent. The key stays with me.", "goto": "done:locked" } ] } ] }
       },
       "endings": { "open": "The cure for the blight stands on an open shelf in Aurelion's archive.", "locked": "The cure for the blight is locked away in Aurelion's archive." },
-      "rewards": { "xp": 420, "gold": 160, "item": 1 } },
+      "rewards": { "xp": 420, "gold": 160 } },
 
     { "id": "side_honeycakes", "name": "Honey Cakes for the Fair", "arc": "", "giver": "oak_pip", "motive": "Pip promised the children cakes and ran out of berries.",
       "summary": "Pip Tansy the baker needs wild berries.",
@@ -298,7 +298,7 @@
       "stages": { "ask": { "text": "Ask Pell Wanderby on the road about the snares.",
         "talks": [ { "npc": "road_pell", "early": true, "ask": "Are these snares yours?", "say": "...Yes. I have walked nine days on dry bread. Rabbits, only rabbits. Please do not tell the hunter.",
           "choices": [ { "text": "He has to know. Pull them up and go.", "do": { "rep": { "oak_corin": 12, "road_pell": -10 }, "flag": "poacher_told" }, "reply": "Then I will be gone by dark. I hope your woods are worth it.", "goto": "done:told" },
-                       { "text": "Keep the rabbits. Take the wire down. (give 2 Raw Meat)", "if": { "mat": { "meat": 2 } }, "do": { "mat": { "meat": -2 }, "rep": { "road_pell": 18, "oak_corin": 6 }, "flag": "poacher_fed" }, "reply": "You would feed a stranger? The wire comes down tonight. On my road-oath.", "goto": "done:fed" },
+                       { "text": "Keep the rabbits. Take the wire down. (give 2 Raw Meat)", "if": { "mat": { "meat": 2 } }, "do": { "unique": "pells_snare", "mat": { "meat": -2 }, "rep": { "road_pell": 18, "oak_corin": 6 }, "flag": "poacher_fed" }, "reply": "You would feed a stranger? The wire comes down tonight. On my road-oath.", "goto": "done:fed" },
                        { "text": "I saw nothing.", "do": { "rep": { "road_pell": 8, "oak_corin": -8 } }, "reply": "Thank you. Thank you.", "goto": "done:silent" } ] } ] } },
       "endings": { "told": "You told Corin about Pell's snares.", "fed": "You fed Pell Wanderby, and the snares came down.", "silent": "You told Corin you found nothing." },
       "rewards": { "xp": 140, "gold": 40 } },
@@ -315,7 +315,7 @@
       "offer": "Six ore. Good ore. Do not ask what it is for.",
       "stages": { "ore": { "text": "Bring Sigvald Rime 6 Iron Ore.", "objectives": [ { "type": "have", "mat": "ironore", "n": 6 } ],
         "talks": [ { "npc": "rh_sigvald", "ask": "Your ore", "say": "Hm. Clean. It will do.",
-          "choices": [ { "text": "What is it for?", "if": { "rep": { "rh_sigvald": 10 } }, "do": { "mat": { "ironore": -6 }, "rep": { "rh_sigvald": 20 }, "npc": { "rh_sigvald": { "line": "Her blade hangs over the forge now. Finished. Thank you for asking." } } }, "reply": "...For my girl. A blade for her grave. Nobody asked before. Sit; I will tell you about her.", "goto": "done:told" },
+          "choices": [ { "text": "What is it for?", "if": { "rep": { "rh_sigvald": 10 } }, "do": { "unique": "blue_steel", "mat": { "ironore": -6 }, "rep": { "rh_sigvald": 20 }, "npc": { "rh_sigvald": { "line": "Her blade hangs over the forge now. Finished. Thank you for asking." } } }, "reply": "...For my girl. A blade for her grave. Nobody asked before. Sit; I will tell you about her.", "goto": "done:told" },
                        { "text": "Here. No questions.", "do": { "mat": { "ironore": -6 }, "rep": { "rh_sigvald": 8 }, "gold": 90 }, "reply": "Good. Coin is on the anvil.", "goto": "done" } ] } ] } },
       "endings": { "told": "Sigvald told you about his daughter, and finished her blade." },
       "rewards": { "xp": 170 } },
@@ -386,15 +386,15 @@
       "offer": "You keep coming back. Very well. Thirty years up here and I have not had a decent cup of tea. Sunleaf tea, brewed properly. Bring me one and I will tell you something worth knowing.",
       "stages": { "brew": { "text": "Bring Cerys Wyn a cup of Sunleaf Tea (cooking).", "objectives": [ { "type": "have", "mat": "food_sunleaf_tea", "n": 1 } ],
         "talks": [ { "npc": "wild_cerys", "ask": "Your tea", "say": "Is that... it is. Give it here before it cools.", "choices": [ { "text": "As promised.", "do": { "mat": { "food_sunleaf_tea": -1, "embercore": 2 }, "rep": { "wild_cerys": 20 }, "npc": { "wild_cerys": { "line": "The kettle is on. For you it is always on." } } }, "reply": "Oh. Oh, that is good. Here: the mountain leaves these by my door. And listen: when the ground hums, walk uphill, never down.", "goto": "done" } ] } ] } },
-      "rewards": { "xp": 200 } },
+      "rewards": { "xp": 200, "unique": "kettle_charm" } },
 
     { "id": "side_rivals", "name": "The Better Blade", "arc": "", "giver": "au_lorien", "motive": "Lorien has lost the Elderwood fair to Hobb Greaves three years running.",
       "summary": "Two smiths want the same rare makings for the Elderwood fair: Lorien Hammerfell of Aurelion and Hobb Greaves of Mossbrook.",
       "offer": "The fair blade wants four ore and a Rift crystal in the quench. Bring them to me and Aurelion wins at last. Hobb will ask you for the same. Hobb always asks.",
       "stages": { "makings": { "text": "Gather 4 Iron Ore and 1 Rift Crystal, then give them to Lorien Hammerfell or Hobb Greaves.", "objectives": [ { "type": "have", "mat": "ironore", "n": 4 }, { "type": "have", "mat": "crystal", "n": 1 } ],
         "talks": [
-          { "npc": "au_lorien", "ask": "Makings for the fair blade", "say": "You brought them to me. Good. Good!", "choices": [ { "text": "Win it for Aurelion.", "do": { "mat": { "ironore": -4, "crystal": -1 }, "rep": { "au_lorien": 18, "mb_hobb": -10 }, "townRep": { "elder_aurelion": 6 }, "npc": { "au_lorien": { "line": "First prize. FIRST. Look at the ribbon. Look at it." }, "mb_hobb": { "line": "Second. To Lorien. I hope you are pleased with yourself." } } }, "reply": "It sings in the quench! Hobb will weep into his bellows.", "goto": "done:lorien" } ] },
-          { "npc": "mb_hobb", "ask": "Makings for a fair blade", "say": "Lorien sent you for those, I'd wager. He has the fine hall. I have the better hands. Your choice.", "choices": [ { "text": "Win it for Mossbrook.", "do": { "mat": { "ironore": -4, "crystal": -1 }, "rep": { "mb_hobb": 18, "au_lorien": -10 }, "townRep": { "elder_mossbrook": 8 }, "npc": { "mb_hobb": { "line": "Four years running. Mossbrook thanks you, and so do I." }, "au_lorien": { "line": "You took my makings to Hobb. I shall remember." } } }, "reply": "Ha! Four years running. I'll put your mark by mine on the tang.", "goto": "done:hobb" } ] } ] } },
+          { "npc": "au_lorien", "ask": "Makings for the fair blade", "say": "You brought them to me. Good. Good!", "choices": [ { "text": "Win it for Aurelion.", "do": { "unique": "first_prize_gauntlets", "mat": { "ironore": -4, "crystal": -1 }, "rep": { "au_lorien": 18, "mb_hobb": -10 }, "townRep": { "elder_aurelion": 6 }, "npc": { "au_lorien": { "line": "First prize. FIRST. Look at the ribbon. Look at it." }, "mb_hobb": { "line": "Second. To Lorien. I hope you are pleased with yourself." } } }, "reply": "It sings in the quench! Hobb will weep into his bellows.", "goto": "done:lorien" } ] },
+          { "npc": "mb_hobb", "ask": "Makings for a fair blade", "say": "Lorien sent you for those, I'd wager. He has the fine hall. I have the better hands. Your choice.", "choices": [ { "text": "Win it for Mossbrook.", "do": { "unique": "greaves_of_hobb", "mat": { "ironore": -4, "crystal": -1 }, "rep": { "mb_hobb": 18, "au_lorien": -10 }, "townRep": { "elder_mossbrook": 8 }, "npc": { "mb_hobb": { "line": "Four years running. Mossbrook thanks you, and so do I." }, "au_lorien": { "line": "You took my makings to Hobb. I shall remember." } } }, "reply": "Ha! Four years running. I'll put your mark by mine on the tang.", "goto": "done:hobb" } ] } ] } },
       "endings": { "lorien": "Lorien Hammerfell won the Elderwood fair.", "hobb": "Hobb Greaves won the Elderwood fair again." },
       "rewards": { "xp": 220, "gold": 90 } },
 
@@ -403,7 +403,7 @@
       "offer": "Cart fire. Lost the lot. Six hides and I am a merchant again. I pay fair. Fair, mind, not generous.",
       "stages": { "hides": { "text": "Bring Oskar Brekke 6 Hide.", "objectives": [ { "type": "have", "mat": "hide", "n": 6 } ],
         "talks": [ { "npc": "hf_oskar", "ask": "Hides for your stall", "say": "Six. Well cured. You know your knife.", "choices": [ { "text": "Fair price. (150 gold)", "do": { "mat": { "hide": -6 }, "gold": 150, "rep": { "hf_oskar": 10 } }, "reply": "Fair is fair. Done.", "goto": "done" },
-                     { "text": "Keep your coin this once. Winter is hard enough.", "do": { "mat": { "hide": -6 }, "rep": { "hf_oskar": 25 }, "townRep": { "frost_hollowfrost": 6 } }, "reply": "...No one gives a trader anything. I will not forget it. Come by when the cold bites; you will not pay full price again.", "goto": "done:gift" } ] } ] } },
+                     { "text": "Keep your coin this once. Winter is hard enough.", "do": { "unique": "white_fox_mantle", "mat": { "hide": -6 }, "rep": { "hf_oskar": 25 }, "townRep": { "frost_hollowfrost": 6 } }, "reply": "...No one gives a trader anything. I will not forget it. Come by when the cold bites; you will not pay full price again.", "goto": "done:gift" } ] } ] } },
       "endings": { "gift": "You gave Oskar Brekke the hides for nothing." },
       "rewards": { "xp": 150 } }
   ]

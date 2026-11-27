@@ -160,6 +160,7 @@ public partial class Player
                 break;
             }
             case "enchant": Enchant(c); break;
+            case "form": FormShift(c); break;   // A-16: take an animal or spirit form (PlayerForm.cs)
         }
     }
     static Vector3 Flat(Vector3 v) => new(v.X, 0, v.Z);

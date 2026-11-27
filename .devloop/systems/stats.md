@@ -52,6 +52,35 @@ Attributes never count below 0. Attribute steps are split by origin: 5 base, rac
 - **Healing**: heal x MaxHp x (1 + healP%) x HealIn, HealIn = max(0, 1 + healIn%). Regen/s = regenHp + Vit x 0.02 (health), 1.5 + regenMp + Mag x 0.05 (mana).
 - **Move speed** multiplier = 1 + move% (move capped [-60, 100]).
 
+## Attributes from data (A-14, data/stats.json "attributes"; CODE ONLY, not run in game yet)
+Wisdom `wis`, Agility `agi`, Luck `lck`, Endurance `end` (PlayerStats.Wis / Agi / Lck / End, 5 each on every hero and old save).
+In `StatPipeline.Rebuild`, after buffs: points = max(0, attribute + points granted as a stat key of the same id by gear / gems /
+passives / buffs) - 5; each key of the attribute gets `per point x points` (stage "level" in the dump; negative below 5).
+| attribute | per point past 5 |
+|-----------|------------------|
+| Wisdom    | healP +1.5% (healing done), healIn +1% (healing received), regenMp +0.08 /s, buffDurP +1.5% (own buff duration) |
+| Agility   | move +0.4%, aspd +0.6%, rollCostP -1.5% (roll stamina), evade +0.25% |
+| Luck      | crit +0.3%, critD +0.6%, luck +1 (more and rarer drops, party-pooled), goldP +1%, tenacity +0.8% (status resistance) |
+| Endurance | st +4 max stamina, stRegenP +1.5%, block +0.6%, wearP -1.5% (gear durability wear) |
+New keys and readers: `buffDurP` (Player.BuffDurMul = max(0.3, 1 + k%), applied when a "buff" kind skill starts; cap [-70, 300]),
+`rollCostP` (Player.RollCostMul = clamp(1 + k%, 0.3, 2) x stamina.roll; cap [-60, 100]), `wearP` (Durability wear x max(0.2, 1 + k%);
+cap [-80, 200]). Races and classes grant them in their `a` lists; epic / legendary affixes can roll `wis` / `agi` / `lck` / `end`
+(1-3 points + 0.06 per item level), `buffDurP` and `wearP` (Affixes.cs). Character window: compact grid under the four classic rows
+(UiAttrs.cs); Reset refunds them too.
+
+## Weapons, dual wield, durability (A-11 / A-12 / A-13; CODE ONLY, not run in game yet)
+- **Weapon hit** also gets x (1 + class affinity%) when weapons.json `types.<type>.affinity.<class>` is set (percent group "class affinity").
+  Ranged types that are not wand / staff (bow, crossbow, javelin, kunai) use the bow line (rangedP, strToBow, magToBow).
+- **Item size** (Item.Size, weapons.json "size", 0.85..1.2): swing reach x (1 + (size-1) x reachPer 1.0), arc x (1 + (size-1) x arcPer 0.35),
+  swing duration / (1 - (size-1) x speedPer 0.5); the model is scaled by the same factor. Not a pipeline stat (applied per swing in Player.TryAttack).
+- **Dual wield** (a one-handed weapon in the "shield" slot, weapons.json "dual"): attack speed gets percent group "dual wield" +aspdP 15%;
+  derived stat **offDmg** = the weapon-hit formula with the off-hand item's type and damage x offDamageMul 0.7; basic attacks cost x staminaMul 0.9;
+  guard = clamp(guardReduction 0.3 + block%, 0.1, 0.6) with parry window 0.22 s (a shield: the Block line above, 0.15 s).
+- **Durability** (data/durability.json, Durability.cs): max = round((byRarity[60, 80, 105, 135, 170] + 3 x item level) x slotMul x (1 + 0.1 x hone));
+  wear x max(0.2, 1 + wearP%): weapon 0.25 per swing that lands, 0.15 per shot, armor pieces 0.5 per blow taken, shield / off hand +1 per block,
+  everything 8% of max on death. At 0 the item stays worn but leaves the pipeline: no base stats (Gear steps), no affixes, no gems, no set
+  count; a worn-out weapon uses the fists' scaling and factor with no item damage. The dump lists every worn item's durability.
+
 ## Skills (Skills.Compute)
 - rank r is clamped to [1, maxRank 5]; rank factor = 1 + rankP 15% x (r - 1)
 - spell base = (dmg + lvl x L) x spell power; weapon skill base = mult x weapon hit; heals/buffs with no damage: (8 + 1.6 L) x spell power

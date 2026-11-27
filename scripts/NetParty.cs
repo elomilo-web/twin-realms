@@ -117,6 +117,8 @@ public partial class Net
     void HostInvite(long from, long to)
     {
         if (!Players.ContainsKey(to) || from == to || SameParty(from, to)) return;
+        if (Ignores(to, from)) return;   // A-31: a blocked player's invites go nowhere (NetChat.cs)
+        InviteNoted(from, to);           // only an invite the host delivered can be answered (party chat and quest sharing rely on real parties)
         if (to == MyId) AskParty(from, NameOf(from)); else RpcId(to, MethodName.R_PartyAsk, from, NameOf(from));
     }
     [Rpc(MultiplayerApi.RpcMode.Authority)] void R_PartyAsk(long from, string name) => AskParty(from, name);
@@ -129,11 +131,12 @@ public partial class Net
     [Rpc(MultiplayerApi.RpcMode.AnyPeer)] void R_PartyAnswer(long from, bool ok) { if (_server) HostAnswerParty(Sender, from, ok); }
     void HostAnswerParty(long joiner, long inviter, bool ok)
     {
+        if (!InviteTaken(inviter, joiner)) return;   // nobody invited them (or it was answered already)
         if (!ok) { Tell(inviter, NameOf(joiner) + " declined the invite"); return; }
         if (!Players.ContainsKey(inviter) || !Players.ContainsKey(joiner)) return;
         var p = PartyOf(inviter);
         if (p == null) { int id = 1; while (Parties.ContainsKey(id)) id++; p = new PartyInfo { Id = id, Leader = inviter }; p.Members.Add(inviter); Parties[id] = p; Players[inviter].Party = id; }
-        if (p.Members.Count >= 6) { Tell(joiner, "That party is full"); return; }
+        if (p.Members.Count >= PartyMax) { if (p.Members.Count < 2) { Players[inviter].Party = 0; Parties.Remove(p.Id); } Tell(joiner, "That party is full"); return; }   // the size limit is data (data/social.json party.max)
         HostLeaveParty(joiner, false); p.Members.Add(joiner); Players[joiner].Party = p.Id;
         foreach (var m in p.Members) Tell(m, NameOf(joiner) + " joined the party");
         SendRoster(); Count("parties");

@@ -69,23 +69,23 @@ public static partial class Dungeon
         var r = _rooms[bossRoom]; float cx = (r.Cx + .5f) * Tile, cz = (r.Cz + .5f) * Tile;
         LairDecor(r, th);
         // the halls before her: overgrown, and haunted by black shades of the party (EnemyShade.cs)
-        var heroes = Enemy.ShadeModels(); _shadeN = 0;
+        var heroes = Enemy.ShadeModels(); _shadeN = 0; ShadeLoad(th); _shadeRnd = new Random(Seed + 313);
         for (int i = 1; i < _rooms.Count; i++) if (i != bossRoom) { HallDecor(_rooms[i], i); SpawnShades(_rooms[i], i, heroes); }
-        // the passages between the halls: a pair of shades every so often
-        var cr = new Random(Seed + 77); int step = 0;
+        // the passages between the halls: a group of shades every so often (A-23: counts are data, data/dungeons.json scarletta.shades)
+        var cr = new Random(Seed + 77); int step = 0, every = Math.Max(1, (int)ShadeF("passageEvery", 10)), grp = (int)ShadeF("passage", 6);
         for (int z = 0; z < GH; z++) for (int x = 0; x < GW; x++)
         {
             if (!Floor(x, z) || _rooms.Exists(rm => x >= rm.X - 1 && x <= rm.X + rm.W && z >= rm.Z - 1 && z <= rm.Z + rm.H)) continue;
-            if (step++ % 10 != 5) continue;   // a pair about every 80 m of passage
-            for (int k = 0; k < 2; k++) SpawnShade(new Vector3((x + .3f + (float)cr.NextDouble() * .4f) * Tile, .4f, (z + .3f + (float)cr.NextDouble() * .4f) * Tile), heroes);
+            if (step++ % every != every / 2) continue;   // a group about every 80 m of passage
+            for (int k = 0; k < grp; k++) SpawnShade(new Vector3((x + .2f + (float)cr.NextDouble() * .6f) * Tile, .4f, (z + .2f + (float)cr.NextDouble() * .6f) * Tile), heroes);
         }
         // and the edges of the great chamber, among the mushrooms (her fighting ground stays clear)
-        var br = new Random(Seed + 91); int made = 0;
-        for (int t = 0; t < 400 && made < 24; t++)
+        var br = new Random(Seed + 91); int made = 0, want = (int)ShadeF("chamber", 72), per = Math.Max(1, (int)ShadeF("chamberGroup", 3)); float keep = ShadeF("chamberClear", 200f);
+        for (int t = 0; t < 1200 && made < want; t++)
         {
             float x = (r.X + 2 + (float)br.NextDouble() * (r.W - 4)) * Tile, z = (r.Z + 2 + (float)br.NextDouble() * (r.H - 4)) * Tile;
-            if (new Vector2(x - cx, z - cz).Length() < 190f) continue;
-            for (int k = 0; k < 2 && made < 24; k++, made++) SpawnShade(new Vector3(x + k * 2.5f, .4f, z + k * 1.5f), heroes);
+            if (new Vector2(x - cx, z - cz).Length() < keep) continue;
+            for (int k = 0; k < per && made < want; k++, made++) SpawnShade(new Vector3(x + k * 2.5f, .4f, z + (k % 2) * 1.8f), heroes);
         }
         // the boss: no rolled upgrades or gear tier (she reads the challengers instead, EnemyScarletta.cs)
         var e = new Enemy { Type = "scarletta", Level = (int)_baseLvl + Progression.DunBoss, FromDungeon = true, NoLeash = true, AnyRealm = true, Position = new Vector3(cx, 0.4f, cz) };
@@ -183,7 +183,7 @@ void fragment() {
     /// </summary>
     static void SpawnShades(Room h, int hall, List<PlayerStats> heroes)
     {
-        var rnd = new Random(Seed + 101 * hall); int n = 18;   // one hall now (it was 14 + 16 over two)
+        var rnd = new Random(Seed + 101 * hall); int n = (int)ShadeF("hall", 54);   // A-23: tripled (was 18), data/dungeons.json scarletta.shades
         for (int i = 0; i < n; i++)
         {
             float x = (h.X + 1.5f + (float)rnd.NextDouble() * (h.W - 3)) * Tile, z = (h.Z + 1.5f + (float)rnd.NextDouble() * (h.H - 3)) * Tile;
@@ -196,9 +196,32 @@ void fragment() {
     {
         var hero = heroes[_shadeN++ % heroes.Count]; string wt = hero.WType();
         string type = wt == "bow" ? "shadeArcher" : wt is "wand" or "staff" ? "shadeCaster" : "shade";
-        var e = new Enemy { Type = type, Level = (int)_baseLvl, FromDungeon = true, NoLeash = true, AnyRealm = true, ShadeOf = hero, Position = at };
+        // A-23: a spread of levels around the lair's (weights in data), and now and then an elite: higher, tougher, named, paying more
+        int baseLvl = (int)_baseLvl, lvl = baseLvl + ShadeOffset(); bool elite = _shadeRnd.NextDouble() < ShadeF("eliteChance", .06f);
+        if (elite) lvl = baseLvl + (int)ShadeF("eliteMin", 5) + _shadeRnd.Next(0, Math.Max(1, (int)ShadeF("eliteMax", 7) - (int)ShadeF("eliteMin", 5) + 1));
+        var e = new Enemy { Type = type, Level = Math.Max(1, lvl), FromDungeon = true, NoLeash = true, AnyRealm = true, ShadeOf = hero, Position = at, ShadeBase = baseLvl, ShadeElite = elite };
+        if (elite) { e.Leader = true; e.Prefix = "Elite "; e.TierHp = ShadeF("eliteHp", 1.6f); e.TierDmg = ShadeF("eliteDmg", 1.25f); }
         if (Inst != 0) { e.NetIdx = NetList.Count; e.Puppet = Owner != Net.MyId; NetList.Add(e); }
         Root!.AddChild(e);
+    }
+    // ---- A-23 numbers: data/dungeons.json themes.scarletta.shades (counts, level weights, elites, the awake cap, reward scaling)
+    static readonly Dictionary<string, float> _shadeCfg = new(); static readonly List<(int off, float w)> _shadeLv = new(); static Random _shadeRnd = new(1);
+    public static float ShadeF(string k, float d) => _shadeCfg.TryGetValue(k, out var v) ? v : d;
+    static void ShadeLoad(JsonElement th)
+    {
+        _shadeCfg.Clear(); _shadeLv.Clear();
+        if (th.ValueKind != JsonValueKind.Object || !th.TryGetProperty("shades", out var s) || s.ValueKind != JsonValueKind.Object) return;
+        foreach (var p in s.EnumerateObject()) if (p.Value.ValueKind == JsonValueKind.Number) _shadeCfg[p.Name] = p.Value.GetSingle();
+        if (s.TryGetProperty("levels", out var lv) && lv.ValueKind == JsonValueKind.Array)
+            foreach (var x in lv.EnumerateArray()) if (x.ValueKind == JsonValueKind.Array && x.GetArrayLength() >= 2) _shadeLv.Add((x[0].GetInt32(), x[1].GetSingle()));
+    }
+    /// <summary>A level offset by the "levels" weights (seeded by the lair, so every machine rolls the same).</summary>
+    static int ShadeOffset()
+    {
+        if (_shadeLv.Count == 0) return 0; float sum = 0; foreach (var (_, w) in _shadeLv) sum += Math.Max(0, w);
+        float x = (float)_shadeRnd.NextDouble() * sum;
+        foreach (var (off, w) in _shadeLv) { if (w <= 0) continue; if (x < w) return off; x -= w; }
+        return _shadeLv[^1].off;
     }
     /// <summary>The halls before the chamber: glowing mushrooms along the walls and a slime pool.</summary>
     static void HallDecor(Room h, int hall)

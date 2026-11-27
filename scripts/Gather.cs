@@ -252,6 +252,7 @@ public partial class Gatherable : Node3D, IInteractable
         var tw = _yield.CreateTween(); tw.TweenProperty(_yield, "scale", Vector3.One * 0.05f, 0.25f).SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In); tw.TweenCallback(Callable.From(() => _yield.Visible = false));
         if (GD.Randf() * 100f < StatPipeline.Key(ExtraKey)) n++;   // the skill's perk: one more
         GatherDb.Give(Def.Mat, n, GlobalPosition);
+        Farm.WildSeeds(Def.Mat, Skill, GlobalPosition);   // A-24: wild plants sometimes give seeds (data/farm.json seedDrops)
         LifeSkills.Award(Skill, 3 + Def.Respawn / 80f);   // a node regrows slowly, so this cannot be repeated on the spot
     }
 }

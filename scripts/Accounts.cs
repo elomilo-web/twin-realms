@@ -41,7 +41,10 @@ public static class Accounts
         public List<Token> Tokens = new();   // saved logins (launcher "Remember me"): only a hash of each token is stored
         // F-43 / F-42: admin access (set by the server after the admin login), ban and mute (unix time they end; long.MaxValue = for good), the last hero played (to find the account by name)
         public bool Admin; public long BanUntil, MuteUntil; public string BanReason = "", Hero = "";
+        // A-32: friends (mutual), friend requests received, and blocked accounts (also the chat's /ignore list): the other account's key and the hero name it had (Friends.cs). Older account files load with none.
+        public List<Pal> Friends = new(), FriendIn = new(), Blocked = new();
     }
+    public class Pal { public string Key = "", Name = ""; }
     public class Token { public string Hash = ""; public long Expires; }
     public const int TokenDays = 30, MaxTokens = 5;
     public record Result(bool Ok, string Message, string Key = "");

@@ -92,7 +92,7 @@ public static class Structures
     {
         _kind = new byte[Blocks.Defs.Count];
         foreach (var d in Blocks.Defs)
-            _kind[d.Id] = d.Shape is "stairs" or "door" or "ladder" or "chest" ? (byte)1 : d.Shape == "post" ? (byte)2 : d.Key == "log" ? (byte)3 : (byte)0;
+            _kind[d.Id] = d.Shape is "stairs" or "door" or "ladder" or "chest" or "gate" ? (byte)1 : d.Shape == "post" ? (byte)2 : d.Key == "log" ? (byte)3 : (byte)0;
     }
     public static byte RotMeta(byte id, byte meta, int r)
     {

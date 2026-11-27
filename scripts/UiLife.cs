@@ -13,44 +13,50 @@ namespace TwinRealms;
 /// </summary>
 public partial class Ui
 {
-    /// <summary>Character screen tabs: Attributes | Life skills.</summary>
-    void CharTabs(Node parent, string cur)
+    /// <summary>Character window tabs (F-41: one window, three tabs of the same size): Attributes | Life skills | All bonuses, with the
+    /// unspent point chips at the right of the same row. Returns the row.</summary>
+    HBoxContainer CharTabs(Node parent, string cur)
     {
-        var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 6); parent.AddChild(row);
-        Tabs(row, cur, ("char", "Attributes", OpenCharacterPanel), ("life", "Life skills", OpenLifeSkills));
+        var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 4); parent.AddChild(row);
+        Tabs(row, cur, ("char", "Attributes", OpenCharacterPanel), ("life", "Life skills", OpenLifeSkills), ("totals", "All bonuses", OpenTotals));
+        row.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Ignore });
+        var d = Game.D; Chip(row, $"Attribute points  {d.AttrPts}", d.AttrPts > 0); Chip(row, $"Skill points  {d.RankPts}", d.RankPts > 0); Chip(row, $"Tree points  {d.SkillPts}", d.SkillPts > 0);
+        return row;
     }
 
     // ---------------------------------------------------------------- the Life skills tab
     public void OpenLifeSkills()
     {
         LifeSkills.Load(); var d = Game.D;
-        var v = Frame("life", "Character", new Vector2(1120, 620), OpenLifeSkills); HideInfo();
+        var v = Frame("life", "Character", new Vector2(CharW, CharH), OpenLifeSkills); HideInfo();
         CharTabs(v, "life");
-        Row(v, "Everything you do trains a skill. Each level gives a small bonus (shown in /stats dump as the life stage). Skills grow from real progress: distance moved, jumps that go somewhere, blocks dug, dishes cooked, locks picked.", Dim, 13);
-        var cols = new HBoxContainer(); cols.AddThemeConstantOverride("separation", 18); v.AddChild(cols);
-        foreach (var (grp, title) in new[] { ("life", "LIFE SKILLS"), ("action", "ACTIONS") })
+        // (F-41: the three-line explanation that sat here is the tooltip of the two column titles; every row's tooltip has its skill's own text)
+        const string about = "Everything you do trains a skill. Each level gives a small bonus. Skills grow from real progress: distance moved, jumps that go somewhere, blocks dug, dishes cooked, locks picked.";
+        var cols = new HBoxContainer(); cols.AddThemeConstantOverride("separation", 16); v.AddChild(cols);
+        foreach (var (grp, title) in new[] { ("life", "LIFE SKILLS  [?]"), ("action", "ACTIONS  [?]") })
         {
-            var col = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, CustomMinimumSize = new Vector2(520, 0) }; col.AddThemeConstantOverride("separation", 4); cols.AddChild(col);
-            Lbl(title, 13, UiTheme.Highlight, col); col.AddChild(new HSeparator());
+            var col = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, CustomMinimumSize = new Vector2(480, 0) }; col.AddThemeConstantOverride("separation", 3); cols.AddChild(col);
+            var tl = Lbl(title, 13, UiTheme.Highlight, col); tl.MouseFilter = Control.MouseFilterEnum.Stop; tl.TooltipText = about;
             foreach (var id in LifeSkills.Order.Where(i => LifeSkills.Defs[i].Group == grp)) SkillRow(col, d, id);
         }
     }
+    /// <summary>One skill as a two-line card: level, name, what the level gives (clipped; whole text in the tooltip) and xp on one line, the bar under it.</summary>
     void SkillRow(Node parent, PlayerStats d, string id)
     {
         var def = LifeSkills.Defs[id]; int lv = LifeSkills.Level(d, id), gem = Math.Max(0, (int)Game.TS["life_" + id]); var (into, need) = LifeSkills.Into(d, id);
-        var card = CardBox(parent); var h = new HBoxContainer(); h.AddThemeConstantOverride("separation", 10); card.AddChild(h);
-        card.TooltipText = def.Desc + "\nPerk: " + def.Perk;
-        var badge = Lbl(lv.ToString(), 22, GoldC, h); badge.CustomMinimumSize = new Vector2(34, 0); badge.HorizontalAlignment = HorizontalAlignment.Center; badge.VerticalAlignment = VerticalAlignment.Center;
-        var mid = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; mid.AddThemeConstantOverride("separation", 1); h.AddChild(mid);
-        var top = new HBoxContainer(); mid.AddChild(top);
-        var nm = Lbl(def.Name + (gem > 0 ? $"  (+{gem} from gems)" : ""), 15, Parch, top); nm.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        Lbl(need > 0 ? $"{into} / {need} xp" : "max level", 12, Dim, top);
-        var bar = new ProgressBar { MinValue = 0, MaxValue = Math.Max(1, need), Value = need > 0 ? into : 1, ShowPercentage = false, CustomMinimumSize = new Vector2(0, 6), MouseFilter = Control.MouseFilterEnum.Ignore };
+        var m = LifeSkills.Mods(id, lv + gem); string bonus = m.Count == 0 ? def.Perk + " (from level 2)" : string.Join(", ", m.Select(kv => BonusText(kv.Key, kv.Value)));
+        var card = CardBox(parent); var h = new HBoxContainer(); h.AddThemeConstantOverride("separation", 8); card.AddChild(h);
+        card.TooltipText = def.Desc + "\nPerk: " + def.Perk + "\nNow: " + bonus;
+        var badge = Lbl(lv.ToString(), 18, GoldC, h); badge.CustomMinimumSize = new Vector2(28, 0); badge.HorizontalAlignment = HorizontalAlignment.Center; badge.VerticalAlignment = VerticalAlignment.Center;
+        var mid = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; mid.AddThemeConstantOverride("separation", 0); h.AddChild(mid);
+        var top = new HBoxContainer(); top.AddThemeConstantOverride("separation", 8); mid.AddChild(top);
+        Lbl(def.Name + (gem > 0 ? $" (+{gem} gems)" : ""), 14, Parch, top);
+        var bl = Lbl(bonus, 12, m.Count == 0 ? Dim : new Color(.7f, .9f, .7f), top);
+        bl.ClipText = true; bl.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis; bl.CustomMinimumSize = new Vector2(120, 0); bl.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; bl.VerticalAlignment = VerticalAlignment.Center;
+        Lbl(need > 0 ? $"{into} / {need} xp" : "max level", 12, Dim, top).VerticalAlignment = VerticalAlignment.Center;
+        var bar = new ProgressBar { MinValue = 0, MaxValue = Math.Max(1, need), Value = need > 0 ? into : 1, ShowPercentage = false, CustomMinimumSize = new Vector2(0, 5), MouseFilter = Control.MouseFilterEnum.Ignore };
         bar.AddThemeStyleboxOverride("fill", new StyleBoxFlat { BgColor = def.Group == "life" ? GoldC : new Color(.55f, .8f, .95f) }); bar.AddThemeStyleboxOverride("background", new StyleBoxFlat { BgColor = new Color(0, 0, 0, .55f) });
         mid.AddChild(bar);
-        var m = LifeSkills.Mods(id, lv + gem);
-        var bl = Lbl(m.Count == 0 ? def.Perk + " (from level 2)" : string.Join(", ", m.Select(kv => BonusText(kv.Key, kv.Value))), 12, m.Count == 0 ? Dim : new Color(.7f, .9f, .7f), mid);
-        bl.ClipText = true; bl.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis; bl.CustomMinimumSize = new Vector2(360, 0);
     }
     /// <summary>A life-stage key as a short readable bonus.</summary>
     static string BonusText(string k, float v) => k switch

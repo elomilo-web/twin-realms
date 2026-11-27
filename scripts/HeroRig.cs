@@ -203,7 +203,8 @@ public partial class HeroRig : Node3D
         var w = d.Weapon; string wt = d.WType(); var wd = Weapons.Get(wt);
         var (bb, bt) = Weapons.Build(wd.LeftHand ? WeaponL : WeaponR, wt, w); BladeBase = bb; BladeTip = bt;
         var sh = d.Eq.GetValueOrDefault("shield");
-        if (sh != null && wd.Hands < 2) BuildShield(sh, steel, Trim(sh));
+        if (sh != null && wd.Hands < 2 && sh.Slot == "weapon") { if (sh.Wt != null && !wd.LeftHand) Weapons.Build(WeaponL, sh.Wt, sh); }   // A-12: an off-hand weapon in the left hand
+        else if (sh != null && wd.Hands < 2) BuildShield(sh, steel, Trim(sh));
         foreach (var g in _gear) Gfx.MergeChildren(g);
     }
 

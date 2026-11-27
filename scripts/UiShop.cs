@@ -35,6 +35,7 @@ public partial class Ui
             if (d.Rod <= 0) AddRow(list, "Fishing rod (take out with 7, attack casts)", Colors.White, $"Buy {rodc}g", () => { if (d.Gold < rodc) { Sfx.UiError(); Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= rodc; d.Rod = 1; Traded(); Sfx.Play("coin"); Note("You bought a fishing rod. Press 7 to take it out.", Gold); OpenShop(tab); }, d.Gold >= rodc);
             LifeShopRows(list, tab);   // F-24/F-25: lockpicks and cooking recipe books (UiLife.cs)
             InstrumentShopRows(list, tab);   // F-40: lute, flute, drum, harp (Instruments.cs, data/instruments.json)
+            FarmShopRows(list, tab);   // A-24: seeds (UiStations.cs, data/farm.json "shop")
             foreach (var cb in PetDb.Cubes)
             {   // Soul Cubes (data/pets.json "cubes"): bind a weakened monster as a pet
                 var cd = cb; int cc = Cost(cd.Cost); AddRow(list, $"{cd.Name}  (have {Cubes.Count(cd.Id)})  x{cd.Mul:0.#} catch", cd.Col.Lightened(.2f), $"Buy {cc}g",
@@ -100,14 +101,20 @@ public partial class Ui
     /// <summary>Panel listing every bonus you currently have, with where the numbers come from.</summary>
     public void OpenTotals()
     {
-        var v = Frame("totals", "All bonuses", new Vector2(620, 600), OpenTotals);
-        Header($"{Races.Get(Game.D.Race).Name} {Classes.Get(Game.D.Class).Name}", v);
-        Row(v, $"Skill tree ({Game.D.Tree.Count} nodes) + race + class + active buffs", Dim, 14);
-        { var dd = Game.D; int rk = Math.Clamp(dd.DuelRank, 0, DuelDb.RankCount - 1); Row(v, $"Soul Duels ladder: rank {rk + 1}/{DuelDb.RankCount}, next a {DuelDb.RankTitle(rk)}   (won {dd.SoulWins}, lost {dd.SoulLosses})", GoldC, 14); }
-        var sc = Scroll(v, 420); sc.HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled; var tl = Inner(sc); tl.AddThemeConstantOverride("separation", 4);
+        // F-41: the third tab of the Character window (was a 620 x 600 window of its own with one framed card per bonus): one info line,
+        // then the bonuses as a three-column grid of plain lines. The panel name stays "totals".
+        var v = Frame("totals", "Character", new Vector2(CharW, CharH), OpenTotals); HideInfo();
+        CharTabs(v, "totals");
+        var dd = Game.D; int rk = Math.Clamp(dd.DuelRank, 0, DuelDb.RankCount - 1);
+        var info = new HBoxContainer(); info.AddThemeConstantOverride("separation", 14); v.AddChild(info);
+        Lbl($"{Races.Get(dd.Race).Name} {Classes.Get(dd.Class).Name}", UiTheme.Small, UiTheme.Accent, info);
+        Lbl($"Skill tree ({dd.Tree.Count} nodes) + race + class + active buffs", UiTheme.Small, Dim, info);
+        var duel = Lbl($"Soul Duels: rank {rk + 1}/{DuelDb.RankCount}, next a {DuelDb.RankTitle(rk)} (won {dd.SoulWins}, lost {dd.SoulLosses})", UiTheme.Small, GoldC, info);
+        duel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; duel.HorizontalAlignment = HorizontalAlignment.Right; duel.ClipText = true; duel.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+        var sc = Scroll(v, 300); sc.HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled; var tl = Inner(sc);
         var keys = new List<string>(); foreach (var k in TreeDb.Known) if (Mathf.Abs(Game.TS[k]) > .001f) keys.Add(k); keys.Sort();
         if (keys.Count == 0) Empty(tl, "No bonuses yet. Spend points in the skill tree.");
-        foreach (var k in keys) { var h = new HBoxContainer(); CardBox(tl).AddChild(h); Row(h, TreeDb.StatText(k, Game.TS[k]), Parch, 15).SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; }
-        v.AddChild(Btn("Back to tree", OpenTree));
+        var grid = new GridContainer { Columns = 3, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; grid.AddThemeConstantOverride("h_separation", 16); grid.AddThemeConstantOverride("v_separation", 1); tl.AddChild(grid);
+        foreach (var k in keys) { var l = Row(grid, TreeDb.StatText(k, Game.TS[k]), Parch, 14); l.CustomMinimumSize = new Vector2(300, 0); l.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; }
     }
 }

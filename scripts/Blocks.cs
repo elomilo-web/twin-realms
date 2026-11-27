@@ -17,6 +17,7 @@ public class BlockDef
     public string Shape = "";            // "" = full cube, "post" = torch (meta 0 standing, 1-4 on a wall: 1 + wall side), stairs, slab, fence, ladder, door, chest
     public string Sound = "";            // "iron": doors clang instead of creaking (data "sound")
     public int Capacity;                 // chests: item slots (data "capacity")
+    public float CropH = .8f, CropFruit; // shape "crop" (A-24): height of the ripe plant and size of its ripe fruit (data "cropH", "cropFruit")
     public Color LightCol = new Color(1f, .63f, .31f); public float LightRange, LightEnergy;   // "light": { color, range, energy } makes a real OmniLight3D (BlockWorld)
     public string Tool = "", Drops = "", BurnsTo = "", MeltsTo = "?", FreezesTo = "", RotsTo = "?", WithersTo = "?", BlessTo = "?", PacksTo = "";
     public JsonElement Mat;              // how it looks (see Blocks.Material)
@@ -59,6 +60,7 @@ public static class Blocks
                 WithersTo = JsonUtil.S(e, "withersTo", "?"), BlessTo = JsonUtil.S(e, "blessTo", "?"), PacksTo = JsonUtil.S(e, "packsTo"),
                 Mat = e.TryGetProperty("mat", out var m) ? m.Clone() : default,
                 Sound = JsonUtil.S(e, "sound"), Capacity = (int)JsonUtil.F(e, "capacity", 27f),
+                CropH = JsonUtil.F(e, "cropH", .8f), CropFruit = JsonUtil.F(e, "cropFruit"),
             };
             if (e.TryGetProperty("light", out var lj) && lj.ValueKind == JsonValueKind.Object)
             {

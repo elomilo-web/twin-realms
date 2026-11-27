@@ -1,0 +1,49 @@
+{
+  "_doc": "Chat, parties, friends, player trading and party quest sharing (A-29 to A-32). Read by SocialCfg (scripts/Chat.cs). The server (online server, or the host of a friend's world) uses its own copy of these numbers.",
+  "chat": {
+    "maxLen": 200,
+    "localRadius": 40,
+    "bubbleSec": 5,
+    "bubbleChars": 90,
+    "rate": { "windowSec": 8, "maxInWindow": 6, "minGapSec": 0.4, "repeatSec": 4 },
+    "scrollback": 300,
+    "shownLines": 9,
+    "fadeAfterSec": 10,
+    "idleAlpha": 0.0,
+    "width": 470,
+    "bottom": 150,
+    "fontSize": 15,
+    "logMaxKb": 1024,
+    "logFiles": 5,
+    "logWhispers": true,
+    "profanity": { "enabled": false, "mask": "*", "words": ["fuck", "shit", "bitch", "asshole", "cunt", "bastard"] },
+    "colors": { "world": "#e8c26a", "local": "#f2f2f2", "party": "#6fe08a", "whisper": "#e08adf", "system": "#8fd3ff", "name": "#ffffff", "time": "#8a8f98" }
+  },
+  "party": { "max": 6 },
+  "friends": { "max": 100, "maxRequests": 30, "maxBlocked": 100, "recentMax": 30, "opsPerSec": 4 },
+  "trade": {
+    "radius": 12,
+    "countdownSec": 3,
+    "maxItems": 12,
+    "maxStacks": 12,
+    "maxPets": 3,
+    "maxGold": 1000000,
+    "maxJsonKb": 96,
+    "tradeUniques": true,
+    "tradeWings": true,
+    "tradeQuestUniques": true,
+    "untradableMats": [],
+    "logMaxKb": 1024,
+    "logFiles": 5
+  },
+  "quests": { "share": true, "offer": true, "eventsPerSec": 20 },
+  "text": {
+    "muted": "You are muted{until} and cannot use the chat.",
+    "tooFast": "You are sending messages too fast. Wait a moment.",
+    "repeat": "You just said that.",
+    "noParty": "You are not in a party.",
+    "notHere": "That player is not online.",
+    "ignored": "{name} is not receiving your messages.",
+    "offline": "Chat needs a shared world: Play Online, or host or join a friend."
+  }
+}

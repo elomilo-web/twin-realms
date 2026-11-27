@@ -67,10 +67,30 @@ void fragment() {
     void ShadeDrops()
     {
         var at = GlobalPosition + Vector3.Up * .3f; int lvl = Mathf.Max(1, Level);
-        if (GD.Randf() < Tune.F("raid.shadeFeather", .35f)) GatherDb.Give("angelFeather", GD.RandRange(1, 2), at);
-        if (GD.Randf() < Tune.F("raid.shadeGold", .75f)) Loot.Drop(at, gold: GD.RandRange(15, 30) + lvl * 5);
-        if (GD.Randf() < Tune.F("raid.shadeHpPot", .25f)) Loot.Drop(at, pot: "hp");
-        if (GD.Randf() < Tune.F("raid.shadeMpPot", .2f)) Loot.Drop(at, pot: "mp");
-        if (GD.Randf() < Tune.F("raid.shadeKatana", .12f)) Loot.Drop(at, item: Items.Roll(lvl, 1.5f, "weapon", -1, null, "katana"));   // a katana, any rarity
+        // A-23: rewards follow the shade's level against the lair's (data/dungeons.json scarletta.shades): higher shades drop more often and more, elites much more
+        float k = Mathf.Clamp(1 + Dungeon.ShadeF("rewardPerLevel", .12f) * (Level - ShadeBase), Dungeon.ShadeF("rewardMin", .6f), Dungeon.ShadeF("rewardMax", 2.2f)) * (ShadeElite ? Dungeon.ShadeF("eliteReward", 2.5f) : 1f);
+        if (GD.Randf() < Tune.F("raid.shadeFeather", .35f) * k) GatherDb.Give("angelFeather", GD.RandRange(1, 2) + (ShadeElite ? 2 : 0), at);
+        if (GD.Randf() < Tune.F("raid.shadeGold", .75f) * k) Loot.Drop(at, gold: Mathf.RoundToInt((GD.RandRange(15, 30) + lvl * 5) * k));
+        if (GD.Randf() < Tune.F("raid.shadeHpPot", .25f) * k) Loot.Drop(at, pot: "hp");
+        if (GD.Randf() < Tune.F("raid.shadeMpPot", .2f) * k) Loot.Drop(at, pot: "mp");
+        if (GD.Randf() < Tune.F("raid.shadeKatana", .12f) * k) Loot.Drop(at, item: Items.Roll(lvl, 1.5f + (ShadeElite ? 1.5f : 0), "weapon", -1, null, "katana"));   // a katana, any rarity
+    }
+
+    // ---- A-23: levels spread around the lair's, elites, and a cap on how many shades hunt at once
+    /// <summary>The lair's own level when this shade was made (its Level is spread around it), and whether it is an elite.</summary>
+    public int ShadeBase; public bool ShadeElite;
+    static int _shadeAwake; static ulong _shadeFrame;
+    /// <summary>May another shade join the hunt? At most shades.maxAwake at once (maxAwakeBoss while the boss fight runs), so the tripled halls come in waves.</summary>
+    bool ShadeMayWake()
+    {
+        ulong f = Engine.GetPhysicsFrames();
+        if (f - _shadeFrame > 12 || f < _shadeFrame)
+        {
+            _shadeFrame = f; _shadeAwake = 0;
+            foreach (var n in GetTree().GetNodesInGroup("enemies")) if (n is Enemy e && e.IsShade && !e.Dead && e.Hunting) _shadeAwake++;
+        }
+        bool boss = CurrentBoss != null && IsInstanceValid(CurrentBoss) && CurrentBoss.Scarletta && !CurrentBoss.Dead;
+        if (_shadeAwake >= (int)Dungeon.ShadeF(boss ? "maxAwakeBoss" : "maxAwake", boss ? 4 : 14)) return false;
+        _shadeAwake++; return true;
     }
 }

@@ -1,0 +1,35 @@
+{
+ "_help": "A-26 crafting stations (scripts/Stations.cs, scripts/UiStations.cs, scripts/UiCraft.cs). Crafting is done on a grid at a station block within 'range' metres (Interact on the block opens it): 'hand' is the 2x2 grid in the pack (recipes flagged \"hand\": true in data/blocks.json 'recipes'), the crafting table makes blocks, tools and furniture, the smithing table gear (and opens the smith's bench: hone, reroll, repair), the alchemy table potions, soul cubes and pet gear, the forge smelts. 'tabs' = which recipe lists a station shows (the old Crafting window tabs: blocks, gear, elem, sets, gems, pots; hand = the hand subset of blocks). A recipe is shaped (data 'shape' + 'key') or shapeless (the grid holds exactly its cost materials); the recipe book on the right fills the grid for you. forge: a furnace per forge block with an input, a fuel and an output stack ('slot' = most per stack) that keeps smelting while you are away (play time); fuel = seconds one unit burns; smelt: the plain one-ingredient recipes only (the iron ratios follow data/durability.json 'smelt'; alloys with several ingredients are smelted at the smith's bench); input material -> { need: units per batch, out: what a batch gives, n: how many, time: seconds per batch, xp: smithing XP }. potions: brewed at the alchemy table into the materials 'pot_<id>' (names and gold values in data/gather.json), drunk by clicking them in the pack (Materials): heal / mana / stamina = share of the maximum restored at once, buff = stat-table keys for dur seconds (Player.Buffs, id 'potion:<id>', a second dose refreshes it), light = metres of soft light that follows the hero for dur seconds (night vision), xp = crafting XP.",
+ "range": 4.5,
+ "stations": {
+  "hand":    { "n": "Hand Crafting",  "block": "",               "grid": 2, "tabs": ["hand"] },
+  "table":   { "n": "Crafting Table", "block": "crafting_table", "grid": 3, "tabs": ["blocks"] },
+  "smith":   { "n": "Smithing Table", "block": "smithing_table", "grid": 3, "tabs": ["gear", "elem", "sets", "gems"] },
+  "alchemy": { "n": "Alchemy Table",  "block": "alchemy_table",  "grid": 3, "tabs": ["pots"] },
+  "forge":   { "n": "Forge",          "block": "forge",          "grid": 0, "tabs": [] }
+ },
+ "tabNames": { "hand": "Hand recipes", "blocks": "Blocks and tools", "gear": "Gear", "elem": "Elemental", "sets": "Set pieces", "gems": "Gems", "pots": "Potions and pets" },
+ "forge": {
+  "slot": 64,
+  "fuel": { "blk_coal_ore": 80, "blk_log": 16, "timber": 16, "blk_planks": 8, "blk_dark_planks": 8, "blk_fence": 6 },
+  "smelt": {
+   "ironore":         { "need": 2, "out": "ironbar",  "n": 1, "time": 10, "xp": 3 },
+   "ironscrap":       { "need": 3, "out": "ironbar",  "n": 1, "time": 8,  "xp": 2 },
+   "blk_iron_ore":    { "need": 2, "out": "ironbar",  "n": 1, "time": 10, "xp": 3 },
+   "blk_gold_ore":    { "need": 2, "out": "bar_gold",  "n": 1, "time": 14, "xp": 5 },
+   "blk_sand":        { "need": 1, "out": "blk_glass", "n": 1, "time": 5,  "xp": 1 },
+   "blk_cobblestone": { "need": 1, "out": "blk_stone", "n": 1, "time": 4,  "xp": 1 }
+  }
+ },
+ "potions": {
+  "stamina": { "out": 2, "cost": { "sunleaf": 2, "berries": 2 },                  "stamina": 1.0, "buff": { "st": 20 },                   "dur": 180, "xp": 5 },
+  "regen":   { "out": 2, "cost": { "sunleaf": 2, "redcap": 1 },                   "heal": 0.1,    "buff": { "regenHp": 4 },               "dur": 120, "xp": 6 },
+  "speed":   { "out": 1, "cost": { "berries": 3, "arcanedust": 1 },                               "buff": { "move": 12 },                 "dur": 150, "xp": 7 },
+  "fire":    { "out": 2, "cost": { "embercore": 1, "sunleaf": 1 },                                "buff": { "res_fire": 30 },             "dur": 300, "xp": 8 },
+  "frost":   { "out": 2, "cost": { "frostcore": 1, "moonpetal": 1 },                              "buff": { "res_frost": 30 },            "dur": 300, "xp": 8 },
+  "stone":   { "out": 1, "cost": { "ironscrap": 2, "redcap": 2 },                                 "buff": { "def": 15 },                  "dur": 240, "xp": 8 },
+  "might":   { "out": 1, "cost": { "meat": 1, "venomcore": 1, "redcap": 1 },                      "buff": { "meleeP": 12, "rangedP": 12 }, "dur": 180, "xp": 10 },
+  "mind":    { "out": 1, "cost": { "moonpetal": 2, "arcanedust": 1 },             "mana": 0.25,   "buff": { "spellP": 12, "regenMp": 2 }, "dur": 180, "xp": 10 },
+  "night":   { "out": 2, "cost": { "moonpetal": 1, "crystal": 1 },                                "light": 16,                            "dur": 300, "xp": 8 }
+ }
+}

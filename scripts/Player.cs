@@ -122,8 +122,8 @@ public partial class Player : CharacterBody3D, IDamageable
     void RefreshWeapon()
     {
         var d = Game.D; var sig = d.WType();
-        foreach (var s in PlayerStats.Slots) { var it = d.Eq.GetValueOrDefault(s); sig += "|" + (it == null ? "-" : it.Name + it.Rar + it.Up + it.Glow); }
-        if (sig == _gearSig) return; _gearSig = sig;
+        foreach (var s in PlayerStats.Slots) { var it = d.Eq.GetValueOrDefault(s); sig += "|" + (it == null ? "-" : it.Name + it.Rar + it.Up + it.Glow + it.Size + it.Wt); }   // (A-11 size, A-12 off-hand weapon)
+        if (sig == _gearSig) return; _gearSig = sig; _offSwing = false;
         // the weapon class's basic attack goes on the attack button automatically (data/attacks.json)
         string wt = d.WType();
         if (wt != _atkClass && Attacks.HasStyle(wt))
@@ -149,8 +149,9 @@ public partial class Player : CharacterBody3D, IDamageable
     bool _backpedal;
     /// <summary>Hides the procedural hero meshes when the model is drawn (HeroRig still runs for hand targets).</summary>
     void HideRig() { void H(Node n) { foreach (var c in n.GetChildren()) { if (c == _av) continue; if (c is GeometryInstance3D g) g.Visible = false; H(c); } } H(_rig); }
-    bool HasShield => Game.D.Eq.GetValueOrDefault("shield") != null && Weapons.Get(Game.D.WType()).Hands < 2;
-    WeaponDef W => Weapons.Get(Game.D.WType());
+    bool HasShield => Game.D.Eq.GetValueOrDefault("shield") is { } shi && shi.Slot != "weapon" && Weapons.Get(Game.D.WType()).Hands < 2;   // (an off-hand weapon is not a shield: A-12, PlayerDual.cs)
+    /// <summary>The weapon class swinging: the off-hand weapon's during its swings (A-12), else the main weapon's.</summary>
+    WeaponDef W => OffNow ? Weapons.Get(OffItem!.Wt ?? "sword") : Weapons.Get(Game.D.WType());
     bool Ranged => W.Ranged;
 
     void UseStamina(float n) { St = Mathf.Max(0, St - n); _stLockT = 0.7f; }
@@ -207,7 +208,7 @@ public partial class Player : CharacterBody3D, IDamageable
         if (_blocking && front && !h.NoBlock)
         {
             var shieldPos = GlobalPosition + new Vector3(0, 1.3f, 0) + new Vector3(-Mathf.Sin(_modelYaw), 0, -Mathf.Cos(_modelYaw)) * 0.7f;
-            if (_blockT < Tune.F("guard.parryWindow", .15f) && h.Attacker is Enemy en && !h.IsProjectile)
+            if (_blockT < ParryWindow && h.Attacker is Enemy en && !h.IsProjectile)   // (A-12: longer with crossed blades)
             {
                 en.Stun(Tune.F("guard.parryStun", .8f)); _inv = 0.3f; Sfx.Play("block"); Inputs.Rumble(.6f, .8f, .2f); _riposteT = Tune.F("guard.riposteTime", 1.5f);
                 FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.3f, 0), "Parry!", new Color(1, 0.88f, 0.5f), 1.3f);
@@ -216,7 +217,7 @@ public partial class Player : CharacterBody3D, IDamageable
                 LifeSkills.Award("blocking", 4);   // F-25: a parried monster blow
                 return;
             }
-            float red = Mathf.Clamp(0.55f + D.ShieldDef * 0.012f + TS["block"] / 100f, 0.5f, 0.92f);
+            float red = GuardReduction();   // shield: clamp(0.55 + shield def x 0.012 + block%, 0.5, 0.92); two weapons: the weaker crossed-blades guard (PlayerDual.cs)
             dmg = baseDmg * (1f - red); UseStamina(h.Damage * Tune.F("stamina.blockPerDamage", .3f)); Sfx.Play("block"); Inputs.Rumble(.3f, .15f, .1f);
             Fx.Burst(shieldPos, new Color(1, .95f, .8f), (int)Tune.F("guard.sparks", 10f), 4f, 0.25f, 0.05f);
             Feel.HitStop(Tune.F("guard.hitStop", .04f));
@@ -251,6 +252,7 @@ public partial class Player : CharacterBody3D, IDamageable
         }
         int final = Mathf.Max(1, Mathf.RoundToInt(dmg));
         Hp -= final; _inv = 0.2f; Fought();
+        if (h.Attacker is Enemy) Durability.ArmorHit(D, _blocking && front && !h.NoBlock);   // A-13: armor wears per blow taken
         Flag.Event($"took {final} {h.Type} ({h.Damage:0} before armor, {100f * final / Mathf.Max(1, D.MaxHp()):0}% of max hp) from {(h.Attacker is Enemy fe && IsInstanceValid(fe) ? fe.Def.N + " Lv" + fe.Level : "?")}{(_blocking ? ", blocked" : "")}, hp left {Mathf.Max(0, Hp):0}");
         // the attacker's on-hit statuses (tenacity shortens them), then "when hit" triggers
         if (h.Statuses != null) foreach (var (id, chance, durMul, pow) in h.Statuses) if (GD.Randf() < chance) Statuses.Add(id, durMul, pow, h.Damage, TS["tenacity"]);
@@ -271,7 +273,8 @@ public partial class Player : CharacterBody3D, IDamageable
 
     void Die()
     {
-        Flag.Event("DIED"); CancelChannel(); CancelCast(); Dead = true; Statuses.Clear(); Flying = false;   // death cleanses: nothing burns or slows the hero after respawning
+        Flag.Event("DIED"); CancelChannel(); CancelCast(); Dead = true; Durability.Death(Game.D);   // A-13: a death wears everything worn a little Statuses.Clear(); Flying = false;   // death cleanses: nothing burns or slows the hero after respawning
+        FormRevert(true);   // A-16: death ends an animal or spirit form (PlayerForm.cs)
         Hp = 0; _deadT = 0; _atkT = 0; _blocking = false; if (Mounted) ToggleMount(true); if (InBoat != null) LeaveBoat(); Breath = MaxBreath;
         if (LairRules) Ui.Note($"You are down. A party member can revive you; press {Inputs.KeyOf(Inputs.Use)} to give up.", new Color(1f, .7f, .5f));
         Sfx.Voice("die", 1f, Creator.VoicePitch(Game.D.Look));   // the hero's chosen voice (F-36)
@@ -298,30 +301,7 @@ public partial class Player : CharacterBody3D, IDamageable
     }
 
     // ------------------------------------------------------------------ mount
-    public void ToggleMount(bool forceOff = false)
-    {
-        if (forceOff || Mounted)
-        {
-            Mounted = false; _horse.Visible = false;
-            if (_petMount != null) { _petMount.QueueFree(); _petMount = null; _petBody = null; _mountY = .9f; PetWorld.Riding = false; foreach (var c in _horse.GetChildren()) if (c is MeshInstance3D mi) mi.Visible = true; }
-            return;
-        }
-        bool pet = PetWorld.CanMount;
-        if (!Game.D.Horse && !pet) { Ui.Note("You do not own a horse. Brynn sells one. (A mountable pet can carry you too.)", new Color(0.7f, 0.8f, 1)); return; }
-        if (Dungeon.Active || Arenas.Active) { Ui.Note("No riding here", new Color(0.7f, 0.8f, 1)); return; }
-        Mounted = true; _horse.Visible = true;
-        if (pet)
-        {   // ride the active pet: its own model (at riding size) instead of the box horse, which stays as the fallback
-            var s = PetWorld.Active!; var sp = s.Sp(); PetWorld.Riding = true; PetWorld.Despawn();
-            foreach (var c in _horse.GetChildren()) if (c is MeshInstance3D mi) mi.Visible = false;
-            var holder = new Node3D { Scale = Vector3.One * sp.MountScale }; _horse.AddChild(holder);
-            _petBody = new Enemy { Type = s.Species, PetBody = true, Level = s.Level, AnyRealm = true }; holder.AddChild(_petBody); _petMount = holder;
-            _mountY = Mathf.Clamp(_petBody.HeightM() * sp.MountScale * .62f, .5f, 2.2f);
-            Ui.Note($"You ride {s.Name()}", new Color(0.8f, 0.9f, 1));
-        }
-        else Ui.Note("You mount your horse", new Color(0.8f, 0.9f, 1));
-    }
-    Node3D? _petMount; Enemy? _petBody; float _mountY = .9f;   // a ridden pet (PetWorld.Riding)
+    // ToggleMount, the mount's speed / gallop / jump / flight and its model: PlayerMount.cs (A-19: the horse and pets share one path)
 
     // ------------------------------------------------------------------ aiming
     public (Vector3 point, Enemy? enemy) AimPoint(float maxDist)
@@ -346,7 +326,8 @@ public partial class Player : CharacterBody3D, IDamageable
         var fw = new Vector3(-Mathf.Sin(_modelYaw), 0, -Mathf.Cos(_modelYaw));
         // bows: the arrow rest on the held bow (just above the grip hand), not the pistol hand position
         if (_av != null && !Mounted && W.Id == "bow" && _av.BowNock() is { } nk && nk.DistanceTo(GlobalPosition) < 2.5f) return nk;
-        if (_av != null && !Mounted && _av.HandPos(true) is { } h && h.DistanceTo(GlobalPosition) < 2.5f) return h + fw * .25f;
+        bool leftHand = !(W.Shot != null && !W.LeftHand) || OffNow;   // A-11: crossbows, javelins and knives leave the right hand (the off hand is the left)
+        if (_av != null && !Mounted && _av.HandPos(leftHand) is { } h && h.DistanceTo(GlobalPosition) < 2.5f) return h + fw * .25f;
         return GlobalPosition + new Vector3(0, 1.45f + (Mounted ? _mountY : 0f), 0) + fw * 0.6f;
     }
     /// <summary>World direction the bow pose aims (from the shoulders to the aim point; pitch kept within 50 degrees).</summary>
@@ -366,18 +347,27 @@ public partial class Player : CharacterBody3D, IDamageable
         if (_atkT <= 0 && _recPending > 0) { _recT = _recDur = _recPending; _recPending = 0; _recClip = _step?.Rec ?? ""; }
         if (Dead || _atkT > 0 || _rollT > 0 || _stagger > 0 || _castT > 0 || _recT > 0) return false;   // _recT: still recovering from a heavy swing
         if (Mounted) { Ui.Note("Dismount to fight (T)", new Color(0.7f, 0.8f, 1)); return false; }
-        var w = W; bool ranged = w.Ranged;
-        float cost = ranged ? (power ? Tune.F("stamina.heavyRanged", 16) : Tune.F("stamina.lightRanged", 7)) : (power ? Tune.F("stamina.heavyMelee", 26) : Tune.F("stamina.lightMelee", 9)) * (w.Hands > 1 ? Tune.F("stamina.twoHandedMul", 1.25f) : w.Id == "dagger" ? Tune.F("stamina.daggerMul", .6f) : w.Id == "unarmed" ? Tune.F("stamina.unarmedMul", .55f) : 1f);   // data/tuning.json "game.stamina"
+        // A-12 dual wield: light attacks alternate main hand (even steps) and off hand (odd steps); each hand walks its own weapon class's chain.
+        // Power attacks always use the main hand. (PlayerDual.cs, data/weapons.json "dual")
+        var mainW = Weapons.Get(Game.D.WType()); var offIt = OffItem; var offW = offIt != null ? Weapons.Get(offIt.Wt ?? "sword") : null;
+        int chainLen = offW != null ? 2 * Mathf.Max(ChainLenOf(mainW), ChainLenOf(offW)) : ChainLenOf(mainW);
+        int next = power ? 0 : _comboT > 0 ? (_combo + 1) % Mathf.Max(1, chainLen) : 0;
+        bool off = offW != null && !power && (next & 1) == 1;
+        var w = off ? offW! : mainW; bool ranged = w.Ranged; var swingIt = off ? offIt : Game.D.Weapon;
+        float cost = ranged ? (power ? Tune.F("stamina.heavyRanged", 16) : Tune.F("stamina.lightRanged", 7)) : (power ? Tune.F("stamina.heavyMelee", 26) : Tune.F("stamina.lightMelee", 9)) * (w.Hands > 1 ? Tune.F("stamina.twoHandedMul", 1.25f) : w.Id == "unarmed" ? Tune.F("stamina.unarmedMul", .55f) : w.Light ? Tune.F("stamina.daggerMul", .6f) : 1f);   // data/tuning.json "game.stamina"
+        if (offW != null) cost *= Weapons.Dual("staminaMul", .9f);
         if (St < 4f)
         {   // one message at a time: queued and repeated presses used to stack several on top of each other
             if (Time.GetTicksMsec() - _noStMsg > 1000) { _noStMsg = Time.GetTicksMsec(); FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.2f, 0), "Out of stamina", new Color(0.6f, 0.8f, 1f), 0.8f); }
             return false;
         }
         // the basic attack of the equipped weapon class (data/attacks.json): light attacks walk the player's chain, power attacks reset it
-        int chainLen = Attacks.HasStyle(w.Id) ? Attacks.Build(w.Id).Chain.Count : w.Combo.Count;
-        if (!power) _combo = _comboT > 0 ? (_combo + 1) % chainLen : 0; else _combo = 0;
-        if (Attacks.HasStyle(w.Id)) { _step = Attacks.Resolve(w, _combo, power); _atk = _step.Def; }
-        else { _step = null; _atk = power ? w.Power : w.Combo[Mathf.Min(_combo, w.Combo.Count - 1)]; }
+        _combo = next; _offSwing = off; int ci = offW != null ? next / 2 : next;   // dual: step ci of the swinging hand's own chain
+        if (Attacks.HasStyle(w.Id)) { _step = Attacks.Resolve(w, ci, power); _atk = _step.Def; }
+        else { _step = null; _atk = power ? w.Power : w.Combo[Mathf.Min(ci, w.Combo.Count - 1)]; }
+        if (off && _step != null && _step.Anim != "" && !ranged && Weapons.DualOffAnims.Count > 0) _step.Anim = Weapons.DualOffAnims[ci % Weapons.DualOffAnims.Count];   // the off hand's own motion
+        _atk = Weapons.Sized(_atk, swingIt);   // A-11: the item's size scales this swing's reach and arc (Magnet and ResolveMelee read them from here)
+        if (_av != null) { var (tb, tt) = off ? (_av.OffBase, _av.OffTip) : (_av.BladeBase, _av.BladeTip); if (tt != null) { _trail.Base = tb; _trail.Tip = tt; } }   // the trail follows the swinging blade
         UseStamina(cost * (_step?.Stamina ?? 1f));
         _stepPerfect = !power && _combo > 0 && _pressPerfect; _pressPerfect = false;
         if (_combo == 0 || power) _allPerfect = true; else _allPerfect &= _stepPerfect;
@@ -385,7 +375,7 @@ public partial class Player : CharacterBody3D, IDamageable
         // attacks, see SwingWeight), and the recovery after it (data/attacks.json "recovery") is a real pause. Attack speed (stats, gear, buffs,
         // skills: capped at maxSpeed) shortens both; the weapon's and the step's own speed and the perfect-rhythm bonus shorten the swing.
         float aspd = Mathf.Clamp(Game.D.AtkSpeed(), .2f, Tune.F("attack.maxSpeed", 2.5f));
-        Fought(); _atkPower = power; _atkDur = Mathf.Max(Tune.F("attack.minSwing", .2f), _atk.Dur * SwingWeight(w, power) / (aspd * w.Speed * (_step?.Speed ?? 1f) * (_stepPerfect ? Feel.ComboF("perfectSpeed", 1.1f) : 1f))); _atkT = _atkDur;
+        Fought(); _atkPower = power; _atkDur = Mathf.Max(Tune.F("attack.minSwing", .2f), _atk.Dur * SwingWeight(w, power) / (aspd * w.Speed * Weapons.SizeSpeed(swingIt) * (_step?.Speed ?? 1f) * (_stepPerfect ? Feel.ComboF("perfectSpeed", 1.1f) : 1f))); _atkT = _atkDur;
         if (_stepPerfect) SpellFx.Play("hit_spark", _trail.Tip?.GlobalPosition ?? GlobalPosition + Vector3.Up, .5f);   // faint gold glint at the blade
         _hitDone = false; _atkSerial++;   // (devloop #18 swallowed this line into the comment above: every attack after the first never landed)
         _recPending = Mathf.Max(Tune.F("attack.minRecover", .1f), (_step?.Recover ?? (power ? .7f : .28f)) / aspd); _stepTotal = _atkDur + _recPending; _comboT = _stepTotal + Tune.F("player.chainWindow", 1.3f);   // recovery counts toward keeping the chain going; then this long to press again before it starts over
@@ -414,7 +404,7 @@ public partial class Player : CharacterBody3D, IDamageable
     public static float SwingWeight(WeaponDef w, bool power)
     {
         float k = Tune.F("attack.swingMul", 1.65f);
-        k *= w.Ranged ? Tune.F("attack.rangedSwingMul", .8f) : w.Hands > 1 ? Tune.F("attack.twoHandedSwingMul", 1.12f) : w.Id is "dagger" or "unarmed" ? Tune.F("attack.lightWeaponSwingMul", .92f) : 1f;
+        k *= w.Ranged ? Tune.F("attack.rangedSwingMul", .8f) : w.Hands > 1 ? Tune.F("attack.twoHandedSwingMul", 1.12f) : w.Light ? Tune.F("attack.lightWeaponSwingMul", .92f) : 1f;
         return power ? k * Tune.F("attack.powerSwingMul", 1.1f) : k;
     }
     /// <summary>A-03: how long a press made during a swing waits for the swing and its recovery to end (the input buffer), in seconds.</summary>
@@ -453,13 +443,13 @@ public partial class Player : CharacterBody3D, IDamageable
             if (dist > 0.6f && arc < Mathf.Pi - .01f && Mathf.Abs(Util.AngDiff(_modelYaw, Util.YawTo(d.X, d.Z))) > arc + (e.Def.R > 1 ? 0.5f : 0f)) continue;
             if (!Melee.Reaches(StandY, HeroHeight, e.GlobalPosition.Y, e.HeightM())) continue;   // A-04: the same height rule the monsters follow (was: anything within 3.5 m + its radius up or down)
             bool crit = GD.Randf() < D.CritChance() + (w.Crit + a.CritBonus) / 100f;
-            float dmg = D.WpnDmg() * (float)GD.RandRange(0.9, 1.1) * mult * (crit ? D.CritMult() : 1f) * RiposteMul();
+            float dmg = SwingDmg * (float)GD.RandRange(0.9, 1.1) * mult * (crit ? D.CritMult() : 1f) * RiposteMul();   // (A-12: the off hand's own hit during its swings)
             var hi = new HitInfo { Damage = dmg, From = GlobalPosition, Knock = knock, Stun = stun, Up = up, Crit = crit, Attacker = this, IsPlayer = true, Kind = _atkPower ? "power" : fin ? "combo" : "light" };
             foreach (var kv in w.OnHit) hi.With(kv.Key, kv.Value * (fin || _atkPower ? 1.5f : 1f));
-            if (GearFx.Get(D.Weapon?.Elem) is { } el && el.Status != "") hi.With(el.Status, el.Proc * (fin || _atkPower ? 1.5f : 1f) * (_step?.ElemMul ?? 1f));   // elemental weapon
+            if (GearFx.Get(SwingElem) is { } el && el.Status != "") hi.With(el.Status, el.Proc * (fin || _atkPower ? 1.5f : 1f) * (_step?.ElemMul ?? 1f));   // elemental weapon
             if (_step != null) foreach (var (sid, ch) in _step.Status) hi.With(sid, ch);   // the chain step and its modifiers
             e.TakeHit(hi); if (crit) TriggerAuto("crit");
-            Feel.Impact(dmg, e.MaxHp, w.Id is "greatsword" or "mace" or "axe" or "hammer" || _atkPower || fin, crit, e.Dead, new Vector3(d.X, 0, d.Z), Rig);
+            Feel.Impact(dmg, e.MaxHp, w.Heavy || _atkPower || fin, crit, e.Dead, new Vector3(d.X, 0, d.Z), Rig);
             // where steel meets the foe: a spark on its near side, bigger for crits, finishers and heavies
             var toMe = -d.Normalized(); float big = crit ? 1.6f : fin || _atkPower ? 1.4f : 1f;
             var hitPt = e.GlobalPosition + new Vector3(0, e.HeightM() * .55f, 0) + toMe * e.Def.R * e.ScaleF() * .8f;
@@ -475,6 +465,7 @@ public partial class Player : CharacterBody3D, IDamageable
                 if (dist > 0.6f && arc < Mathf.Pi - .01f && Mathf.Abs(Util.AngDiff(_modelYaw, Util.YawTo(d.X, d.Z))) > arc) continue;
                 Crime.Struck(npc, D.WpnDmg() * mult, this); hits++;
             }
+        if (hits > 0) Durability.WeaponHit(SwingItem);   // A-13: a weapon wears per swing that lands
         if (hits > 0) { Rig?.Shake(_atkPower ? Tune.F("heavy.shake", .32f) : fin ? 0.15f : 0.08f); Sfx.Weapon(W.Id, "hit"); if (_atkPower) Fx.Dust(GlobalPosition + GlobalTransform.Basis.Z * -1.2f, Tune.F("heavy.dust", 1.4f)); }   // a connecting heavy blow kicks up dust
         else Sfx.Weapon(W.Id, "miss");   // the swing connected nothing
         if (fin && hits > 0 && !_atkPower)
@@ -522,18 +513,22 @@ public partial class Player : CharacterBody3D, IDamageable
 
     void FireWeapon()
     {
-        var D = Game.D; var TS = Game.TS; string wt = D.WType();
+        var D = Game.D; var TS = Game.TS; var fw = W; string wt = fw.Id;   // (A-12: the off-hand weapon's class during its swings)
         var origin = MuzzlePos(); var (target, _) = AimPoint(80f);
         var dir = (target - origin).Normalized();
-        bool crit = GD.Randf() < D.CritChance() + (_atk?.CritBonus ?? 0) / 100f; float dmg = D.WpnDmg() * (float)GD.RandRange(0.9, 1.1) * (crit ? D.CritMult() : 1f) * RiposteMul();   // a riposte after a parry also works for bows and wands
+        bool crit = GD.Randf() < D.CritChance() + (fw.Crit + (_atk?.CritBonus ?? 0)) / 100f; float dmg = SwingDmg * (float)GD.RandRange(0.9, 1.1) * (crit ? D.CritMult() : 1f) * RiposteMul();   // a riposte after a parry also works for bows and wands
         // the chain step (data/attacks.json): damage, shots in a fan, piercing, blast radius, statuses
         // magic shots take the weapon's element colour, else its type's trail colour; Muzzle() flashes at the casting hand
-        Color tint = GearFx.Get(D.Weapon?.Elem)?.Col ?? Weapons.Get(wt).Trail;
+        Color tint = GearFx.Get(SwingElem)?.Col ?? Weapons.Get(wt).Trail;
         var st = _step; float sm = st != null && st.Id != "power" ? st.Def.Dmg : 1f; int shots = st?.Shots ?? 1; float spreadR = Mathf.DegToRad(st?.Spread ?? 0); bool sPierce = st?.Pierce ?? false;
         void Shoot(string kind, Vector3 d, float speed, float pdmg, float life, bool pierce, float aoe = 0, bool big = false)
         {
             var p = Projectile.Spawn(kind, 'p', origin, d * speed + (kind == "arrow" ? Vector3.Up * 0.6f : Vector3.Zero), pdmg, life, crit, pierce, aoe, big, kind == "bolt" && !big ? tint : null);
             if (st != null && st.Status.Count > 0) p.Statuses = st.Status;
+            if (fw.Shot != null && fw.OnHit.Count > 0)
+            {   // A-11: thrown and mechanical weapons carry their type's on-hit statuses on the missile
+                var l = new List<(string id, float chance)>(p.Statuses ?? new()); foreach (var kv in fw.OnHit) l.Add((kv.Key, kv.Value * (_atkPower ? 1.5f : 1f))); p.Statuses = l;
+            }
             p.Wpn = wt;   // its hit / miss sounds come from the weapon type
         }
         void Muzzle(bool big)
@@ -544,7 +539,16 @@ public partial class Player : CharacterBody3D, IDamageable
             Vfx.Flash(origin, mc, big ? 2.2f : 1.4f, big ? 4.5f : 3f, .12f);   // unshadowed, gone in 0.12 s
         }
         Vector3 Fan(int k, int n) => n <= 1 ? dir : dir.Rotated(Vector3.Up, (k / (float)(n - 1) - .5f) * Mathf.Max(spreadR, .11f * (n - 1)));
-        if (wt == "bow")
+        Durability.Shot(SwingItem);   // A-13: a ranged weapon wears per shot
+        if (fw.Shot is { } sd && wt is not ("bow" or "wand" or "staff"))
+        {
+            // A-11: crossbow bolts, javelins, throwing knives (data/weapons.json type "shot"): the power attack's damage factor, speed, piercing and fan come from data
+            int n = Mathf.Max(shots, _atkPower ? sd.PowerShots : 1); if (_atkPower && sd.PowerSpread > 0 && spreadR <= 0) spreadR = Mathf.DegToRad(sd.PowerSpread);
+            float pd = dmg * sm * (_atkPower ? fw.Power.Dmg : 1f);
+            for (int k = 0; k < n; k++) Shoot(sd.Kind, Fan(k, n), _atkPower ? sd.PowerSpeed : sd.Speed, pd, sd.Life, (_atkPower ? sd.PowerPierce : sd.Pierce) || sPierce || TS.Has("pierce"), st != null && st.Aoe > 0 ? st.Aoe : sd.Aoe);
+            Sfx.Weapon(wt, "shoot");
+        }
+        else if (wt == "bow")
         {
             int n = Mathf.Max(shots, TS.Has("multi") ? 3 : 1); float sp = _atkPower ? 64f : 50f, pd = dmg * sm * (_atkPower ? 2f : 1f) * (TS.Has("multi") && shots <= 1 ? 0.55f : 1f);
             for (int k = 0; k < n; k++) Shoot("arrow", Fan(k, n), sp, pd, 2.4f, _atkPower || sPierce || TS.Has("pierce"));
@@ -596,6 +600,7 @@ public partial class Player : CharacterBody3D, IDamageable
     /// <summary>Flying: three times running speed where you steer, hold Jump to climb and Roll to dive; drains stamina like sprinting.</summary>
     void FlyMove(Vector3 dir, float moveMul, bool captured, float dt, ref Vector3 v)
     {
+        if (Mounted) { MountFly(dir, moveMul, captured, dt, ref v); return; }   // a flying mount: its own speed and stamina (PlayerMount.cs)
         float speed = RunSpeed * Tune.F("wings.speedMul", 3f) * moveMul * Statuses.SpeedMul;
         var target = dir * speed; float a = Accel * 1.4f * dt;
         v.X = Mathf.MoveToward(v.X, target.X, a); v.Z = Mathf.MoveToward(v.Z, target.Z, a);
@@ -653,6 +658,7 @@ public partial class Player : CharacterBody3D, IDamageable
         if (SkillTick(dt)) { Animate(dt); return; }   // leap or dash in progress
         Underwater.Ensure(this);   // the underwater camera tint, fog and wobble (Water.cs)
         if (BoatRide(dt)) return;   // in a boat: rowing and steering, nothing else (PlayerSwim.cs, F-21)
+        if (FormTick(dt, ref v)) return;   // A-16: transformed into an animal or spirit: the form's own movement and abilities (PlayerForm.cs)
 
         bool captured = Input.MouseMode == Input.MouseModeEnum.Captured;
         var input = Input.GetVector(Inputs.Left, Inputs.Right, Inputs.Forward, Inputs.Back);
@@ -711,7 +717,7 @@ public partial class Player : CharacterBody3D, IDamageable
         if (_hasQueue) { _queueT -= dt; if (_queueT <= 0) _hasQueue = false; else if (_atkT <= 0 && TryAttack(_queuePower)) _hasQueue = false; }
 
         // ---- block
-        bool wantBlock = captured && HasShield && Input.IsActionPressed(Inputs.Guard) && _atkT <= 0 && _rollT <= 0 && _stagger <= 0 && _castT <= 0 && St > 0 && !Mounted;
+        bool wantBlock = captured && CanGuard && Input.IsActionPressed(Inputs.Guard) && _atkT <= 0 && _rollT <= 0 && _stagger <= 0 && _castT <= 0 && St > 0 && !Mounted;
         if (wantBlock && !_blocking) _blockT = 0;
         _blocking = wantBlock;
         if (_riposteT > 0) _riposteT -= dt;
@@ -720,6 +726,7 @@ public partial class Player : CharacterBody3D, IDamageable
         // ---- attack + cast timelines
         // recovery: once a swing ends (or is cut short by moving), the next one waits; heavier swings and finishers wait longer
         if (_recT > 0) _recT -= dt;
+        if (_atkT <= 0) _offSwing = false;   // A-12: between swings the hero's weapon is the main hand's again
         if (_atkT <= 0 && _recPending > 0) { _recT = _recDur = _recPending; _recPending = 0; _recClip = _step?.Rec ?? ""; }
         if (_atkT > 0)
         {
@@ -750,20 +757,20 @@ public partial class Player : CharacterBody3D, IDamageable
         else
         {
             // Golden Wings: Jump in the air takes off; landing, tiring out or taking the wings off ends the flight
-            if (Flying && ((IsOnFloor() && !(captured && Input.IsActionPressed(Inputs.Jump))) || !(Wings.Worn || Admin.CanFly) || Mounted || _stagger > 0)) Flying = false;
-            else if (!Flying && captured && Input.IsActionJustPressed(Inputs.Jump) && !IsOnFloor() && _airT > .12f && (Wings.Worn || Admin.CanFly) && !Mounted && St > 5f) { Flying = true; Sfx.Play("swing", .6f); }
+            if (Flying && ((IsOnFloor() && !(captured && Input.IsActionPressed(Inputs.Jump))) || !FlightOk || _stagger > 0)) Flying = false;   // (FlightOk: the wings on foot, a flying mount when riding; PlayerMount.cs)
+            else if (!Flying && captured && Input.IsActionJustPressed(Inputs.Jump) && !IsOnFloor() && _airT > .12f && FlightOk && (Mounted ? MountSt > 3f : St > 5f)) { Flying = true; Sfx.Play("swing", .6f); }
             if (ChannelTick(dt, dir, captured)) { v.X = Mathf.MoveToward(v.X, 0, Accel * dt); v.Z = Mathf.MoveToward(v.Z, 0, Accel * dt); }   // channelling: feet planted
             else if (Flying) FlyMove(dir, moveMul, captured, dt, ref v);
             else {
-            if (captured && Input.IsActionJustPressed(Inputs.Roll) && IsOnFloor() && _rollCd <= 0 && _atkT <= 0 && _stagger <= 0 && St >= Tune.F("stamina.roll", 14) * .85f && !Mounted)
+            if (captured && Input.IsActionJustPressed(Inputs.Roll) && IsOnFloor() && _rollCd <= 0 && _atkT <= 0 && _stagger <= 0 && St >= Tune.F("stamina.roll", 14) * RollCostMul * .85f && !Mounted)   // (A-14: Agility lowers the roll's cost)
             {
                 _rollDir = dir.LengthSquared() > 0.01f ? dir.Normalized() : new Vector3(-Mathf.Sin(_modelYaw), 0, -Mathf.Cos(_modelYaw));
-                _rollT = RollTime; _rollCd = 0.6f; _recT = 0; _recPending = 0; UseStamina(Tune.F("stamina.roll", 14));
+                _rollT = RollTime; _rollCd = 0.6f; _recT = 0; _recPending = 0; UseStamina(Tune.F("stamina.roll", 14) * RollCostMul);
                 _rollPd = false; _rollFrom = GlobalPosition; _rollTrailT = RollTime * .3f;   // roll start: dust kick behind, cloth whoosh, first smoke puff
                 Fx.Dust(GlobalPosition - _rollDir * .6f, .4f); Sfx.Play("swing", .8f); Fx.RollPuff(GlobalPosition, false);
                 _modelYaw = Util.YawTo(_rollDir.X, _rollDir.Z);   // face the roll (a roll also cancels the recovery, above); this line was lost in a comment since 217a461
             }
-            if ((captured && Input.IsActionJustPressed(Inputs.Jump) || DevJump) && IsOnFloor() && _atkT <= 0 && _stagger <= 0) { v.Y = JumpVelocity * JumpMul; LifeJumped(); }   // F-25: jumping levels jump higher
+            if ((captured && Input.IsActionJustPressed(Inputs.Jump) || DevJump) && IsOnFloor() && _atkT <= 0 && _stagger <= 0) { v.Y = JumpVelocity * JumpMul * MountJumpMul; LifeJumped(); }   // F-25: jumping levels jump higher
             DevJump = false;
 
             // A-02: sprint = the sprint input held right now, in play (mouse captured), moving, not doing anything else, and not out of breath.
@@ -777,7 +784,7 @@ public partial class Player : CharacterBody3D, IDamageable
             _sprinting = sprint;
             float speed = (sprint ? SprintSpeed : RunSpeed) * moveMul;   // matched to the clips' own stride (Avatar gait speeds)
             if (Sneaking && !Mounted) speed *= SneakSpeedMul;   // F-25: sneaking is slow (faster with sneaking levels)
-            if (Mounted) speed = (_petMount != null ? PetWorld.MountSpeed : 10.5f) * moveMul * (1 + StatPipeline.Key("rideP") / 100f);   // F-25: riding levels
+            if (Mounted) speed = MountMove(sprintHeld, dir.LengthSquared() > .01f, dt) * moveMul * (1 + StatPipeline.Key("rideP") / 100f);   // F-25: riding levels
             if (_atkT > 0 && !Ranged && _atk != null)
             {
                 // melee: feet planted until the blow lands (lunges move the body themselves); after it, moving cancels the recovery
@@ -892,8 +899,7 @@ public partial class Player : CharacterBody3D, IDamageable
         var swimOff = Vector3.Zero;
         if (tilt > .001f) { var piv = new Vector3(0, 1.05f, 0); swimOff = piv - Basis.FromEuler(_model.Rotation) * piv; }
         _model.Position = new Vector3(0, (Mounted ? _mountY : 0f) + bob + breath - crouch * .12f - StepLift, 0) + swimOff;
-        _horse.Rotation = new Vector3(0, _modelYaw, 0);
-        if (_petBody != null && _petMount != null && GodotObject.IsInstanceValid(_petBody)) _petBody.PetVel = new Vector3(Velocity.X, 0, Velocity.Z) / Mathf.Max(.3f, _petMount!.Scale.X);   // the ridden pet's gait follows our speed
+        MountAnimate();   // the mount turns with us, its gait follows our speed (PlayerMount.cs)
 
         // ---- hands
         var restR = w.Rest; var lift = new Vector3(0, breath * .6f, 0);

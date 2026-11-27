@@ -131,6 +131,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         else if (Duelist && Avatar.Available) BuildDuelist();   // the Shadow Duel boss wears the hero (EnemyDuelist.cs)
         else if (Scarletta && Avatar.Available) BuildScarletta();   // the raid boss of the Rotting Hollow (EnemyScarletta.cs)
         else if (IsShade && Avatar.Available) BuildShade();          // a black mirror of a party member (EnemyShade.cs)
+        else if (Def.Proc != "" && BuildCreature()) { }     // a procedural animal body (data/creatures.json, EnemyCreature.cs)
         else if (Def.Model != "" && BuildModel(col)) { }   // an animated monster model (data/enemies.json "model")
         else if (quad) BuildQuad(r, main, dark, glow, col);
         else if (dragon)
@@ -408,6 +409,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
     /// <summary>The model's clip from the AI state: attack through the wind-up (stretched to it), flinch, death, move or idle.</summary>
     void AnimateModel()
     {
+        if (_cm != null) { AnimateCreature(); return; }   // procedural animals animate themselves from our state (EnemyCreature.cs)
         var ap = _mdlAp; if (ap == null) return;
         string want; float speed = 1f; bool restart = false; float hs = new Vector2(Velocity.X, Velocity.Z).Length();
         if (_state == State.Dead) want = _aDie;
@@ -632,7 +634,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
     // ---- weighty reactions: directional flinch, tip-over death, kill flash
     float _flT, _flAmt, _flTwist, _killT; Vector3 _flAxis = Vector3.Right, _fallAxis = Vector3.Right; bool _dustDone;
     static StandardMaterial3D? _killMat;
-    bool Flier => Def.Kind == "wraith" || Def.Kind == "dragon";
+    bool Flier => Def.Kind == "wraith" || (Def.Kind == "dragon" && _cm == null);   // (the procedural dragon topples like a beast)
     /// <summary>0.18 s lean + twist of the body away from the hit (4-14 deg by damage / max hp) and a short hit clip unless a swing is mid-way.</summary>
     void Flinch(int dmg)
     {
@@ -690,6 +692,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
                 if (netKill) mats.Append(kv.Key).Append(':').Append(n).Append(';'); else GatherDb.Give(kv.Key, n, GlobalPosition);
             }
         if (!Summoned && !noDrops && DefOverride == null && !Arena) BlockDrops.Roll(this, netKill, mats);   // F-44: building blocks instead of mining on the online server (data/blockdrops.json)
+        if (!netKill && !Summoned && !noDrops && DefOverride == null && !Arena) Farm.MobSeeds(GlobalPosition);   // A-24: now and then a seed (data/farm.json seedDrops.mobs)
         bool lootable = !Summoned && DefOverride == null && !Def.NoLoot && !noDrops;
         int gold = Mathf.RoundToInt(GD.RandRange(Tune.F("monsters.goldMin", 2) + Level * Tune.F("monsters.goldMinPerLevel", 1), Tune.F("monsters.goldMax", 6) + Level * Tune.F("monsters.goldMaxPerLevel", 2)) * (Def.Boss ? Tune.F("monsters.bossGoldMul", 12) : 1) * Tune.F("monsters.goldMul", 1) * zGold);
         float chance = Def.Boss ? 1f : Mathf.Min(1f, Tune.F("monsters.itemChance", .2f) + (Def.Realm == 1 ? Tune.F("monsters.shadowItemChance", .06f) : 0f) + Tune.F("monsters.upgradeItemChance", .06f) * UpgradeCount() + zItem), bonus = (Def.Boss ? Tune.F("monsters.bossLootBonus", 2) : 0) + (Def.Realm == 1 ? Tune.F("monsters.shadowLootBonus", 1) : 0) + _lootBonus + zLoot;
@@ -734,7 +737,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
     {
         float dt = (float)delta;
         if (PetBody) { PetBodyTick(dt); return; }
-        bool act = AnyRealm || Def.Realm == World.Realm;
+        bool act = (AnyRealm || Def.Realm == World.Realm) && TimeOk();   // (animals of the day or the night: EnemyCreature.cs)
         if (act != Active) { Active = act; Visible = act; if (!Dead) { CollisionLayer = act ? 2u : 0u; } }
         if (!Active) return;
         // who to chase: our own hero, or in a hosted world the nearest living hero out in the overworld
@@ -821,6 +824,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         if (died) return;
         if (Duelist) { DuelTick(dt, pl, v); return; }   // the Shadow Duel boss has its own brain (EnemyDuelist.cs)
         if (Scarletta) { ScarTick(dt, v); return; }    // so does Scarletta (EnemyScarletta.cs)
+        if (Def.Fly && _cm != null) { FlyTick(dt); return; }   // birds and bats circle, flee and swoop (EnemyCreature.cs)
         if (Status.Stunned && !Def.Boss && _state != State.Sleep) { _stun = Mathf.Max(_stun, .1f); _state = State.Stagger; }
         float spdMul = Def.Boss ? Mathf.Max(.6f, Status.SpeedMul) : Status.SpeedMul;
 
@@ -838,7 +842,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
             case State.Idle:
                 // notice a hero only when close enough and (indoors) in plain sight; then the pack nearby joins in.
                 // Shades in the lair need no line of sight: they sense the living from far off and come together
-                if (plOk && dist < AggroR && (IsShade || Notices(pl!, dist, dt))) { Wake(); Alert(); break; }
+                if (plOk && !Def.Neutral && !Tame && dist < AggroR && (IsShade ? ShadeMayWake() : Notices(pl!, dist, dt))) { Wake(); Alert(); break; }   // (neutral animals only answer a blow; shades: at most a few hunt at once, A-23)
                 {
                     // wander: amble to a spot near home, pause, pick another (wildlife grazes slower and closer)
                     bool wild = Def.Look != "";
@@ -846,6 +850,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
                     if (_grazeT <= 0) { _grazeT = (float)GD.RandRange(3.0, 8.0); float a = (float)GD.RandRange(0, Mathf.Tau), d = (float)GD.RandRange(wild ? 2.0 : 1.5, wild ? 8.0 : FromDungeon ? 5.0 : 9.0); _grazeTo = _home + new Vector3(Mathf.Cos(a) * d, 0, Mathf.Sin(a) * d); }
                     var g = _grazeTo - GlobalPosition; g.Y = 0;
                     if (g.Length() > 0.6f && _grazeT < 4.5f) { move = g.Normalized() * Def.Spd * (wild ? 0.18f : 0.28f); _yaw = Mathf.LerpAngle(_yaw, Util.YawTo(g.X, g.Z), 1f - Mathf.Exp(-4f * dt)); }
+                    if (_lead != null) LeadStep(ref move, dt);   // livestock led by a hero (EnemyCreature.cs)
                 }
                 break;
             case State.Flee:
@@ -1124,7 +1129,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         if (before.DistanceTo(_netPos) > 8f) { GlobalPosition = _netPos; ResetPhysicsInterpolation(); } else GlobalPosition = before.Lerp(_netPos, 1f - Mathf.Exp(-10f * dt));
         _yaw = Mathf.LerpAngle(_yaw, _netYaw, 1f - Mathf.Exp(-10f * dt)); Rotation = new Vector3(0, _yaw, 0);
         if (_state == State.Wind) _timer = Mathf.Max(0, _timer - dt);
-        if (_mdlAp != null) { Velocity = (GlobalPosition - before) / Mathf.Max(dt, .001f); AnimateModel(); }   // models animate from the host's movement
+        if (_mdlAp != null || _cm != null) { Velocity = (GlobalPosition - before) / Mathf.Max(dt, .001f); AnimateModel(); }   // models animate from the host's movement
         if (_legs.Count > 0)
         {
             float hs = new Vector2(GlobalPosition.X - before.X, GlobalPosition.Z - before.Z).Length() / Mathf.Max(dt, .001f), amt = Mathf.Clamp(hs / Mathf.Max(1f, Def.Spd * 0.6f), 0, 1);

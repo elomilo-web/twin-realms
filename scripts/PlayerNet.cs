@@ -19,9 +19,10 @@ public partial class Player
             p.X, p.Y, p.Z, mr.X, mr.Y, _model.Position.Y, Hp, Game.D.MaxHp(),
             _nLegs.SwingR, _nLegs.SwingL, _nLegs.KneeR, _nLegs.KneeL, _nLegs.Splay, _nTwist, _nLean,
             _nR.H.X, _nR.H.Y, _nR.H.Z, _nR.Yaw, _nR.Pitch, _nL.H.X, _nL.H.Y, _nL.H.Z, _nL.Yaw, _nL.Pitch,
-            _capeX, _trail.Emit ? 1 : 0, tc.R, tc.G, tc.B, Mounted ? 1 : InBoat != null ? 2 : 0, Dead ? 1 : 0, Net.MyZone, _rig.SteadyLeft ? 1 : 0, Game.D.Level,
+            _capeX, _trail.Emit ? 1 : 0, tc.R, tc.G, tc.B, Mounted ? MountNetCode : InBoat != null ? 2 : 0, Dead ? 1 : 0, Net.MyZone, _rig.SteadyLeft ? 1 : 0, Game.D.Level,
             Dmg.Mask(Statuses),   // 35: our statuses, drawn above our name on friends' screens
             NetAtkAnim, NetAtkHit, _atkSerial % 1000,   // 36-38: the attack animation playing, when its blow lands, which swing it is
+            FormIndex,   // 39: A-16 the animal or spirit form we wear (index into data/forms.json, 0 = none)
         };
     }
 

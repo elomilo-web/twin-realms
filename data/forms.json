@@ -1,0 +1,73 @@
+{
+ "_help": "A-16: transformations into animals and spirits (scripts/Transform.cs Forms, scripts/PlayerForm.cs). A form is LEARNED while the stat key form_<id> is above 0 (a skill tree node, an advanced tree node, or a unique item's mods): it then appears in the Skills menu as '<Name> Form' and goes on the hotbar like any skill. Casting it (cast, mp, cd below; cd is cut by the formCdr stat) turns the hero into the form for dur seconds (longer with formDurP) or until key 6. While transformed the hero's body is the creature model of enemy type 'body' (data/enemies.json; scale, tint and glow here), gear skills, blocking, rolling and mounting are off, and the hotbar is the form's abilities: ability 0 on Attack, 1 on Heavy and key 1, 2 on key 2, 3 on key 3; key 6 changes back. Form fields: n name, kind animal|spirit, d description, body enemy type, scale, tint hex (multiplied over the model), glow true = the model glows, col effect colour, speed / jump = multipliers of running speed and jump height, swim false = deep water ends the form, ghost true = walks through monsters, fly true = Jump in the air takes off (not in dungeons), mods = stat keys added while in the form (stat stage 'buffs'). Ability fields: n, d, kind (melee: an arc in front; pounce: leap 'range' m at the target and hit 'radius' around; aoe: 'radius' around you; bolt: a projectile, 'aoe' = blast radius; drain: strikes the aimed foe within 'range' and heals you 'leech' % of the damage; heal: you and allies within 'radius' heal 'heal' (share of max health) and get 'buff' for 'dur' s; buff: 'buff' on you for 'dur' s; blink: jump 'range' m forward, then 'buff'; track: names the nearest creature within 'range' m and where it is), dmg = x form power (form power = the better of your weapon damage and your spell strength, x formP), type damage type, range, arc (degrees), radius, cd seconds, st / mp cost, status {id: chance 0-1}, leech %, knock, stun s, crit true = always a critical hit, heal, buff {stat: value}, dur. rules: learnNote = shown when a form is learned; revertKey = hotbar key that ends the form; rankP comes from the skill's rank (data/skills.json rankP per rank).",
+ "rules": { "revertKey": 6, "attackWind": 0.18, "dungeonFlight": false, "syncSeconds": 1.0 },
+ "forms": {
+  "wolf": { "n": "Wolf", "kind": "animal", "d": "Fast and sharp-toothed. Bites bleed, a pounce stuns, and its nose finds prey.", "body": "wolf", "scale": 1.3, "col": "b8c0d0",
+   "dur": 60, "cd": 40, "mp": 25, "cast": 0.6, "speed": 1.45, "jump": 1.15, "swim": true, "mods": { "evade": 6, "crit": 5, "stealthP": 15 },
+   "abilities": [
+    { "n": "Bite", "d": "A quick bite that may cause bleeding.", "kind": "melee", "dmg": 0.9, "range": 2.4, "arc": 70, "cd": 0.5, "st": 5, "status": { "bleed": 0.25 } },
+    { "n": "Pounce", "d": "Leap at your target and knock it flat.", "kind": "pounce", "dmg": 1.6, "range": 9, "radius": 2.5, "cd": 6, "st": 15, "stun": 0.6 },
+    { "n": "Howl", "d": "A howl that quickens you for 8 s.", "kind": "buff", "cd": 20, "dur": 8, "buff": { "aspd": 20, "move": 10 } },
+    { "n": "Track", "d": "Scent the nearest creature within 60 m: what it is and where.", "kind": "track", "range": 60, "cd": 8 } ] },
+  "boar": { "n": "Great Boar", "kind": "animal", "d": "Slow, heavy and very hard to kill. Gores, charges and stamps.", "body": "boar", "scale": 1.55, "col": "a07850",
+   "dur": 60, "cd": 45, "mp": 25, "cast": 0.6, "speed": 0.9, "jump": 0.8, "swim": true, "mods": { "hpP": 30, "def": 20, "tenacity": 30, "thorns": 10 },
+   "abilities": [
+    { "n": "Gore", "d": "A heavy swipe of the tusks that shoves foes back.", "kind": "melee", "dmg": 1.2, "range": 2.6, "arc": 80, "cd": 0.8, "st": 8, "knock": 5, "status": { "bleed": 0.2 } },
+    { "n": "Charge", "d": "Thunder forward and trample what you hit.", "kind": "pounce", "dmg": 2.0, "range": 11, "radius": 2.8, "cd": 8, "st": 18, "stun": 1.0, "knock": 8 },
+    { "n": "Stamp", "d": "Stamp the ground: foes around you stagger and their armor cracks.", "kind": "aoe", "dmg": 1.4, "radius": 5, "cd": 10, "st": 14, "stun": 0.5, "status": { "shred": 0.8 } },
+    { "n": "Thick Hide", "d": "Heal 15% of your health and harden for 6 s.", "kind": "heal", "heal": 0.15, "radius": 0, "cd": 25, "dur": 6, "buff": { "def": 40 } } ] },
+  "stag": { "n": "Stag", "kind": "animal", "d": "The fastest form, with a great leap. Its call mends the herd.", "body": "deer", "scale": 1.15, "col": "c8a070",
+   "dur": 75, "cd": 35, "mp": 20, "cast": 0.6, "speed": 1.7, "jump": 1.6, "swim": true, "mods": { "evade": 10 },
+   "abilities": [
+    { "n": "Antler Thrust", "d": "A thrust of the antlers that knocks a foe back.", "kind": "melee", "dmg": 1.0, "range": 2.8, "arc": 50, "cd": 0.6, "st": 6, "knock": 4 },
+    { "n": "Bound", "d": "A long leap that lands on your foes.", "kind": "pounce", "dmg": 1.2, "range": 14, "radius": 2.2, "cd": 5, "st": 12 },
+    { "n": "Rallying Call", "d": "You and allies within 12 m heal 12% and run faster for 8 s.", "kind": "heal", "heal": 0.12, "radius": 12, "cd": 18, "mp": 15, "dur": 8, "buff": { "move": 15 } } ] },
+  "fox": { "n": "Spirit Fox", "kind": "spirit", "d": "A small fire spirit: hard to see, quick to bite, quicker to vanish.", "body": "kitsune", "scale": 0.8, "glow": true, "col": "ffb060",
+   "dur": 60, "cd": 40, "mp": 30, "cast": 0.6, "speed": 1.5, "jump": 1.3, "swim": false, "mods": { "stealthP": 60, "sneakP": 40, "crit": 8, "evade": 8 },
+   "abilities": [
+    { "n": "Snap", "d": "A burning bite.", "kind": "melee", "dmg": 0.85, "type": "fire", "range": 2.3, "arc": 70, "cd": 0.45, "st": 4, "status": { "burn": 0.3 } },
+    { "n": "Foxfire", "d": "Spit a ball of foxfire that sets its target ablaze.", "kind": "bolt", "dmg": 1.3, "type": "fire", "cd": 3, "mp": 10, "status": { "burn": 0.6 } },
+    { "n": "Vanish", "d": "Blink 8 m ahead and become almost impossible to hit for 5 s.", "kind": "blink", "range": 8, "cd": 14, "mp": 10, "dur": 5, "buff": { "evade": 30, "move": 20 } } ] },
+  "drake": { "n": "Drake", "kind": "animal", "d": "Wings and fire. Jump in the air to fly (not underground); breathe fire from above.", "body": "wyvern", "scale": 0.55, "col": "ff7a3a",
+   "dur": 60, "cd": 60, "mp": 40, "cast": 0.8, "speed": 1.2, "jump": 1.4, "swim": false, "fly": true, "mods": { "res_fire": 30, "def": 10 },
+   "abilities": [
+    { "n": "Bite", "d": "A snapping, burning bite.", "kind": "melee", "dmg": 1.1, "type": "fire", "range": 3, "arc": 60, "cd": 0.7, "st": 6, "status": { "burn": 0.25 } },
+    { "n": "Fire Breath", "d": "A cone of fire 8 m long.", "kind": "melee", "dmg": 1.5, "type": "fire", "range": 8, "arc": 40, "cd": 7, "mp": 15, "status": { "burn": 0.8 }, "fx": "breath" },
+    { "n": "Fireball", "d": "A ball of fire that bursts 3 m wide.", "kind": "bolt", "dmg": 1.8, "type": "fire", "aoe": 3, "cd": 5, "mp": 20, "status": { "burn": 0.5 } },
+    { "n": "Wing Gust", "d": "Beat your wings: foes within 6 m are hurled back.", "kind": "aoe", "dmg": 0.6, "radius": 6, "cd": 12, "st": 15, "knock": 12 } ] },
+  "wisp": { "n": "Wisp", "kind": "spirit", "d": "A small floating light. It drifts through monsters, is hard to hit, and heals you and your allies.", "body": "ghost", "scale": 0.5, "tint": "9fd8ff", "glow": true, "col": "9fd8ff",
+   "dur": 45, "cd": 40, "mp": 30, "cast": 0.5, "speed": 1.3, "jump": 1.0, "swim": false, "ghost": true, "mods": { "evade": 15, "healP": 20, "res_physical": 20, "hpP": -20 },
+   "abilities": [
+    { "n": "Spark", "d": "A mote of holy light.", "kind": "bolt", "dmg": 0.7, "type": "holy", "cd": 0.6, "mp": 3 },
+    { "n": "Mend", "d": "You and allies within 10 m heal 15% of their health.", "kind": "heal", "heal": 0.15, "radius": 10, "cd": 6, "mp": 20 },
+    { "n": "Soothing Light", "d": "You and allies within 10 m heal 8% and mend steadily for 8 s.", "kind": "heal", "heal": 0.08, "radius": 10, "cd": 15, "mp": 25, "dur": 8, "buff": { "regenHp": 8 } },
+    { "n": "Flicker", "d": "Blink 10 m ahead, through anything in the way.", "kind": "blink", "range": 10, "cd": 6, "mp": 8 } ] },
+  "wraith": { "n": "Wraith", "kind": "spirit", "d": "A cold shape between the realms. Hard to see, walks through monsters, and drinks their life.", "body": "wraith", "scale": 1.0, "tint": "8a70c8", "glow": true, "col": "8a5cff",
+   "dur": 50, "cd": 50, "mp": 35, "cast": 0.7, "speed": 1.1, "jump": 1.0, "swim": false, "ghost": true, "mods": { "stealthP": 50, "shadowP": 15, "res_physical": 30, "res_holy": -30, "leech": 3 },
+   "abilities": [
+    { "n": "Chill Touch", "d": "A draining touch that weakens.", "kind": "melee", "dmg": 1.0, "type": "shadow", "range": 2.6, "arc": 70, "cd": 0.6, "st": 5, "leech": 15, "status": { "weaken": 0.3 } },
+    { "n": "Soul Drain", "d": "Tear the life from a foe within 14 m: 40% of the damage heals you.", "kind": "drain", "dmg": 1.5, "type": "shadow", "range": 14, "cd": 4, "mp": 12, "leech": 40 },
+    { "n": "Dread", "d": "Foes within 7 m are weakened and chilled.", "kind": "aoe", "dmg": 0.5, "type": "shadow", "radius": 7, "cd": 12, "mp": 15, "status": { "weaken": 1, "chill": 1 } },
+    { "n": "Shadow Walk", "d": "Slip 9 m ahead and cannot be hit for 3 s.", "kind": "blink", "range": 9, "cd": 10, "mp": 10, "dur": 3, "buff": { "evade": 40 } } ] },
+  "shade": { "n": "Shade Hound", "kind": "spirit", "d": "Your shadow given teeth: a silent hunter that ambushes and feeds on what it bites.", "body": "hound", "scale": 1.15, "col": "6a5a9a",
+   "dur": 60, "cd": 45, "mp": 30, "cast": 0.6, "speed": 1.5, "jump": 1.2, "swim": true, "mods": { "stealthP": 60, "sneakP": 50, "crit": 10, "leech": 4 },
+   "abilities": [
+    { "n": "Rend", "d": "A tearing bite that bleeds and feeds you.", "kind": "melee", "dmg": 1.0, "type": "shadow", "range": 2.4, "arc": 70, "cd": 0.5, "st": 5, "leech": 10, "status": { "bleed": 0.3 } },
+    { "n": "Ambush", "d": "Leap from the dark: always a critical hit.", "kind": "pounce", "dmg": 2.2, "type": "shadow", "range": 10, "radius": 2.2, "cd": 8, "st": 16, "crit": true },
+    { "n": "Fade", "d": "Melt into shadow for 6 s: faster and very hard to hit.", "kind": "buff", "cd": 16, "dur": 6, "buff": { "evade": 35, "move": 25 } } ] },
+  "ember": { "n": "Ember Spirit", "kind": "spirit", "d": "A floating spirit of fire. Everything it does burns; frost hurts it.", "body": "flameSkull", "scale": 1.0, "glow": true, "col": "ff8a3a",
+   "dur": 50, "cd": 45, "mp": 30, "cast": 0.6, "speed": 1.15, "jump": 1.0, "swim": false, "mods": { "fireP": 20, "res_fire": 50, "res_frost": -25 },
+   "abilities": [
+    { "n": "Ember", "d": "A spark of fire.", "kind": "bolt", "dmg": 0.9, "type": "fire", "cd": 0.5, "mp": 3, "status": { "burn": 0.3 } },
+    { "n": "Flame Burst", "d": "Fire bursts 5 m around you and sets everything ablaze.", "kind": "aoe", "dmg": 1.5, "type": "fire", "radius": 5, "cd": 7, "mp": 15, "status": { "burn": 1 } },
+    { "n": "Molten Spit", "d": "A glob of lava that bursts 3.5 m wide.", "kind": "bolt", "dmg": 2.2, "type": "fire", "aoe": 3.5, "cd": 9, "mp": 25, "status": { "burn": 0.6 } },
+    { "n": "Cinder Dash", "d": "Streak 8 m ahead.", "kind": "blink", "range": 8, "cd": 8, "mp": 8 } ] },
+  "golem": { "n": "Stone Spirit", "kind": "spirit", "d": "A spirit of the earth in a body of rock. The slowest form and by far the toughest.", "body": "goleling", "scale": 1.5, "col": "b0a080",
+   "dur": 60, "cd": 55, "mp": 35, "cast": 0.8, "speed": 0.8, "jump": 0.6, "swim": false, "mods": { "hpP": 40, "def": 40, "tenacity": 50, "aspd": -15 },
+   "abilities": [
+    { "n": "Stone Fist", "d": "A slow, crushing blow that may stun.", "kind": "melee", "dmg": 1.3, "range": 2.8, "arc": 70, "cd": 0.9, "st": 9, "knock": 4, "status": { "stun": 0.15 } },
+    { "n": "Ground Slam", "d": "Slam the ground: foes within 5.5 m are stunned.", "kind": "aoe", "dmg": 1.8, "radius": 5.5, "cd": 9, "st": 18, "stun": 1.0 },
+    { "n": "Hurl Boulder", "d": "Throw a rock that bursts 2.5 m wide.", "kind": "bolt", "dmg": 1.6, "aoe": 2.5, "cd": 6, "st": 12 },
+    { "n": "Stoneskin", "d": "Harden for 8 s: far more defense, and blows hurt the attacker.", "kind": "buff", "cd": 22, "dur": 8, "buff": { "def": 60, "thorns": 30 } } ] }
+ }
+}

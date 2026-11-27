@@ -286,7 +286,7 @@ public static class Icons
     /// <summary>Gear slot/weapon type to icon id.</summary>
     public static string ForItem(string slot, string wt) => slot switch
     {
-        "weapon" => wt is "bow" or "wand" or "staff" or "greatsword" or "axe" or "mace" or "dagger" or "spear" ? wt : "sword",
+        "weapon" => Weapons.IconOf(wt),   // (A-11: the new weapon types name their icon in data/weapons.json)
         "shield" => "shield", "armor" => "armor", "trinket" => "trinket", _ => slot,
     };
 

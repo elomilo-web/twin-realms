@@ -33,7 +33,7 @@ public partial class Enemy
             if (n is not Enemy e || e == this || e.Dead || e.Puppet || e.Def.Flee || e.FromDungeon != FromDungeon) continue;
             float d2 = e.GlobalPosition.DistanceSquaredTo(GlobalPosition);
             bool mate = PackId > 0 && e.PackId == PackId && d2 < pr * pr && (e._state is State.Idle or State.Return);
-            if (mate || (e._state == State.Idle && d2 < r * r)) e.Wake();
+            if (mate || (e._state == State.Idle && d2 < r * r && !e.Def.Neutral && (!IsShade || !e.IsShade || e.ShadeMayWake()))) e.Wake();   // (neutral animals stay out of it; shades: capped, A-23)
         }
     }
 

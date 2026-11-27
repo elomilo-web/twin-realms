@@ -158,6 +158,9 @@ public static class Story
                         foreach (var kv in d.Mats.Where(kv => kv.Key.StartsWith(pre)).OrderByDescending(kv => kv.Value).ToList()) { int t = Math.Min(need, kv.Value); need -= t; if (kv.Value - t > 0) d.Mats[kv.Key] = kv.Value - t; else d.Mats.Remove(kv.Key); if (need <= 0) break; }
                     }
                     break;
+                case "unique":   // A-18: a named unique (data/uniques.json), once per hero; had it already: a rolled item instead
+                    foreach (var uid in Strs(v)) { string un = Uniques.Give(uid); if (un != "") got.Add(un); else if (Uniques.Get(uid) != null && d.Inv.Count < 28) { var alt = Items.Roll(Math.Max(2, d.Level + 1), 2); d.Inv.Add(alt); got.Add(alt.Name); } }
+                    break;
                 case "item": { var it = Items.Roll(Math.Max(2, d.Level + 1), v.GetInt32()); if (d.Inv.Count < 28) { d.Inv.Add(it); got.Add(it.Name); Ui.Note("Reward: " + it.Describe(), it.Color); } break; }
                 case "rep": foreach (var m in v.EnumerateObject()) NpcMemory.Change(m.Name, m.Value.GetInt32(), 0); break;
                 case "townRep": foreach (var m in v.EnumerateObject()) NpcMemory.ChangeTown(m.Name, m.Value.GetInt32()); break;
@@ -185,6 +188,7 @@ public static class Story
     {
         var s = St(q.Id); if (s.Status == 1) return; s.Status = 1; s.End = ""; s.Picks.Clear();
         Ui.Banner(q.Name, "quest started"); Sfx.Play("click"); Enter(q, q.Start, false);
+        PartyQuests.StoryAccepted(q.Id);   // A-29: party members without it are offered it (NetQuests.cs)
     }
     static void Enter(Quest q, string to, bool note = true)
     {
@@ -261,7 +265,7 @@ public static class Story
             {
                 var o = st.Objs[i]; if (o.Type != "kill" || s.N.GetValueOrDefault(i.ToString()) >= o.N) continue;
                 if (o.Enemy != "" && Array.IndexOf(o.Enemy.Split('|'), type) < 0 || o.Realm >= 0 && o.Realm != realm || o.Boss && !boss) continue;
-                s.N[i.ToString()] = s.N.GetValueOrDefault(i.ToString()) + 1; any = true;
+                s.N[i.ToString()] = s.N.GetValueOrDefault(i.ToString()) + 1; any = true; PartyQuests.StoryObj(q.Id, st.Id, i, s.N[i.ToString()]);   // A-29: the party gets the same count
                 Ui.Note(q.Name + ": " + ObjText(q, st, i), new Color(.89f, .69f, .29f));
             }
         }
@@ -280,7 +284,7 @@ public static class Story
             for (int i = 0; i < st.Objs.Count; i++)
             {
                 var o = st.Objs[i]; if (o.Type != "reach" || s.N.GetValueOrDefault(i.ToString()) > 0 || Place(o.Poi) is not { } pl) continue;
-                if (new Vector2(p.GlobalPosition.X - pl.at.X, p.GlobalPosition.Z - pl.at.Z).Length() < pl.r) { s.N[i.ToString()] = o.N; Ui.Note(q.Name + ": reached " + PlaceName(o.Poi), new Color(.89f, .69f, .29f)); Game.Notify(); }
+                if (new Vector2(p.GlobalPosition.X - pl.at.X, p.GlobalPosition.Z - pl.at.Z).Length() < pl.r) { s.N[i.ToString()] = o.N; PartyQuests.StoryObj(q.Id, st.Id, i, o.N); Ui.Note(q.Name + ": reached " + PlaceName(o.Poi), new Color(.89f, .69f, .29f)); Game.Notify(); }
             }
         }
         Advance();
@@ -294,9 +298,12 @@ public static class Story
             if (Now(q) is not { } st) continue;
             if (st.FailIf.ValueKind == JsonValueKind.Object && Cond(st.FailIf)) { if (st.FailTo == "fail") Fail(q, st.FailWhy); else Enter(q, st.FailTo); continue; }
             if (st.Hours > 0 && HoursLeft(q) <= 0) { if (st.OnTimeout == "fail") Fail(q, st.FailWhy != "" ? st.FailWhy : "you ran out of time"); else Enter(q, st.OnTimeout); continue; }
-            if (st.Talks.Count == 0 && ObjsDone(q, st)) Enter(q, st.Then);   // nobody to report to: straight on (or done)
+            if (st.Talks.Count == 0 && ObjsDone(q, st)) { PartyQuests.StoryStage(q.Id, st.Id, st.Then); Enter(q, st.Then); }   // nobody to report to: straight on (or done); A-29: party members at this stage move on too
         }
     }
+    // A-29 (NetQuests.cs): a party member's step applied to this hero: the stage they finished, and the checks after a shared objective count
+    public static void PartyEnter(Quest q, string to) => Enter(q, to);
+    public static void PartyAdvance() => Advance();
 
     // ------------------------------------------------------------------ dialog (Ui.Talk asks for this NPC's options)
     /// <summary>What this NPC can be asked about now: quests it offers and the conversations of active quests.</summary>
@@ -316,8 +323,9 @@ public static class Story
     public static string Pick(Quest q, Talk t, int i)
     {
         if (Now(q) is not { } st) return ""; var s = St(q.Id);
-        if (i < 0 || i >= t.Choices.Count) { Enter(q, st.Then); return ""; }
+        if (i < 0 || i >= t.Choices.Count) { PartyQuests.StoryPick(q.Id, st.Id, st.Talks.IndexOf(t), -1); Enter(q, st.Then); return ""; }
         var c = t.Choices[i]; s.Picks.Add(st.Id + ":" + i);
+        if (c.Goto != "stay") PartyQuests.StoryPick(q.Id, st.Id, st.Talks.IndexOf(t), i);   // A-29: the choice counts for party members at this stage (NetQuests.cs)
         string got = Apply(c.Do); if (got != "") Ui.Note(got, new Color(1f, .82f, .29f));
         if (c.Goto != "stay") Enter(q, c.Goto == "" ? st.Then : c.Goto);
         return c.Reply;

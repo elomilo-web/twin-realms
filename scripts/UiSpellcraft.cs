@@ -120,6 +120,7 @@ public partial class Ui
         Chip(top, $"Sections  {open}/{nSec}", false);
         var help = Lbl("Pick a slot, then click a card below. Each section goes off where the one before it ends.", 13, Dim, top);
         help.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; help.ClipText = true; help.VerticalAlignment = VerticalAlignment.Center;
+        ScHelpHook(top);   // A-17: "How it works" and the first-time hint (UiSpellHelp.cs)
         int tfree = Spellcraft.TreeFree(d);
         var tb = Btn(tfree > 0 ? $"Spell tree  ({tfree} to spend)" : "Spell tree", () => { _scTree = true; OpenSpellTree(); }, true);
         if (tfree > 0) tb.AddThemeColorOverride("font_color", UiTheme.Highlight);
@@ -512,6 +513,7 @@ public partial class Ui
         string kind = c.Type == "carrier" ? $"Carrier  ·  {c.Family}" : c.Type == "effect" ? $"Effect  ·  {c.EType}" : "Modifier";
         l.Add((kind + (c.Req > 1 ? $"  ·  level {c.Req}" : ""), Spellcraft.CardColor(c).Lerp(UiTheme.Dim, .3f), 12));
         l.Add((c.Desc, Colors.White, 14));
+        ScCardHelp(c, l);   // A-17: when to use it, its exact numbers, what its card type means (data/spellhelp.json)
         if (c.Hint != "") l.Add((c.Hint, UiTheme.Dim, 12));
         else if (c.Type == "effect") l.Add(("Each extra copy: more damage, statuses last longer.", UiTheme.Dim, 12));
         else if (c.Type == "modifier") l.Add(("Extra copies stack.", UiTheme.Dim, 12));

@@ -660,8 +660,12 @@ public partial class Avatar : Node3D
         // weapon and shield
         var w = eq("weapon"); var wcfg = Cfg.GetProperty("weapons");
         bool twoHanded = Weapons.Get(wt).Hands > 1 || Weapons.Get(wt).LeftHand;
-        if (wcfg.TryGetProperty(wt, out var wc)) HoldWeapon(wt, wc, w);
-        var sh = eq("shield"); if (sh != null && !twoHanded) HoldShield(sh);
+        var sh = eq("shield"); OffBase = OffTip = null;
+        // A-12 dual wield: a weapon in the shield slot is held in the left hand; the main weapon then always sits in the right
+        bool offWeapon = sh != null && !twoHanded && sh.Slot == "weapon" && sh.Wt != null && w != null;
+        if (wcfg.TryGetProperty(wt, out var wc)) HoldWeapon(wt, wc, w, offWeapon ? 1 : 0);
+        if (offWeapon) { if (wcfg.TryGetProperty(sh!.Wt!, out var oc)) HoldWeapon(sh.Wt!, oc, sh, 2); }
+        else if (sh != null && !twoHanded && sh.Slot != "weapon") HoldShield(sh);
         CharRim.Apply(this); ApplyHeadLayer();
     }
 
@@ -684,17 +688,28 @@ public partial class Avatar : Node3D
         }
     }
 
-    void HoldWeapon(string wt, JsonElement wc, Item? it)
+    /// <summary>The off-hand weapon's trail marks when dual wielding (A-12); null otherwise.</summary>
+    public Node3D? OffBase, OffTip;
+    /// <param name="hand">0 = the type's own hand (data/avatar.json); 1 = forced into the right hand (main weapon while dual wielding);
+    /// 2 = the off-hand weapon: left hand, in the "shield" slot nodes, its marks in OffBase / OffTip.</param>
+    void HoldWeapon(string wt, JsonElement wc, Item? it, int hand = 0)
     {
-        bool left = S(wc, "hand") == "left"; var hold = Cfg.GetProperty("hold").GetProperty(left ? "left" : "right");
+        bool cfgLeft = S(wc, "hand") == "left", left = hand == 2 || (hand == 0 && cfgLeft); var hold = Cfg.GetProperty("hold").GetProperty(left ? "left" : "right");
         var (hp, hr) = WeaponHold(wt, Weapons.KitModelFor(wt, it).Model);
-        var h = Holder(left ? "hand_l" : "hand_r", hp, hr, "weapon");
+        if (left != cfgLeft)
+        {   // the other hand than the type was fitted for: that hand's own position, the type's rotation mirrored (x, -y, 180 - z)
+            hp = V(hold, "pos", Vector3.Zero); var r0 = wc.TryGetProperty("rot", out _) ? V(wc, "rot", Vector3.Zero) : V(Cfg.GetProperty("hold").GetProperty(cfgLeft ? "left" : "right"), "rot", Vector3.Zero);
+            hr = new Vector3(r0.X, -r0.Y, 180f - r0.Z);
+        }
+        var h = Holder(left ? "hand_l" : "hand_r", hp, hr, hand == 2 ? "shield" : "weapon");
         if (wc.TryGetProperty("proc", out _))
         {
             // no model yet: the procedural weapon, turned to point along +Z like the models
             var turn = new Node3D { Rotation = new Vector3(0, Mathf.Pi, 0) }; h.AddChild(turn);
-            var (b, t) = Weapons.Build(turn, wt, it); BladeBase = b; BladeTip = t; GearFx.Apply(turn, it, true, 0, .9f); return;
+            var (b, t) = Weapons.Build(turn, wt, it); if (hand == 2) { OffBase = b; OffTip = t; } else { BladeBase = b; BladeTip = t; }
+            GearFx.Apply(turn, it, true, 0, .9f); return;
         }
+        if (hand == 2) return;   // (only the built models are fitted for the off hand)
         string model = S(wc, "model"); if (it != null && Cfg.TryGetProperty("weaponNames", out var wn)) foreach (var p in wn.EnumerateObject()) if (it.Name.Contains(p.Name)) { model = p.Value.GetString() ?? model; break; }
         float len = JsonUtil.F(wc, "len", 1f), grip = JsonUtil.F(wc, "grip", 0f);
         var inst = LoadModel(WeaponDir + model + ".fbx", len); if (inst == null) return;

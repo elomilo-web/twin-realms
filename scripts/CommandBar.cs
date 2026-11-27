@@ -43,6 +43,7 @@ public partial class CommandBar : CanvasLayer
         _edit.AddThemeStyleboxOverride("normal", eb); _edit.AddThemeStyleboxOverride("focus", eb); v.AddChild(_edit);
         _edit.TextSubmitted += OnSubmit; _edit.TextChanged += _ => { _tabAt = -1; Refresh(); };
         LoadHistory();
+        AddChild(new ChatBox { Name = "ChatBox" });   // A-31: the chat box (UiChat.cs); it also registers the chat commands (/w /r /p /l /g ...) this bar runs
     }
     public override void _ExitTree() { if (_i == this) _i = null; }
 

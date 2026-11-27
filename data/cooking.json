@@ -14,6 +14,16 @@
   "frost_chowder":   { "n": "Frost Char Chowder", "cost": { "fish_icechar": 1, "redcap": 2 },           "heal": 0.30, "buff": { "res_frost": 15 },            "dur": 300, "xp": 14, "value": 40, "learn": "discover", "color": "#9ac8e0" },
   "moon_broth":      { "n": "Moonpetal Broth",    "cost": { "moonpetal": 2, "fish_*": 1 },              "heal": 0.20, "buff": { "spellP": 10 },               "dur": 300, "xp": 14, "value": 38, "learn": "book:150", "color": "#a07ae0" },
   "smoked_pike":     { "n": "Smoked Pike",        "cost": { "fish_pike": 1, "timber": 1 },              "heal": 0.40, "buff": { "crit": 4 },                  "dur": 300, "xp": 16, "value": 48, "learn": "book:220", "color": "#8a6a48" },
-  "koi_feast":       { "n": "Golden Koi Feast",   "cost": { "fish_koi": 1, "moonpetal": 1, "sunleaf": 1 }, "heal": 0.60, "buff": { "xpP": 10 },               "dur": 600, "xp": 30, "value": 120, "learn": "book:400", "color": "#f0b030" }
+  "koi_feast":       { "n": "Golden Koi Feast",   "cost": { "fish_koi": 1, "moonpetal": 1, "sunleaf": 1 }, "heal": 0.60, "buff": { "xpP": 10 },               "dur": 600, "xp": 30, "value": 120, "learn": "book:400", "color": "#f0b030" },
+  "bread":           { "n": "Farm Bread",         "cost": { "wheat": 3 },                               "heal": 0.25, "buff": { "st": 10 },                   "dur": 180, "xp": 5,  "value": 14, "learn": "start",    "color": "#d8a860" },
+  "baked_potato":    { "n": "Baked Potato",       "cost": { "potato": 2 },                              "heal": 0.25, "buff": { "hp": 15 },                   "dur": 180, "xp": 5,  "value": 12, "learn": "start",    "color": "#c8a86a" },
+  "veg_stew":        { "n": "Vegetable Stew",     "cost": { "carrot": 2, "potato": 2 },                 "heal": 0.40, "buff": { "regenHp": 3 },               "dur": 240, "xp": 9,  "value": 26, "learn": "discover", "color": "#d07a3a" },
+  "omelette":        { "n": "Farmhouse Omelette", "cost": { "egg": 2, "milk": 1 },                      "heal": 0.35, "buff": { "stRegenP": 25 },             "dur": 240, "xp": 9,  "value": 26, "learn": "discover", "color": "#f0d870" },
+  "pumpkin_pie":     { "n": "Pumpkin Pie",        "cost": { "pumpkin": 1, "wheat": 2, "egg": 1 },       "heal": 0.50, "buff": { "def": 10, "hp": 20 },        "dur": 300, "xp": 16, "value": 48, "learn": "level:6",  "color": "#e8862a" },
+  "berry_tart":      { "n": "Berry Tart",         "cost": { "berries": 3, "wheat": 2, "milk": 1 },      "heal": 0.30, "buff": { "move": 6, "crit": 2 },       "dur": 300, "xp": 14, "value": 40, "learn": "level:5",  "color": "#c22a54" },
+  "elf_cake":        { "n": "Starlight Honey Cake", "cost": { "wheat": 2, "milk": 1, "berries": 2 },    "heal": 0.30, "buff": { "regenMp": 2, "move": 3 },    "dur": 300, "xp": 12, "value": 34, "learn": "discover", "color": "#f4d8a0" },
+  "maid_omurice":    { "n": "Heartfelt Omelette Rice", "cost": { "egg": 2, "wheat": 1, "carrot": 1 },   "heal": 0.45, "buff": { "hp": 20, "regenHp": 2 },     "dur": 300, "xp": 12, "value": 36, "learn": "discover", "color": "#f0c040" },
+  "moon_tea":        { "n": "Moonpetal Milk Tea", "cost": { "moonpetal": 1, "milk": 1 },                "heal": 0.10, "buff": { "spellP": 6, "regenMp": 1 },  "dur": 300, "xp": 10, "value": 30, "learn": "discover", "color": "#c8a8f0" },
+  "spiced_cider":    { "n": "Spiced Berry Cider", "cost": { "berries": 4, "sunleaf": 1 },               "heal": 0.10, "buff": { "meleeP": 5, "st": 10 },      "dur": 300, "xp": 10, "value": 28, "learn": "discover", "color": "#b8502a" }
  }
 }

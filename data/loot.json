@@ -118,6 +118,8 @@
     "base": {
       "sword": ["ironscrap", 2, 4], "greatsword": ["ironscrap", 3, 5], "axe": ["ironscrap", 2, 4], "mace": ["ironscrap", 2, 4], "dagger": ["ironscrap", 1, 3], "spear": ["ironscrap", 2, 4],
       "bow": ["leatherstrip", 2, 4], "wand": ["arcanedust", 2, 4], "staff": ["arcanedust", 3, 5],
+      "katana": ["ironscrap", 2, 4], "rapier": ["ironscrap", 2, 3], "scimitar": ["ironscrap", 2, 4], "halberd": ["ironscrap", 3, 5], "warhammer": ["ironscrap", 3, 6], "flail": ["ironscrap", 2, 4], "scythe": ["ironscrap", 3, 5],
+      "claws": ["ironscrap", 1, 3], "greataxe": ["ironscrap", 3, 5], "whip": ["leatherstrip", 2, 4], "crossbow": ["leatherstrip", 2, 4], "javelin": ["ironscrap", 1, 3], "kunai": ["ironscrap", 1, 3],
       "armor": ["ironscrap", 3, 5], "shield": ["ironscrap", 2, 4], "head": ["ironscrap", 1, 3], "hands": ["leatherstrip", 1, 3], "feet": ["leatherstrip", 1, 3], "cape": ["leatherstrip", 2, 3], "trinket": ["arcanedust", 2, 3]
     },
     "rarity": [

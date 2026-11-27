@@ -65,6 +65,7 @@ public partial class ItemSlot : Control
                 DrawString(F, new Vector2(4, r.Size.Y - 5), $"{Item.Lvl}", HorizontalAlignment.Left, -1, 11, UiTheme.Dim.Lightened(.3f));
                 if (Item.Up > 0) DrawString(F, new Vector2(0, 14), $"+{Item.Up}", HorizontalAlignment.Right, r.Size.X - 4, 11, UiTheme.Highlight);
             }
+            Durability.DrawBar(this, Item, r);   // A-13: the durability bar (hidden at full; a red slash when worn out)
             // gem sockets: a dot per socket down the right edge, filled in the gem's colour
             for (int i = 0; i < Item.Sockets; i++)
             {
@@ -198,10 +199,12 @@ public partial class ItemTip : PanelContainer
                 dl.AddThemeFontSizeOverride("font_size", 13); dl.AddThemeColorOverride("font_color", up ? new Color("5be37d") : new Color("ff6a5f")); h.AddChild(dl);
             }
         }
+        foreach (var (tx, ts, tc) in Durability.TipLines(it)) L(tx, ts, tc);   // A-11 size, A-12 off-hand hint, A-13 durability
         if (it.Mods != null || it.Wings || it.Unique || LootTables.SetOf(it.Set) != null) Rule();
         if (it.Mods != null) foreach (var kv in it.Mods) L(TreeDb.StatText(kv.Key, kv.Value), 13, new Color(.75f, .92f, 1f));
         if (it.Wings) L($"Flight: press {Inputs.KeyOf(Inputs.Jump)} in the air to fly. Hold it to climb, {Inputs.KeyOf(Inputs.Roll)} to dive. Drains stamina; 3x running speed.", 12, new Color("ffd27a"));
         if (it.Unique) L("Unique", 13, new Color("ffd27a"));
+        if (Uniques.Tip(it) is { flavour: not "" } ut) { L("\"" + ut.flavour + "\"", 12, new Color("c9bfa6")); if (ut.from != "") L("Quest reward: " + ut.from, 11, UiTheme.Dim); }   // A-18: a quest unique's flavour text
         if (LootTables.SetOf(it.Set) is { } set)
         {
             // set bonuses: lit when you wear enough pieces

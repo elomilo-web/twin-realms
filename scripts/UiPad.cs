@@ -144,10 +144,10 @@ public partial class Ui
     // ---------------------------------------------------------------- Settings > Controller
     public void OpenPad()
     {
-        var v = Frame("pad", "Settings", new Vector2(940, 600), OpenPad); var s = Game.Set;
+        var v = Frame("pad", "Settings", new Vector2(SetW, SetH), OpenPad); var s = Game.Set;
         v = SettingsShell(v, "pad");
-        var sc = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled, CustomMinimumSize = new Vector2(0, 300), FollowFocus = true }; v.AddChild(sc);
-        var list = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; list.AddThemeConstantOverride("separation", 10); sc.AddChild(list);
+        var sc = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled, CustomMinimumSize = new Vector2(0, 260), FollowFocus = true }; v.AddChild(sc);
+        var list = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; list.AddThemeConstantOverride("separation", UiTheme.RowGap); sc.AddChild(list);
         static string Pct(float x) => $"{x * 100:0}%";
         Header("Controller", list);
         string conn = Inputs.HasPad ? $"Connected: {Inputs.PadLabel(Inputs.Pads[0])}  ({(Inputs.PadStyle == "playstation" ? "PlayStation" : Inputs.PadStyle == "xbox" ? "Xbox" : "generic")} layout)" : "No controller connected. Xbox, PlayStation and most other pads work as soon as they are plugged in.";
@@ -184,7 +184,7 @@ public partial class Ui
             Game.SaveSettings(); _padCapture = null; _padMsg = "The controller is back to its default layout."; OpenPad();
         }, true));
         bot.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Ignore });
-        var back = Btn(InGame ? "Back" : "Done", () => { _padCapture = null; _padMsg = ""; if (InGame) OpenPause(); else ShowTitle(); }); back.CustomMinimumSize = new Vector2(140, 36); bot.AddChild(back);
+        var back = Btn(InGame ? "Back" : "Done", () => { _padCapture = null; _padMsg = ""; if (InGame) OpenPause(); else ShowTitle(); }); back.CustomMinimumSize = new Vector2(110, 28); bot.AddChild(back);
     }
 
     /// <summary>One binding cell: action name and its button cap (same caps as Settings > Controls).</summary>
@@ -193,7 +193,7 @@ public partial class Ui
         var cell = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, CustomMinimumSize = new Vector2(220, 0) }; cell.AddThemeConstantOverride("separation", 8); grid.AddChild(cell);
         var l = Lbl(name, 15, Parch, cell); l.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; l.AutowrapMode = TextServer.AutowrapMode.WordSmart; l.CustomMinimumSize = new Vector2(100, 0); l.VerticalAlignment = VerticalAlignment.Center;
         var b = Btn(keyName, click ?? (() => { }), true); b.Disabled = click == null;
-        b.CustomMinimumSize = new Vector2(124, 30); b.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+        b.CustomMinimumSize = new Vector2(124, UiTheme.CtlH); b.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
         Color font = waiting ? GoldC : clash ? new Color(1f, .7f, .65f) : changed ? new Color(.75f, 1f, .8f) : Parch;
         StyleBoxFlat Cap(Color bg, Color bd) => new() { BgColor = bg, BorderColor = bd, BorderWidthLeft = 1, BorderWidthRight = 1, BorderWidthTop = 1, BorderWidthBottom = 3, CornerRadiusTopLeft = 3, CornerRadiusTopRight = 3, CornerRadiusBottomLeft = 3, CornerRadiusBottomRight = 3, ContentMarginLeft = 8, ContentMarginRight = 8, ContentMarginTop = 3, ContentMarginBottom = 3 };
         var norm = waiting ? Cap(new Color(.20f, .15f, .06f), GoldC) : clash ? Cap(new Color(.28f, .06f, .06f), new Color(.65f, .18f, .16f)) : Cap(new Color(.10f, .09f, .08f), UiTheme.AccentSoft);

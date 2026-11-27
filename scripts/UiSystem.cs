@@ -41,6 +41,7 @@ public partial class Ui
         Big("Save game", () => { Game.Save(); _savedAt = DateTime.Now.ToString("HH:mm"); Note("Game saved", Gold); OpenPause(); });
         if (_savedAt != "") Note13("   Saved at " + _savedAt);
         Big("Multiplayer" + (Net.Active ? $"  ({Net.I!.Players.Count} online)" : ""), OpenMultiplayer);
+        if (Net.Active) Big("Friends", OpenFriends);   // A-32 (Friends.cs); only in a shared world, so the offline menu keeps its height
         foreach (var (label, key, open) in new (string, string, Action)[] { ("Character", "", OpenCharacterPanel), ("Pack", K(Inputs.Pack), OpenPack), ("Journal", K(Inputs.Journal), OpenJournal),
                                                                              ("Map", K(Inputs.Map), OpenMap), ("Skill tree", K(Inputs.Tree), OpenTree), ("Skills", K(Inputs.SkillsUi), OpenSkills),
                                                                              ("Attacks", K(Inputs.AttacksUi), () => OpenAttacks(null)), ("Modifiers", K(Inputs.ModsUi), OpenMods), ("Pets", K(Inputs.PetsUi), () => OpenPets(null)), ("Soul Duels", "", OpenSoulTeam) })
@@ -116,10 +117,10 @@ public partial class Ui
     {
         _confirmQuit = false;
         if (_setTab is "controls" or "pad") _setTab = "audio";
-        var v = Frame("settings", "Settings", new Vector2(940, 600), OpenSettings); var s = Game.Set;
+        var v = Frame("settings", "Settings", new Vector2(SetW, SetH), OpenSettings); var s = Game.Set;
         v = SettingsShell(v, _setTab);
-        var sc = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled, CustomMinimumSize = new Vector2(0, 300) }; v.AddChild(sc);
-        var list = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; list.AddThemeConstantOverride("separation", 10); sc.AddChild(list);
+        var sc = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled, CustomMinimumSize = new Vector2(0, 260) }; v.AddChild(sc);
+        var list = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; list.AddThemeConstantOverride("separation", UiTheme.RowGap); sc.AddChild(list);
         static string Pct(float x) => $"{x * 100:0}%";
         switch (_setTab)
         {
@@ -182,30 +183,29 @@ public partial class Ui
             Game.SaveSettings(); Game.ApplyDisplay(); OpenSettings();
         }, true));
         bot.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Ignore });
-        var back = Btn(InGame ? "Back" : "Done", () => { if (InGame) OpenPause(); else ShowTitle(); }); back.CustomMinimumSize = new Vector2(140, 36); bot.AddChild(back);
+        var back = Btn(InGame ? "Back" : "Done", () => { if (InGame) OpenPause(); else ShowTitle(); }); back.CustomMinimumSize = new Vector2(110, 28); bot.AddChild(back);
     }
 
     static readonly Color GoldC = new(.78f, .62f, .30f);   // (Parch is shared, declared in Ui.cs)
+    /// <summary>F-41: the Settings pages (Audio, Display, Game, Controls, Controller) share one window size (was 940 x 600 with a 170 px tab column).</summary>
+    const float SetW = 780, SetH = 580;
+    const string OptHintIdle = "Point at a setting (or select it with the controller) to read what it does.";
+    Label? _optHint;   // the hint line at the bottom of the Settings pages
+    void ShowOptHint(string t) { if (_optHint != null && IsInstanceValid(_optHint)) _optHint.Text = t; }
 
-    /// <summary>Left column of tabs (gold marker on the active one) shared by Settings and Controls; returns the right-hand content column.</summary>
+    /// <summary>The Settings pages' shared frame (F-41): a row of tabs on top (it was a column on the left), the page in the middle and one
+    /// hint line at the bottom that shows the hint of the row under the mouse or the controller focus (the hints used to be two or three
+    /// lines under every row's name). Returns the page column to fill.</summary>
     VBoxContainer SettingsShell(VBoxContainer v, string cur)
     {
-        var h = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; h.AddThemeConstantOverride("separation", 18); v.AddChild(h);
-        var left = new VBoxContainer { CustomMinimumSize = new Vector2(170, 0) }; left.AddThemeConstantOverride("separation", 2); h.AddChild(left);
-        foreach (var (id, label) in new[] { ("audio", "Audio"), ("display", "Display"), ("game", "Game"), ("controls", "Controls"), ("pad", "Controller") })
-        {
-            string t = id; bool on = id == cur;
-            var b = Btn(label, () => { if (t == cur) return; OpenSetTab(t); });
-            b.Alignment = HorizontalAlignment.Left; b.CustomMinimumSize = new Vector2(0, 34); b.AddThemeFontSizeOverride("font_size", 18);
-            b.AddThemeColorOverride("font_color", on ? GoldC : Parch); b.AddThemeColorOverride("font_hover_color", GoldC); b.AddThemeColorOverride("font_pressed_color", UiTheme.Highlight);
-            StyleBoxFlat Sb(Color mark, Color bg) => new() { BgColor = bg, BorderColor = mark, BorderWidthLeft = 2, ContentMarginLeft = 14, ContentMarginRight = 8, ContentMarginTop = 2, ContentMarginBottom = 2 };
-            var act = Sb(GoldC, new Color(GoldC, .10f)); var none = Sb(Colors.Transparent, Colors.Transparent);
-            b.AddThemeStyleboxOverride("normal", on ? act : none); b.AddThemeStyleboxOverride("hover", act); b.AddThemeStyleboxOverride("pressed", act);
-            left.AddChild(b);
-        }
-        h.AddChild(new ColorRect { Color = UiTheme.AccentSoft, CustomMinimumSize = new Vector2(1, 0), MouseFilter = Control.MouseFilterEnum.Ignore });
-        var right = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; right.AddThemeConstantOverride("separation", 8); h.AddChild(right);
-        return right;
+        var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 4); v.AddChild(row);
+        var ids = new[] { ("audio", "Audio"), ("display", "Display"), ("game", "Game"), ("controls", "Controls"), ("pad", "Controller") };
+        var tabs = new (string, string, Action)[ids.Length];
+        for (int i = 0; i < ids.Length; i++) { string t = ids[i].Item1; tabs[i] = (t, ids[i].Item2, () => { if (t != cur) OpenSetTab(t); }); }
+        Tabs(row, cur, tabs);
+        var page = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ExpandFill }; page.AddThemeConstantOverride("separation", UiTheme.Gap); v.AddChild(page);
+        _optHint = Row(v, OptHintIdle, Dim, UiTheme.Small); _optHint.CustomMinimumSize = new Vector2(0, 38); _optHint.VerticalAlignment = VerticalAlignment.Center;   // two lines, so most hints do not move the page
+        return page;
     }
 
     /// <summary>Thin gold-filled slider with a dark track.</summary>
@@ -222,22 +222,31 @@ public partial class Ui
         else { b.RemoveThemeStyleboxOverride("normal"); b.RemoveThemeColorOverride("font_color"); }
     }
 
-    /// <summary>Settings row: name and a short hint on the left, the control on the right.</summary>
+    /// <summary>Settings row: the name on the left, the control on the right. On a Settings page (F-41) the row is one line and its hint
+    /// shows in the page's hint line while the mouse is on the row or the controller focus is on its control; in any other window
+    /// (the macro builder) the hint stays under the name as before.</summary>
     HBoxContainer OptRow(Node parent, string name, string hint)
     {
-        var h = new HBoxContainer(); h.AddThemeConstantOverride("separation", 14); parent.AddChild(h);
-        var left = new VBoxContainer { CustomMinimumSize = new Vector2(290, 0) }; left.AddThemeConstantOverride("separation", 0); h.AddChild(left);
-        Lbl(name, 16, Parch, left);
-        if (hint != "") { var l = Lbl(hint, 13, Dim, left); l.AutowrapMode = TextServer.AutowrapMode.WordSmart; l.CustomMinimumSize = new Vector2(290, 0); }
+        var h = new HBoxContainer(); h.AddThemeConstantOverride("separation", 10); parent.AddChild(h);
+        bool foot = _optHint != null && IsInstanceValid(_optHint) && _panel != null && _panel.IsAncestorOf(_optHint);
+        var left = new VBoxContainer { CustomMinimumSize = new Vector2(foot ? 260 : 290, 0) }; left.AddThemeConstantOverride("separation", 0); h.AddChild(left);
+        var nl = Lbl(name, UiTheme.Body, Parch, left); nl.SizeFlagsVertical = Control.SizeFlags.ExpandFill; nl.VerticalAlignment = VerticalAlignment.Center;
+        if (foot)
+        {
+            string say = hint == "" ? name.Trim() : name.Trim() + ": " + hint;
+            void Hook(Control c) { c.FocusEntered += () => ShowOptHint(say); c.ChildEnteredTree += n => { if (n is Control cc) Hook(cc); }; }   // the controls are added to the row after this
+            h.MouseEntered += () => ShowOptHint(say); h.ChildEnteredTree += n => { if (n is Control c) Hook(c); };
+        }
+        else if (hint != "") { var l = Lbl(hint, 13, Dim, left); l.AutowrapMode = TextServer.AutowrapMode.WordSmart; l.CustomMinimumSize = new Vector2(290, 0); }
         return h;
     }
 
     void SliderRow(Node parent, string name, string hint, float val, float min, float max, float step, Func<float, string> fmt, Action<float> set, bool display = false, string sample = "")
     {
         var h = OptRow(parent, name, hint);
-        var sl = new HSlider { MinValue = min, MaxValue = max, Step = step, Value = val, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ShrinkCenter, CustomMinimumSize = new Vector2(200, 24), FocusMode = Control.FocusModeEnum.None };
+        var sl = new HSlider { MinValue = min, MaxValue = max, Step = step, Value = val, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ShrinkCenter, CustomMinimumSize = new Vector2(180, 20), FocusMode = Control.FocusModeEnum.None };
         StyleSlider(sl); h.AddChild(sl);
-        var vl = Lbl(fmt(val), 15, GoldC, h); vl.CustomMinimumSize = new Vector2(64, 0); vl.HorizontalAlignment = HorizontalAlignment.Right;
+        var vl = Lbl(fmt(val), 14, GoldC, h); vl.CustomMinimumSize = new Vector2(60, 0); vl.HorizontalAlignment = HorizontalAlignment.Right; vl.VerticalAlignment = VerticalAlignment.Center;
         sl.ValueChanged += x => { set((float)x); vl.Text = fmt((float)x); Game.SaveSettings(); if (display) Game.ApplyDisplay(); };
         if (sample != "") sl.DragEnded += _ => Sfx.Play(sample);
     }
@@ -251,17 +260,17 @@ public partial class Ui
         {
             h.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Ignore });
             var cb = new CheckButton { ButtonPressed = cur == 1, FocusMode = Control.FocusModeEnum.None, SizeFlagsVertical = Control.SizeFlags.ShrinkCenter, Text = cur == 1 ? "On" : "Off" };
-            cb.AddThemeColorOverride("font_color", Parch); cb.AddThemeFontSizeOverride("font_size", 15);
+            cb.AddThemeColorOverride("font_color", Parch); cb.AddThemeFontSizeOverride("font_size", 14);
             cb.Toggled += on => { cb.Text = on ? "On" : "Off"; Sfx.Play("click"); Commit(on ? 1 : 0); };
             h.AddChild(cb); return;
         }
         h.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Ignore });
         var box = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ShrinkCenter }; box.AddThemeConstantOverride("separation", 6); h.AddChild(box);
         int idx = Math.Clamp(cur, 0, labels.Length - 1);
-        var val = new Label { Text = labels[idx], HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, CustomMinimumSize = new Vector2(130, 0) };
-        val.AddThemeFontSizeOverride("font_size", 16); val.AddThemeColorOverride("font_color", GoldC);
+        var val = new Label { Text = labels[idx], HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, CustomMinimumSize = new Vector2(120, 0) };
+        val.AddThemeFontSizeOverride("font_size", UiTheme.Body); val.AddThemeColorOverride("font_color", GoldC);
         void Step(int d) { idx = (idx + d + labels.Length) % labels.Length; val.Text = labels[idx]; Commit(idx); }
-        var l = Btn("<", () => Step(-1), true); l.CustomMinimumSize = new Vector2(32, 30); var r = Btn(">", () => Step(1), true); r.CustomMinimumSize = new Vector2(32, 30);
+        var l = Btn("<", () => Step(-1), true); l.CustomMinimumSize = new Vector2(28, UiTheme.CtlH); var r = Btn(">", () => Step(1), true); r.CustomMinimumSize = new Vector2(28, UiTheme.CtlH);
         box.AddChild(l); box.AddChild(val); box.AddChild(r);
     }
 }

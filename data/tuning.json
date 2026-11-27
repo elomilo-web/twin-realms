@@ -101,7 +101,7 @@
     "progression.json": {
       "_help": "Levelling and monster scaling. See the _help notes inside data/progression.json for every field.",
       "xp": { "base": 40, "lin": 20, "quad": 6, "cube": 0.15 },
-      "levelUp": { "attr": 2, "rank": 1, "tree": 2 },
+      "levelUp": { "attr": 2, "rank": 1, "tree": 3, "treeRetroPerLevel": 1, "treeRetroBeforeVersion": 3 },
       "scaling": {
         "_help": "Monsters measured against a reference hero of their level (see scaling._help in data/progression.json). The old hpLin/hpExp/dmgLin/dmgExp curve is gone.",
         "hero": { "hit": 12, "hitPerLevel": 7.5, "hp": 110, "hpPerLevel": 50 },

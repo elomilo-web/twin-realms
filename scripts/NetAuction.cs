@@ -23,7 +23,7 @@ namespace TwinRealms;
 /// bid, payout or trade is never lost or doubled by timing or a disconnect.
 /// Limit (docs/ONLINE.md "Known limits"): the save itself is still uploaded by the player's game, so a modified game could forge AhSeq.
 /// </summary>
-public static class AuctionServer
+public static partial class AuctionServer   // (partial: Trade.cs adds the item / gold trade of A-30 on the same lock, book and deltas)
 {
     static AhBook? _book; static string _bookDir = ""; static bool _own;
     static readonly object Gate = new();

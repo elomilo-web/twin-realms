@@ -20,6 +20,10 @@ public static class Progression
     static bool _loaded;
     static float _xb = 40, _xl = 20, _xq = 6, _xc = .15f;
     public static int AttrPerLevel = 3, RankPerLevel = 1, TreePerLevel = 2;
+    /// <summary>A-15: tree points per level went up (2 -> 3) with the advanced tree. A hero saved with a tree layout older than
+    /// TreeRetroBefore gets TreeRetroPerLevel points for every level already gained, once, when the tree is refunded (Game.Load).</summary>
+    public static int TreeRetroPerLevel, TreeRetroBefore;
+    public static int TreeRetro(int savedTreeVer, int level) { Load(); return savedTreeVer < TreeRetroBefore ? TreeRetroPerLevel * Math.Max(0, level - 1) : 0; }
     public static int DunOffset = 2, DunPerDepth = 1, DunBoss = 1;
     public static float PartyXpPool = .9f, PartyDropMul = 1.15f; public static int PartyDunOffset = 3;
     /// <summary>Each member's share of a party kill's experience: the pool split evenly (solo: all of it).</summary>
@@ -44,7 +48,7 @@ public static class Progression
         if (_loaded) return; _loaded = true;
         var r = JsonUtil.Load("res://data/progression.json").RootElement;
         if (r.TryGetProperty("xp", out var x)) { _xb = JsonUtil.F(x, "base", _xb); _xl = JsonUtil.F(x, "lin", _xl); _xq = JsonUtil.F(x, "quad", _xq); _xc = JsonUtil.F(x, "cube", _xc); }
-        if (r.TryGetProperty("levelUp", out var l)) { AttrPerLevel = (int)JsonUtil.F(l, "attr", 3); RankPerLevel = (int)JsonUtil.F(l, "rank", 1); TreePerLevel = (int)JsonUtil.F(l, "tree", 2); }
+        if (r.TryGetProperty("levelUp", out var l)) { AttrPerLevel = (int)JsonUtil.F(l, "attr", 3); RankPerLevel = (int)JsonUtil.F(l, "rank", 1); TreePerLevel = (int)JsonUtil.F(l, "tree", 2); TreeRetroPerLevel = (int)JsonUtil.F(l, "treeRetroPerLevel", 0); TreeRetroBefore = (int)JsonUtil.F(l, "treeRetroBeforeVersion", 0); }
         if (r.TryGetProperty("party", out var pa)) { PartyXpPool = JsonUtil.F(pa, "xpPool", .9f); PartyDropMul = JsonUtil.F(pa, "dropMul", 1.15f); PartyDunOffset = (int)JsonUtil.F(pa, "dungeonOffset", 3); PartyStatMul = JsonUtil.F(pa, "statMul", 1.5f); _partyMin = (int)JsonUtil.F(pa, "minPlayers", 2); }
         if (r.TryGetProperty("scaling", out var s))
         {

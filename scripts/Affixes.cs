@@ -27,6 +27,8 @@ public static class Affixes
         ("healP", 5, 10, .12f), ("healIn", 4, 8, .08f),
         // fortune
         ("xpP", 3, 8, .08f), ("goldP", 6, 15, .2f), ("luck", 4, 10, .12f),
+        // A-14: attribute points (they count like points spent on that attribute; data/stats.json "attributes"), buff duration, gear wear
+        ("wis", 1, 3, .06f), ("agi", 1, 3, .06f), ("lck", 1, 3, .06f), ("end", 1, 3, .06f), ("buffDurP", 5, 10, .12f), ("wearP", -20, -10, -.1f),
     };
 
     /// <summary>How many bonus stats an item of this rarity rolls: epic 2-4, legendary 3-5 (none below epic).</summary>
@@ -49,7 +51,7 @@ public static class Affixes
         }
     }
     /// <summary>Flat stats round to whole numbers; percentages to one decimal.</summary>
-    public static float Round(string key, float v) => key is "hp" or "mp" or "st" or "def" or "mr" ? Mathf.Round(v) : Mathf.Round(v * 10f) / 10f;
+    public static float Round(string key, float v) => key is "hp" or "mp" or "st" or "def" or "mr" or "wis" or "agi" or "lck" or "end" ? Mathf.Round(v) : Mathf.Round(v * 10f) / 10f;
 
     /// <summary>Each smith hone (+1 to +10) raises the item's base stats and bonus stats by this share.</summary>
     public const float HonePer = .08f;

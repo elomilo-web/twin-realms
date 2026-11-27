@@ -100,7 +100,19 @@
                                       "Bardiche",
                                       "Winged Spear",
                                       "War Scythe"
-                                  ]
+                                  ],
+                        "rapier":  [ "Foil", "Smallsword", "Rapier", "Epee", "Tuck" ],
+                        "scimitar":  [ "Cutlass", "Scimitar", "Talwar", "Kilij", "Shamshir" ],
+                        "halberd":  [ "Bill", "Halberd", "Voulge", "Guisarme", "Poleaxe" ],
+                        "warhammer":  [ "Sledge", "Maul", "Great Hammer", "War Maul", "Earthbreaker" ],
+                        "flail":  [ "Scourge", "Flail", "Chain Mace", "Ball and Chain", "Holy Water Sprinkler" ],
+                        "scythe":  [ "Sickle Staff", "Scythe", "Harvester", "Crescent", "Reaper" ],
+                        "claws":  [ "Knuckles", "Claws", "Tiger Claws", "Talons", "Katar" ],
+                        "greataxe":  [ "Battleaxe", "Greataxe", "Dane Axe", "Labrys", "Headsman" ],
+                        "whip":  [ "Lash", "Whip", "Bullwhip", "Chain Whip", "Scorpion Tail" ],
+                        "crossbow":  [ "Hand Crossbow", "Crossbow", "Repeater", "Arbalest", "Siege Bow" ],
+                        "javelin":  [ "Dart", "Javelin", "Throwing Spear", "Pilum", "Harpoon" ],
+                        "kunai":  [ "Needles", "Throwing Knives", "Kunai", "Throwing Daggers", "Chakram" ]
                     },
     "itemNames":  {
                       "weapon":  [

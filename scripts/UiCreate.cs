@@ -161,6 +161,7 @@ public partial class Ui
                     Stats("RACE BONUSES", rd.Attr, rd.Mods, rd.Pts > 0 ? $"+{rd.Pts} skill point" : "");
                     foreach (var p in rd.Passives) Row(info, $"Racial passive - {p.Name}: {string.Join(", ", p.Mods.Select(kv => TreeDb.StatText(kv.Key, kv.Value)))}", Parch, 13);
                     Row(info, cd.Desc, Parch, 14);
+                    ClassGuideRows(info, cd, 13);   // A-17: role, weapon, resource, signature skills (data/classes.json "guide")
                     Stats("CLASS BONUSES", cd.Attr, cd.Mods, "");
                     foreach (var p in cd.Passives) Row(info, $"{p.Name}: {string.Join(", ", p.Mods.Select(kv => TreeDb.StatText(kv.Key, kv.Value)))}", Parch, 13);
                     Row(info, $"Weapon: {(cd.Wt == "unarmed" ? "bare fists" : $"{cd.WName} ({Weapons.Get(cd.Wt).Name}{(cd.Shield ? " and shield" : "")})")}" + (cd.Gear.Count > 0 ? "   Gear: " + string.Join(", ", cd.Gear.Values.Select(g => g.n)) : ""), Parch, 13);

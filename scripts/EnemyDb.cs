@@ -40,6 +40,16 @@ public class EnemyDef
     public float Lift { get; set; }
     public float Size { get; set; }                 // extra scale for a model whose bounds mislead (0 = none)
     public string Tint { get; set; } = "";          // hex colour multiplied over the model (e.g. a glowing shadow fox)
+    // animals (A-21, EnemyCreature.cs): proc = a procedural body from data/creatures.json (drawn instead of the .glb), neutral = only fights when struck,
+    // livestock = a farm animal (ranching), fly = a bird that circles at flyAlt metres, time = "day" | "night" (only out then), sound = an Sfx id it calls with
+    public string Proc { get; set; } = "";
+    public bool Neutral { get; set; }
+    public bool Livestock { get; set; }
+    public bool Fly { get; set; }
+    public float FlyAlt { get; set; } = 7f;
+    public string Time { get; set; } = "";
+    public string Sound { get; set; } = "";
+    public float Pitch { get; set; } = 1f;
     // defenses (League of Legends style): armor reduces physical damage, mr (magic resist) reduces elemental damage, res adds per-type % resistance
     public float Armor { get; set; } = 10;
     public float Mr { get; set; } = 10;
@@ -81,7 +91,7 @@ public static class EnemyDb
             foreach (var p in doc.RootElement.GetProperty("enemies").EnumerateObject())
             {
                 if (p.Name.StartsWith("_")) continue;   // notes
-                try { _defs[p.Name] = JsonSerializer.Deserialize<EnemyDef>(p.Value.GetRawText(), opt) ?? new EnemyDef(); }
+                try { var def = JsonSerializer.Deserialize<EnemyDef>(p.Value.GetRawText(), opt) ?? new EnemyDef(); if (def.Proc != "" && def.Model == "") def.Model = "proc:" + def.Proc; _defs[p.Name] = def; }   // a procedural animal counts as a model (its height is "h")
                 catch (Exception e) { GD.PushError($"enemy '{p.Name}': {e.Message}"); }
             }
         }

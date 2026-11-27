@@ -85,7 +85,7 @@ public partial class Player
     bool CanCast(string id, bool quiet)
     {
         if (Dead || Busy || _rollT > 0 || _stagger > 0 || Mounted || CdOf(id) > 0) return false;
-        var c = Skills.Compute(id); if (c.Def.Tags.Contains("bow") && Game.D.WType() != "bow") return false;
+        var c = Skills.Compute(id); if (!WeaponTagOk(c.Def, out _)) return false;   // "bow" / "dual" tags (PlayerDual.cs)
         return Mp >= c.Mp && St >= c.St;
     }
 
@@ -110,7 +110,7 @@ public partial class Player
             c.Charge = charge; c.Dmg *= 1 + .8f * charge; c.Radius *= 1 + .3f * charge; c.Speed *= 1 + .2f * charge; c.Mp *= 1 + .25f * charge;
             if (charge >= .999f) FloatText.Spawn(this, GlobalPosition + new Vector3(0, 2.3f, 0), "Empowered", new Color(1f, .82f, .4f), .6f);
         }
-        if (k.Tags.Contains("bow") && D.WType() != "bow") { if (!quiet) Ui.Note(k.Name + " needs a bow", new Color(1, .6f, .5f)); return false; }
+        if (!WeaponTagOk(k, out var tagWhy)) { if (!quiet) Ui.Note(tagWhy, new Color(1, .6f, .5f)); return false; }   // "bow" needs a bow or crossbow, "dual" a weapon in each hand (PlayerDual.cs)
         if (k.Kind == "resurrect") { TryResurrect(id, c); return true; }   // a channel, not a cast (PlayerDowned.cs)
         if (!PayCast(id, c, quiet ? CastPath.Macro : CastPath.Hotbar, quiet)) return false;
         PendCast(id, c.Mp, c.St);
@@ -252,7 +252,7 @@ public partial class Player
         if (Dead || !Game.D.Skills.TryGetValue(id, out var st)) return;
         if (!st.Sup.Exists(s => Skills.Sup(s)?.Auto == trigger) || _autoCd.GetValueOrDefault(id) > 0) return;
         var c = Skills.Compute(id);
-        if (c.Def.Tags.Contains("bow") && Game.D.WType() != "bow") return;
+        if (!WeaponTagOk(c.Def, out _)) return;
         // F-01: auto-casts used to pay only their own short timer and never touched the skill's cooldown, so an Arcane Loop /
         // Retaliation skill (often with Echo/Resonance) fired every few seconds and the key stayed ready. Now they go through
         // the same gate as the hotbar: off cooldown only, and they start the full cooldown.
@@ -425,7 +425,7 @@ public partial class Player
             }
             case "buff":
             {
-                Buffs.RemoveAll(b => b.id == k.Id); Buffs.Add((k.Id, new Dictionary<string, float>(k.Buff), c.Dur)); Game.RecalcTree();
+                Buffs.RemoveAll(b => b.id == k.Id); Buffs.Add((k.Id, new Dictionary<string, float>(k.Buff), c.Dur * BuffDurMul)); Game.RecalcTree();   // (A-14: Wisdom lengthens buffs)
                 SpellStyles.Buff(this, c.Type, SpellStyles.PowerOf(c), SpellStyles.BuffColor(k));
                 if (c.Radius > 0) SpellStyles.Nova(GlobalPosition, Mathf.Max(3, c.Radius), c.Type, .8f);
                 SpellFx.Skill(k.Id, "ground", GlobalPosition, FxFit(k.Id, "ground", Mathf.Max(3, c.Radius)));

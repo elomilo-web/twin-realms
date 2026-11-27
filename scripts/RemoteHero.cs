@@ -116,6 +116,7 @@ public partial class RemoteHero : Node3D, IDamageable, IInteractable
 
     public void Push(float[] p)
     {
+        _mountCode = p[30]; if (p[30] >= 9.5f) p[30] = 1;   // 10 + species: riding that creature (RemoteHeroMount.cs); the rest of this class only needs "mounted"
         _p = p; _to = new Vector3(p[0], p[1], p[2]);
         if (!Visible || GlobalPosition.DistanceTo(_to) > 12f) { GlobalPosition = _to; _yaw = p[4]; }
     }
@@ -144,10 +145,11 @@ public partial class RemoteHero : Node3D, IDamageable, IInteractable
         _rig.Pose(dt, legs, p[13], p[14], _r, _l, null);
         _rig.Cape.Rotation = new Vector3(p[25] + p[14], 0, 0);
         _trail.Emit = p[26] > .5f; _trail.Col = new Color(p[27], p[28], p[29]);
-        _horse.Visible = p[30] > .5f && p[30] < 1.5f; _horse.Rotation = new Vector3(0, _yaw, 0);
+        _horse.Visible = p[30] > .5f && p[30] < 1.5f; _horse.Rotation = new Vector3(0, _yaw, 0); MountShow(dt);
         if (p[30] > 1.5f && _boat == null) { _boat = new Node3D(); Boat.BuildModel(_boat); AddChild(_boat); }   // a friend in a boat (F-21): the same plank boat under them
         if (_boat != null) { _boat.Visible = p[30] > 1.5f; _boat.Rotation = new Vector3(0, _yaw, 0); _boat.Position = new Vector3(0, -.02f, -.15f).Rotated(Vector3.Up, _yaw); }
         if (_av != null) AnimateAvatar(dt, p);
+        FormShow(p.Length > 39 ? (int)p[39] : 0, GlobalPosition - before, dt);   // A-16: a friend in an animal or spirit form (RemoteHeroForm.cs)
         ShowStatuses(p.Length > 35 ? p[35] : 0);
     }
 
@@ -178,7 +180,7 @@ public partial class RemoteHero : Node3D, IDamageable, IInteractable
     void AnimateAvatar(float dt, float[] p)
     {
         var a = _av!; float sp = (GlobalPosition - _lastPos).Length() / Mathf.Max(dt, .001f); _lastPos = GlobalPosition;
-        _rig.Rotation = new Vector3(0, _yaw, 0); _rig.Position = new Vector3(0, p[30] > .5f && p[30] < 1.5f ? .9f : 0f, 0);   // (2 = in a boat: seated, no lift)
+        _rig.Rotation = new Vector3(0, _yaw, 0); _rig.Position = new Vector3(0, p[30] > .5f && p[30] < 1.5f ? _mountY : 0f, 0);   // (2 = in a boat: seated, no lift)
         bool swing = p[26] > .5f; bool start = swing && !_swinging; _swinging = swing;
         if (p[31] > .5f) { a.Play("die", .15f); return; }
         if (p[30] > .5f) { a.Play("sit"); return; }

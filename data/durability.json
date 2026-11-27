@@ -1,0 +1,32 @@
+{
+  "_help": "A-13 durability (scripts/Durability.cs; smith UI in scripts/UiSmithRepair.cs). max: an item's most durability = (byRarity[rarity] + perLevel x item level) x slotMul[slot] x (1 + perUpgrade x hone level); a slot not listed in slotMul (trinket) has no durability. wear: points lost; weaponPerHit = per melee swing that lands, rangedPerShot = per shot or throw, armorPerHit = every worn armor piece per blow taken, shieldPerBlock = the shield (or off-hand weapon) per blocked blow on top, deathPct = % of max lost by everything worn on death. All wear x (1 + wearP%) (Endurance lowers it). low = the share at which the HUD warns. At 0 the item stays worn but gives no stats (a weapon hits as bare hands) until repaired. tierBar: the metal bar a repair needs, by rarity. smelt: smith recipes {out: material id, n: bars made, in: {material: count}, gold}. repair: a full repair (100% missing) costs bars[rarity] of the tier bar + extraBySlot (weapons: extraByType first) + extraByRarity[rarity] + goldPerPoint[rarity] x missing points x (1 + goldPerLevel x item level); a partial repair costs the same share, rounded up (at least 1 bar). Material ids are data/gather.json materials.",
+  "max": {
+    "byRarity": [60, 80, 105, 135, 170],
+    "perLevel": 3,
+    "perUpgrade": 0.1,
+    "slotMul": { "weapon": 1.0, "shield": 1.3, "armor": 1.2, "head": 0.9, "hands": 0.8, "feet": 0.8, "cape": 0.7 }
+  },
+  "wear": { "weaponPerHit": 0.25, "rangedPerShot": 0.15, "armorPerHit": 0.5, "shieldPerBlock": 1.0, "deathPct": 8 },
+  "low": 0.2,
+  "tierBar": ["ironbar", "steelbar", "silverbar", "mithrilbar", "runedbar"],
+  "smelt": [
+    { "out": "ironbar",    "n": 1, "in": { "ironscrap": 3 },                                    "gold": 2 },
+    { "out": "ironbar",    "n": 1, "in": { "ironore": 2 },                                      "gold": 2 },
+    { "out": "steelbar",   "n": 1, "in": { "ironbar": 2, "embercore": 1 },                      "gold": 6 },
+    { "out": "steelbar",   "n": 1, "in": { "ironbar": 2, "timber": 4 },                         "gold": 8 },
+    { "out": "silverbar",  "n": 1, "in": { "ironore": 2, "arcanedust": 4, "runeshard": 1 },     "gold": 12 },
+    { "out": "silverbar",  "n": 1, "in": { "steelbar": 1, "holycore": 1, "arcanedust": 2 },     "gold": 12 },
+    { "out": "mithrilbar", "n": 1, "in": { "silverbar": 1, "runeshard": 3, "frostcore": 1 },    "gold": 25 },
+    { "out": "mithrilbar", "n": 1, "in": { "silverbar": 1, "crystal": 2, "voidessence": 1 },    "gold": 25 },
+    { "out": "runedbar",   "n": 1, "in": { "mithrilbar": 1, "runeshard": 4, "voidessence": 1 }, "gold": 50 },
+    { "out": "runedbar",   "n": 2, "in": { "mithrilbar": 2, "riftprism": 1, "stormcore": 1 },   "gold": 80 }
+  ],
+  "repair": {
+    "bars": [1, 2, 2, 3, 3],
+    "goldPerPoint": [0.3, 0.5, 0.8, 1.2, 1.8],
+    "goldPerLevel": 0.03,
+    "extraBySlot": { "weapon": { "timber": 1 }, "shield": { "timber": 2 }, "armor": { "leatherstrip": 2 }, "head": { "leatherstrip": 1 }, "hands": { "leatherstrip": 1 }, "feet": { "leatherstrip": 1 }, "cape": { "leatherstrip": 2 } },
+    "extraByType": { "bow": { "timber": 2, "leatherstrip": 1 }, "crossbow": { "timber": 2, "leatherstrip": 1 }, "whip": { "leatherstrip": 3 }, "wand": { "timber": 1, "arcanedust": 2 }, "staff": { "timber": 2, "arcanedust": 2 } },
+    "extraByRarity": [ {}, {}, { "arcanedust": 1 }, { "arcanedust": 2, "runeshard": 1 }, { "runeshard": 2, "voidessence": 1 } ]
+  }
+}

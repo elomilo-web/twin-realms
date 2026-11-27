@@ -10,6 +10,21 @@ public static class UiTheme
     public static Color Highlight = new("ffd36a"), Backdrop = new("020812a0"), Grid = new("45d6ff10");
     public static int Corner = 3, GlowSize = 14; public static float OpenTime = 0.16f;
 
+    // ---- F-41 compact menus: the ONE place for menu spacing and font sizes. All values are logical pixels: the project stretches the
+    // canvas (project.godot: stretch mode canvas_items, aspect expand, base 1152 x 648), so a 15 px font is about 17 px on a 1280 x 720
+    // window and 50 px on a 4K screen; nothing here needs a per-resolution scale. Do not go under Tiny for text people must read.
+    public const int PadX = 14, PadY = 10;        // window padding left/right, top/bottom (was 22 / 14)
+    public const int ScreenMargin = 12;           // gap kept between a window and the screen edge (was 24)
+    public const int Gap = 6;                     // between the sections of a window: title, tab row, body blocks (was 8)
+    public const int RowGap = 4;                  // between the rows of a list (was 6 to 10)
+    public const int CardPadX = 8, CardPadY = 4;  // inside a list card (was 10 / 6)
+    public const int BtnPadX = 10, BtnPadY = 3;   // inside a button (was 14 / 5)
+    public const int TitleSize = 20;              // window title (was 24)
+    public const int CloseW = 28, CloseH = 24;    // the title bar's X (was 38 x 34)
+    public const int TabSize = 16;                // tab labels (was 18)
+    public const int Body = 15, Small = 13, Tiny = 12;   // body text (theme default, was 16), secondary text, the smallest allowed
+    public const int CtlH = 26;                   // height of a one-line control in a row: small buttons, arrows, search boxes (was 30 to 36)
+
     static UiTheme()
     {
         using var doc = JsonUtil.Load("res://data/ui_theme.json"); var r = doc.RootElement;

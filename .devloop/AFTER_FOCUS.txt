@@ -63,10 +63,14 @@ STATUS KEY:   [ ] to do     [x] done     [!] blocked
           materials.
 
 --- ONLINE AND SOCIAL (ask before multiplayer tests) ---------------------------
-[ ] A-29  PARTY QUESTS: if one person in the party completes a quest, everyone in the party completes it.
-[ ] A-30  PLAYER TO PLAYER TRADING of items and gold.
-[ ] A-31  CHAT: world chat, local chat, party chat and whisper.
-[ ] A-32  FRIENDS LIST.
+[x] A-29  PARTY QUESTS: if one person in the party completes a quest, everyone in the party completes it.
+          NOTE (2026-11-27, coded, NOT run in game; needs a test with two real clients): a party member's quest step is relayed by the host to the other members of that party only (scripts/NetQuests.cs), anywhere on the server, for both quest systems. Old quests: the count is the higher of yours and the member's, a turn-in completes it for members who have it, each with their own reward. Story quests: kill / reach counts, stage changes and conversation choices apply to members at the same stage on their own save, with a note who chose what. A member who has not started the quest is offered it (/quest accept), never auto-completed. Dev: /partytest.
+[x] A-30  PLAYER TO PLAYER TRADING of items and gold.
+          NOTE (2026-11-27, coded, NOT run in game; needs a test with two real clients): player trade window (/trade <player>, the E menu on a player, or a chat name; within 12 m): pack items, materials / blocks / food, gems, potions, Soul Cubes, pets (not the companion that is out) and gold; not equipped gear or storage. Any change clears both confirmations, both confirm, 3 s countdown. Online the server builds both offers from its own saves and swaps them in one step (no duplication on disconnect), pack space checked first, logged. Friend-hosted games use the older escrow flow (a disconnect at the wrong moment can still duplicate one side). Files: Trade.cs, NetTrade.cs, UiTrade.cs; numbers in data/social.json. Dev: /tradetest.
+[x] A-31  CHAT: world chat, local chat, party chat and whisper.
+          NOTE (2026-11-27, coded, NOT run in game; needs a test with two real clients): chat through the host: World, Local (40 m, with a speech bubble over the speaker), Party and Whisper (/w, /r). Box at the lower left: Enter opens it, tabs, scrollback, timestamps, clickable names (whisper, invite, trade, add friend, block). Server side: name from its own roster, 200 characters, rate limit, /mute now really mutes, /ignore, optional profanity mask (off), rotating chat log. Party: /invite, /party leave | kick | leader; joining a party now needs a real invite (a hole in the old code). Network protocol is now 16. No gamepad way to open chat yet. Files: Chat.cs, NetChat.cs, UiChat.cs. Dev: /chattest.
+[x] A-32  FRIENDS LIST.
+          NOTE (2026-11-27, coded, NOT run in game; needs a test with two real clients): friends stored on the account: request, accept, decline, remove; online / offline notes, level and place in the list, whisper and invite buttons; the block list is the same as chat /ignore. Window: pause menu > Friends or /friends. Friend-hosted games show recent players with a local block list. Hero names are not unique, so adding by name takes the first match. Files: Friends.cs, NetFriends.cs. Dev: /friendtest.
 
 --- WORLD ----------------------------------------------------------------------
 [ ] A-33  A TAVERN with an elf maid cafe: elf maids who sing and dance.

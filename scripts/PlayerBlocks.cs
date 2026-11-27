@@ -82,6 +82,8 @@ public partial class Player
         "post" => (byte)(n.X != 0 || n.Z != 0 ? 1 + WallSide(n) : 0),   // a torch on a wall leans out from it (1 + wall side), else it stands
         "chest" => (byte)(WallSide(Vector3I.Zero) ^ 1),                 // the latch faces you
         "fence" => 0,
+        "gate" => WallSide(Vector3I.Zero),                              // A-25: a gate bars the way you look along
+        "crop" => 0,
         _ => _rot,
     };
     /// <summary>Placing against a ceiling, or high on a wall (the aimed point in the upper half of the face).</summary>
@@ -105,6 +107,7 @@ public partial class Player
         if (!captured || !BlockWorld.Enabled || BlockWorld.I?.Area is not { } a) return false;
         if (Aim() is not { } t || (new Vector3(t.b.X + .5f, t.b.Y + .5f, t.b.Z + .5f) - (GlobalPosition + Vector3.Up)).Length() > 3.6f) return false;
         byte id = a.Get(t.b.X, t.b.Y, t.b.Z); bool door = BlockUse.IsDoor(id), chest = BlockUse.IsChest(id);
+        if (SteadBlockUse(a, t.b, t.n, id) is { } steadUsed) return steadUsed;   // A-24..A-27 (Stead.cs): crops, tilling, gates, stations, home and party chests
         if (!door && !chest) return false;
         var c = BlockUse.Anchor(a, t.b.X, t.b.Y, t.b.Z); bool locked = BlockUse.Locked(a, c), may = BlockUse.MayOpen(a, c, BlockUse.Me, BlockUse.Admin);
         bool canLock = BuildMode && BlockUse.MayLock(a, c, BlockUse.Me, BlockUse.Admin);
@@ -144,8 +147,10 @@ public partial class Player
         _av?.ShowTool(on && !Mounted ? Blocks.PickModel(Game.D.Pick) : null);   // the pickaxe in the right hand, weapon and shield away
         _swingT = Mathf.Max(0, _swingT - dt);
         if (on) BarInput(captured, dt);
+        SteadTick(dt, captured);   // A-24 / A-25 / A-28 (Stead.cs): crops grow, the ranch runs, the design tools
         BlockHud(); bool lockUsed = BlockUseInput(captured);
         if (!on) { HideBlockFx(); _digT = 0; _swingCd = 0; _bTarget = null; SwingPose(false); return; }
+        if (DesignInput(dt, captured)) { _digT = 0; _swingCd = 0; SwingPose(false); return; }   // A-28 (BuildLibrary.cs): placing a saved design replaces dig / place
         if (captured && !lockUsed && Input.IsActionJustPressed(Inputs.BlockRotate)) { _rot = (byte)((_rot + 1) % 3); Ui.Note("Placing along " + (_rot == 0 ? "up" : _rot == 1 ? "east-west" : "north-south"), Ui.Dim); }
         _placeCd = Mathf.Max(0, _placeCd - dt); _placeRep -= dt;
         // A-01: one aim answer for everything below (the one the last drawn frame showed: BlockAimFrame); tests force a cell instead
@@ -200,6 +205,7 @@ public partial class Player
                     byte dm = a.GetMeta(t.b.X, t.b.Y, t.b.Z);
                     bool dug = BlockFx.Dig(t.b.X, t.b.Y, t.b.Z);
                     if (dug) MinedBlock(t.b, def);   // F-24: mining / woodcutting XP and perks
+                    if (dug) Stead.Dug(t.b, def, dm);   // A-24 / A-26: a crop gives its seed back, a forge what it held
                     if (dug && def.Shape == "door")   // the other half goes too (no second drop)
                     {
                         int oy = (dm & 4) != 0 ? t.b.Y - 1 : t.b.Y + 1; byte ob = a.Get(t.b.X, oy, t.b.Z);
@@ -216,6 +222,7 @@ public partial class Player
         string shape = _sel == "" ? "" : Blocks.Def(Blocks.Id(_sel)).Shape;
         string? why = _sel == "" ? (Owned().Any() ? "Nothing in this slot" : "No blocks in your pack") : BlockFx.CanPlace(at.X, at.Y, at.Z);
         if (why == null && shape == "door") why = BlockFx.CanPlace(at.X, at.Y + 1, at.Z);   // a door is two blocks tall
+        why ??= Stead.PlaceRule(_sel, at.X, at.Y, at.Z);   // A-24: seeds only on farmland
         byte pm = PlaceMeta(shape, t.n);
         ShowGhost(at, why == null, shape, pm);
         bool press = act && Input.IsActionJustPressed(Inputs.Heavy), hold = act && Input.IsActionPressed(Inputs.Heavy);
@@ -232,6 +239,7 @@ public partial class Player
                 {
                     BlockUse.Placed(a, at.X, at.Y, at.Z, BlockUse.Me);   // doors and chests: you own them (and may lock them)
                     NotePlaced(at);   // digging your own block back gives no mining XP (F-25 anti-spam)
+                    Stead.Placed(at, bid);   // A-24: a planted crop starts to grow
                     var m = Game.D.Mats; string k = Blocks.Item(_sel); m[k] = m.GetValueOrDefault(k) - 1; if (m[k] <= 0) m.Remove(k); Game.Notify();
                     BlockFx.PlacePuff(at.X, at.Y, at.Z, bid); _swingT = .28f; _swingSerial++; FaceBlockAim(); _barRefresh = 0;
                 }

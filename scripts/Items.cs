@@ -32,6 +32,12 @@ public class Item
     // Socketed = the gem key in each socket ("" = empty); saved with the item, not written when null.
     public int Sockets { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<string>? Socketed { get; set; }
+    // A-11: weapons roll a size factor (data/weapons.json "size", 0.85..1.2): it scales the model and the swing's reach (and a little arc)
+    // together; longer = slightly slower. 1 = the plain size (items from older saves).
+    public float Size { get; set; } = 1f;
+    // A-13: durability points left (Durability.cs, data/durability.json). -1 = full (new items and items from older saves); 0 = worn out:
+    // the item stays equipped but gives no stats until the smith repairs it.
+    public float Dur { get; set; } = -1f;
     // The socketed gems as stat tables (one per gem, in tree stat keys): the stat pipeline's "gems" stage (StatPipeline.cs)
     // adds them after gear and before passives. Derived from Socketed, never saved.
     [JsonIgnore] public List<Dictionary<string, float>>? Gems => GemDb.Tables(this);
@@ -48,6 +54,8 @@ public class Item
         if (Hp > 0) p.Add("+" + Hp + " hp");
         if (Mp > 0) p.Add("+" + Mp + " mp");
         if (GearFx.Get(Elem) is { } el) p.Add(Slot == "weapon" ? $"{Mathf.RoundToInt(el.Proc * 100)}% {el.Status}" : el.Word.ToLower() + " glow");
+        if (Slot == "weapon" && Weapons.SizeName(Size) is { Length: > 0 } sn) p.Add(sn.ToLower());   // A-11: "short", "long", "great"
+        if (Durability.Has(this)) p.Add(Durability.Broken(this) ? "worn out" : $"{Mathf.RoundToInt(Durability.Frac(this) * 100)}% durability");   // A-13
         return $"{Name} (L{Lvl}) {string.Join(", ", p)}";
     }
 }
@@ -93,8 +101,8 @@ public static class Items
             // any weapon type from data/weapons.json; damage factors live there, so item damage rolls the same for all
             // katanas drop only where asked for (Scarletta's Hollow): ordinary loot never picks them
             var types = new List<string>(Weapons.Types); types.Remove("unarmed");   // fists are not an item
-            if (wt == null || !types.Contains(wt)) { types.Remove("katana"); wt = types[(int)(GD.Randf() * types.Count) % types.Count]; }
-            it.Wt = wt; var wd = Weapons.Get(wt);
+            if (wt == null || !types.Contains(wt)) { types.Remove("katana"); wt = Weapons.RollType(types); }   // A-11: by each type's "drop" weight (data/weapons.json)
+            it.Wt = wt; var wd = Weapons.Get(wt); it.Size = Weapons.RollSize();   // A-11: Short .. Great
             float dm = wt == "wand" ? Tune.F("items.weapon.wandDamageMul", .62f) : wt == "staff" ? Tune.F("items.weapon.staffDamageMul", .8f) : 1f;
             it.Dmg = (int)Math.Floor(St("weapon", "dmg", 3, 2.2f) * m * dm);
             if (wt == "wand") it.Sp = (float)Math.Round(St("weapon", "wandSpell", .06f, .006f) * m, 2);

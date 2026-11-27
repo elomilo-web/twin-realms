@@ -59,6 +59,7 @@ public partial class Ui
 
         // ---- right: material trading
         var right = new VBoxContainer { CustomMinimumSize = new Vector2(280, 0) }; right.AddThemeConstantOverride("separation", 6); cols.AddChild(right);
+        SmithSmelt(right);   // A-13: smelt scraps and ores into metal bars (UiSmithRepair.cs)
         SmithMaterials(right);
         v.AddChild(Btn("Leave", Close));
     }
@@ -84,6 +85,7 @@ public partial class Ui
             var ut = up.CreateTween(); ut.TweenInterval(1.6); ut.TweenProperty(up, "modulate:a", 0f, .8);
         }
 
+        SmithRepair(box, it);   // A-13: durability and repair (UiSmithRepair.cs)
         // hone: current vs next stats side by side
         Header("Hone", box);
         bool maxed = it.Up >= MaxHone; float k = 1 + Affixes.HonePer;
@@ -127,6 +129,7 @@ public partial class Ui
         Header("Reroll bonus stats", box);
         int nm = it.Mods?.Count ?? 0;
         if (nm == 0) CraftHint(box, "This piece has no bonus stats (epic and legendary gear rolls them).");
+        else if (Uniques.Fixed(it)) CraftHint(box, "A quest unique: its stats are its own and cannot be re-rolled.");   // A-18
         else
         {
             int cost = Cost(RerollCost());
@@ -179,7 +182,7 @@ public partial class Ui
     /// <summary>Trade any crafting material (gathered or scrap) for another: ten for one.</summary>
     void SmithMaterials(VBoxContainer box)
     {
-        var d = Game.D; GatherDb.Mat(""); var all = GatherDb.Mats.Values.OrderBy(m => m.Name).ToList();
+        var d = Game.D; GatherDb.Mat(""); var all = GatherDb.Mats.Values.Where(m => !Durability.IsBar(m.Id)).OrderBy(m => m.Name).ToList();   // (A-13: metal bars are smelted, never traded 10 for 1)
         Header("Trade materials   10 for 1", box);
         var have = all.Where(m => d.Mats.GetValueOrDefault(m.Id) >= 10).ToList();
         if (have.Count == 0) { CraftHint(box, "You need at least 10 of a material to trade it."); return; }

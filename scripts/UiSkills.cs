@@ -60,21 +60,21 @@ public partial class Ui
     {
         var d = Game.D; Skills.GrantStarting(d);
         if (_selSkill == "" || Skills.Get(_selSkill) == null) { _selSkill = d.Bar.Length > 0 && !string.IsNullOrEmpty(d.Bar[0]) ? d.Bar[0] : "fire"; _openSocket = -1; }
-        var v = Frame("skills", "Skills", new Vector2(1100, 640), OpenSkills); HideInfo();
+        var v = Frame("skills", "Skills", new Vector2(1080, 590), OpenSkills); HideInfo();   // F-41: was 1100 x 640
 
         // ---- top bar: points, filters, search, the other skill menus
-        var top = new HFlowContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; v.AddChild(top); top.AddThemeConstantOverride("h_separation", 8); top.AddThemeConstantOverride("v_separation", 6);
+        var top = new HFlowContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; v.AddChild(top); top.AddThemeConstantOverride("h_separation", 6); top.AddThemeConstantOverride("v_separation", 4);
         Chip(top, $"Skill points  {d.RankPts}", d.RankPts > 0);
         top.AddChild(new Control { CustomMinimumSize = new Vector2(8, 0) });
         var filters = new[] { ("all", "All"), ("spell", "Spells"), ("attack", "Weapon skills"), ("learned", "Learned"), ("learn", "Can learn") };
         PadTabs(filters.Select(f => ((Action)(() => { _skillFilter = f.Item1; OpenSkills(); }), _skillFilter == f.Item1)));   // LB / RB step through the filters
         foreach (var (id, label) in filters)
         {
-            string fid = id; var b = Btn(label, () => { _skillFilter = fid; OpenSkills(); }, true); b.CustomMinimumSize = new Vector2(0, 30);
+            string fid = id; var b = Btn(label, () => { _skillFilter = fid; OpenSkills(); }, true); b.CustomMinimumSize = new Vector2(0, UiTheme.CtlH);
             if (_skillFilter == id) { b.AddThemeColorOverride("font_color", UiTheme.Highlight); b.AddThemeStyleboxOverride("normal", UiTheme.Box(UiTheme.ButtonHover, UiTheme.Highlight, 1, 10, 4, 0)); }
             top.AddChild(b);
         }
-        var search = new LineEdit { Text = _skillSearch, PlaceholderText = "Search skills...", CustomMinimumSize = new Vector2(150, 30) }; top.AddChild(search);
+        var search = new LineEdit { Text = _skillSearch, PlaceholderText = "Search skills...", CustomMinimumSize = new Vector2(150, UiTheme.CtlH) }; top.AddChild(search);
         top.AddChild(Btn($"Macros ({Inputs.KeyOf(Inputs.Macro1)} / {Inputs.KeyOf(Inputs.Macro2)})", OpenMacros, true));
         top.AddChild(Btn($"Modifier tree ({Inputs.KeyOf(Inputs.ModsUi)})", OpenMods, true));
         top.AddChild(Btn($"Spellcraft ({Inputs.KeyOf(Inputs.SpellcraftUi)})", () => OpenSpellcraft(Spellcraft.IsCrafted(_selSkill) ? _selSkill : null), true));
@@ -104,8 +104,8 @@ public partial class Ui
         // the search filters live (rebuilding the menu would take the focus off the search box)
         search.TextChanged += s => { _skillSearch = s; foreach (var (t, k) in tiles) t.Visible = SkillShown(k, _skillFilter, s); };
 
-        Header("Hotbar", left);
-        Lbl("Click a key to put the selected skill on it. Right-click a learned skill to remove a rank.", 14, Dim, left).AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        // F-41: the two-line how-to under this header is its tooltip now (the hotbar tiles' own cards say the same)
+        var hbh = Header("Hotbar  [?]", left); hbh.MouseFilter = Control.MouseFilterEnum.Stop; hbh.TooltipText = "Click a key to put the selected skill on it.\nRight-click a learned skill to remove a rank.";
         var bar = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; bar.AddThemeConstantOverride("separation", 6); left.AddChild(bar);
         bool selKnown = d.Skills.ContainsKey(_selSkill);
         for (int i = 0; i < 6; i++)
@@ -154,22 +154,22 @@ public partial class Ui
     {
         var d = Game.D; var sk = Skills.Get(_selSkill)!; bool learned = d.Skills.TryGetValue(sk.Id, out var ss);
         var card = new PanelContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; card.AddThemeStyleboxOverride("panel", GothPanel(Dmg.TypeColor(sk.Type) with { A = .6f })); box.AddChild(card);
-        var v = new VBoxContainer(); v.AddThemeConstantOverride("separation", 7); card.AddChild(v);
+        var v = new VBoxContainer(); v.AddThemeConstantOverride("separation", UiTheme.RowGap); card.AddChild(v);
 
         // header: icon, name, tags; learn / rank up on the right
         var head = new HBoxContainer(); head.AddThemeConstantOverride("separation", 12); v.AddChild(head);
-        head.AddChild(new IconBox { Icon = Icons.ForSkill(sk), CustomMinimumSize = new Vector2(58, 58) });
+        head.AddChild(new IconBox { Icon = Icons.ForSkill(sk), CustomMinimumSize = new Vector2(48, 48), SizeFlagsVertical = Control.SizeFlags.ShrinkBegin });
         var hv = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; hv.AddThemeConstantOverride("separation", 0); head.AddChild(hv);
-        Lbl(sk.Name.ToUpper(), 22, UiTheme.Title, hv);
+        Lbl(sk.Name.ToUpper(), 19, UiTheme.Title, hv);
         Lbl(string.Join("  ·  ", sk.Tags) + "     " + sk.Type + " damage", 13, Dmg.TypeColor(sk.Type).Lerp(UiTheme.Dim, .25f), hv);
         var act = new VBoxContainer(); act.AddThemeConstantOverride("separation", 2); head.AddChild(act);
         if (!learned)
         {
-            var lb = Btn(d.Level < sk.Req ? $"Unlocks at level {sk.Req}" : $"Learn  ({sk.Cost} pt)", () => Do(Skills.Unlock(sk.Id), "Learned " + sk.Name)); lb.Disabled = d.Level < sk.Req || d.RankPts < sk.Cost; lb.CustomMinimumSize = new Vector2(140, 36); act.AddChild(lb);
+            var lb = Btn(d.Level < sk.Req ? $"Unlocks at level {sk.Req}" : $"Learn  ({sk.Cost} pt)", () => Do(Skills.Unlock(sk.Id), "Learned " + sk.Name)); lb.Disabled = d.Level < sk.Req || d.RankPts < sk.Cost; lb.CustomMinimumSize = new Vector2(130, 30); act.AddChild(lb);
         }
         else
         {
-            var rb = Btn(ss!.Rank >= Skills.MaxRank ? "Max rank" : $"Rank up  (1 pt)", () => Do(Skills.RankUp(sk.Id), sk.Name + " ranked up")); rb.Disabled = ss.Rank >= Skills.MaxRank || d.RankPts < 1; rb.CustomMinimumSize = new Vector2(140, 36); act.AddChild(rb);
+            var rb = Btn(ss!.Rank >= Skills.MaxRank ? "Max rank" : $"Rank up  (1 pt)", () => Do(Skills.RankUp(sk.Id), sk.Name + " ranked up")); rb.Disabled = ss.Rank >= Skills.MaxRank || d.RankPts < 1; rb.CustomMinimumSize = new Vector2(130, 30); act.AddChild(rb);
             Lbl(Pips(ss.Rank, Skills.MaxRank) + $"  {ss.Rank}/{Skills.MaxRank}", 16, UiTheme.Accent, act);
             Lbl($"+{Skills.RankP:0}% damage per rank", 14, UiTheme.Highlight, act);
         }
@@ -209,7 +209,7 @@ public partial class Ui
             var mn = sp != null ? ModTree.Get(ModTree.KeyOf(sp.Id, false)) : null;
             string label = locked ? $"Opens at rank {Skills.SocketRank(i)}" : sp != null ? sp.Name : "+  Empty socket";
             var b = Btn(label, () => { _openSocket = _openSocket == sock ? -1 : sock; OpenSkills(); }, true);
-            b.CustomMinimumSize = new Vector2(0, 40); b.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; b.Disabled = locked; b.ClipText = true;
+            b.CustomMinimumSize = new Vector2(0, 32); b.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; b.Disabled = locked; b.ClipText = true;
             var col = mn?.Branch.Col ?? UiTheme.Accent;
             b.AddThemeStyleboxOverride("normal", UiTheme.Box(sp != null ? col with { A = .14f } : UiTheme.Button, _openSocket == i ? UiTheme.Highlight : sp != null ? col : UiTheme.AccentSoft, _openSocket == i ? 2 : 1, 10, 4, 0));
             if (sp != null) b.AddThemeColorOverride("font_color", col.Lightened(.35f));
@@ -230,7 +230,7 @@ public partial class Ui
                 if (!d.Supports.Contains(sp.Id) || !Skills.Fits(sp, sk)) continue;
                 bool here = ss.Sup[sock] == sp.Id, elsewhere = !here && ss.Sup.Contains(sp.Id); string sid = sp.Id; var mn = ModTree.Get(ModTree.KeyOf(sp.Id, false)); var col = mn?.Branch.Col ?? UiTheme.Accent;
                 var b = Btn(sp.Name, () => { _openSocket = -1; Do(Skills.Socket(sk.Id, sock, sid), ""); }, true);
-                b.Disabled = elsewhere || here; b.CustomMinimumSize = new Vector2(0, 32);
+                b.Disabled = elsewhere || here; b.CustomMinimumSize = new Vector2(0, UiTheme.CtlH);
                 b.AddThemeStyleboxOverride("normal", UiTheme.Box(col with { A = .12f }, col with { A = .8f }, 1, 10, 3, 0)); b.AddThemeColorOverride("font_color", col.Lightened(.4f));
                 var spc = sp; string on = Skills.OnSkill(sp, sk);
                 b.MouseEntered += () => Info(GetViewport().GetMousePosition(), spc.Name, col.Lightened(.3f), new[] { (spc.Desc, Colors.White, 14), (on != "" ? $"On {sk.Name}: {on}." : "", UiTheme.Highlight, 13), (elsewhere ? "Already in another socket" : here ? "In this socket" : "Click to socket", UiTheme.Dim, 12) }); b.MouseExited += HideInfo;

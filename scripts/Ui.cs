@@ -22,10 +22,10 @@ public partial class Ui : CanvasLayer
     static Theme MakeTheme()
     {
         if (_theme != null) return _theme; var t = new Theme();
-        var B = UiTheme.Box;
-        t.SetStylebox("normal", "Button", B(UiTheme.Button, UiTheme.AccentSoft, 1, 14, 5, 0)); t.SetStylebox("hover", "Button", B(UiTheme.ButtonHover, UiTheme.Accent, 1, 14, 5, 6));
-        t.SetStylebox("pressed", "Button", B(UiTheme.ButtonPressed, UiTheme.ButtonPressed, 1, 14, 5, 8)); t.SetStylebox("focus", "Button", PadFocusBox()); t.SetStylebox("focus", "CheckButton", PadFocusBox()); t.SetStylebox("focus", "HSlider", PadFocusBox());   // gold outline: only controller navigation gives buttons focus (UiPad.cs)
-        t.SetStylebox("disabled", "Button", B(UiTheme.Button with { A = .4f }, UiTheme.AccentSoft with { A = .2f }, 1, 14, 5, 0));
+        var B = UiTheme.Box; const int bx = UiTheme.BtnPadX, by = UiTheme.BtnPadY;   // F-41: spacing and font sizes come from UiTheme
+        t.SetStylebox("normal", "Button", B(UiTheme.Button, UiTheme.AccentSoft, 1, bx, by, 0)); t.SetStylebox("hover", "Button", B(UiTheme.ButtonHover, UiTheme.Accent, 1, bx, by, 6));
+        t.SetStylebox("pressed", "Button", B(UiTheme.ButtonPressed, UiTheme.ButtonPressed, 1, bx, by, 8)); t.SetStylebox("focus", "Button", PadFocusBox()); t.SetStylebox("focus", "CheckButton", PadFocusBox()); t.SetStylebox("focus", "HSlider", PadFocusBox());   // gold outline: only controller navigation gives buttons focus (UiPad.cs)
+        t.SetStylebox("disabled", "Button", B(UiTheme.Button with { A = .4f }, UiTheme.AccentSoft with { A = .2f }, 1, bx, by, 0));
         t.SetColor("font_color", "Button", UiTheme.Text); t.SetColor("font_hover_color", "Button", Colors.White); t.SetColor("font_pressed_color", "Button", new Color("04111f")); t.SetColor("font_color", "Label", UiTheme.Text);
         t.SetStylebox("normal", "LineEdit", B(new Color(0.01f, 0.05f, 0.1f, 0.85f), UiTheme.AccentSoft, 1, 10, 4, 0)); t.SetStylebox("focus", "LineEdit", B(new Color(0.01f, 0.05f, 0.1f, 0.85f), UiTheme.Accent, 1, 10, 4, 6)); t.SetColor("font_color", "LineEdit", UiTheme.Text);
         // thin cyan scrollbars and sliders
@@ -33,7 +33,7 @@ public partial class Ui : CanvasLayer
         t.SetStylebox("grabber_highlight", "VScrollBar", B(UiTheme.Accent, UiTheme.Accent, 0, 3, 0, 0)); t.SetStylebox("grabber_pressed", "VScrollBar", B(UiTheme.Accent, UiTheme.Accent, 0, 3, 0, 0));
         t.SetStylebox("slider", "HSlider", B(new Color(0, 0, 0, .4f), UiTheme.AccentSoft, 1, 0, 2, 0)); t.SetStylebox("grabber_area", "HSlider", B(UiTheme.AccentSoft, UiTheme.AccentSoft, 0, 0, 2, 0)); t.SetStylebox("grabber_area_highlight", "HSlider", B(UiTheme.Accent, UiTheme.Accent, 0, 0, 2, 0));
         t.SetColor("font_color", "CheckBox", UiTheme.Text); t.SetColor("font_hover_color", "CheckBox", Colors.White);
-        t.SetFontSize("font_size", "Button", 16); t.SetFontSize("font_size", "Label", 16); _theme = t; return t;
+        t.SetFontSize("font_size", "Button", UiTheme.Body); t.SetFontSize("font_size", "Label", UiTheme.Body); _theme = t; return t;
     }
 
     // ---------------------------------------------------------------- static helpers (safe before the UI exists)
@@ -140,7 +140,9 @@ public partial class Ui : CanvasLayer
         bool left = name == "title" && (title == "TWIN REALMS" || create);   // title screen: narrow translucent panel on the left, 3D backdrop visible on the right
         if (name == "title" && !left) root.AddChild(new ColorRect { Color = new Color(.005f, .02f, .05f, 0.85f), MouseFilter = Control.MouseFilterEnum.Ignore, AnchorRight = 1, AnchorBottom = 1 });
         if (!left && !cine) { var bd = new TechBackdrop(); bd.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); root.AddChild(bd); }
-        var pc = new TechPanel(); var ps = UiTheme.Box(left ? UiTheme.Panel with { A = 0.72f } : UiTheme.Panel, UiTheme.AccentSoft, 1, 22, 14, UiTheme.GlowSize); pc.AddThemeStyleboxOverride("panel", ps);
+        bool slim = !left && !cine;   // F-41: ordinary windows use the compact UiTheme spacing; the title column and the dialogue box keep their roomy look
+        int padX = slim ? UiTheme.PadX : 22, padY = slim ? UiTheme.PadY : 14, gap = slim ? UiTheme.Gap : 8;
+        var pc = new TechPanel(); var ps = UiTheme.Box(left ? UiTheme.Panel with { A = 0.72f } : UiTheme.Panel, UiTheme.AccentSoft, 1, padX, padY, UiTheme.GlowSize); pc.AddThemeStyleboxOverride("panel", ps);
         var vp = GetViewport().GetVisibleRect().Size; // never ask for more than the window has
         if (left)
         {
@@ -160,16 +162,18 @@ public partial class Ui : CanvasLayer
         }
         else
         {
-            // clamp to the visible viewport minus a 24 px margin each side, centred; re-clamp on resize
-            void Clamp() { var s = GetViewport().GetVisibleRect().Size; var m = new Vector2(Mathf.Min(size.X, s.X - 48), Mathf.Min(size.Y, s.Y - 48)); pc.CustomMinimumSize = m; pc.AnchorLeft = .5f; pc.AnchorRight = .5f; pc.AnchorTop = .5f; pc.AnchorBottom = .5f; pc.OffsetLeft = -m.X / 2; pc.OffsetRight = m.X / 2; pc.OffsetTop = -m.Y / 2; pc.OffsetBottom = m.Y / 2; }   // centred: offsets are half the size each way
+            // clamp to the visible viewport minus UiTheme.ScreenMargin each side, centred; re-clamp on resize
+            void Clamp() { var s = GetViewport().GetVisibleRect().Size; const float sm = UiTheme.ScreenMargin * 2; var m = new Vector2(Mathf.Min(size.X, s.X - sm), Mathf.Min(size.Y, s.Y - sm)); pc.CustomMinimumSize = m; pc.AnchorLeft = .5f; pc.AnchorRight = .5f; pc.AnchorTop = .5f; pc.AnchorBottom = .5f; pc.OffsetLeft = -m.X / 2; pc.OffsetRight = m.X / 2; pc.OffsetTop = -m.Y / 2; pc.OffsetBottom = m.Y / 2; }   // centred: offsets are half the size each way
             Clamp(); pc.GrowHorizontal = Control.GrowDirection.Both; pc.GrowVertical = Control.GrowDirection.Both; root.AddChild(pc);
             Action onSz = Clamp; GetViewport().SizeChanged += onSz; root.TreeExiting += () => GetViewport().SizeChanged -= onSz;
             // content wider/taller than the requested size (e.g. the pack's tab row) makes the panel grow one way from stale offsets: re-centre on the real size
             void Recentre() { if (!GodotObject.IsInstanceValid(pc)) return; var sz = pc.Size; float l = -sz.X / 2, t2 = -sz.Y / 2; if (Mathf.Abs(pc.OffsetLeft - l) > .5f || Mathf.Abs(pc.OffsetTop - t2) > .5f) { pc.OffsetLeft = l; pc.OffsetRight = l + sz.X; pc.OffsetTop = t2; pc.OffsetBottom = t2 + sz.Y; } }
             pc.Resized += () => Callable.From(Recentre).CallDeferred();
         }
-        var v = new VBoxContainer(); v.AddThemeConstantOverride("separation", 8); pc.AddChild(v);
-        var hb = new HBoxContainer(); v.AddChild(hb); var t = Lbl(title.ToUpper(), 24, UiTheme.Title, hb); t.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        var v = new VBoxContainer(); v.AddThemeConstantOverride("separation", gap); pc.AddChild(v);
+        var hb = new HBoxContainer(); v.AddChild(hb);
+        if (slim) hb.AddChild(new Control { CustomMinimumSize = new Vector2(6, 0), MouseFilter = Control.MouseFilterEnum.Ignore });   // room for the panel's diamond marker, which the wider padding used to give
+        var t = Lbl(title.ToUpper(), slim ? UiTheme.TitleSize : 24, UiTheme.Title, hb); t.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         t.AddThemeColorOverride("font_outline_color", new Color(0.02f, 0.12f, 0.25f)); t.AddThemeConstantOverride("outline_size", 6);
         if (left)
         {
@@ -178,9 +182,9 @@ public partial class Ui : CanvasLayer
         }
         if (create) t.AddThemeFontSizeOverride("font_size", 26);
         if (cine) { t.AddThemeFontSizeOverride("font_size", 20); t.AddThemeColorOverride("font_color", Gold); t.AddThemeColorOverride("font_outline_color", new Color(.08f, .04f, .02f)); t.AddThemeFontOverride("font", new FontVariation { BaseFont = ThemeDB.FallbackFont, SpacingGlyph = 3 }); }
-        if (name != "title") { var cb = Btn("X", Close); cb.CustomMinimumSize = new Vector2(38, 34); hb.AddChild(cb); }
+        if (name != "title") { var cb = Btn("X", Close, slim); cb.CustomMinimumSize = slim ? new Vector2(UiTheme.CloseW, UiTheme.CloseH) : new Vector2(38, 34); cb.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter; hb.AddChild(cb); }
         // decoration overlay sized to the panel; the header rule sits just under the title row
-        pc.Resized += () => { pc.HeaderY = 14 + hb.Size.Y + 5; pc.PivotOffset = pc.Size / 2; pc.QueueRedraw(); };
+        pc.Resized += () => { pc.HeaderY = padY + hb.Size.Y + (slim ? gap / 2f : 5); pc.PivotOffset = pc.Size / 2; pc.QueueRedraw(); };
         AddChild(root); _panel = root;
         // system-window pop: fade in and grow from the centre
         root.Modulate = new Color(1, 1, 1, 0); pc.PivotOffset = pc.Size / 2; pc.Scale = new Vector2(1f, 0.92f);
@@ -193,7 +197,7 @@ public partial class Ui : CanvasLayer
         var sc = new ScrollContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Auto, VerticalScrollMode = ScrollContainer.ScrollMode.Auto, FollowFocus = true };
         v.AddChild(sc); _frameSc = sc;
         var body = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ExpandFill };
-        body.AddThemeConstantOverride("separation", 8); sc.AddChild(body);
+        body.AddThemeConstantOverride("separation", gap); sc.AddChild(body);
         if (_frameScrollName == name && _frameScroll > 0) { int keep = _frameScroll; Callable.From(() => { if (GodotObject.IsInstanceValid(sc)) sc.ScrollVertical = keep; }).CallDeferred(); }
         _frameScrollName = ""; _frameScroll = 0;
         return body;
@@ -280,6 +284,7 @@ public partial class Ui : CanvasLayer
             DlgOpt(v, ++k, "Offer a gift", () => GiftPick(n, nr));
             DlgOpt(v, ++k, "Insult them", () => Say(n, NpcMemory.Insult(nr), ("Leave", Close)));
         }
+        TavernOpts(v, ref k, n);   // A-33: the tavern's maids: menu, tip, song request (Tavern.cs)
         DlgOpt(v, ++k, "Farewell", Close);
     }
     /// <summary>F-32: the watch has stopped the hero: pay the fine, resist or run (Crime.cs).</summary>
@@ -352,10 +357,10 @@ public partial class Ui : CanvasLayer
     /// <summary>An item as a shop row: its icon in a rarity frame, its name and stats, a button; hovering compares it with what you wear.</summary>
     void ItemRow(Node parent, Item it, string btn, Action? a, bool ok = true)
     {
-        var d = Game.D; var h = new HBoxContainer(); h.AddThemeConstantOverride("separation", 10); CardBox(parent).AddChild(h);
-        var cell = new ItemSlot { Item = it, CustomMinimumSize = new Vector2(46, 46) }; h.AddChild(cell);
+        var d = Game.D; var h = new HBoxContainer(); h.AddThemeConstantOverride("separation", 8); CardBox(parent).AddChild(h);
+        var cell = new ItemSlot { Item = it, CustomMinimumSize = new Vector2(40, 40) }; h.AddChild(cell);
         cell.Hover += on => ShowTip(on ? it : null, cell, d.Eq.GetValueOrDefault(it.Slot));
-        var l = Lbl(it.Describe(), 16, it.Color, h); l.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; l.AutowrapMode = TextServer.AutowrapMode.WordSmart; l.VerticalAlignment = VerticalAlignment.Center;
+        var l = Lbl(it.Describe(), UiTheme.Body, it.Color, h); l.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; l.AutowrapMode = TextServer.AutowrapMode.WordSmart; l.VerticalAlignment = VerticalAlignment.Center;
         if (a != null) { var b = Btn(btn, () => { HideTip(); a(); }, true); PriceStyle(b, ok); h.AddChild(b); }
     }
     /// <summary>Gold-underlined text tabs; the current one is gold with an underline.</summary>
@@ -364,8 +369,8 @@ public partial class Ui : CanvasLayer
         PadTabs(tabs.Select(t => (t.open, t.id == cur)));   // LB / RB switch them (UiPad.cs)
         foreach (var (id, label, open) in tabs)
         {
-            var b = Btn(label, open); bool on = id == cur; b.AddThemeFontSizeOverride("font_size", 18);
-            StyleBoxFlat Sb(Color ul, int w) => new() { BgColor = new Color(0, 0, 0, 0), BorderColor = ul, BorderWidthBottom = w, ContentMarginLeft = 12, ContentMarginRight = 12, ContentMarginTop = 4, ContentMarginBottom = 4 };
+            var b = Btn(label, open); bool on = id == cur; b.AddThemeFontSizeOverride("font_size", UiTheme.TabSize);
+            StyleBoxFlat Sb(Color ul, int w) => new() { BgColor = new Color(0, 0, 0, 0), BorderColor = ul, BorderWidthBottom = w, ContentMarginLeft = 10, ContentMarginRight = 10, ContentMarginTop = 2, ContentMarginBottom = 3 };
             var line = on ? Sb(Gold, 2) : Sb(new Color(0, 0, 0, 0), 2);
             foreach (var s in new[] { "normal", "pressed", "focus", "disabled" }) b.AddThemeStyleboxOverride(s, line);
             b.AddThemeStyleboxOverride("hover", Sb(Gold with { A = .5f }, 2));
@@ -379,23 +384,23 @@ public partial class Ui : CanvasLayer
     PanelContainer CardBox(Node parent, bool selected = false)
     {
         var pc = new PanelContainer { MouseFilter = Control.MouseFilterEnum.Pass, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        StyleBoxFlat Sb(float a, Color b) => new() { BgColor = new Color(.05f, .045f, .04f, a), BorderColor = b, BorderWidthLeft = 1, BorderWidthRight = 1, BorderWidthTop = 1, BorderWidthBottom = 1, ContentMarginLeft = 10, ContentMarginRight = 10, ContentMarginTop = 6, ContentMarginBottom = 6, CornerRadiusTopLeft = 2, CornerRadiusTopRight = 2, CornerRadiusBottomLeft = 2, CornerRadiusBottomRight = 2 };
+        StyleBoxFlat Sb(float a, Color b) => new() { BgColor = new Color(.05f, .045f, .04f, a), BorderColor = b, BorderWidthLeft = 1, BorderWidthRight = 1, BorderWidthTop = 1, BorderWidthBottom = 1, ContentMarginLeft = UiTheme.CardPadX, ContentMarginRight = UiTheme.CardPadX, ContentMarginTop = UiTheme.CardPadY, ContentMarginBottom = UiTheme.CardPadY, CornerRadiusTopLeft = 2, CornerRadiusTopRight = 2, CornerRadiusBottomLeft = 2, CornerRadiusBottomRight = 2 };
         var norm = Sb(.7f, selected ? Gold : Line with { A = .5f }); var hov = Sb(.9f, Gold);
         pc.AddThemeStyleboxOverride("panel", norm);
         pc.MouseEntered += () => pc.AddThemeStyleboxOverride("panel", hov); pc.MouseExited += () => pc.AddThemeStyleboxOverride("panel", norm);
         parent.AddChild(pc); return pc;
     }
     /// <summary>Italic-ish dim hint shown instead of blank space.</summary>
-    void Empty(Node parent, string t) { var l = Row(parent, t, Dim, 15); l.HorizontalAlignment = HorizontalAlignment.Center; l.CustomMinimumSize = new Vector2(0, 60); l.VerticalAlignment = VerticalAlignment.Center; }
+    void Empty(Node parent, string t) { var l = Row(parent, t, Dim, 14); l.HorizontalAlignment = HorizontalAlignment.Center; l.CustomMinimumSize = new Vector2(0, 40); l.VerticalAlignment = VerticalAlignment.Center; }
     /// <summary>Price/action button: gold when affordable, muted red when not.</summary>
     static void PriceStyle(Button b, bool ok)
     {
-        var c = ok ? UiTheme.Accent : Muted; b.AddThemeColorOverride("font_color", c); b.AddThemeColorOverride("font_hover_color", ok ? c.Lightened(.25f) : c); b.CustomMinimumSize = new Vector2(96, 32); b.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter; b.AddThemeFontSizeOverride("font_size", 15);
+        var c = ok ? UiTheme.Accent : Muted; b.AddThemeColorOverride("font_color", c); b.AddThemeColorOverride("font_hover_color", ok ? c.Lightened(.25f) : c); b.CustomMinimumSize = new Vector2(88, UiTheme.CtlH); b.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter; b.AddThemeFontSizeOverride("font_size", 14);
     }
 
     void AddRow(Node parent, string text, Color col, string btn, Action a, bool ok = true)
     {
-        var h = new HBoxContainer(); h.AddThemeConstantOverride("separation", 10); CardBox(parent).AddChild(h); var l = Lbl(text, 16, col, h); l.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; l.AutowrapMode = TextServer.AutowrapMode.WordSmart; l.VerticalAlignment = VerticalAlignment.Center;
+        var h = new HBoxContainer(); h.AddThemeConstantOverride("separation", 8); CardBox(parent).AddChild(h); var l = Lbl(text, UiTheme.Body, col, h); l.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; l.AutowrapMode = TextServer.AutowrapMode.WordSmart; l.VerticalAlignment = VerticalAlignment.Center;
         var b = Btn(btn, a, true); PriceStyle(b, ok); h.AddChild(b);
     }
 
@@ -406,16 +411,18 @@ public partial class Ui : CanvasLayer
     public void OpenPack()
     {
         // Fixed-size window: every zone has a fixed footprint and the grids scroll, so item / material counts never resize or shift it.
-        var d = Game.D; var v = Frame("pack", "Pack and Equipment", new Vector2(PackW, PackH), OpenPack);
-        const int Cell = 56, Gap = 6; const float GridW = 7 * Cell + 6 * Gap, GridH = 4 * Cell + 3 * Gap, CentreW = GridW + 20;
-        // ---- slim header line: gold, potions, pack count
-        var top = new HBoxContainer(); v.AddChild(top); top.AddThemeConstantOverride("separation", 20);
-        Lbl($"{d.Gold} G", 16, Gold, top); Lbl($"Health potions {d.HpPot} (H)", 14, new Color("ff8f86"), top); Lbl($"Mana potions {d.MpPot} (G)", 14, new Color("8fb8ff"), top);
-        var cap = Lbl($"Pack {d.Inv.Count}/28", 14, d.Inv.Count >= 26 ? new Color(1, .6f, .5f) : Dim, top); cap.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; cap.HorizontalAlignment = HorizontalAlignment.Right;
-        var cols = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; cols.AddThemeConstantOverride("separation", 24); v.AddChild(cols);
+        // F-41: one window for the pack: Items | Materials | Gems | Filter (the pickup filter used to be its own window); the help line is a tooltip.
+        var d = Game.D; var v = Frame("pack", "Pack", new Vector2(PackW, PackH), OpenPack);
+        const int Cell = 56, Gap = 6; const float GridW = 7 * Cell + 6 * Gap, GridH = 4 * Cell + 3 * Gap, CentreW = GridW + 12;
+        // ---- slim header line: gold, potions, how-to (tooltip), pack count
+        var top = new HBoxContainer(); v.AddChild(top); top.AddThemeConstantOverride("separation", 16);
+        Lbl($"{d.Gold} G", 15, Gold, top); Lbl($"Health potions {d.HpPot} (H)", 13, new Color("ff8f86"), top); Lbl($"Mana potions {d.MpPot} (G)", 13, new Color("8fb8ff"), top);
+        var how = Lbl(_scrapMode ? "Disassemble ON" : "[?] How to", 13, _scrapMode ? new Color(1, .7f, .45f) : Dim, top); how.MouseFilter = Control.MouseFilterEnum.Stop; how.MouseDefaultCursorShape = Control.CursorShape.Help;
+        how.TooltipText = "Click an item: equip it (with Disassemble on: scrap it)\nRight-click: drop it on the ground\nHover: compare with what you wear\nClick a worn slot: take it off\nGems: drag a gem onto a socket or a worn item (or click a gem, then a socket); click a filled socket to take the gem out\nMaterials: click cooked food to eat it";
+        var cap = Lbl($"Pack {d.Inv.Count}/28", 13, d.Inv.Count >= 26 ? new Color(1, .6f, .5f) : Dim, top); cap.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; cap.HorizontalAlignment = HorizontalAlignment.Right;
+        var cols = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; cols.AddThemeConstantOverride("separation", 16); v.AddChild(cols);
         // ---- left: equipment slots around a silhouette, compact stats
         var left = new VBoxContainer { CustomMinimumSize = new Vector2(DollW, 0) }; left.AddThemeConstantOverride("separation", 4); cols.AddChild(left);
-        Lbl("EQUIPPED", 14, UiTheme.Accent, left);
         var doll = new PaperDoll { CustomMinimumSize = new Vector2(DollW, DollH) }; left.AddChild(doll);
         // slot centres on the 320 x 344 reference layout, scaled to the doll's size
         var dollPos = new Dictionary<string, Vector2> { ["head"] = new(160, 28), ["armor"] = new(160, 136), ["hands"] = new(50, 206), ["feet"] = new(160, 314), ["weapon"] = new(270, 178), ["shield"] = new(50, 134), ["trinket"] = new(270, 106), ["cape"] = new(50, 62) };
@@ -440,9 +447,11 @@ public partial class Ui : CanvasLayer
         tabs.AddChild(GoldTab("Items", () => { if (_packTab == 0) return; _packTab = 0; OpenPack(); }, _packTab == 0));
         tabs.AddChild(GoldTab($"Materials ({kinds})", () => { if (_packTab == 1) return; _packTab = 1; OpenPack(); }, _packTab == 1));
         tabs.AddChild(GoldTab($"Gems ({GemDb.Total(d)})", () => { if (_packTab == 2) return; _packTab = 2; OpenPack(); }, _packTab == 2));
-        PadTabs(new (Action, bool)[] { (() => { _packTab = 0; OpenPack(); }, _packTab == 0), (() => { _packTab = 1; OpenPack(); }, _packTab == 1), (() => { _packTab = 2; OpenPack(); }, _packTab == 2) });
+        string filt = d.PickRar > 0 || d.PickSkip.Count > 0 ? $"Pickup filter: {Items.RarityName(d.PickRar)} and better" + (d.PickSkip.Count > 0 ? $", skipping {string.Join(", ", d.PickSkip)}" : "") + (d.PickScrap ? " (the rest is scrapped)" : " (the rest stays on the ground)") : "Pickup filter: everything is picked up";
+        var ftab = GoldTab(d.PickRar > 0 || d.PickSkip.Count > 0 ? "Filter (on)" : "Filter", () => { if (_packTab == 3) return; _packTab = 3; OpenPack(); }, _packTab == 3); ftab.TooltipText = filt; tabs.AddChild(ftab);
+        PadTabs(new (Action, bool)[] { (() => { _packTab = 0; OpenPack(); }, _packTab == 0), (() => { _packTab = 1; OpenPack(); }, _packTab == 1), (() => { _packTab = 2; OpenPack(); }, _packTab == 2), (() => { _packTab = 3; OpenPack(); }, _packTab == 3) });
         int tab = _packTab;
-        var sc = new ScrollContainer { CustomMinimumSize = new Vector2(CentreW, GridH + 2), HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; right.AddChild(sc);
+        var sc = new ScrollContainer { CustomMinimumSize = new Vector2(CentreW, GridH + 2), SizeFlagsVertical = Control.SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; right.AddChild(sc);
         var grid = new GridContainer { Columns = 7 }; grid.AddThemeConstantOverride("h_separation", Gap); grid.AddThemeConstantOverride("v_separation", Gap); sc.AddChild(grid);
         // keep the scroll position across the rebuild that follows every click
         int want = _packScroll[tab]; var vbar = sc.GetVScrollBar();
@@ -450,6 +459,7 @@ public partial class Ui : CanvasLayer
         vbar.Changed += Restore; vbar.ValueChanged += val => { _packScroll[tab] = (int)val; if (Mathf.Abs((float)val - want) > 1 && vbar.MaxValue - vbar.Page >= want) want = -1; };
         Callable.From(Restore).CallDeferred();
         if (tab == 2) { grid.Columns = 1; GemsPane(grid, Cell, Gap, GridW); }   // UiGems.cs
+        else if (tab == 3) { grid.Columns = 1; PickFilterPane(grid, GridW); }   // UiCraft.cs
         else if (tab == 1)
         {
             foreach (var kv in d.Mats) if (kv.Value > 0)
@@ -460,6 +470,7 @@ public partial class Ui : CanvasLayer
                     string fk = kv.Key; cell.TooltipText += $"\nClick: eat ({Cooking.BuffText(food)})";
                     cell.Clicked += _ => { if (Cooking.Eat(fk)) OpenPack(); };
                 }
+                SteadPackCell(cell, kv.Key);   // A-26: potions are drunk from the pack (UiStations.cs)
             }
             if (kinds == 0) { grid.Columns = 1; var l = Row(grid, $"Nothing gathered yet. Press {Inputs.KeyOf(Inputs.Use)} near herbs, mushrooms, berries, ore, crystals and fallen logs.", Dim, 13); l.CustomMinimumSize = new Vector2(GridW, 0); }
         }
@@ -488,17 +499,12 @@ public partial class Ui : CanvasLayer
             if (n > 0) { Note($"Scrapped {n} common items: " + string.Join(", ", parts.Select(kv => $"+{kv.Value} {GatherDb.Mat(kv.Key).Name}")), Dim); Sfx.Play("hit"); }
             Game.Notify(); OpenPack();
         }));
-        hdr.AddChild(GoldTab("Pickup filter", OpenPickFilter));
         hdr.AddChild(tab == 2 ? GoldTab("Fuse gems", () => OpenCraft("gems")) : GoldTab("Crafting", () => OpenCraft("gear")));
-        string filt = d.PickRar > 0 || d.PickSkip.Count > 0 ? $"Pickup filter: {Items.RarityName(d.PickRar)} and better" + (d.PickSkip.Count > 0 ? $", skipping {string.Join(", ", d.PickSkip)}" : "") + (d.PickScrap ? " (the rest is scrapped)" : " (the rest stays on the ground)") : "Pickup filter: everything";
-        var fl = Lbl(filt, 12, Dim, right); fl.ClipText = true; fl.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis; fl.TooltipText = filt; fl.MouseFilter = Control.MouseFilterEnum.Pass;
-        // ---- one short help line at the bottom (clipped, so it can never widen the window)
-        var help = Lbl(tab == 2 ? "Drag a gem onto a socket or worn item (or click a gem, then a socket)     Click a filled socket: take the gem out" : _scrapMode ? "Disassemble ON: click an item to scrap it     Right-click: drop" : "Click: equip     Right-click: drop     Hover: compare     Click a worn slot: take off", 12, _scrapMode ? new Color(1, .7f, .45f) : Dim, v);
-        help.ClipText = true; help.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+        // (F-41: the pickup filter summary is the Filter tab's tooltip and the help line is the "[?] How to" tooltip in the header line)
     }
-    const float PackW = 820, PackH = 560, DollW = 260, DollH = 300;
-    static int _packTab;                         // 0 = Items, 1 = Materials, 2 = Gems; kept across the reopen after every click
-    static readonly int[] _packScroll = new int[3];
+    const float PackW = 708, PackH = 416, DollW = 260, DollH = 260;   // F-41: was 820 x 560 with a 300 px doll
+    static int _packTab;                         // 0 = Items, 1 = Materials, 2 = Gems, 3 = Filter; kept across the reopen after every click
+    static readonly int[] _packScroll = new int[4];
     static bool _scrapMode;
     /// <summary>Flat gold text tab with an underline (brighter when active or hovered).</summary>
     static Button GoldTab(string t, Action a, bool active = false)
@@ -543,6 +549,7 @@ public partial class Ui : CanvasLayer
     {
         var d = Game.D; var it = d.Inv[idx]; var slot = it.Slot;
         if (PetDb.IsGear(slot)) { OpenPets(null, "gear"); return; }   // pet gear goes on a pet (Pets menu > Gear)
+        if (DualWield.TryEquipOff(d, idx)) { Sfx.Play("click"); Game.Notify(); OpenPack(); return; }   // A-12: Shift+click a one-handed weapon = off hand (DualWield.cs)
         if (slot == "shield" && d.Weapon?.Two == true) { Note("Your weapon needs both hands", new Color(1, .6f, .5f)); return; }
         var old = d.Eq.GetValueOrDefault(slot); d.Inv.RemoveAt(idx); d.Eq[slot] = it; if (old != null) d.Inv.Add(old);
         if (slot == "weapon" && it.Two && d.Eq.GetValueOrDefault("shield") is Item sh) { d.Eq["shield"] = null; d.Inv.Add(sh); }
@@ -551,6 +558,7 @@ public partial class Ui : CanvasLayer
 
     // ---------------------------------------------------------------- character
     public void OpenCharacter() => OpenCharacterPanel();
+    const float CharW = 1050, CharH = 472;   // F-41: the Character window's three tabs share one size (was 1120 x 620, and All bonuses a 620 x 600 window of its own)
     /// <summary>What one attribute point gives, measured: the derived stats before and after ten extra points, divided by ten.</summary>
     static string PerPoint(Action<int> add)
     {
@@ -570,28 +578,18 @@ public partial class Ui : CanvasLayer
     }
     void OpenCharacterPanel()
     {
-        var d = Game.D; var TS = Game.TS; var v = Frame("char", "Character", new Vector2(1120, 620), OpenCharacterPanel); HideInfo();
+        // F-41: one Character window, three tabs (Attributes | Life skills | All bonuses), all the same size; the point chips sit in
+        // the tab row, Reset sits by the attributes and the shortcuts under the hero's summary, so the old second strip is gone.
+        var d = Game.D; var TS = Game.TS; var v = Frame("char", "Character", new Vector2(CharW, CharH), OpenCharacterPanel); HideInfo();
         var gold = UiTheme.Highlight;
-        CharTabs(v, "char");   // Attributes | Life skills (UiLife.cs, F-25)
-        // top strip: points, respec, shortcuts
-        var pts = new HBoxContainer(); pts.AddThemeConstantOverride("separation", 8); v.AddChild(pts);
-        Chip(pts, $"Attribute points  {d.AttrPts}", d.AttrPts > 0); Chip(pts, $"Skill points  {d.RankPts}", d.RankPts > 0); Chip(pts, $"Tree points  {d.SkillPts}", d.SkillPts > 0);
-        pts.AddChild(Btn("Reset attributes", () =>
-        {
-            // every spent attribute point comes back: Strength, Dexterity, Vitality and Magic return to what the race and class start with
-            var (s0, d0, v0, m0) = BaseAttributes(d); int back = Math.Max(0, d.Str - s0) + Math.Max(0, d.Dex - d0) + Math.Max(0, d.Vit - v0) + Math.Max(0, d.Mag - m0);
-            if (back == 0) { Note("No attribute points spent yet", Dim); return; }
-            d.Str = Math.Min(d.Str, s0); d.Dex = Math.Min(d.Dex, d0); d.Vit = Math.Min(d.Vit, v0); d.Mag = Math.Min(d.Mag, m0); d.AttrPts += back;
-            Note($"Attributes reset: {back} points to spend again", UiTheme.Highlight); Game.Notify(); Game.Save(); OpenCharacterPanel();
-        }, true));
-        pts.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
-        pts.AddChild(Btn($"Skills ({Inputs.KeyOf(Inputs.SkillsUi)})", OpenSkills, true)); pts.AddChild(Btn($"Skill tree ({Inputs.KeyOf(Inputs.Tree)})", OpenTree, true)); pts.AddChild(Btn($"Modifiers ({Inputs.KeyOf(Inputs.ModsUi)})", OpenMods, true)); pts.AddChild(Btn("All bonuses", OpenTotals, true));
+        CharTabs(v, "char");   // tabs + point chips (UiLife.cs)
 
-        var cols = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; cols.AddThemeConstantOverride("separation", 22); v.AddChild(cols);
+        var cols = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; cols.AddThemeConstantOverride("separation", 16); v.AddChild(cols);
         // ---- left: who you are
-        var left = new VBoxContainer { CustomMinimumSize = new Vector2(220, 0) }; left.AddThemeConstantOverride("separation", 6); cols.AddChild(left);
-        Lbl(d.Name, 26, UiTheme.Title, left);
-        Lbl($"{Races.Get(d.Race).Name} {Classes.Get(d.Class).Name}", 15, Dim, left);
+        var left = new VBoxContainer { CustomMinimumSize = new Vector2(200, 0) }; left.AddThemeConstantOverride("separation", 3); cols.AddChild(left);
+        Lbl(d.Name, 22, UiTheme.Title, left);
+        Lbl($"{Races.Get(d.Race).Name} {Classes.Get(d.Class).Name}", 13, Dim, left);
+        ClassGuideButton(left);   // A-17: "How a <class> plays" (UiClassGuide.cs)
         if (d.Titles.Count > 0)
         {
             // earned titles: wear one (it shows by your name and gives its bonus)
@@ -600,19 +598,22 @@ public partial class Ui : CanvasLayer
             tb.Select(sel); tb.ItemSelected += i => { Titles.Wear(i == 0 ? "" : tb.GetItemMetadata((int)i).AsString()); Sfx.Play("click"); };
             left.AddChild(tb);
         }
-        Lbl($"Level {d.Level}", 30, gold, left);
+        Lbl($"Level {d.Level}", 24, gold, left);
         var xpBar = new ProgressBar { MinValue = 0, MaxValue = Math.Max(1, d.XpNeed()), Value = Math.Min(d.Xp, d.XpNeed()), ShowPercentage = false, CustomMinimumSize = new Vector2(0, 5), MouseFilter = Control.MouseFilterEnum.Ignore };
         xpBar.AddThemeStyleboxOverride("fill", new StyleBoxFlat { BgColor = gold }); xpBar.AddThemeStyleboxOverride("background", new StyleBoxFlat { BgColor = new Color(0, 0, 0, .55f) });
         left.AddChild(xpBar); Lbl($"XP {d.Xp} / {d.XpNeed()}", 12, Dim, left);
-        left.AddChild(new Control { CustomMinimumSize = new Vector2(0, 8) });
-        Lbl($"Gold   {d.Gold}", 17, gold, left); Lbl($"Valor   {d.Valor}", 17, UiTheme.Text, left); Lbl($"Kills   {d.Kills}", 14, Dim, left);
+        Lbl($"Gold   {d.Gold}", 15, gold, left); Lbl($"Valor   {d.Valor}", 15, UiTheme.Text, left); Lbl($"Kills   {d.Kills}", 13, Dim, left);
+        // shortcuts to the other build windows, in the space under the summary
+        left.AddChild(new Control { SizeFlagsVertical = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Ignore });
+        foreach (var (label, open) in new (string, Action)[] { ($"Skills ({Inputs.KeyOf(Inputs.SkillsUi)})", OpenSkills), ($"Skill tree ({Inputs.KeyOf(Inputs.Tree)})", OpenTree), ($"Modifiers ({Inputs.KeyOf(Inputs.ModsUi)})", OpenMods) })
+        { var sb = Btn(label, open, true); sb.CustomMinimumSize = new Vector2(0, UiTheme.CtlH); left.AddChild(sb); }
 
         // ---- right: derived stats (built first so the attribute previews can reach their delta labels)
         float[] Snap() => new[] { d.MaxHp(), d.MaxMp(), d.MaxSt(), d.WpnDmg(), d.SpellPow(), d.Defense(), d.CritChance() * 100, d.AtkSpeed() };
         var deltas = new Dictionary<int, Label>();
         var fmts = new Dictionary<int, string> { [0] = "0", [1] = "0", [2] = "0", [3] = "0.#", [4] = "0.00", [5] = "0", [6] = "0.#", [7] = "0.00" };
-        var mid = new VBoxContainer { CustomMinimumSize = new Vector2(380, 0) }; mid.AddThemeConstantOverride("separation", 8); cols.AddChild(mid);
-        var right = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; right.AddThemeConstantOverride("separation", 20); cols.AddChild(right);
+        var mid = new VBoxContainer { CustomMinimumSize = new Vector2(350, 0) }; mid.AddThemeConstantOverride("separation", UiTheme.Gap); cols.AddChild(mid);
+        var right = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; right.AddThemeConstantOverride("separation", 16); cols.AddChild(right);
         string P(float x) => $"{x:0.#}%";
         void Section(Control parent, string title, (string n, string v, Color? c, int di)[] rows)
         {
@@ -622,12 +623,12 @@ public partial class Ui : CanvasLayer
             foreach (var (n, val, c, di) in rows)
             {
                 Lbl(n, 13, Dim, g).SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-                var vl = Lbl(val, 15, c ?? Colors.White, g); vl.HorizontalAlignment = HorizontalAlignment.Right; vl.CustomMinimumSize = new Vector2(64, 0);
-                var dl = Lbl("", 12, Colors.White, g); dl.CustomMinimumSize = new Vector2(40, 0); if (di >= 0) deltas[di] = dl;
+                var vl = Lbl(val, 14, c ?? Colors.White, g); vl.HorizontalAlignment = HorizontalAlignment.Right; vl.CustomMinimumSize = new Vector2(58, 0);
+                var dl = Lbl("", 12, Colors.White, g); dl.CustomMinimumSize = new Vector2(38, 0); if (di >= 0) deltas[di] = dl;
             }
         }
-        var rc1 = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; rc1.AddThemeConstantOverride("separation", 10); right.AddChild(rc1);
-        var rc2 = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; rc2.AddThemeConstantOverride("separation", 10); right.AddChild(rc2);
+        var rc1 = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; rc1.AddThemeConstantOverride("separation", UiTheme.Gap); right.AddChild(rc1);
+        var rc2 = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; rc2.AddThemeConstantOverride("separation", UiTheme.Gap); right.AddChild(rc2);
         Section(rc1, "Offense", new (string, string, Color?, int)[] { ("Weapon damage", $"{d.WpnDmg():0}", null, 3), ("Spell power", $"x{d.SpellPow():0.00}", null, 4), ("Crit chance", P(d.CritChance() * 100), null, 6),
             ("Crit damage", $"x{d.CritMult():0.0}", null, -1), ("Attack speed", $"x{d.AtkSpeed():0.00}", null, 7), ("Cast speed", "+" + P(TS["castSpd"]), null, -1),
             ("Cooldowns", "-" + P(TS["cdr"]), null, -1), ("Skill damage", "+" + P(TS["skillP"]), null, -1), ("All damage", "+" + P(TS["allP"]), null, -1) });
@@ -640,7 +641,16 @@ public partial class Ui : CanvasLayer
         Section(rc2, "Resistances", res.ToArray());
 
         // ---- middle: attributes as large rows
-        Lbl("ATTRIBUTES", 13, gold, mid);
+        var ah = new HBoxContainer(); mid.AddChild(ah); Lbl("ATTRIBUTES", 13, gold, ah).SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        var reset = Btn("Reset", () =>
+        {
+            // every spent attribute point comes back: Strength, Dexterity, Vitality and Magic return to what the race and class start with
+            var (s0, d0, v0, m0) = BaseAttributes(d); int back = Math.Max(0, d.Str - s0) + Math.Max(0, d.Dex - d0) + Math.Max(0, d.Vit - v0) + Math.Max(0, d.Mag - m0) + ResetExtraAttrs(d);   // (A-14: Wisdom, Agility, Luck, Endurance too; UiAttrs.cs)
+            if (back == 0) { Note("No attribute points spent yet", Dim); return; }
+            d.Str = Math.Min(d.Str, s0); d.Dex = Math.Min(d.Dex, d0); d.Vit = Math.Min(d.Vit, v0); d.Mag = Math.Min(d.Mag, m0); d.AttrPts += back;
+            Note($"Attributes reset: {back} points to spend again", UiTheme.Highlight); Game.Notify(); Game.Save(); OpenCharacterPanel();
+        }, true);
+        reset.TooltipText = "Reset attributes: every attribute point you spent comes back"; ah.AddChild(reset);
         void Preview(Action<int> add, bool on)
         {
             foreach (var l in deltas.Values) l.Text = "";
@@ -650,60 +660,62 @@ public partial class Ui : CanvasLayer
         }
         void Attr(string name, string desc, string icon, int val, Action<int> add, Color col)
         {
-            var pc = new PanelContainer { TooltipText = PerPoint(add) }; pc.AddThemeStyleboxOverride("panel", UiTheme.Box(new Color(.03f, .025f, .02f, .7f), col with { A = .45f }, 1, 12, 8, 0)); mid.AddChild(pc);
-            var h = new HBoxContainer(); h.AddThemeConstantOverride("separation", 12); pc.AddChild(h);
-            var ic = new Control { CustomMinimumSize = new Vector2(40, 40), MouseFilter = Control.MouseFilterEnum.Ignore }; ic.Draw += () => Icons.Draw(ic, icon, new Vector2(20, 20), 36); h.AddChild(ic);
-            var nv = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; nv.AddThemeConstantOverride("separation", 0); h.AddChild(nv);
-            Lbl(name, 18, col.Lightened(.3f), nv); var dd = Lbl(desc, 12, Dim, nv); dd.CustomMinimumSize = new Vector2(150, 0); dd.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-            var vl = Lbl(val.ToString(), 32, Colors.White, h); vl.CustomMinimumSize = new Vector2(52, 0); vl.HorizontalAlignment = HorizontalAlignment.Right;
+            var pc = new PanelContainer { TooltipText = desc + "\n" + PerPoint(add) }; pc.AddThemeStyleboxOverride("panel", UiTheme.Box(new Color(.03f, .025f, .02f, .7f), col with { A = .45f }, 1, UiTheme.CardPadX, UiTheme.CardPadY, 0)); mid.AddChild(pc);
+            var h = new HBoxContainer(); h.AddThemeConstantOverride("separation", 8); pc.AddChild(h);
+            var ic = new Control { CustomMinimumSize = new Vector2(34, 34), SizeFlagsVertical = Control.SizeFlags.ShrinkCenter, MouseFilter = Control.MouseFilterEnum.Ignore }; ic.Draw += () => Icons.Draw(ic, icon, new Vector2(17, 17), 30); h.AddChild(ic);
+            var nv = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; nv.AddThemeConstantOverride("separation", -2); h.AddChild(nv);
+            Lbl(name, 16, col.Lightened(.3f), nv); var dd = Lbl(desc, 12, Dim, nv); dd.CustomMinimumSize = new Vector2(120, 0); dd.ClipText = true; dd.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+            var vl = Lbl(val.ToString(), 26, Colors.White, h); vl.CustomMinimumSize = new Vector2(44, 0); vl.HorizontalAlignment = HorizontalAlignment.Right; vl.VerticalAlignment = VerticalAlignment.Center;
             if (d.AttrPts < 1) return;
-            var bv = new VBoxContainer(); bv.AddThemeConstantOverride("separation", 2); h.AddChild(bv);
+            var bv = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ShrinkCenter }; bv.AddThemeConstantOverride("separation", 2); h.AddChild(bv);   // side by side: stacked, the two buttons made every card 70 px tall
             foreach (int k in new[] { 1, 5 })
             {
                 if (k == 5 && d.AttrPts < 5) continue;
                 int kk = k; var b = Btn("+" + k, () => { int n = Math.Min(kk, d.AttrPts); if (n <= 0) return; d.AttrPts -= n; add(n); Game.Notify(); }, true);
-                b.CustomMinimumSize = new Vector2(46, 26); b.AddThemeColorOverride("font_color", gold); bv.AddChild(b);
+                b.CustomMinimumSize = new Vector2(40, UiTheme.CtlH); b.AddThemeColorOverride("font_color", gold); bv.AddChild(b);
                 if (k == 1) { b.MouseEntered += () => Preview(add, true); b.MouseExited += () => Preview(add, false); var tw = b.CreateTween().SetLoops(); tw.TweenProperty(b, "modulate:a", .65f, .8f); tw.TweenProperty(b, "modulate:a", 1f, .8f); }
             }
         }
         Attr("Strength", "Melee damage and heavy weapons", "sword", d.Str, n => d.Str += n, new Color("ff7a5a")); Attr("Dexterity", "Bows, attack speed and crits", "bow", d.Dex, n => d.Dex += n, new Color("7ee08a"));
         Attr("Vitality", "Health, stamina and armor", "hp", d.Vit, n => d.Vit += n, new Color("ffd36a")); Attr("Magic", "Mana and spell power", "zap", d.Mag, n => d.Mag += n, new Color("8fb0ff"));
+        ExtraAttrRows(mid);   // A-14: Wisdom, Agility, Luck, Endurance as a compact grid (UiAttrs.cs, data/stats.json "attributes")
     }
     // ---------------------------------------------------------------- journal
     static string _jTab = "active";
     public static void DevJournalTab(string t) => _jTab = t is "done" or "failed" ? t : "active";
     public void OpenJournal()
     {
-        var v = Frame("journal", "Journal", new Vector2(700, 560), OpenJournal); var d = Game.D;
-        Header("Records", v);
-        var gr = new GridContainer { Columns = 3 }; gr.AddThemeConstantOverride("h_separation", 28); gr.AddThemeConstantOverride("v_separation", 2); v.AddChild(gr);
-        foreach (var (k, val) in new[] { ("Best wave", d.BestWave), ("Best duel streak", d.BestDuel), ("Deepest depth", d.Deepest), ("Kills", d.Kills), ("Valor", d.Valor) })
-        { var cell = new HBoxContainer(); cell.AddThemeConstantOverride("separation", 8); gr.AddChild(cell); Lbl(k, 15, Parch, cell); Lbl(val.ToString(), 17, Gold, cell); }
+        // F-41: was 700 x 560 with a "Records" header and a two-row grid above the tabs; the records are one line at the right of the tab row now
+        var v = Frame("journal", "Journal", new Vector2(680, 500), OpenJournal); var d = Game.D;
         if (d.Bounty != null && d.Bounty.Count > 0) Row(v, "Wanted: " + string.Join(", ", d.Bounty.Select(kv => $"{NpcMemory.TownName(kv.Key)} {kv.Value} gold")) + "  (a bounty falls with time; guards who see you will stop you)", Muted, 14);
         // F-31: active, finished and failed quests (story quests of data/story.json and the old ones of data/quests.json)
         var sAct = Story.With(1).ToList(); var sDone = Story.With(2).ToList(); var sFail = Story.With(3).ToList(); var oldDone = Quests.All.Where(q => Game.Q(q.Id).S == 3).ToList();
         var tabs = new HBoxContainer(); v.AddChild(tabs);
         Tabs(tabs, _jTab, ("active", $"Active ({Quests.Active().Count + sAct.Count})", () => { _jTab = "active"; OpenJournal(); }), ("done", $"Finished ({oldDone.Count + sDone.Count})", () => { _jTab = "done"; OpenJournal(); }), ("failed", $"Failed ({sFail.Count})", () => { _jTab = "failed"; OpenJournal(); }));
-        var sc = Scroll(v, 380); var list = Inner(sc); var act = Quests.Active(); list.AddThemeConstantOverride("separation", 8); sc.HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled;
+        tabs.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Ignore });
+        var rec = new HBoxContainer { TooltipText = "Your records: best arena wave, best Shadow Duel streak, deepest dungeon floor, kills, valor" }; rec.AddThemeConstantOverride("separation", 4); tabs.AddChild(rec);
+        foreach (var (k, val) in new[] { ("Wave", d.BestWave), ("Duel", d.BestDuel), ("Depth", d.Deepest), ("Kills", d.Kills), ("Valor", d.Valor) })
+        { Lbl(k, UiTheme.Small, Dim, rec).VerticalAlignment = VerticalAlignment.Center; var rl = Lbl(val + "  ", UiTheme.Small, Gold, rec); rl.VerticalAlignment = VerticalAlignment.Center; }
+        var sc = Scroll(v, 300); var list = Inner(sc); var act = Quests.Active(); list.AddThemeConstantOverride("separation", UiTheme.RowGap); sc.HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled;
         if (_jTab != "active")
         {
             var shown = _jTab == "done" ? sDone : sFail;
             if (shown.Count == 0 && (_jTab == "failed" || oldDone.Count == 0)) Empty(list, _jTab == "done" ? "Nothing finished yet." : "No quest has gone wrong. Yet.");
             foreach (var q in shown)
             {
-                var s = Story.St(q.Id); var card = CardBox(list); var cv = new VBoxContainer(); cv.AddThemeConstantOverride("separation", 4); card.AddChild(cv);
-                Row(cv, q.Name.ToUpperInvariant() + (q.Arc != "" && Story.Arcs.TryGetValue(q.Arc, out var arc) ? "   " + arc.name : ""), _jTab == "done" ? Gold : Muted, 17);
+                var s = Story.St(q.Id); var card = CardBox(list); var cv = new VBoxContainer(); cv.AddThemeConstantOverride("separation", 1); card.AddChild(cv);
+                Row(cv, q.Name.ToUpperInvariant() + (q.Arc != "" && Story.Arcs.TryGetValue(q.Arc, out var arc) ? "   " + arc.name : ""), _jTab == "done" ? Gold : Muted, 16);
                 Row(cv, q.Summary, Parch, 15);
                 if (_jTab == "done") { if (s.End != "" && q.Endings.TryGetValue(s.End, out var et)) Row(cv, et, new Color(.75f, .9f, .75f), 15); }
                 else Row(cv, s.End != "" ? "Failed: " + s.End + "." : "Failed.", Muted, 15);
             }
-            if (_jTab == "done") foreach (var q in oldDone) { var card = CardBox(list); var cv = new VBoxContainer(); card.AddChild(cv); Row(cv, q.Name.ToUpperInvariant(), Gold, 17); Row(cv, q.Goal + ".", Dim, 15); }
+            if (_jTab == "done") foreach (var q in oldDone) { var card = CardBox(list); var cv = new VBoxContainer(); cv.AddThemeConstantOverride("separation", 1); card.AddChild(cv); Row(cv, q.Name.ToUpperInvariant(), Gold, 16); Row(cv, q.Goal + ".", Dim, 15); }
             return;
         }
         foreach (var q in sAct)
         {
-            if (Story.Now(q) is not { } st) continue; var card = CardBox(list); var cv = new VBoxContainer(); cv.AddThemeConstantOverride("separation", 4); card.AddChild(cv);
-            Row(cv, q.Name.ToUpperInvariant() + (q.Arc != "" && Story.Arcs.TryGetValue(q.Arc, out var arc) ? "   " + arc.name : ""), Gold, 17);
+            if (Story.Now(q) is not { } st) continue; var card = CardBox(list); var cv = new VBoxContainer(); cv.AddThemeConstantOverride("separation", 1); card.AddChild(cv);
+            Row(cv, q.Name.ToUpperInvariant() + (q.Arc != "" && Story.Arcs.TryGetValue(q.Arc, out var arc) ? "   " + arc.name : ""), Gold, 16);
             if (q.Motive != "" && NpcDb.Get(q.Giver) is { } gv) Row(cv, $"{gv.Name}: {q.Motive}", Dim, 13);
             Row(cv, st.Text, Parch, 15); bool done = Story.ObjsDone(q, st);
             for (int i = 0; i < st.Objs.Count; i++) { bool ok = Story.Have(q, st, i) >= st.Objs[i].N; Row(cv, (ok ? "[x] " : "[ ] ") + Story.ObjText(q, st, i), ok ? Dim : Parch, 15); }
@@ -713,8 +725,8 @@ public partial class Ui : CanvasLayer
         if (act.Count == 0 && sAct.Count == 0) Empty(list, "No active quests. People with work for you say so when you talk to them.");
         foreach (var q in act)
         {
-            var s = Game.Q(q.Id); bool rdy = s.S == 2; var card = CardBox(list, rdy); var cv = new VBoxContainer(); cv.AddThemeConstantOverride("separation", 4); card.AddChild(cv);
-            Row(cv, q.Name.ToUpperInvariant() + (rdy ? "   READY TO TURN IN" : ""), rdy ? new Color(.55f, 1f, .55f) : Gold, 17);
+            var s = Game.Q(q.Id); bool rdy = s.S == 2; var card = CardBox(list, rdy); var cv = new VBoxContainer(); cv.AddThemeConstantOverride("separation", 1); card.AddChild(cv);
+            Row(cv, q.Name.ToUpperInvariant() + (rdy ? "   READY TO TURN IN" : ""), rdy ? new Color(.55f, 1f, .55f) : Gold, 16);
             var ob = Row(cv, (rdy ? "[x] " : "[ ] ") + q.Goal + (q.Need > 1 && s.S == 1 ? $"  ({s.N}/{q.Need})" : ""), rdy ? Dim : Parch, 15);
             if (q.Need > 1) cv.AddChild(new ProgressBar { MinValue = 0, MaxValue = q.Need, Value = rdy ? q.Need : Math.Min(s.N, q.Need), ShowPercentage = false, CustomMinimumSize = new Vector2(0, 5), MouseFilter = Control.MouseFilterEnum.Ignore });
             if (rdy) Row(cv, "Return to " + Quests.GiverName(q.Giver) + ".", Parch, 15);
@@ -735,7 +747,8 @@ public partial class Ui : CanvasLayer
         var found = Lbl("", 14, Gold, hb); found.CustomMinimumSize = new Vector2(70, 0);
         TreeView? tvRef = null;
         hb.AddChild(Btn("-", () => tvRef?.ZoomBy(1 / 1.3f), true)); hb.AddChild(Btn("+", () => tvRef?.ZoomBy(1.3f), true));
-        hb.AddChild(Btn("My start", () => tvRef?.CenterOn(TreeDb.Get(TreeDb.StartFor(d.Class))!, 3.2f), true)); hb.AddChild(Btn("Whole tree", () => tvRef?.CenterOn(TreeDb.Nodes[0], 1f), true));
+        hb.AddChild(Btn("My start", () => tvRef?.Home(), true)); hb.AddChild(Btn("Whole tree", () => tvRef?.Whole(), true));
+        TreeLayerBar(v);   // A-15: Base / Advanced tabs and what the advanced tree still needs (UiTreeAdv.cs)
 
 
         var cols = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; cols.AddThemeConstantOverride("separation", 12); v.AddChild(cols);
@@ -752,6 +765,7 @@ public partial class Ui : CanvasLayer
             if (kind != "" || n.Arm == "hybrid") lines.Add((kind + (n.Arm == "hybrid" ? "   hybrid path" : ""), n.Col.Lightened(.3f), 12));
             if (n.Desc != "") lines.Add((n.Desc, Colors.White, 13));
             foreach (var kv in n.Mods) lines.Add((TreeDb.StatText(kv.Key, kv.Value), new Color(.75f, .92f, 1f), 14));
+            TreeAdvLines(n, lines);   // A-15: gate / capstone headings and what a locked advanced path needs (UiTreeAdv.cs)
             bool myStart = n.Id == TreeDb.StartFor(d.Class);
             if (n.Type == "start") lines.Add((myStart ? "You start here" : $"{Classes.Get(n.Arm).Name} start. Costs a point and gives no bonus: it lets a hybrid build on through it.", UiTheme.Dim, 12));
             if (myStart) { }

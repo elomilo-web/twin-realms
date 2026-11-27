@@ -26,6 +26,16 @@ public class PlayerStats
     public int TreeVer = 0;                               // skill tree layout version; older trees are refunded on load
     public int Level = 1, Xp = 0, Gold = 60, AttrPts = 0, SkillPts = 3, Kills = 0;
     public int Str = 5, Dex = 5, Vit = 5, Mag = 5;
+    // A-14: Wisdom (healing, mana regeneration, buff duration), Agility (move and attack speed, roll cost, evasion), Luck (crits, drops,
+    // status resistance), Endurance (stamina, block, gear wear). What a point gives is data (data/stats.json "attributes"); older saves load with 5.
+    public int Wis = 5, Agi = 5, Lck = 5, End = 5;
+    /// <summary>Points in an attribute by id ("str", "dex", "vit", "mag", "wis", "agi", "lck", "end").</summary>
+    public int AttrOf(string id) => id switch { "str" => Str, "dex" => Dex, "vit" => Vit, "mag" => Mag, "wis" => Wis, "agi" => Agi, "lck" => Lck, "end" => End, _ => 0 };
+    /// <summary>Adds points to an attribute by id (race and class starting bonuses, the character window).</summary>
+    public void AddAttr(string id, int n)
+    {
+        switch (id) { case "str": Str += n; break; case "dex": Dex += n; break; case "vit": Vit += n; break; case "mag": Mag += n; break; case "wis": Wis += n; break; case "agi": Agi += n; break; case "lck": Lck += n; break; case "end": End += n; break; }
+    }
     public int HpPot = 3, MpPot = 2, BestWave = 0, BestDuel = 0, Deepest = 0;
     public int Valor = 0, GachaPity = 0;   // arena valor points (data/valor.json) and pulls since the last epic
     public int DuelWins = 0;                              // duels won against friends
@@ -65,6 +75,7 @@ public class PlayerStats
     // (PetTrade.cs): pets taken out for a trade in flight (put back if it falls through). Older saves load with none.
     public int DuelRank = 0, SoulWins = 0, SoulLosses = 0;
     public List<PetState> TradeEscrow = new(); public int TradeEscrowGold = 0;
+    public TradeOffer? TradeHold;   // A-30 (Trade.cs): items, stacks, pets and gold taken out for a player trade in a friend's hosted world; put back if it falls through. Null in older saves and almost always.
     // Auction house (Auction.cs, focus F-37): the offline book (NPC listings, the hero's listings and collection box; null until first used and for
     // online heroes, whose book is the server's) and the number of the last server change this save contains (AhDelta.Seq). Older saves load with none.
     public AhBook? Ah; public long AhSeq = 0;
@@ -76,6 +87,7 @@ public class PlayerStats
     public Dictionary<string, string> Flags = new();
     public Dictionary<string, int> Bounty = new();   // gold on the hero's head per town (Crime.cs, F-32); falls by the hour. Older saves load with none.
     public List<string> Instruments = new(); public string Instrument = "";   // instruments owned (data/instruments.json ids) and the one taken out with the instrument key (Instruments.cs, F-40). Older saves load with none.
+    public SteadSave Stead = new();   // A-24..A-26 (Stead.cs): planted crops, forge contents, ranch animals. Older saves load with none.
 
     // ---- derived stats (methods so they are not serialised)
     static TreeStats TS => Game.TS;
@@ -108,6 +120,8 @@ public class PlayerStats
     /// weapon's damage factor, times the matching bonus groups (melee / bow / spell + gear spell power), the weapon type (swordP, bowP...) and all-damage.
     /// </summary>
     public float WpnDmg() => StatPipeline.Get(this, "wpnDmg");
+    /// <summary>A-12: the off-hand weapon's hit while dual wielding (its own class and item damage, x dual.offDamageMul); 0 when not.</summary>
+    public float OffDmg() => StatPipeline.Get(this, "offDmg");
     [JsonIgnore] public float ShieldDef => Eq.GetValueOrDefault("shield")?.Def ?? 0;
 
     /// <summary>Adds XP, returns how many levels were gained.</summary>

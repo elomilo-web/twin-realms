@@ -306,6 +306,7 @@ public partial class HudCanvas : Control
         }
         // hotbar bottom-left: 6 skills (keys 1-6, set in the Skills menu, L) + 2 potions
         float ss = Mathf.Max(36, u * 4.4f), hx = pad, hy = sz.Y - pad - ss;
+        if (Durability.Warning(d) is { } durWarn) Txt(new Vector2(hx, hy - fs(1f) * .9f), durWarn.text, fs(1f), durWarn.col);   // A-13: worn gear warning above the hotbar
         // unspent points: shown for a few seconds when new points arrive (level up), not all game; the pause menu always lists them
         int unspent = d.AttrPts + d.SkillPts + d.RankPts;
         if (unspent > _lastPts) _ptsShowT = 10f; _lastPts = unspent; _ptsShowT -= (float)GetProcessDeltaTime();
@@ -367,6 +368,7 @@ public partial class HudCanvas : Control
         if (p.MacroStatus is { Length: > 0 } ms) Txt(new Vector2(hx, hy - isz - 16), "▶ " + ms, fs(1f), UiTheme.Highlight);
         // minimap bottom-right
         DrawMini(p, new Vector2(sz.X - pad - u * 7, sz.Y - pad - u * 7), u * 7);
+        DrawPet(p, sz, u, pad, fs(1f));   // the active pet / mount, above the minimap (HudPet.cs, A-20)
         if (p.Downed)
         {
             Txt(new Vector2(0, sz.Y / 2), "DOWNED", fs(5f), new Color("ff9a6f"), HorizontalAlignment.Center, sz.X);

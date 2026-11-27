@@ -11,11 +11,11 @@ public partial class Ui
 
     public void OpenControls()
     {
-        var v = Frame("controls", "Settings", new Vector2(940, 600), OpenControls);
+        var v = Frame("controls", "Settings", new Vector2(SetW, SetH), OpenControls);
         v = SettingsShell(v, "controls");
-        Header("Controls", v);
-        var hint = Row(v, _capture != null ? "Press the new key or mouse button for \"" + NameOfAction(_capture) + "\" (Esc cancels)." : "Click an action, then press the key or mouse button you want. A key already in use swaps with it.",
-            _capture != null ? GoldC : Dim, 14);
+        // F-41: the "Controls" header repeated the tab and is gone; the how-to sits in the page's hint line at the bottom
+        ShowOptHint(_capture != null ? "Press the new key or mouse button for \"" + NameOfAction(_capture) + "\" (Esc cancels)." : "Click an action, then press the key or mouse button you want. A key already in use swaps with it.");
+        if (_capture != null) _optHint?.AddThemeColorOverride("font_color", GoldC);
         if (_controlsMsg != "") Row(v, _controlsMsg, new Color(1f, .85f, .5f), 14);
         var scroll = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled, CustomMinimumSize = new Vector2(0, 300) }; v.AddChild(scroll);
         var grid = new GridContainer { Columns = 2, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; grid.AddThemeConstantOverride("h_separation", 26); grid.AddThemeConstantOverride("v_separation", 5); scroll.AddChild(grid);
@@ -34,7 +34,7 @@ public partial class Ui
             bool waiting = _capture == a; string keyName = Inputs.Name(Inputs.Current(a));
             bool clash = !waiting && used.GetValueOrDefault(keyName) > 1;
             var b = Btn(waiting ? "press a key..." : keyName, () => { _capture = a; _controlsMsg = ""; OpenControls(); }, true);
-            b.CustomMinimumSize = new Vector2(124, 30); b.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+            b.CustomMinimumSize = new Vector2(124, UiTheme.CtlH); b.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
             Color font = waiting ? GoldC : clash ? new Color(1f, .7f, .65f) : Game.Set.Binds.ContainsKey(a) ? new Color(.75f, 1f, .8f) : Parch;
             StyleBoxFlat Cap(Color bg, Color bd) => new() { BgColor = bg, BorderColor = bd, BorderWidthLeft = 1, BorderWidthRight = 1, BorderWidthTop = 1, BorderWidthBottom = 3, CornerRadiusTopLeft = 3, CornerRadiusTopRight = 3, CornerRadiusBottomLeft = 3, CornerRadiusBottomRight = 3, ContentMarginLeft = 8, ContentMarginRight = 8, ContentMarginTop = 3, ContentMarginBottom = 3 };
             var norm = waiting ? Cap(new Color(.20f, .15f, .06f), GoldC) : clash ? Cap(new Color(.28f, .06f, .06f), new Color(.65f, .18f, .16f)) : Cap(new Color(.10f, .09f, .08f), UiTheme.AccentSoft);
@@ -47,7 +47,7 @@ public partial class Ui
         var bot = new HBoxContainer(); bot.AddThemeConstantOverride("separation", 10); v.AddChild(bot);
         bot.AddChild(Btn("Reset to defaults", () => { Inputs.ResetAll(); _capture = null; _controlsMsg = "All controls are back to their defaults."; OpenControls(); }, true));
         bot.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Ignore });
-        var back = Btn(InGame ? "Back" : "Done", () => { _capture = null; _controlsMsg = ""; if (InGame) OpenPause(); else ShowTitle(); }); back.CustomMinimumSize = new Vector2(140, 36); bot.AddChild(back);
+        var back = Btn(InGame ? "Back" : "Done", () => { _capture = null; _controlsMsg = ""; if (InGame) OpenPause(); else ShowTitle(); }); back.CustomMinimumSize = new Vector2(110, 28); bot.AddChild(back);
     }    static string NameOfAction(string id) { foreach (var (a, n) in Inputs.Rebindable) if (a == id) return n; return id; }
 
     /// <summary>While waiting for a key, the next key or mouse button press becomes the binding (before anything else sees it).</summary>

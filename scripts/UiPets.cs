@@ -78,9 +78,10 @@ public partial class Ui
 
         // ---- right: tabs
         var top = new HBoxContainer(); right.AddChild(top);
-        Tabs(top, _petTab, ("skills", "Skills", () => OpenPets(null, "skills")), ("gear", "Gear", () => OpenPets(null, "gear")), ("orders", "Orders", () => OpenPets(null, "orders")));
+        Tabs(top, _petTab, ("skills", "Skills", () => OpenPets(null, "skills")), ("gear", "Gear", () => OpenPets(null, "gear")), ("orders", "Orders", () => OpenPets(null, "orders")), ("tree", PetTree.Free(cur) > 0 ? $"Tree ({PetTree.Free(cur)})" : "Tree", () => OpenPets(null, "tree")));
         var rs = Scroll(right, 470); rs.HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled; var rv = Inner(rs); rv.AddThemeConstantOverride("separation", 5);
-        if (_petTab == "gear") PetGear(rv, cur);
+        if (_petTab == "tree") PetTreeTab(rv, cur);   // A-20 (UiPetTree.cs)
+        else if (_petTab == "gear") PetGear(rv, cur);
         else if (_petTab == "orders") PetOrders(rv, cur);
         else PetSkills(rv, cur);
     }

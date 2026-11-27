@@ -40,6 +40,8 @@ sealed class CraftRec
 {
     public string Group = "", Title = "", Sub = "", Btn = "Craft", Icon = ""; public Color Col = Colors.White; public Dictionary<string, int> Cost = new();
     public Color? Cube; public int Tier, Out = 1; public string? Blocked; public bool Repeat; public Func<bool> Do = () => false; public List<string> Extra = new();
+    // A-26 (the crafting grid, UiStations.cs): Hand = also on the 2x2 hand grid; Shape + KeyMap = a shaped recipe (rows of letters, letter -> material id)
+    public bool Hand; public string[]? Shape; public Dictionary<char, string>? KeyMap;
 }
 
 /// <summary>Pack extras: the pickup filter and crafting with disassembly scraps (recipes in data/loot.json "crafting").</summary>
@@ -56,12 +58,12 @@ public partial class Ui
     /// <summary>Gold text tabs: the current one is bright with a gold underline.</summary>
     void CraftTabs(Node parent, string cur, params (string id, string label, Action open)[] tabs)
     {
-        var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 16); parent.AddChild(row);
+        var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 10); parent.AddChild(row);
         PadTabs(tabs.Select(t => (t.open, t.id == cur)));   // LB / RB switch them (UiPad.cs)
         foreach (var (id, label, open) in tabs)
         {
             bool on = id == cur; var col = new VBoxContainer(); col.AddThemeConstantOverride("separation", 0); row.AddChild(col);
-            var b = new Button { Text = label, Flat = true, FocusMode = Control.FocusModeEnum.None }; b.AddThemeFontSizeOverride("font_size", 17);
+            var b = new Button { Text = label, Flat = true, FocusMode = Control.FocusModeEnum.None }; b.AddThemeFontSizeOverride("font_size", UiTheme.TabSize);
             foreach (var n in new[] { "font_color", "font_hover_color", "font_pressed_color", "font_focus_color" }) b.AddThemeColorOverride(n, on ? UiTheme.Highlight : n == "font_hover_color" ? Colors.White : Dim);
             foreach (var n in new[] { "normal", "hover", "pressed", "focus" }) b.AddThemeStyleboxOverride(n, new StyleBoxEmpty());
             b.Pressed += () => { Sfx.Play("click"); open(); }; col.AddChild(b);
@@ -71,32 +73,33 @@ public partial class Ui
 
     // ---------------------------------------------------------------- pickup filter
     static readonly string[] FilterSlots = { "weapon", "shield", "head", "armor", "hands", "feet", "cape", "trinket" };
-    public void OpenPickFilter()
+    /// <summary>F-41: the pickup filter is the pack's Filter tab now (it used to be a window of its own, 640 x 470).</summary>
+    public void OpenPickFilter() { _packTab = 3; OpenPack(); }
+    /// <summary>The Filter tab of the pack (Ui.OpenPack): lowest rarity, slots, what happens to the rest. Every click rebuilds the pack.</summary>
+    void PickFilterPane(GridContainer host, float width)
     {
-        var d = Game.D; var v = Frame("pickfilter", "Pickup Filter", new Vector2(640, 470), OpenPickFilter);
-        CraftHint(v, "Choose which items you pick up when you walk over them. Gold, potions, named uniques and set pieces are always picked up.");
-        Header("Pick up items of at least", v);
-        var rr = new HBoxContainer(); rr.AddThemeConstantOverride("separation", 4); v.AddChild(rr);
+        var d = Game.D; var v = new VBoxContainer { CustomMinimumSize = new Vector2(width, 0) }; v.AddThemeConstantOverride("separation", UiTheme.RowGap); host.AddChild(v);
+        string about = "Which items you pick up when you walk over them. Gold, potions, named uniques and set pieces are always picked up.";
+        var hl = Header("Pick up items of at least  [?]", v); hl.TooltipText = about; hl.MouseFilter = Control.MouseFilterEnum.Stop;
+        var rr = new HBoxContainer { TooltipText = about }; rr.AddThemeConstantOverride("separation", 4); v.AddChild(rr);
         for (int r = 0; r < 5; r++)
         {
-            int k = r; var b = Btn(Items.RarityName(r), () => { d.PickRar = k; OpenPickFilter(); }, true);
-            b.AddThemeColorOverride("font_color", Items.RarityColor(r)); b.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; Mark(b, d.PickRar == r); rr.AddChild(b);
+            int k = r; var b = Btn(Items.RarityName(r), () => { d.PickRar = k; OpenPack(); }, true);
+            b.AddThemeColorOverride("font_color", Items.RarityColor(r)); b.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; b.ClipText = true; b.CustomMinimumSize = new Vector2(60, UiTheme.CtlH); Mark(b, d.PickRar == r); rr.AddChild(b);
         }
         Header("Slots to pick up", v);
-        var sg = new GridContainer { Columns = 4 }; sg.AddThemeConstantOverride("h_separation", 6); sg.AddThemeConstantOverride("v_separation", 6); v.AddChild(sg);
+        var sg = new GridContainer { Columns = 4 }; sg.AddThemeConstantOverride("h_separation", 4); sg.AddThemeConstantOverride("v_separation", 4); v.AddChild(sg);
         foreach (var s in FilterSlots)
         {
             string sl = s; bool on = !d.PickSkip.Contains(s);
-            var b = Btn((on ? "[x] " : "[  ] ") + Cap(s), () => { if (!d.PickSkip.Remove(sl)) d.PickSkip.Add(sl); OpenPickFilter(); }, true);
-            b.CustomMinimumSize = new Vector2(140, 32); Mark(b, on); sg.AddChild(b);
+            var b = Btn((on ? "[x] " : "[  ] ") + Cap(s), () => { if (!d.PickSkip.Remove(sl)) d.PickSkip.Add(sl); OpenPack(); }, true);
+            b.CustomMinimumSize = new Vector2(60, UiTheme.CtlH); b.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; b.ClipText = true; Mark(b, on); sg.AddChild(b);
         }
         Header("Items that do not pass", v);
         var mr = new HBoxContainer(); mr.AddThemeConstantOverride("separation", 4); v.AddChild(mr);
-        var b0 = Btn("Leave them on the ground", () => { d.PickScrap = false; OpenPickFilter(); }, true); Mark(b0, !d.PickScrap); b0.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; mr.AddChild(b0);
-        var b1 = Btn("Disassemble them into scraps", () => { d.PickScrap = true; OpenPickFilter(); }, true); Mark(b1, d.PickScrap); b1.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; mr.AddChild(b1);
-        var bot = new HBoxContainer(); bot.AddThemeConstantOverride("separation", 10); v.AddChild(bot);
-        bot.AddChild(Btn("Pick up everything", () => { d.PickRar = 0; d.PickSkip.Clear(); d.PickScrap = false; OpenPickFilter(); }));
-        bot.AddChild(Btn("Back to the pack", OpenPack));
+        var b0 = Btn("Stay on the ground", () => { d.PickScrap = false; OpenPack(); }, true); Mark(b0, !d.PickScrap); b0.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; b0.CustomMinimumSize = new Vector2(0, UiTheme.CtlH); mr.AddChild(b0);
+        var b1 = Btn("Are scrapped", () => { d.PickScrap = true; OpenPack(); }, true); Mark(b1, d.PickScrap); b1.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; b1.CustomMinimumSize = new Vector2(0, UiTheme.CtlH); b1.TooltipText = "Items that do not pass are disassembled into scraps as you walk over them"; mr.AddChild(b1);
+        var all = Btn("Pick up everything", () => { d.PickRar = 0; d.PickSkip.Clear(); d.PickScrap = false; OpenPack(); }, true); all.TooltipText = "Clears the filter"; v.AddChild(all);
     }
 
     // ---------------------------------------------------------------- crafting
@@ -107,7 +110,6 @@ public partial class Ui
     }
     static bool CanPay(Dictionary<string, int> cost) { foreach (var (id, n) in cost) if (Game.D.Mats.GetValueOrDefault(id) < n) return false; return true; }
     static void Pay(Dictionary<string, int> cost) { var m = Game.D.Mats; foreach (var (id, n) in cost) { m[id] = m.GetValueOrDefault(id) - n; if (m[id] <= 0) m.Remove(id); } }
-    static string CostText(Dictionary<string, int> cost) => string.Join(",  ", cost.Select(kv => $"{kv.Value} {GatherDb.Mat(kv.Key).Name} ({Game.D.Mats.GetValueOrDefault(kv.Key)})"));
     static int Missing(Dictionary<string, int> cost) => cost.Sum(kv => Math.Max(0, kv.Value - Game.D.Mats.GetValueOrDefault(kv.Key)));
     static RecipeSlot IngSlot(string id, float size)
     {
@@ -115,46 +117,60 @@ public partial class Ui
         var m = GatherDb.Mat(id); return new RecipeSlot { Icon = m.Name, Frame = m.Col, CustomMinimumSize = new Vector2(size, size), MouseFilter = Control.MouseFilterEnum.Ignore };
     }
 
+    /// <summary>
+    /// A-26: the old "open crafting" entries (the pack's Crafting / Fuse gems buttons, dev tools). Crafting now happens at a station:
+    /// with the right station block within reach this opens it on that recipe list, otherwise it says which station is needed and
+    /// opens hand crafting (the 2x2 grid: planks, torches, a crafting table...).
+    /// </summary>
     public void OpenCraft(string tab)
     {
-        var d = Game.D; var v = Frame("craft", "Crafting", new Vector2(860, 640), () => OpenCraft(tab));
-        var top = new HBoxContainer(); top.AddThemeConstantOverride("separation", 4); v.AddChild(top);
-        var tabsHost = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; top.AddChild(tabsHost);
-        CraftTabs(tabsHost, tab, ("gear", "Gear", () => OpenCraft("gear")), ("elem", "Elemental", () => OpenCraft("elem")), ("sets", "Set pieces", () => OpenCraft("sets")), ("pots", "Potions", () => OpenCraft("pots")), ("gems", "Gems", () => OpenCraft("gems")), ("blocks", "Blocks", () => OpenCraft("blocks")));
-        top.AddChild(Btn("Back to the pack", OpenPack, true));
-        // scraps on hand
-        var have = new HBoxContainer(); have.AddThemeConstantOverride("separation", 6); v.AddChild(have); int shown = 0;
-        foreach (var kv in d.Mats.OrderBy(k => k.Key))
+        string st = Stations.For(tab);
+        if (st != "hand" && !Stations.Near(st))
         {
-            var m = GatherDb.Mat(kv.Key); if (!m.Scrap || kv.Value <= 0) continue;
-            have.AddChild(new ItemSlot { IconId = m.Name, Count = kv.Value, Tint = m.Col, CustomMinimumSize = new Vector2(40, 40), TooltipText = $"{m.Name} x{kv.Value}" }); shown++;
+            Note($"{Stations.TabName(tab)}: you need a {Stations.Get(st).Name} within reach. Hand crafting makes a Crafting Table.", new Color(1f, .8f, .5f));
+            OpenStation("hand"); return;
         }
-        if (shown == 0) CraftHint(v, "No scraps yet. Disassemble items in your pack (the Disassemble button) or set the pickup filter to scrap what you do not want.", 13);
+        OpenStation(st, tab);
+    }
+
+    /// <summary>The recipes of one list (tab): blocks, gear, elem, sets, gems, pots; "hand" = the hand subset of blocks.</summary>
+    List<CraftRec> CraftRecs(string tab, out string intro, out string empty)
+    {
+        var d = Game.D;
+        if (tab == "hand")
+        {
+            var all = CraftRecs("blocks", out _, out empty); intro = "Hand crafting: the basics. Everything else needs a station: a Crafting Table (blocks, tools), a Smithing Table (gear), a Forge (smelting), an Alchemy Table (potions).";
+            return all.Where(r => r.Hand).ToList();
+        }
         var c = LootTables.Root.GetProperty("crafting");
         bool Room() { if (d.Inv.Count >= 28) { Note("Pack is full", new Color(1, .5f, .5f)); return false; } return true; }
         void Give(Item it) { d.Inv.Add(it); Note("Crafted " + it.Name, it.Color); Sfx.Play("level"); Game.Notify(); }
-        void SlotPicker(Node parent)
-        {
-            var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 4); parent.AddChild(row);
-            foreach (var s in FilterSlots) { string sl = s; var b = Btn(Cap(s), () => { _craftSlot = sl; OpenCraft(tab); }, true); Mark(b, _craftSlot == s); b.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; row.AddChild(b); }
-        }
         string NoMats() { Note("Not enough materials", new Color(1, .5f, .5f)); return ""; }
-        string intro = ""; var recs = new List<CraftRec>(); string empty = "Nothing can be crafted here yet.";
+        intro = ""; var recs = new List<CraftRec>(); empty = "Nothing can be crafted here yet.";
         switch (tab)
         {
             case "blocks":
             {
                 // block world (data/blocks.json "recipes"): costs are block ids or gather materials
-                intro = "Turn blocks into other blocks. Dig blocks in build mode (" + Inputs.KeyOf(Inputs.BuildMode) + ") to collect them.";
+                intro = "Blocks, furniture and tools. Dig blocks in build mode (" + Inputs.KeyOf(Inputs.BuildMode) + ") to collect them.";
                 foreach (var p in Blocks.Root.GetProperty("recipes").EnumerateObject())
                 {
-                    if (p.Value.ValueKind != JsonValueKind.Object || !Blocks.Exists(p.Name)) continue;
-                    string outId = p.Name; int n = (int)JsonUtil.F(p.Value, "out", 1);
-                    var cost = new Dictionary<string, int>();
-                    foreach (var k in p.Value.GetProperty("cost").EnumerateObject()) cost[Blocks.DropItem(k.Name)] = k.Value.GetInt32();
+                    if (p.Value.ValueKind != JsonValueKind.Object) continue;
+                    string outId = JsonUtil.S(p.Value, "block", p.Name); if (!Blocks.Exists(outId)) continue;
+                    int n = (int)JsonUtil.F(p.Value, "out", 1);
+                    var cost = new Dictionary<string, int>(); string[]? shape = null; Dictionary<char, string>? keyMap = null;
+                    if (p.Value.TryGetProperty("shape", out var shj) && shj.ValueKind == JsonValueKind.Array && p.Value.TryGetProperty("key", out var kj) && kj.ValueKind == JsonValueKind.Object)
+                    {   // shaped: the cost is counted from the pattern
+                        shape = shj.EnumerateArray().Select(x => x.GetString() ?? "").ToArray(); keyMap = new();
+                        foreach (var k in kj.EnumerateObject()) if (k.Name.Length > 0) keyMap[k.Name[0]] = Blocks.DropItem(k.Value.GetString() ?? "");
+                        foreach (var row in shape) foreach (char ch in row) if (keyMap.TryGetValue(ch, out var mid)) cost[mid] = cost.GetValueOrDefault(mid) + 1;
+                    }
+                    else if (p.Value.TryGetProperty("cost", out var cj)) foreach (var k in cj.EnumerateObject()) cost[Blocks.DropItem(k.Name)] = k.Value.GetInt32();
+                    if (cost.Count == 0) continue;
                     string bn = Blocks.Def(Blocks.Id(outId)).Name;
                     recs.Add(new CraftRec
                     {
+                        Hand = p.Value.TryGetProperty("hand", out var hj) && hj.ValueKind == JsonValueKind.True, Shape = shape, KeyMap = keyMap,
                         Title = bn, Sub = $"Makes {n} {bn}", Cost = cost, Out = n, Cube = Blocks.Tint(Blocks.Def(Blocks.Id(outId))), Col = Colors.White, Repeat = true,
                         Do = () =>
                         {
@@ -315,6 +331,21 @@ public partial class Ui
                             Do = () => { if (!Room()) return false; if (!CanPay(cost)) { NoMats(); return false; } Pay(cost); Give(PetDb.RollGear(d.Level, 0, ps, rar)); return true; },
                         });
                     }
+                // A-26: the alchemy table's potions (data/stations.json "potions"): materials "pot_<id>", drunk from the pack
+                Stations.Load();
+                foreach (var po in Stations.Potions.Values)
+                {
+                    var pd = po; var pm = GatherDb.Mat(pd.Mat); var cost = new Dictionary<string, int>(pd.Cost);
+                    recs.Add(new CraftRec
+                    {
+                        Group = "Alchemy   brewed from herbs and monster parts", Title = pm.Name, Sub = Stations.PotionText(pd) + $". You carry {d.Mats.GetValueOrDefault(pd.Mat)}", Btn = "Brew", Cost = cost, Out = pd.Out, Icon = "hp", Col = pm.Col, Tier = 1, Repeat = true,
+                        Do = () =>
+                        {
+                            if (!CanPay(cost)) { NoMats(); return false; }
+                            Pay(cost); d.Mats[pd.Mat] = d.Mats.GetValueOrDefault(pd.Mat) + pd.Out; Sfx.Play("pickup"); Game.Notify(); return true;
+                        },
+                    });
+                }
                 break;
             default:
                 intro = "Forge gear for the slot you choose at your level (weapons get a random weapon type).";
@@ -329,81 +360,6 @@ public partial class Ui
                 }
                 break;
         }
-        if (intro != "") Row(v, intro, UiTheme.Text, 14);
-        if (tab == "gear" || tab == "elem") SlotPicker(v);
-        if (tab == "elem")
-        {
-            var er = new HBoxContainer(); er.AddThemeConstantOverride("separation", 4); v.AddChild(er);
-            foreach (var p in LootTables.Root.GetProperty("scraps").GetProperty("element").EnumerateObject()) { string el = p.Name; var b = Btn(GearFx.Get(el)?.Word ?? el, () => { _craftElem = el; OpenCraft(tab); }, true); Mark(b, _craftElem == el); b.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; er.AddChild(b); }
-        }
-        if (_craftSelTab != tab) { _craftSelTab = tab; _craftSel = 0; }
-        _craftSel = Math.Clamp(_craftSel, 0, Math.Max(0, recs.Count - 1));
-        if (recs.Count == 0) { CraftHint(v, empty); return; }
-
-        var cols = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; cols.AddThemeConstantOverride("separation", 14); v.AddChild(cols);
-        var ls = Scroll(cols, 260); ls.CustomMinimumSize = new Vector2(350, 260); ls.HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled; var list = Inner(ls); list.AddThemeConstantOverride("separation", 5);
-        var ds = Scroll(cols, 260); ds.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; ds.HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled; var detail = Inner(ds); detail.AddThemeConstantOverride("separation", 8);
-        var rows = new List<PanelContainer>();
-        StyleBoxFlat RowStyle(CraftRec r, bool sel)
-        {
-            bool ok = r.Blocked == null && CanPay(r.Cost);
-            var bg = ok ? new Color(.2f, .16f, .1f, .92f) : new Color(.07f, .06f, .06f, .85f);
-            var bd = sel ? UiTheme.Highlight : ok ? new Color(.55f, .46f, .3f, .8f) : new Color(.3f, .26f, .22f, .6f);
-            return UiTheme.Box(bg, bd, sel ? 2 : 1, 8, 5);
-        }
-        void Detail(CraftRec r)
-        {
-            foreach (var ch in detail.GetChildren()) { detail.RemoveChild(ch); ch.QueueFree(); }
-            bool ok = r.Blocked == null && CanPay(r.Cost);
-            var head = new HBoxContainer(); head.AddThemeConstantOverride("separation", 12); detail.AddChild(head);
-            head.AddChild(new RecipeSlot { Icon = r.Icon, Cube = r.Cube, Frame = r.Col, Tier = r.Tier, Badge = r.Out, Dimmed = !ok, CustomMinimumSize = new Vector2(92, 92), MouseFilter = Control.MouseFilterEnum.Ignore });
-            var hv = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; hv.AddThemeConstantOverride("separation", 2); head.AddChild(hv);
-            Row(hv, r.Title, r.Col.Lightened(.1f), 20); if (r.Sub != "") Row(hv, r.Sub, Dim, 13).CustomMinimumSize = new Vector2(200, 0);
-            Header("Ingredients", detail);
-            if (r.Cost.Count == 0) CraftHint(detail, "No ingredients needed.");
-            else
-            {
-                var fl = new HFlowContainer(); fl.AddThemeConstantOverride("h_separation", 8); fl.AddThemeConstantOverride("v_separation", 6); detail.AddChild(fl);
-                foreach (var (id, need) in r.Cost)
-                {
-                    int got = d.Mats.GetValueOrDefault(id); var cell = new VBoxContainer { CustomMinimumSize = new Vector2(84, 0) }; cell.AddThemeConstantOverride("separation", 1); fl.AddChild(cell);
-                    var sl = IngSlot(id, 56); var wrap = new CenterContainer(); wrap.AddChild(sl); cell.AddChild(wrap);
-                    var cnt = Lbl($"{got} / {need}", 14, got >= need ? Good : Bad, cell); cnt.HorizontalAlignment = HorizontalAlignment.Center;
-                    var nm = Lbl(GatherDb.Mat(id).Name, 11, Dim, cell); nm.HorizontalAlignment = HorizontalAlignment.Center; nm.ClipText = true;
-                }
-            }
-            if (r.Blocked != null) CraftHint(detail, r.Blocked, 13).AddThemeColorOverride("font_color", new Color(1f, .6f, .5f));
-            foreach (var x in r.Extra) Row(detail, x, Dim, 12);
-            var br = new HBoxContainer(); br.AddThemeConstantOverride("separation", 8); detail.AddChild(br);
-            void Go(int times)
-            {
-                bool any = false; for (int i = 0; i < times; i++) { if (!r.Do()) break; any = true; CraftedLife(r.Cost); }   // F-25: crafting XP and its perk (UiLife.cs)
-                if (any) { Sfx.UiConfirm(); OpenCraft(tab); } else Sfx.UiError();
-            }
-            var cb = Btn(r.Btn, () => Go(1)); cb.CustomMinimumSize = new Vector2(120, 38); cb.AddThemeColorOverride("font_color", ok ? UiTheme.Highlight : Dim); br.AddChild(cb);
-            if (r.Repeat) { var c5 = Btn(r.Btn + " x5", () => Go(5)); c5.CustomMinimumSize = new Vector2(120, 38); c5.AddThemeColorOverride("font_color", ok ? UiTheme.Highlight : Dim); br.AddChild(c5); }
-        }
-        string lastGroup = ""; int idx = 0;
-        foreach (var r0 in recs)
-        {
-            var r = r0; int my = idx++;
-            if (r.Group != "" && r.Group != lastGroup) { lastGroup = r.Group; Header(r.Group, list); }
-            bool ok = r.Blocked == null && CanPay(r.Cost);
-            var pc = new PanelContainer { MouseFilter = Control.MouseFilterEnum.Stop, MouseDefaultCursorShape = Control.CursorShape.PointingHand }; pc.AddThemeStyleboxOverride("panel", RowStyle(r, my == _craftSel)); list.AddChild(pc); rows.Add(pc);
-            var h = new HBoxContainer(); h.AddThemeConstantOverride("separation", 8); pc.AddChild(h);
-            h.AddChild(new RecipeSlot { Icon = r.Icon, Cube = r.Cube, Frame = r.Col, Tier = r.Tier, Badge = r.Out, Dimmed = !ok, CustomMinimumSize = new Vector2(46, 46), MouseFilter = Control.MouseFilterEnum.Ignore });
-            var tv = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; tv.AddThemeConstantOverride("separation", 0); h.AddChild(tv);
-            var nl = Lbl(r.Title, 15, ok ? r.Col.Lightened(.2f) : Dim, tv); nl.ClipText = true; nl.CustomMinimumSize = new Vector2(100, 0);
-            var sum = Lbl(r.Cost.Count == 0 ? "no ingredients" : string.Join(", ", r.Cost.Select(kv => $"{kv.Value} {GatherDb.Mat(kv.Key).Name}")), 11, ok ? new Color(.82f, .74f, .55f) : new Color(.5f, .48f, .46f), tv); sum.ClipText = true; sum.CustomMinimumSize = new Vector2(100, 0);
-            int miss = Missing(r.Cost); if (!ok && miss > 0) Lbl($"missing {miss}", 11, Bad, tv);
-            pc.GuiInput += e =>
-            {
-                if (e is InputEventMouseButton mb && mb.Pressed && mb.ButtonIndex == MouseButton.Left)
-                {
-                    Sfx.Play("click"); _craftSel = my; for (int i = 0; i < rows.Count; i++) rows[i].AddThemeStyleboxOverride("panel", RowStyle(recs[i], i == my)); Detail(r);
-                }
-            };
-        }
-        Detail(recs[_craftSel]);
+        return recs;
     }
 }

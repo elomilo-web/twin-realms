@@ -1,0 +1,36 @@
+{
+ "_help": "A-33 the Starlight Tavern of Oakhaven (scripts/Tavern.cs). x, z = the middle of the building in the world (west of the square, between the two western roads), rot = quarter turns of the blueprint (1 = the door faces east, towards the square). The tavern becomes the town's inn (villagers whose schedule says 'inn' eat and spend their evenings there). staff = ids of data/npcs.json (the elf maids). By day (their work hours) they walk between the tables and say a 'serveLines' line; during show.from .. show.to (hours) they stand on the stage and dance in step (side steps, a spin every spinEvery seconds, a cheer every cheerEvery), and take turns to sing a song every songEvery seconds: its lines as speech bubbles lineGap seconds apart, notes floating up, and its 'tune' (steps of the instrument's scale) played on 'instrument' (data/instruments.json). After a song the patrons clap and call a 'cheers' line. Talking to a maid: the menu (dishes of data/cooking.json by id and their price; they go into the pack as food), a tip (gold for standing with her and the town, once every tip.every seconds of play) and a song request (request.gold, show hours only).",
+ "name": "The Starlight Tavern",
+ "x": -34, "z": -4, "rot": 1,
+ "staff": ["tav_lirael", "tav_sylwen", "tav_miriel", "tav_aerin"],
+ "show": { "from": 19, "to": 23.5, "songEvery": 26, "lineGap": 3.6, "spinEvery": 8, "cheerEvery": 6, "step": 0.45, "stepRate": 2.4, "noteGap": 0.42, "instrument": "lute" },
+ "serve": { "every": [9, 16] },
+ "tip": { "gold": 15, "rep": 3, "town": 1, "every": 180 },
+ "request": { "gold": 30, "rep": 1 },
+ "menu": [
+  { "food": "elf_cake", "price": 30 },
+  { "food": "maid_omurice", "price": 34 },
+  { "food": "moon_tea", "price": 24 },
+  { "food": "spiced_cider", "price": 22 },
+  { "food": "bread", "price": 10 }
+ ],
+ "serveLines": [
+  "One honey cake, coming right up!",
+  "More cider at this table?",
+  "Mind the tray, please!",
+  "The stage lights up at dusk. Do stay!",
+  "Welcome to the Starlight, traveller!",
+  "Is everything to your liking?",
+  "Fresh moonpetal tea, still warm."
+ ],
+ "thanks": ["Thank you so much! You are too kind.", "Oh! For me? I will sing my best tonight.", "Bless your road, kind traveller."],
+ "cheers": ["Encore!", "Another one!", "Bravo!", "Sing it again!", "To the Starlight!"],
+ "songs": [
+  { "n": "Lanterns of Oakhaven", "tune": [0, 2, 4, 2, 4, 5, 7, 5, 4, 2, 0, 2, 4, 7, 4, 0],
+    "lines": ["Lanterns glow on Oakhaven's lane,", "calling the weary home again.", "Leave your sword beside the door,", "tonight the realm needs you no more!"] },
+  { "n": "The Twin Moons' Waltz", "tune": [0, 4, 7, 4, 2, 5, 7, 5, 0, 4, 7, 4, 5, 4, 2, 0],
+    "lines": ["One moon of silver, one of shade,", "they dance above the forest glade.", "Step to the light, turn to the dark,", "and follow, follow the firefly's spark!"] },
+  { "n": "Honey Cake Serenade", "tune": [7, 5, 4, 5, 7, 7, 7, 4, 5, 5, 5, 4, 2, 4, 0, 0],
+    "lines": ["Sugar and starlight, butter and bloom,", "the sweetest of cakes in the cosiest room.", "One bite for courage, two bites for cheer,", "three bites and, traveller, you'll always come here!"] }
+ ]
+}

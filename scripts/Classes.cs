@@ -34,6 +34,8 @@ public class ClassDef
     /// <summary>Starting gear set besides the weapon and shield: slot -> (name, def, hp, mp, dmg).</summary>
     public Dictionary<string, (string n, int def, int hp, int mp, int dmg)> Gear = new();
     public Color Tunic = new(.58f, .16f, .17f), Cape = new(.18f, .22f, .4f);
+    /// <summary>A-17: how the class plays, as (label, text) lines: role, weapon, resource, signature skills, skill tree, tip (data/classes.json "guide").</summary>
+    public List<(string label, string text)> Guide = new();
 }
 
 /// <summary>Classes from data/classes.json: starting attributes, weapon, gear set, class passives, starting skills and colours.</summary>
@@ -62,7 +64,13 @@ public static class Classes
                     c.Gear[x.Name] = (JsonUtil.S(x.Value, "n", x.Name), (int)JsonUtil.F(x.Value, "def"), (int)JsonUtil.F(x.Value, "hp"), (int)JsonUtil.F(x.Value, "mp"), (int)JsonUtil.F(x.Value, "dmg"));
             _d[p.Name] = c; Order.Add(p.Name);
         }
+        // A-17: how each class plays ("guide": role, weapon, resource, signature, tree, tip)
+        if (doc.RootElement.TryGetProperty("guide", out var gd) && gd.ValueKind == JsonValueKind.Object)
+            foreach (var p in gd.EnumerateObject())
+                if (_d.TryGetValue(p.Name, out var c) && p.Value.ValueKind == JsonValueKind.Object)
+                    foreach (var (key, label) in GuideKeys) { string t = JsonUtil.S(p.Value, key); if (t != "") c.Guide.Add((label, t)); }
     }
+    static readonly (string key, string label)[] GuideKeys = { ("role", "Role"), ("weapon", "Weapon"), ("resource", "Resource"), ("signature", "Signature skills"), ("tree", "Skill tree"), ("tip", "Tip") };
 
     /// <summary>The class's starting equipment: weapon (none for fists), shield, and its gear set (F-34).</summary>
     public static Dictionary<string, Item?> StartGear(ClassDef c)

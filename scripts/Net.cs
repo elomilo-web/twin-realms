@@ -33,7 +33,7 @@ public class PartyInfo
 public partial class Net : Node
 {
     public static Net? I;
-    public const int DefaultPort = 24565, Protocol = 15;   // Protocol 15: auction house and server-run pet trades (NetAuction.cs, PetTrade.cs); 14: pet trading (PetTrade.cs) and friends' pets (PeerInfo.Pet); 13: the block world (NetBlocks.cs); 12: online server (accounts, login step); 11: party luck, bonus stats and glow on gear; 10: titles on heroes, lair shades; 9: lair intro and Scarletta's grab; 8: host's enemy list lines friends' monsters up (World.Reconcile); 7: taunts and revives (NetAggro.cs), raid lairs; 6: attack animations in poses; 5: shared ambushes, friends' effects, numbers and statuses; older builds are told to update
+    public const int DefaultPort = 24565, Protocol = 16;   // Protocol 16: chat, friends, item trading and party quest sharing (NetChat.cs, NetFriends.cs, NetTrade.cs, NetQuests.cs); 15: auction house and server-run pet trades (NetAuction.cs, PetTrade.cs); 14: pet trading (PetTrade.cs) and friends' pets (PeerInfo.Pet); 13: the block world (NetBlocks.cs); 12: online server (accounts, login step); 11: party luck, bonus stats and glow on gear; 10: titles on heroes, lair shades; 9: lair intro and Scarletta's grab; 8: host's enemy list lines friends' monsters up (World.Reconcile); 7: taunts and revives (NetAggro.cs), raid lairs; 6: attack animations in poses; 5: shared ambushes, friends' effects, numbers and statuses; older builds are told to update
     public static int MaxPlayers = 8;              // friend hosting; the online server reads data/online.json
     const int Channels = 8;   // 0 reliable events, 1 poses, 2 enemy snapshots, 3 clock, 4 shots (both sides must open the same number)
     public static bool Active => I != null && I._live;
@@ -121,6 +121,7 @@ public partial class Net : Node
     public void Shutdown()
     {
         PetTrade.Cancelled("");   // a pet trade in flight: its escrow comes back
+        SocialReset();            // chat / friends / item trade session state (NetChat.cs)
         _trades.Clear();
         if (_peer != null) { FlushOnline(); _peer.Close(); }
         if (IsInsideTree()) { Multiplayer.MultiplayerPeer = new OfflineMultiplayerPeer(); ClearAuth(); }
@@ -171,7 +172,7 @@ public partial class Net : Node
         if (!_server) return;
         if (Dedicated && !Players.ContainsKey(id)) return;   // never entered the world, or already removed (a replaced session)
         if (Duel != null && (Duel.A == id || Duel.B == id)) HostDuelOver(Duel.A == id ? Duel.B : Duel.A, id);
-        TradePeerLeft(id);
+        TradePeerLeft(id); SocialPeerLeft(id);   // (NetChat.cs: their item trade ends, friends are told)
         HostLeaveParty(id, false); Players.Remove(id);
         Broadcast(MethodName.R_Note, n + " left the game"); Ui.Note(n + " left the game", Ui.Dim);
         SendRoster();
@@ -271,6 +272,7 @@ public partial class Net : Node
             _snapT -= dt; if (_snapT <= 0) { _snapT = .1f; SendEnemySnapshots(); }
             _worldT -= dt; if (_worldT <= 0) { _worldT = 2f; Broadcast(MethodName.R_World, World.TimeOfDay, Realm); TickLoot(2f); }
             _dunT -= dt; if (_dunT <= 0) { _dunT = .5f; HostTickDungeons(); }
+            SocialTick(dt);   // item trade countdowns (NetTrade.cs)
         }
         if (Dungeon.IsOwner) { _dunSnapT -= dt; if (_dunSnapT <= 0) { _dunSnapT = .1f; SendDungeonSnapshots(); } }
         TickDuel(dt);

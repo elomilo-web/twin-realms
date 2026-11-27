@@ -196,6 +196,7 @@ public partial class Npc : Node3D, IInteractable
         var hairs = new[] { new Color(.15f, .1f, .06f), new Color(.45f, .3f, .15f), new Color(.8f, .65f, .38f), new Color(.68f, .68f, .7f), new Color(.55f, .22f, .1f) };
         bool female = Sex != "" ? Sex == "f" : role != "guard" && role != "arena" && role != "smith" && rg.Next(2) == 0;
         var ap = new Appearance { Female = female, Skin = skins[rg.Next(skins.Length)], Hair = hairs[Id == "maren" ? 3 : rg.Next(hairs.Length)], Beard = !female && rg.Next(4) == 0 };
+        if (Avatar.Npc(role) is { } rcfg && Avatar.Str(rcfg, "ears") != "") { ap.PointyEars = true; ap.Skin = skins[rg.Next(2) == 0 ? 0 : 3]; }   // A-33: elf roles (data/avatar.json npcs.<role>.ears): pointed ears, fair skin
         _av = new Avatar { Name = "Avatar" }; AddChild(_av); _av.Build(ap, Id + NpcName);
         var cfg = Avatar.Npc(role) ?? Avatar.Npc("talk");
         Color? tint = Tint ?? (cfg is { } c && Avatar.Str(c, "tint") != "" ? Color.FromHtml(Avatar.Str(c, "tint")) : Color.FromHsv((float)rg.NextDouble(), .35f, .95f));

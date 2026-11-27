@@ -23,7 +23,15 @@ public class SpeciesDef
     public float Base = .5f, PetScale = 1, MountScale = 1, StatMul = 1;
     public bool Catchable = true, Mountable, Boss, Raid;
     public List<(int lvl, string skill)> Learn = new();
+    // riding (A-19): NaturalH = the creature's own height in metres (too small = cannot be ridden, rules.mountMinHeight); "mount" in
+    // pets.json species: speed / jump / stamina multipliers, fly, saddle [up, forward] in metres at riding size
+    public float NaturalH = 1, MountSpeed = 1, MountJump = 1, MountStamina = 1, SaddleUp, SaddleFwd;
+    public bool Flies;
+    /// <summary>Skill-tree family (pets.json tree.familyOf by archetype): beast, flyer, spirit, construct.</summary>
+    public string Family = "beast";
 }
+/// <summary>What a mount gives its rider (PetDb.Mount): speeds in m/s, jump as a multiplier of the hero's jump, stamina points.</summary>
+public struct MountStats { public float Speed, Gallop, Jump, Stamina, FlySpeed; public bool Flies; }
 /// <summary>Duel/world stats of one pet at its level (integers, like a creature sheet).</summary>
 public struct PetStats { public int Hp, Atk, Def, Spd, Mag; }
 
@@ -42,6 +50,7 @@ public class PetState
     public bool Stay = false;                               // orders: hold position instead of following
     public string Aggro = "defensive";                      // passive / defensive / aggressive / assist
     public int Loot = 1, LootRar = 2;                       // auto-loot: 0 off, 1 gold (and potions, cubes), 2 rarity >= LootRar, 3 everything
+    public Dictionary<string, int> Tree = new();            // pet skill tree (A-20, PetTree.cs): node id -> rank; points come from the level, so older pets load with all of theirs unspent
 
     public string Name() => Nick != "" ? Nick : Sp().Name;
     public SpeciesDef Sp() => PetDb.Species(Species);
@@ -153,8 +162,16 @@ public static class PetDb
         float h = d.Model != "" ? (d.H > 0 ? d.H : 1.6f) * Mathf.Max(.1f, d.Scale) + d.Lift : d.Kind == "quad" ? d.R * 2.4f : d.Kind == "dragon" ? 5f : d.Kind == "wraith" ? 2.4f : 1.9f * Mathf.Max(.1f, d.Scale);
         s.PetScale = Mathf.Clamp(R("petHeight", 1.4f) / Mathf.Max(.3f, h), .25f, 1f);
         s.MountScale = Mathf.Clamp(R("mountHeight", 1.6f) / Mathf.Max(.3f, h), .25f, 1.8f);
+        s.NaturalH = h; if (h < R("mountMinHeight", .8f)) s.Mountable = false;   // too small to carry a hero (unless the data says otherwise)
+        s.Flies = d.Kind == "dragon" || d.Fly;
         void Apply(JsonElement o)
         {
+            if (o.TryGetProperty("mount", out var mo) && mo.ValueKind == JsonValueKind.Object)
+            {
+                s.MountSpeed = JsonUtil.F(mo, "speed", s.MountSpeed); s.MountJump = JsonUtil.F(mo, "jump", s.MountJump); s.MountStamina = JsonUtil.F(mo, "stamina", s.MountStamina);
+                if (mo.TryGetProperty("fly", out var fl) && (fl.ValueKind == JsonValueKind.True || fl.ValueKind == JsonValueKind.False)) s.Flies = fl.GetBoolean();
+                if (mo.TryGetProperty("saddle", out var sd) && sd.ValueKind == JsonValueKind.Array && sd.GetArrayLength() >= 2) { s.SaddleUp = sd[0].GetSingle(); s.SaddleFwd = sd[1].GetSingle(); }
+            }
             if (o.TryGetProperty("rarity", out var r) && r.ValueKind == JsonValueKind.String) s.Rarity = r.GetString()!;
             if (o.TryGetProperty("archetype", out var a) && a.ValueKind == JsonValueKind.String) s.Arch = a.GetString()!;
             if (o.TryGetProperty("mountable", out var m) && (m.ValueKind == JsonValueKind.True || m.ValueKind == JsonValueKind.False)) s.Mountable = m.GetBoolean();
@@ -185,7 +202,30 @@ public static class PetDb
             if (d.Breath && !s.Learn.Exists(l => l.skill == "dragon_fire")) s.Learn.Add((15, "dragon_fire"));
             s.Learn.Sort((a, b) => a.lvl.CompareTo(b.lvl));
         }
+        s.Family = PetTree.FamilyOf(s.Arch, s.Elem, s.Flies);
         _species[type] = s; return s;
+    }
+
+    // ------------------------------------------------------------------ riding (A-19): one set of numbers for the horse and for pets
+    static List<string>? _mountIds;
+    /// <summary>A species as a small number for the pose packet (the same on every machine: enemy types sorted by name); -1 unknown.</summary>
+    public static int MountIndex(string species) { _mountIds ??= EnemyDb.Types.OrderBy(t => t, StringComparer.Ordinal).ToList(); return _mountIds.IndexOf(species); }
+    public static string MountSpeciesAt(int i) { _mountIds ??= EnemyDb.Types.OrderBy(t => t, StringComparer.Ordinal).ToList(); return i >= 0 && i < _mountIds.Count ? _mountIds[i] : ""; }
+    /// <summary>
+    /// What this mount gives its rider (pets.json rules mount*): speed from its spd stat, gallop = speed x mountGallopMul, jump and
+    /// stamina grow with its level; the species' "mount" multipliers and the pet's skill tree (mountSpdP, mountStP) on top.
+    /// p = null: an unbound animal of that species at that level (the bought horse).
+    /// </summary>
+    public static MountStats Mount(string species, int level, PetState? p = null)
+    {
+        var sp = Species(species); p ??= new PetState { Species = species, Level = Math.Max(1, level) };
+        float spd = Mathf.Min(R("mountSpeedMax", 15), R("mountSpeedBase", 9) + p.Stats().Spd * R("mountSpeedPerSpd", .03f)) * sp.MountSpeed * (1 + PetTree.Mod(p, "mountSpdP") / 100f);
+        return new MountStats
+        {
+            Speed = spd, Gallop = spd * R("mountGallopMul", 1.35f), Flies = sp.Flies, FlySpeed = spd * R("mountFlySpeedMul", 1.5f),
+            Jump = Mathf.Min(R("mountJumpMax", 1.7f), (R("mountJumpBase", 1.05f) + R("mountJumpPerLevel", .006f) * p.Level) * sp.MountJump),
+            Stamina = (R("mountStaminaBase", 60) + R("mountStaminaPerLevel", 2) * p.Level) * sp.MountStamina * (1 + PetTree.Mod(p, "mountStP") / 100f),
+        };
     }
 
     // ------------------------------------------------------------------ stats and levels
@@ -197,7 +237,7 @@ public static class PetDb
         int S(string key, float field, float nat)
         {
             var e = st.GetProperty(key);
-            return Mathf.RoundToInt((JsonUtil.F(e, "a", 1) * field + JsonUtil.F(e, "b", 0)) * (1 + JsonUtil.F(e, "perLevel", .08f) * (p.Level - 1)) * nat * k) + p.GearStat(key);
+            return Mathf.RoundToInt((JsonUtil.F(e, "a", 1) * field + JsonUtil.F(e, "b", 0)) * (1 + JsonUtil.F(e, "perLevel", .08f) * (p.Level - 1)) * nat * k * (1 + PetTree.Mod(p, key + "P") / 100f)) + p.GearStat(key);   // (key + "P": the pet's skill tree, A-20)
         }
         float magField = d.Mr + (d.DmgType != "physical" ? d.Dmg : d.Dmg * .4f);
         return new PetStats { Hp = Math.Max(10, S("hp", Mathf.Sqrt(Mathf.Max(1, d.Hp)), n.Hp)), Atk = Math.Max(1, S("atk", d.Dmg, n.Atk)), Def = Math.Max(1, S("def", d.Armor, n.Def)), Mag = Math.Max(1, S("mag", magField, n.Mag)), Spd = Math.Max(1, S("spd", d.Spd, n.Spd)) };

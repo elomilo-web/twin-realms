@@ -31,7 +31,9 @@ public class AhDelta
     public long Seq; public int Gold;
     public List<string> RmItems = new(), RmPets = new();   // items by their JSON (Auction.Sig), pets by Id
     public List<Item> AddItems = new(); public List<PetState> AddPets = new();
-    public bool Empty() => Gold == 0 && RmItems.Count == 0 && RmPets.Count == 0 && AddItems.Count == 0 && AddPets.Count == 0;
+    // A-30 (player trades, Trade.cs): stacked things given (+) or taken (-) by key ("mat:<id>", "gem:<key>", "pot:hp", "cube:<tier>", TradeStacks); not written when there are none, so older deltas and books read the same
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public Dictionary<string, int>? Stacks;
+    public bool Empty() => Gold == 0 && RmItems.Count == 0 && RmPets.Count == 0 && AddItems.Count == 0 && AddPets.Count == 0 && (Stacks == null || Stacks.Count == 0);
 }
 /// <summary>The book: open listings, collection boxes, totals. Offline it is saved with the hero (PlayerStats.Ah); online the server keeps one for everybody.</summary>
 public class AhBook
@@ -274,6 +276,7 @@ public static class Auction
         foreach (var id in x.RmPets) { d.Pets.RemoveAll(p => p.Id == id); if (d.ActivePet == id) d.ActivePet = ""; }
         foreach (var it in x.AddItems) { if (d.Inv.Count < PackSize) d.Inv.Add(it); else d.Stash.Add(it); }
         foreach (var p in x.AddPets) if (!d.Pets.Exists(q => q.Id == p.Id)) d.Pets.Add(p);
+        if (x.Stacks != null) foreach (var kv in x.Stacks) TradeStacks.Add(d, kv.Key, kv.Value);   // A-30: materials, gems, potions, cubes of a player trade
         d.Gold = (int)Math.Clamp((long)d.Gold + x.Gold, 0, int.MaxValue);
     }
 

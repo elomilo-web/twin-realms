@@ -1,0 +1,6 @@
+{
+ "_help": "A-28 the build library (scripts/BuildLibrary.cs). In build mode: 'corner1' / 'corner2' (physical key names of Godot's Key enum) mark the two corners of the selection box on the aimed block, 'library' opens the Build Library window (nudge and resize the box, name and save the design, list / rename / delete saved designs, place one). max = the largest selection (blocks along x, y, z), maxBlocks = the most blocks one design may hold. Designs are files in user://designs (one .json each: name, size, a palette of block keys and cells x, y, z, palette index, meta), shared by every hero of this player; copy the files to share them. Placing: the ghost follows the aimed block, the rotate key turns it a quarter, the place key sets it (all blocks or none: every cell must be free and the pack must hold every material), attack puts it away.",
+ "max": [24, 24, 24],
+ "maxBlocks": 4000,
+ "keys": { "corner1": "BracketLeft", "corner2": "BracketRight", "library": "Backslash" }
+}
