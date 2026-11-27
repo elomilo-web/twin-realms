@@ -1,0 +1,37 @@
+{
+  "_help": "Focus F-39. Every song the game can play (scripts/Music.cs). 'category' is one id or a list of ids from 'categories'. The picker asks where the hero is: a boss lair > a dungeon > the hero's home (within homeRadius metres of the home storage chest) > a town (data/towns.json zones) > night or the Shadow realm (World.Night above nightAt) > exploring. It plays a song of the first of those that is switched on (Settings > Audio > Music) and has a song switched on; with none, silence. 'loops': how many times a seamless song plays through before the quiet gap (the tools/music_gen.ps1 songs loop without a seam). 'vol': 1 = as recorded. Categories with 'loop' keep one song going while the hero stays (boss lairs); 'urgent' ones switch at once. Numbers: gap = seconds of quiet between songs, firstGap = before the first one, fade = crossfade seconds, settle = seconds a new place must hold before the song changes, minPlay = seconds a song plays at least before a change of place may replace it, volume = loudness of the Music bus at 100%.",
+  "dir": "res://assets/audio/music/",
+  "gap": [20, 70],
+  "firstGap": [4, 9],
+  "fade": 3.5,
+  "settle": 5,
+  "minPlay": 14,
+  "homeRadius": 9,
+  "nightAt": 0.55,
+  "volume": 0.55,
+  "categories": [
+    { "id": "home", "name": "Home", "hint": "By your storage chest at home." },
+    { "id": "town", "name": "Towns", "hint": "Inside a town's walls." },
+    { "id": "explore", "name": "Exploring", "hint": "Out in the world by day." },
+    { "id": "night", "name": "Night", "hint": "After dark and in the Shadow realm." },
+    { "id": "dungeon", "name": "Dungeons", "hint": "Underground.", "urgent": true },
+    { "id": "boss", "name": "Boss lairs", "hint": "The raid lair's own song.", "urgent": true, "loop": true }
+  ],
+  "tracks": [
+    { "id": "home_by_the_fire", "title": "By the Fire", "file": "gen/home_by_the_fire.wav", "category": "home", "loops": 2 },
+    { "id": "town_hearthside", "title": "Hearthside", "file": "gen/town_hearthside.wav", "category": "town", "loops": 2 },
+    { "id": "town_market_morning", "title": "Market Morning", "file": "gen/town_market_morning.wav", "category": "town", "loops": 2 },
+    { "id": "explore_open_road", "title": "The Open Road", "file": "gen/explore_open_road.wav", "category": "explore", "loops": 2 },
+    { "id": "explore_far_hills", "title": "Far Hills", "file": "gen/explore_far_hills.wav", "category": "explore", "loops": 2 },
+    { "id": "dark_forest", "title": "Dark Forest", "file": "day/dark_forest.mp3", "category": "explore" },
+    { "id": "lament_warriors_soul", "title": "Lament of a Warrior's Soul", "file": "day/lament_warriors_soul.mp3", "category": "explore" },
+    { "id": "night_starlit", "title": "Starlit", "file": "gen/night_starlit.wav", "category": "night", "loops": 2 },
+    { "id": "night_lantern_watch", "title": "Lantern Watch", "file": "gen/night_lantern_watch.wav", "category": "night", "loops": 2 },
+    { "id": "contemplation", "title": "Contemplation", "file": "night/contemplation.mp3", "category": ["night", "dungeon"] },
+    { "id": "deep_blue_piano", "title": "Deep Blue Piano", "file": "night/deep_blue_piano.wav", "category": ["night", "dungeon"] },
+    { "id": "budding_of_consciousness", "title": "Budding of Consciousness", "file": "night/budding_of_consciousness.wav", "category": ["night", "dungeon"] },
+    { "id": "forgotten_tombs", "title": "Forgotten Tombs", "file": "night/forgotten_tombs.mp3", "category": ["dungeon", "night"] },
+    { "id": "vampires_piano", "title": "Vampire's Piano", "file": "night/vampires_piano.mp3", "category": ["dungeon", "night"] },
+    { "id": "scarletta_sadness", "title": "Scarletta's Sadness", "file": "lair/scarletta_sadness.ogg", "category": "boss" }
+  ]
+}

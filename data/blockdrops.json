@@ -1,0 +1,100 @@
+{
+  "_help": "F-44: building blocks dropped by monsters on the ONLINE server, where nobody can mine. active: 'online' (online server and its players' dungeons only), 'always' or 'off'. A kill drops blocks with 'chance' (bosses always) and then makes 'rolls' picks (+ 'bossRolls' for a boss, + a mob entry's own 'rolls'). Each pick takes one entry by weight 'w' from: the biome's list where the monster stood ('default' if the biome has none) + the list of its realm + the lists of its type and of its kind ('kind:quad'); it gives n[0]..n[1] of that block (keys of data/blocks.json). They go into the pack as block items (blk_<key>) through the normal kill rewards.",
+  "active": "online",
+  "chance": 0.7,
+  "rolls": 2,
+  "bossRolls": 10,
+  "biomes": {
+    "default": [
+      { "block": "dirt", "n": [2, 5], "w": 4 },
+      { "block": "cobblestone", "n": [2, 5], "w": 4 },
+      { "block": "log", "n": [1, 3], "w": 2 },
+      { "block": "planks", "n": [2, 4], "w": 2 }
+    ],
+    "meadow": [
+      { "block": "dirt", "n": [3, 6], "w": 4 },
+      { "block": "cobblestone", "n": [2, 5], "w": 3 },
+      { "block": "planks", "n": [2, 5], "w": 3 },
+      { "block": "thatch", "n": [2, 4], "w": 2 },
+      { "block": "fence", "n": [1, 3], "w": 1 },
+      { "block": "plaster", "n": [2, 4], "w": 1 }
+    ],
+    "forest": [
+      { "block": "log", "n": [2, 5], "w": 5 },
+      { "block": "planks", "n": [3, 6], "w": 3 },
+      { "block": "dirt", "n": [2, 5], "w": 2 },
+      { "block": "mossy_bricks", "n": [1, 3], "w": 1 },
+      { "block": "ladder", "n": [1, 2], "w": 1 }
+    ],
+    "pine": [
+      { "block": "log", "n": [2, 5], "w": 4 },
+      { "block": "dark_planks", "n": [3, 6], "w": 3 },
+      { "block": "stone", "n": [2, 5], "w": 3 },
+      { "block": "slate", "n": [2, 4], "w": 2 }
+    ],
+    "autumn": [
+      { "block": "log", "n": [2, 4], "w": 3 },
+      { "block": "planks", "n": [3, 6], "w": 3 },
+      { "block": "brick", "n": [2, 5], "w": 3 },
+      { "block": "roof_tiles", "n": [2, 4], "w": 2 },
+      { "block": "cloth_red", "n": [1, 3], "w": 1 }
+    ],
+    "desert": [
+      { "block": "sand", "n": [3, 7], "w": 5 },
+      { "block": "sandstone", "n": [3, 6], "w": 5 },
+      { "block": "sandstone_stairs", "n": [1, 3], "w": 1 },
+      { "block": "sandstone_slab", "n": [1, 3], "w": 1 },
+      { "block": "glass", "n": [1, 3], "w": 2 },
+      { "block": "cloth_tan", "n": [1, 3], "w": 1 }
+    ],
+    "savanna": [
+      { "block": "dirt", "n": [3, 6], "w": 4 },
+      { "block": "sandstone", "n": [2, 5], "w": 3 },
+      { "block": "thatch", "n": [2, 5], "w": 3 },
+      { "block": "log", "n": [1, 3], "w": 2 },
+      { "block": "gravel", "n": [2, 4], "w": 2 }
+    ],
+    "swamp": [
+      { "block": "dirt", "n": [3, 6], "w": 4 },
+      { "block": "mossy_bricks", "n": [2, 5], "w": 4 },
+      { "block": "dark_planks", "n": [2, 5], "w": 3 },
+      { "block": "gravel", "n": [2, 4], "w": 2 }
+    ],
+    "tundra": [
+      { "block": "snow", "n": [3, 7], "w": 5 },
+      { "block": "packed_ice", "n": [2, 5], "w": 3 },
+      { "block": "stone", "n": [2, 5], "w": 3 },
+      { "block": "slate", "n": [2, 4], "w": 2 }
+    ],
+    "ancient": [
+      { "block": "stone_bricks", "n": [3, 6], "w": 5 },
+      { "block": "mossy_bricks", "n": [2, 5], "w": 3 },
+      { "block": "dark_stone", "n": [2, 5], "w": 3 },
+      { "block": "rune_stone", "n": [1, 2], "w": 1 }
+    ]
+  },
+  "realms": {
+    "1": [
+      { "block": "dark_stone", "n": [3, 6], "w": 6 },
+      { "block": "obsidian", "n": [1, 3], "w": 2 }
+    ]
+  },
+  "mobs": {
+    "kind:quad": { "rolls": 0, "drops": [ { "block": "dirt", "n": [2, 4], "w": 2 }, { "block": "log", "n": [1, 3], "w": 2 } ] },
+    "kind:wraith": { "rolls": 0, "drops": [ { "block": "dark_stone", "n": [2, 5], "w": 4 }, { "block": "glass", "n": [1, 3], "w": 2 } ] },
+    "kind:dragon": { "rolls": 6, "drops": [ { "block": "obsidian", "n": [3, 6], "w": 6 }, { "block": "stone_bricks", "n": [4, 8], "w": 4 } ] },
+    "golem": { "rolls": 2, "drops": [ { "block": "stone", "n": [4, 8], "w": 6 }, { "block": "stone_bricks", "n": [3, 6], "w": 4 } ] },
+    "earthGolem": { "rolls": 2, "drops": [ { "block": "stone", "n": [4, 8], "w": 6 }, { "block": "cobblestone", "n": [4, 8], "w": 4 } ] },
+    "goleling": { "rolls": 1, "drops": [ { "block": "cobblestone", "n": [2, 5], "w": 5 } ] },
+    "skeleton": { "rolls": 0, "drops": [ { "block": "stone_bricks", "n": [2, 4], "w": 3 }, { "block": "torch", "n": [1, 3], "w": 2 } ] },
+    "revenant": { "rolls": 1, "drops": [ { "block": "stone_bricks", "n": [3, 6], "w": 4 }, { "block": "slate", "n": [2, 5], "w": 3 } ] },
+    "bandit": { "rolls": 1, "drops": [ { "block": "planks", "n": [3, 6], "w": 4 }, { "block": "torch", "n": [1, 3], "w": 2 }, { "block": "door", "n": [1, 1], "w": 1 }, { "block": "chest", "n": [1, 1], "w": 1 }, { "block": "cloth_blue", "n": [1, 3], "w": 1 } ] },
+    "archer": { "rolls": 0, "drops": [ { "block": "fence", "n": [2, 4], "w": 3 }, { "block": "ladder", "n": [1, 3], "w": 2 } ] },
+    "goblin": { "rolls": 0, "drops": [ { "block": "cobblestone", "n": [2, 5], "w": 3 }, { "block": "torch", "n": [1, 2], "w": 2 }, { "block": "cobble_stairs", "n": [1, 3], "w": 1 }, { "block": "cobble_slab", "n": [1, 3], "w": 1 } ] },
+    "orcWarrior": { "rolls": 1, "drops": [ { "block": "dark_planks", "n": [3, 6], "w": 3 }, { "block": "brick", "n": [3, 6], "w": 3 } ] },
+    "yeti": { "rolls": 1, "drops": [ { "block": "packed_ice", "n": [3, 6], "w": 5 }, { "block": "snow", "n": [3, 7], "w": 3 } ] },
+    "cactusFiend": { "rolls": 1, "drops": [ { "block": "sand", "n": [3, 7], "w": 5 }, { "block": "glass", "n": [2, 4], "w": 2 } ] },
+    "flameSkull": { "rolls": 0, "drops": [ { "block": "obsidian", "n": [1, 2], "w": 2 }, { "block": "torch", "n": [2, 4], "w": 3 } ] },
+    "lesserDemon": { "rolls": 1, "drops": [ { "block": "obsidian", "n": [2, 4], "w": 4 }, { "block": "dark_stone", "n": [3, 6], "w": 3 } ] }
+  }
+}

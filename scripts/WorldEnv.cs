@@ -78,6 +78,7 @@ uniform float realm_t = 0.0;
 uniform float cover = 0.48;
 uniform vec2 wind = vec2(0.0);
 uniform float gold = 0.0;
+uniform float below_rate = 5.0;
 float h21(vec2 p){ vec3 q = fract(vec3(p.xyx) * 0.1031); q += dot(q, q.yzx + 33.33); return fract((q.x + q.y) * q.z); }
 float vn(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(h21(i), h21(i+vec2(1.0,0.0)), f.x), mix(h21(i+vec2(0.0,1.0)), h21(i+vec2(1.0,1.0)), f.x), f.y); }
 float fbm(vec2 p){ float s = 0.0; float a = 0.5; mat2 r = mat2(vec2(0.8, 0.6), vec2(-0.6, 0.8)); for (int i = 0; i < 5; i++){ s += a * vn(p); p = r * p * 2.03 + vec2(1.7, 9.2); a *= 0.5; } return s; }
@@ -89,7 +90,7 @@ void sky(){
   vec2 sh = normalize(sd.xz + vec2(1e-4, 0.0));
   float az = dot(normalize(d.xz + vec2(1e-4, 0.0)), sh) * 0.5 + 0.5;
   col = mix(col, dusk_col, clamp(dusk * (0.25 + 0.75 * pow(az, 3.0)) * exp(-max(y, 0.0) * 5.0), 0.0, 1.0));
-  if (y < 0.0) col = mix(col, ground_col, clamp(-y * 5.0, 0.0, 1.0));
+  if (y < 0.0) col = mix(col, ground_col, clamp(-y * below_rate, 0.0, 1.0));   // under the horizon: the colour of fogged far ground (A-05), reached quickly
   float sdot = max(dot(d, sd), 0.0);
   float halo = pow(sdot, mix(12.0, 80.0, night)) * mix(0.35, 0.12, night) + pow(sdot, 400.0) * mix(1.0, 0.25, night);
   col += mix(sun_col, vec3(0.6, 0.7, 1.0), night) * halo * (1.0 - realm_t * 0.2) + vec3(0.62, 0.58, 0.9) * (pow(sdot, 30.0) * 0.5 + pow(sdot, 220.0) * 0.8) * realm_t;
@@ -138,7 +139,10 @@ void sky(){
         foreach (var k in new[] { "shallow", "deep", "foam", "shadowShallow", "shadowDeep" })
             _water.SetShaderParameter(k switch { "shallow" => "shallow", "deep" => "deep", "foam" => "foam", "shadowShallow" => "s_shallow", _ => "s_deep" }, LC(k, "#3080a0"));
         _water.SetShaderParameter("sky_tint", LC("horizon", "#4d5659"));
-        Over.AddChild(new MeshInstance3D { Mesh = new PlaneMesh { Size = new Vector2(30000, 30000) }, MaterialOverride = _water, Position = new Vector3(0, 0.25f, 0), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
+        // A-05: the far sea is drawn at the height of the block sea's surface (data/look.json water.seaDrawY). The sea level is 0.25, but the block
+        // world fills water to round(0.25) = 0 with a source top at 0.88 of the block: -0.12. Drawn at 0.25 the far sea stood 0.37 m above the
+        // block sea all along the edge of the block square, and the pale sea bed showed through that step as a thin bright line.
+        Over.AddChild(new MeshInstance3D { Mesh = new PlaneMesh { Size = new Vector2(30000, 30000) }, MaterialOverride = _water, Position = new Vector3(0, LF("seaDrawY", -.12f), 0), CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
     }
 
     const string WaterShader = @"
@@ -223,7 +227,7 @@ void fragment(){
         vp.UseTaa = q >= 2 && !fsr2; vp.ScreenSpaceAA = q <= 1 ? Viewport.ScreenSpaceAAEnum.Fxaa : Viewport.ScreenSpaceAAEnum.Disabled;
         vp.MeshLodThreshold = q switch { 0 => 8f, 1 => 3f, 2 => 1f, _ => .5f };
         // view distance: the camera far plane, and tree/rock patches fade out before it (scaled from their own range)
-        foreach (var c in GetTree().Root.FindChildren("*", "Camera3D", true, false)) if (c is Camera3D cam) cam.Far = Mathf.Max(dist + 200f, 600f);
+        foreach (var c in GetTree().Root.FindChildren("*", "Camera3D", true, false)) if (c is Camera3D cam) cam.Far = FarPlane;
         float k = dist / 1200f * (q switch { 0 => .6f, 1 => .8f, _ => 1f });   // low presets pull scenery in too
         for (int i = Scenery.Count - 1; i >= 0; i--)
         {
@@ -232,6 +236,8 @@ void fragment(){
         }
     }
 
+    /// <summary>The camera far plane for the view distance setting (metres).</summary>
+    static float FarPlane => Mathf.Max(Game.Set.ViewDist + 200f, 600f);
     float _lastRealmT = -1f, _lastNight = -1f;
     void UpdateVisuals(float dt, bool force)
     {
@@ -254,7 +260,7 @@ void fragment(){
         var top = LC("nightTop", "02040d").Lerp(LC("dayTop", "2a64b8"), day).Lerp(LC("duskTop", "2d2f6e"), dusk * .55f).Lerp(LC("goldTop", "1e3a82"), gold * day * .6f).Lerp(LC("shadowTop", "0d0318"), RealmT);
         var hor = LC("nightHorizon", "0b1430").Lerp(LC("dayHorizon", "b5d3ec"), day).Lerp(LC("duskHorizon", "ff8048"), dusk * .5f).Lerp(LC("goldHorizon", "ff9a5c"), gold * day * .6f).Lerp(LC("shadowHorizon", "4a1450"), RealmT);
         float skyNight = Mathf.Clamp(1 - day, 0, 1) * (1 - RealmT);
-        _sky.SetShaderParameter("top_col", top); _sky.SetShaderParameter("hor_col", hor); _sky.SetShaderParameter("ground_col", hor.Darkened(.55f));
+        _sky.SetShaderParameter("top_col", top); _sky.SetShaderParameter("hor_col", hor);   // (ground_col: set below, once the fog colour is known)
         _sky.SetShaderParameter("dusk_col", LC("duskGlow", "ff6a3a")); _sky.SetShaderParameter("dusk", dusk * (1 - RealmT)); _sky.SetShaderParameter("night", skyNight);
         _sky.SetShaderParameter("sun_col", dayCol); _sky.SetShaderParameter("gold", gold * day);
         _cloudT += dt * LF("cloudSpeed", .006f); _sky.SetShaderParameter("wind", new Vector2(_cloudT, _cloudT * .35f));
@@ -271,6 +277,14 @@ void fragment(){
           _env.FogLightColor = _env.FogLightColor.Lerp(new Color(.4f, .46f, .54f), .45f * wg); _env.AdjustmentSaturation *= 1f - .15f * wg;
           // lightning before thunder (Weather.Flash 0..1, decays): a brief cold-white wash over the ambient light
           if (Weather.Flash > .01f) { _env.AmbientLightEnergy += 1.6f * Weather.Flash; _env.AmbientLightColor = _env.AmbientLightColor.Lerp(new Color(.85f, .9f, 1f), Weather.Flash); } }
+        {   // A-05, the pale band where the view distance ends: the camera's far plane cuts the ground and the sea off, and what showed behind the
+            // cut was the sky just under the horizon, which was the bright horizon colour (it only darkened 5% per 0.01 of slope). Now the sky
+            // under the horizon is the colour far ground has once the fog has taken it (fog colour mixed with the horizon, as aerial perspective
+            // does), reached within belowRate (data/look.json sky), and the fog is at least farFog thick at the far plane (env; no change at the
+            // default 1200 m view distance, thicker only at short view distances), so the cut edge and what is behind it look the same.
+            _env.FogDensity = Mathf.Max(_env.FogDensity, LF("farFog", 1.2f) / FarPlane);
+            _sky.SetShaderParameter("ground_col", _env.FogLightColor.Lerp(hor, LF("belowSkyMix", .5f))); _sky.SetShaderParameter("below_rate", LF("belowRate", 40f));
+        }
         { // god rays: forward-scattering volumetric haze + stronger sun volumetric energy in the gold band (quality >= 2, fades with rain)
           float baseVol = LF("volFog", .004f);
           float gr = (Game.Set.Quality >= 2 && baseVol > 0 && LF("godrays", 1f) > 0) ? gold * day * (TimeOfDay < .5f ? LF("godraysMorning", .6f) : 1f) * (1f - Mathf.Clamp(Weather.Rain, 0f, 1f) * .8f) : 0f;

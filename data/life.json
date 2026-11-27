@@ -11,7 +11,8 @@
   "climbing": { "per": 2,  "xp": 1 },
   "riding":   { "per": 25, "xp": 1 },
   "jumping":  { "xp": 2, "minTravel": 2.2, "minRise": 0.8, "cooldown": 1.5 },
-  "sneak":    { "speed": 0.5, "notice": 0.5, "maxSpeed": 0.85, "minNotice": 0.15 }
+  "sneak":    { "speed": 0.5, "notice": 0.5, "maxSpeed": 0.85, "minNotice": 0.15, "crouchDrop": 0.26, "crouchLean": 0.3 },
+  "lockedChests": { "_help": "A-10: this share of the treasure chests in the world and the dungeons is locked (picked with a lockpick, Interact); a locked chest gives 'bonus' times the loot; 'diff' = lock difficulty 0..1 (narrower sweet spot).", "chance": 0.25, "bonus": 1.5, "diff": 0.4 }
  },
  "skills": {
   "mining":      { "n": "Mining",      "group": "life",   "icon": "ore",     "desc": "Digging blocks and mining ore veins and crystals.", "perLevel": { "digP": 2, "mineDropChance": 0.6, "mineGemChance": 0.05 }, "perk": "digs faster; a chance of an extra drop or a gem" },

@@ -132,3 +132,5 @@ Original work made for this game by `tools/kit_gen/tex_gen.py` (code-generated, 
 
 ## Icons and menu pieces (`ui/`)
 Original work made for this game by `tools/kit_gen/ui_gen.py` (code-generated, CC0). 69 skill icons, 48 item icons, 22 frame pieces. See `docs/kit/README.md`.
+
+- assets/audio/music/gen/*.wav (7 songs: town_hearthside, town_market_morning, explore_open_road, explore_far_hills, night_starlit, night_lantern_watch, home_by_the_fire): original, synthesised by tools/music_gen.ps1 (focus F-39). No third-party material.

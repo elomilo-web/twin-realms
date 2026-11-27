@@ -266,6 +266,12 @@ public partial class Ui : CanvasLayer
         {
             DlgOpt(v, ++k, "Trade a pet", () => { PetTrade.StartNpc(); OpenPetTrade(); });
         }
+        if (n.Role == "auctioneer")
+        {   // F-37: the auction house (UiAuction.cs)
+            DlgOpt(v, ++k, "Show me the auction house", () => OpenAuction("browse"));
+            DlgOpt(v, ++k, "I have something to sell", () => OpenAuction("sell"));
+            DlgOpt(v, ++k, "Is anything waiting for me?", () => OpenAuction("collect"));
+        }
         if (nr != null)
         {   // F-27: the role's own options and a word about themselves (data/npcs.json personality); F-28: gifts and insults are remembered
             if (n.Role == "talk" && NpcDb.Trades(nr)) DlgOpt(v, ++k, "Show me your wares", () => OpenShop("buy"));
@@ -863,78 +869,5 @@ public partial class Ui : CanvasLayer
         }
     }
 
-    /// <summary>Dev captures: preselect a race and class on the create screen.</summary>
-    public static void DevPick(string race, string cls) { if (race != "") _pickRace = race; if (cls != "") _pickClass = cls; }
-
-    /// <summary>New hero for the selected slot: race, class, name.</summary>
-    public void ShowCreate()
-    {
-        InGame = false; Input.MouseMode = Input.MouseModeEnum.Visible;
-        var v = Frame("title", $"NEW HERO - SLOT {Game.Slot + 1}", new Vector2(1060, 640), ShowCreate);
-        var back = Btn("Back to heroes", ShowTitle, true); back.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin; v.AddChild(back);
-        Row(v, "Choose your race and class, then name your hero.", Dim, 14);
-        var sc = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; v.AddChild(sc);
-        var cols = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; cols.AddThemeConstantOverride("separation", 14); sc.AddChild(cols);
-        void Cap(Node p, string t) { var l = Lbl(t, 13, Gold, p); l.AddThemeFontOverride("font", new FontVariation { BaseFont = ThemeDB.FallbackFont, SpacingGlyph = 3 }); var ln = new ColorRect { Color = Line with { A = .6f }, CustomMinimumSize = new Vector2(0, 1) }; p.AddChild(ln); }
-        var rc = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; rc.AddThemeConstantOverride("separation", 0); cols.AddChild(rc); Cap(rc, "RACE");
-        // F-34/F-35: more races and classes than one column holds: two columns each
-        GridContainer Grid(Node p) { var g = new GridContainer { Columns = 2, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; g.AddThemeConstantOverride("h_separation", 4); g.AddThemeConstantOverride("v_separation", 0); p.AddChild(g); return g; }
-        var rg = Grid(rc);
-        foreach (var r in Races.All) { string id = r.Id; PickRow(rg, r.Name, id == _pickRace, () => { _pickRace = id; ShowCreate(); }, 16).SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; }
-        var cc = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; cc.AddThemeConstantOverride("separation", 0); cols.AddChild(cc); Cap(cc, "CLASS");
-        var cg = Grid(cc);
-        foreach (var c in Classes.All) { string id = c.Id; PickRow(cg, c.Name, id == _pickClass, () => { _pickClass = id; ShowCreate(); }, 16).SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; }
-        // ---- body, name, begin
-        var foot = new VBoxContainer(); foot.AddThemeConstantOverride("separation", 8); v.AddChild(foot); Cap(foot, "BODY");
-        var bodies = new HBoxContainer(); bodies.AddThemeConstantOverride("separation", 8); foot.AddChild(bodies);
-        foreach (var (id, label) in new[] { ("male", "Male"), ("female", "Female") })
-        {
-            bool on = id == _pickBody; var b = Btn(label, () => { _pickBody = id; ShowCreate(); }); b.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; b.CustomMinimumSize = new Vector2(0, 34);
-            var sbn = UiTheme.Box(on ? new Color(.20f, .15f, .06f, .9f) : new Color(.05f, .045f, .04f, .7f), on ? Gold : Line with { A = .5f }, 1, 10, 4, 0);
-            b.AddThemeStyleboxOverride("normal", sbn); b.AddThemeStyleboxOverride("hover", UiTheme.Box(new Color(.14f, .11f, .06f, .9f), Gold, 1, 10, 4, 0)); b.AddThemeStyleboxOverride("pressed", sbn);
-            b.AddThemeColorOverride("font_color", on ? Gold : Parch with { A = .7f }); bodies.AddChild(b);
-        }
-        Cap(foot, "NAME");
-        var name = new LineEdit { Text = _pickName, PlaceholderText = "Name your hero", CustomMinimumSize = new Vector2(0, 36) }; foot.AddChild(name); name.TextChanged += s => _pickName = s;
-        name.AddThemeStyleboxOverride("normal", UiTheme.Box(new Color(.02f, .018f, .015f, .95f), Line with { A = .5f }, 1, 10, 4, 0));
-        name.AddThemeStyleboxOverride("focus", UiTheme.Box(new Color(.03f, .025f, .02f, .98f), Gold, 2, 10, 4, 0));
-        name.AddThemeColorOverride("font_color", Parch);
-        var go = Btn("Begin the journey", () => { CloseNoUnpause(); OnNew?.Invoke(_pickClass, name.Text, _pickRace); }); go.CustomMinimumSize = new Vector2(0, 50); go.AddThemeFontSizeOverride("font_size", 20); foot.AddChild(go);
-        var gn = UiTheme.Box(new Color(.62f, .48f, .20f, .95f), Gold, 1, 12, 6, 6); var gh = UiTheme.Box(new Color(.80f, .64f, .28f, 1f), new Color(1f, .9f, .6f), 1, 12, 6, 10);
-        go.AddThemeStyleboxOverride("normal", gn); go.AddThemeStyleboxOverride("hover", gh); go.AddThemeStyleboxOverride("pressed", gn);
-        foreach (var cn in new[] { "font_color", "font_hover_color", "font_pressed_color" }) go.AddThemeColorOverride(cn, new Color(.08f, .05f, .02f));
-        // ---- right-hand info card over the backdrop
-        var rd = Races.Get(_pickRace); var cd = Classes.Get(_pickClass);
-        var vp = GetViewport().GetVisibleRect().Size; float cw = Mathf.Clamp(vp.X - 40 - 460 - 60, 280, 520);
-        var card = new PanelContainer { MouseFilter = Control.MouseFilterEnum.Stop }; card.AddThemeStyleboxOverride("panel", UiTheme.Box(new Color(.04f, .035f, .03f, .78f), Line with { A = .7f }, 1, 20, 16, 0));
-        card.AnchorLeft = 1; card.AnchorRight = 1; card.AnchorTop = 0; card.AnchorBottom = 0; card.OffsetRight = -40; card.OffsetLeft = -40 - cw; card.OffsetTop = 40; card.GrowVertical = Control.GrowDirection.End; card.GrowHorizontal = Control.GrowDirection.Begin;
-        _panel?.AddChild(card);
-        var dc = new VBoxContainer(); dc.AddThemeConstantOverride("separation", 8); card.AddChild(dc);
-        var tt = Lbl($"{rd.Name.ToUpper()}  {cd.Name.ToUpper()}", 26, Gold, dc); tt.AddThemeFontOverride("font", new FontVariation { BaseFont = ThemeDB.FallbackFont, SpacingGlyph = 4 }); tt.AddThemeColorOverride("font_outline_color", new Color(.08f, .04f, .02f)); tt.AddThemeConstantOverride("outline_size", 5);
-        dc.AddChild(new ColorRect { Color = Line with { A = .7f }, CustomMinimumSize = new Vector2(0, 1) });
-        Row(dc, rd.Desc, Parch, 15); Row(dc, cd.Desc, Parch, 15);
-        void Stats(string head, Dictionary<string, int> attr, Dictionary<string, float> mods, string extra)
-        {
-            Cap(dc, head);
-            var fl = new HFlowContainer(); fl.AddThemeConstantOverride("h_separation", 14); fl.AddThemeConstantOverride("v_separation", 2); dc.AddChild(fl);
-            foreach (var kv in attr) { var h = new HBoxContainer(); h.AddThemeConstantOverride("separation", 5); fl.AddChild(h); Lbl((kv.Value > 0 ? "+" : "") + kv.Value, 13, Gold, h); Lbl(kv.Key, 14, Parch, h); }
-            if (extra != "") { var l = Lbl(extra, 14, Parch, fl); }
-            foreach (var kv in mods) Lbl(TreeDb.StatText(kv.Key, kv.Value), 13, Dim, fl);
-        }
-        Stats("RACE BONUSES", rd.Attr, rd.Mods, rd.Pts > 0 ? $"+{rd.Pts} skill point" : "");
-        foreach (var p in rd.Passives) Row(dc, $"Racial passive - {p.Name}: {string.Join(", ", p.Mods.Select(kv => TreeDb.StatText(kv.Key, kv.Value)))}", Parch, 13);   // F-35
-        Stats("CLASS BONUSES", cd.Attr, cd.Mods, "");
-        foreach (var p in cd.Passives) Row(dc, $"{p.Name}: {string.Join(", ", p.Mods.Select(kv => TreeDb.StatText(kv.Key, kv.Value)))}", Parch, 13);   // F-34 class passives
-        Row(dc, $"Weapon: {(cd.Wt == "unarmed" ? "bare fists" : $"{cd.WName} ({Weapons.Get(cd.Wt).Name}{(cd.Shield ? " and shield" : "")})")}" + (cd.Gear.Count > 0 ? "   Gear: " + string.Join(", ", cd.Gear.Values.Select(g => g.n)) : ""), Parch, 14);
-        Cap(dc, "STARTING SKILLS");
-        var chips = new HFlowContainer(); chips.AddThemeConstantOverride("h_separation", 8); chips.AddThemeConstantOverride("v_separation", 8); dc.AddChild(chips);
-        foreach (var sid in cd.Skills)
-        {
-            var sk = Skills.Get(sid); var chip = new PanelContainer { TooltipText = sk?.Name ?? sid }; chip.AddThemeStyleboxOverride("panel", UiTheme.Box(new Color(.05f, .045f, .04f, .85f), Gold with { A = .8f }, 1, 6, 5, 0)); chips.AddChild(chip);
-            var ch = new HBoxContainer(); ch.AddThemeConstantOverride("separation", 6); chip.AddChild(ch);
-            if (sk != null) { string ic = Icons.ForSkill(sk); var ctl = new Control { CustomMinimumSize = new Vector2(30, 30), MouseFilter = Control.MouseFilterEnum.Ignore }; ctl.Draw += () => Icons.Draw(ctl, ic, new Vector2(15, 15), 28); ch.AddChild(ctl); }
-            Lbl(sk?.Name ?? sid, 13, Parch, ch).VerticalAlignment = VerticalAlignment.Center;
-        }
-        Row(dc, "Every class starts on its own part of the skill tree; bridges lead into neighbouring paths for hybrid builds.", Dim, 13);
-    }
+    // F-36: the character creator (ShowCreate, DevPick, the live preview) lives in UiCreate.cs
 }

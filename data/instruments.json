@@ -1,0 +1,72 @@
+{
+  "_help": "Focus F-40 (scripts/Instruments.cs). Instruments are bought from merchants (price, moved by standing) or crafted (Crafting > Blocks > Instruments; cost = materials of data/gather.json). Owned ones are saved on the hero. The instrument key (Settings > Controls, default 9) takes one out and puts it away; 0 switches to the next one owned. While it is out the keys in 'noteKeys' play the 8 steps of the instrument's scale and Shift plays them an octave up (the skill keys and the fishing rod wait meanwhile). root = MIDI note of the first key (60 = middle C); scale = semitones above it, one per key. timbre.kind: pluck (decaying string: bright 0..1 = how much overtone, decay = seconds, detune = second string), blow (a breathy tone that sounds while the key is held; hold = seconds for notes heard from others), drum (a pitched skin: decay seconds, drop = how far the pitch falls at the hit, noise = stick noise). vol = loudness. Notes are synthesised at runtime, played from the hero's position on the Effects bus, and sent to other players (net.perSecond notes at most). 'reactions': NPCs within 'range' metres notice after 'after' notes (a pause of 'window' seconds starts over); each reacts at most every 'cooldown' seconds with a line and a gesture. Lines: 'roles' by NPC role (used 'roleChance' of the time; '<role>_night' at night always), else by standing with the hero (liked / neutral / disliked at the reputation tiers 15 and -15). 'grumble' roles_night lines get no cheer. After 'repNotes' notes in one go, an NPC that liked it gives +'rep' standing, at most once per 'repEvery' seconds of play and only below 'repMax'. Coins: 'coinChance' per happy reaction, 'coins' gold, at most every 'coinEvery' seconds.",
+  "nextKey": "0",
+  "noteKeys": ["1", "2", "3", "4", "5", "6", "7", "8"],
+  "hearRange": 45,
+  "net": { "perSecond": 14 },
+  "instruments": [
+    {
+      "id": "lute", "name": "Lute", "sub": "A warm plucked lute in D",
+      "price": 140, "cost": { "timber": 4, "leatherstrip": 2 },
+      "root": 50, "scale": [0, 2, 4, 5, 7, 9, 11, 12],
+      "timbre": { "kind": "pluck", "bright": 0.72, "decay": 1.5, "detune": 0.003, "vol": 0.85 },
+      "color": "8a5a2b"
+    },
+    {
+      "id": "flute", "name": "Flute", "sub": "A breathy wooden flute in G; hold a key to hold the note",
+      "price": 110, "cost": { "timber": 2, "leatherstrip": 1 },
+      "root": 67, "scale": [0, 2, 4, 5, 7, 9, 11, 12],
+      "timbre": { "kind": "blow", "breath": 0.06, "hold": 0.7, "vol": 0.7 },
+      "color": "b08a55"
+    },
+    {
+      "id": "drum", "name": "Hand Drum", "sub": "A hide drum; eight pitches from deep to tight",
+      "price": 90, "cost": { "timber": 3, "hide": 2 },
+      "root": 38, "scale": [0, 3, 5, 7, 10, 12, 15, 17],
+      "timbre": { "kind": "drum", "decay": 0.45, "drop": 0.6, "noise": 0.35, "vol": 1.0 },
+      "color": "7a4a30"
+    },
+    {
+      "id": "harp", "name": "Harp", "sub": "A bright ringing harp in C",
+      "price": 220, "cost": { "timber": 5, "leatherstrip": 3, "ironscrap": 2 },
+      "root": 60, "scale": [0, 2, 4, 5, 7, 9, 11, 12],
+      "timbre": { "kind": "pluck", "bright": 0.5, "decay": 2.6, "detune": 0.0015, "vol": 0.8 },
+      "color": "c9a86a"
+    }
+  ],
+  "reactions": {
+    "range": 10,
+    "after": 4,
+    "window": 6,
+    "cooldown": 22,
+    "roleChance": 0.6,
+    "repNotes": 24,
+    "rep": 1,
+    "repEvery": 240,
+    "repMax": 40,
+    "coinChance": 0.25,
+    "coins": [1, 4],
+    "coinEvery": 45,
+    "grumble": ["guard_night", "guard captain_night", "road warden_night", "patrol rider_night"],
+    "lines": {
+      "liked": ["Play that one again!", "You have a gift, friend.", "Now that is music.", "That takes me back.", "Lovely. Do not stop on my account."],
+      "neutral": ["Not bad at all.", "Hm. A pleasant tune.", "A bard, are you?", "That brightens the day.", "Go on, I am listening."],
+      "disliked": ["Must you?", "Take that noise elsewhere.", "I have heard cats sing better.", "Spare us."],
+      "roles": {
+        "innkeeper": ["Play here any evening! It brings them in.", "Ha! A tune like that sells ale.", "Stay and play, the first cup is on me."],
+        "merchant": ["Music draws a crowd. Keep playing by my stall!", "A tune for luck in trade."],
+        "pedlar": ["A song for the road! I will hum it to the next town."],
+        "priest": ["A gentle hymn would suit that well.", "The light smiles on music."],
+        "farmer": ["Makes the work go lighter, that does.", "My old mother sang that one."],
+        "blacksmith": ["Keep the beat and I will hammer to it."],
+        "hunter": ["Softly, or you will scare the game. But it is a good tune."],
+        "elder": ["It has been long since Oakhaven had a bard."],
+        "guard": ["Keep it cheerful and keep it moving.", "Hm. Better than the barracks choir."],
+        "guard_night": ["Keep it down. Folk are sleeping.", "It is the middle of the night, bard.", "One more verse and I will fine you for the noise."],
+        "guard captain_night": ["Quiet after dark. That is an order."],
+        "road warden_night": ["You will draw wolves with that, at this hour."],
+        "patrol rider_night": ["Save it for daylight, friend."]
+      }
+    }
+  }
+}

@@ -13,6 +13,7 @@ public class PeerInfo
     public string Title = "";   // the worn title (Titles.cs): shown on their name tag; Felled Angel leaves feathers
     public float Luck;          // luck from their gear: pooled across the party for everyone's drops (Affixes.cs)
     public string Pet = "";     // their companion out in the world: "species|level|nick" (RemoteHero draws it following them), empty for none
+    public string Look = "";    // their character creator look, packed (HeroLook.Pack, F-36): body, face, hair, skin, markings; empty = the plain race look (and what older builds send)
 }
 /// <summary>A party: members share kills, experience and gold; the leader picks how item drops are shared.</summary>
 public class PartyInfo
@@ -32,7 +33,7 @@ public class PartyInfo
 public partial class Net : Node
 {
     public static Net? I;
-    public const int DefaultPort = 24565, Protocol = 14;   // Protocol 14: pet trading (PetTrade.cs) and friends' pets (PeerInfo.Pet); 13: the block world (NetBlocks.cs); 12: online server (accounts, login step); 11: party luck, bonus stats and glow on gear; 10: titles on heroes, lair shades; 9: lair intro and Scarletta's grab; 8: host's enemy list lines friends' monsters up (World.Reconcile); 7: taunts and revives (NetAggro.cs), raid lairs; 6: attack animations in poses; 5: shared ambushes, friends' effects, numbers and statuses; older builds are told to update
+    public const int DefaultPort = 24565, Protocol = 15;   // Protocol 15: auction house and server-run pet trades (NetAuction.cs, PetTrade.cs); 14: pet trading (PetTrade.cs) and friends' pets (PeerInfo.Pet); 13: the block world (NetBlocks.cs); 12: online server (accounts, login step); 11: party luck, bonus stats and glow on gear; 10: titles on heroes, lair shades; 9: lair intro and Scarletta's grab; 8: host's enemy list lines friends' monsters up (World.Reconcile); 7: taunts and revives (NetAggro.cs), raid lairs; 6: attack animations in poses; 5: shared ambushes, friends' effects, numbers and statuses; older builds are told to update
     public static int MaxPlayers = 8;              // friend hosting; the online server reads data/online.json
     const int Channels = 8;   // 0 reliable events, 1 poses, 2 enemy snapshots, 3 clock, 4 shots (both sides must open the same number)
     public static bool Active => I != null && I._live;
@@ -80,7 +81,7 @@ public partial class Net : Node
     public PeerInfo MeInfo()
     {
         var d = Game.D; var p = Player.Instance;
-        return new PeerInfo { Id = MyId, Name = d.Name, Race = d.Race, Class = d.Class, Body = d.Body, Level = d.Level, Eq = new Dictionary<string, Item?>(d.Eq), Zone = MyZone, Hp = p?.Hp ?? d.MaxHp(), MaxHp = d.MaxHp(), Party = Players.GetValueOrDefault(MyId)?.Party ?? 0, Title = d.Title, Luck = Game.TS["luck"], Pet = PetSig() };
+        return new PeerInfo { Id = MyId, Name = d.Name, Race = d.Race, Class = d.Class, Body = d.Body, Level = d.Level, Eq = new Dictionary<string, Item?>(d.Eq), Zone = MyZone, Hp = p?.Hp ?? d.MaxHp(), MaxHp = d.MaxHp(), Party = Players.GetValueOrDefault(MyId)?.Party ?? 0, Title = d.Title, Luck = Game.TS["luck"], Pet = PetSig(), Look = d.Look?.Pack() ?? "" };
     }
     /// <summary>"species|level|nick" of the companion out in the world (shown to friends), or "".</summary>
     static string PetSig()

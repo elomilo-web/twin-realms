@@ -10,6 +10,7 @@ public class QuestState { public int S; public int N; }   // S: 0 none, 1 active
 public class PlayerStats
 {
     public string Name = "Hero", Class = "warrior", Race = "human", Body = "male";   // Body: base model (male/female)
+    public HeroLook Look = new();   // the character creator's choices (AvatarLook.cs, focus F-36): body, face, hair, skin, markings, voice. Older saves load with the plain race look.
     public static readonly string[] Slots = { "weapon", "shield", "head", "armor", "hands", "feet", "trinket", "cape" };
     public List<Item> Stash = new();                    // storage chest at home; older saves load with an empty chest
     public Dictionary<string, SkillState> Skills = new(); // learned active skills with rank and socketed supports
@@ -64,6 +65,9 @@ public class PlayerStats
     // (PetTrade.cs): pets taken out for a trade in flight (put back if it falls through). Older saves load with none.
     public int DuelRank = 0, SoulWins = 0, SoulLosses = 0;
     public List<PetState> TradeEscrow = new(); public int TradeEscrowGold = 0;
+    // Auction house (Auction.cs, focus F-37): the offline book (NPC listings, the hero's listings and collection box; null until first used and for
+    // online heroes, whose book is the server's) and the number of the last server change this save contains (AhDelta.Seq). Older saves load with none.
+    public AhBook? Ah; public long AhSeq = 0;
     // NPC memory and standing (NpcMemory.cs, focus F-28): what each NPC of data/npcs.json remembers of this hero, and standing per town. Older saves load with none.
     public Dictionary<string, NpcMem> Npcs = new();
     public Dictionary<string, int> TownRep = new();
@@ -71,6 +75,7 @@ public class PlayerStats
     public Dictionary<string, StoryState> Story = new();
     public Dictionary<string, string> Flags = new();
     public Dictionary<string, int> Bounty = new();   // gold on the hero's head per town (Crime.cs, F-32); falls by the hour. Older saves load with none.
+    public List<string> Instruments = new(); public string Instrument = "";   // instruments owned (data/instruments.json ids) and the one taken out with the instrument key (Instruments.cs, F-40). Older saves load with none.
 
     // ---- derived stats (methods so they are not serialised)
     static TreeStats TS => Game.TS;

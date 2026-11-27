@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 
 namespace TwinRealms;
@@ -25,23 +27,52 @@ public partial class Net
     void R_BlocksUp(string area, byte[] packed)
     {
         if (!_server) return;
-        // F-18/F-44: the host rejects edits inside a protected town zone (unless the sender is an admin) and tells the sender the real blocks
+        // F-18: the host rejects edits inside a protected town zone (unless the sender is an admin) and tells the sender the real blocks.
+        // F-44: the online server also refuses mining (BlockAudit.Judge) and writes every accepted change to the block log.
         long sender = Multiplayer.GetRemoteSenderId();
-        if (area == "overworld" && !Admin.IsPeerAdmin(sender))
+        if (Dedicated && !_acct.ContainsKey(sender)) return;
+        if (area == BlockAudit.Area)
         {
-            var keep = new List<(int x, int y, int z, byte id, byte meta)>(); var back = new List<(int x, int y, int z, byte id, byte meta)>();
-            foreach (var e in BlockArea.Unpack(packed))
+            bool admin = PeerIsAdmin(sender); string acct = AcctOf(sender), who = NameOf(sender), why = "";
+            var all = BlockArea.Unpack(packed);
+            var keep = new List<(int x, int y, int z, byte id, byte meta)>(); var back = new List<(int x, int y, int z, byte id, byte meta)>(); var regen = new List<(int x, int y, int z, byte id, byte meta)>();
+            foreach (var e in all)
             {
-                if (TownZones.AtBlock(e.x, e.z) is not { } zone) { keep.Add(e); continue; }
-                GD.Print($"[town] rejected block edit from peer {sender} at {e.x},{e.y},{e.z} (id {e.id}) inside {zone.Name}");
-                if (BlockWorld.I?.Overworld() is { } ow) back.Add((e.x, e.y, e.z, ow.Get(e.x, e.y, e.z), ow.GetMeta(e.x, e.y, e.z)));
+                string? deny = !admin && TownZones.AtBlock(e.x, e.z) is { } zone ? TownZones.Message(zone) : Dedicated ? BlockAudit.Judge(acct, admin, e.x, e.y, e.z, e.id) : null;
+                if (deny == null) { keep.Add(e); if (Dedicated) BlockAudit.Accept(acct, who, e.x, e.y, e.z, e.id, e.meta); continue; }
+                why = deny;
+                if (Dedicated) { if (BlockWorld.ServerCell(area, e.x, e.y, e.z) is { } known) back.Add((e.x, e.y, e.z, known.id, known.meta)); else regen.Add((e.x, e.y, e.z, 0, 0)); }
+                else if (BlockWorld.I?.Overworld() is { } ow && ow.Get(e.x, e.y, e.z) != 255) back.Add((e.x, e.y, e.z, ow.Get(e.x, e.y, e.z), ow.GetMeta(e.x, e.y, e.z)));
             }
-            if (back.Count > 0) RpcId(sender, MethodName.R_Blocks, area, BlockArea.Pack(back));
-            if (keep.Count != BlockArea.Unpack(packed).Count) { if (keep.Count == 0) return; packed = BlockArea.Pack(keep); }
+            if (Dedicated) BlockAudit.Flush();
+            if (keep.Count != all.Count)
+            {
+                GD.Print($"[blocks] refused {all.Count - keep.Count} of {all.Count} block changes from {who} (peer {sender}): {why}");
+                RpcId(sender, MethodName.R_BlockTruth, area, BlockArea.Pack(back), BlockArea.Pack(regen), why);
+                if (keep.Count == 0) return; packed = BlockArea.Pack(keep);
+            }
         }
         BlockWorld.I?.ApplyRemote(area, packed);
         if (Dedicated) BlockWorld.KeepServerDiff(area, packed);
         Rpc(MethodName.R_Blocks, area, packed);   // to everyone (the sender re-applies the same values: no harm)
+    }
+    /// <summary>The host's answer to refused changes (and a rollback's result): these cells hold `known`; the `regen` cells are as the world was generated.</summary>
+    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    void R_BlockTruth(string area, byte[] known, byte[] regen, string why)
+    {
+        if (_server) return;
+        if (known.Length > 0) BlockWorld.I?.ApplyRemote(area, known);
+        if (regen.Length > 0) BlockWorld.I?.RevertToGen(area, BlockArea.Unpack(regen));
+        if (why != "") TownZones.Notify(why);
+    }
+    /// <summary>Server: a rollback's result to everyone (BlockAudit.Rollback already updated what newcomers get).</summary>
+    public void SendBlockTruth(List<(int x, int y, int z, byte id, byte meta)> set, List<(int x, int y, int z, byte id, byte meta)> regen)
+    {
+        if (!_server || set.Count + regen.Count == 0) return;
+        const int per = 4000;   // cells per message
+        for (int i = 0; i < Math.Max(set.Count, regen.Count); i += per)
+            Rpc(MethodName.R_BlockTruth, BlockAudit.Area, BlockArea.Pack(set.Skip(i).Take(per).ToList()), BlockArea.Pack(regen.Skip(i).Take(per).ToList()), "");
+        if (set.Count > 0) BlockWorld.I?.ApplyRemote(BlockAudit.Area, BlockArea.Pack(set));
     }
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     void R_Blocks(string area, byte[] packed) { if (!_server) BlockWorld.I?.ApplyRemote(area, packed); }
@@ -109,4 +140,34 @@ public partial class BlockWorld
         foreach (var e in BlockArea.Unpack(packed)) d[BlockArea.BKey(e.x, e.y, e.z)] = e;
     }
     public static byte[] ServerDiff(string area) => _serverDiff.TryGetValue(area, out var d) ? BlockArea.Pack(new List<(int, int, int, byte, byte)>(d.Values)) : System.Array.Empty<byte>();
+    /// <summary>What the server knows of a cell: the last change a player sent, or null (the generated world, which the server does not have).</summary>
+    public static (byte id, byte meta)? ServerCell(string area, int x, int y, int z)
+        => _serverDiff.TryGetValue(area, out var d) && d.TryGetValue(BlockArea.BKey(x, y, z), out var e) ? (e.Item4, e.Item5) : null;
+    public static void KeepServerCell(string area, int x, int y, int z, byte id, byte meta)
+    {
+        if (!_serverDiff.TryGetValue(area, out var d)) _serverDiff[area] = d = new();
+        d[BlockArea.BKey(x, y, z)] = (x, y, z, id, meta);
+    }
+    /// <summary>The cell is as generated again (a rollback): newcomers get no change for it.</summary>
+    public static void ServerForget(string area, int x, int y, int z) { if (_serverDiff.TryGetValue(area, out var d)) d.Remove(BlockArea.BKey(x, y, z)); }
+
+    /// <summary>Puts cells back to what the generator makes there (the server refused a change to the generated world, or rolled one back).</summary>
+    public void RevertToGen(string area, List<(int x, int y, int z, byte id, byte meta)> cells)
+    {
+        var a = Area != null && Area.Key == area ? Area : area == "overworld" ? Overworld() : null; if (a == null) return;
+        var made = new Dictionary<long, BlockChunk>();
+        foreach (var (x, y, z, _, _) in cells)
+        {
+            int cx = a.CFloor(x), cz = a.CFloor(z); long ck = BlockArea.CKey(cx, cz);
+            if (!made.TryGetValue(ck, out var c))
+            {
+                c = new BlockChunk(cx, cz, a.S, a.Gen.MinY, a.Gen.MaxY);
+                try { a.Gen.Fill(c); } catch (System.Exception e) { GD.PushWarning("[BLOCKS] could not regenerate a chunk: " + e.Message); }
+                made[ck] = c;
+            }
+            if (!c.Has(y)) continue;
+            int i = c.Index(x - cx * a.S, y, z - cz * a.S); byte id = c.Id[i], meta = c.Meta[i];
+            if (a == Area) Change(x, y, z, id, meta, false); else a.Set(x, y, z, id, meta);
+        }
+    }
 }

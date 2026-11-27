@@ -195,9 +195,9 @@ public partial class Fishing : Node3D
     {
         float dt = (float)delta; var pl = Player.Instance; if (pl == null) return;
         bool captured = Input.MouseMode == Input.MouseModeEnum.Captured;
-        if (captured && Input.IsActionJustPressed(RodAction)) Toggle();
+        if (captured && !Instruments.Busy && Input.IsActionJustPressed(RodAction)) Toggle();   // (an instrument in hand: 7 is a note key, Instruments.cs)
         if (Holding && (Player.BuildMode || pl.Mounted || pl.Dead || Dungeon.Active || Game.D.Rod <= 0)) Stop();
-        if (pl.Av is { } av) av.HeldOverride = Holding ? "code:rod" : null;
+        if (pl.Av is { } av && !Instruments.Busy) av.HeldOverride = Holding ? "code:rod" : null;
         _ui.QueueRedraw();
         if (!Holding) return;
         bool press = captured && Input.IsActionJustPressed(Inputs.Attack), hold = DevHold || captured && Input.IsActionPressed(Inputs.Attack);

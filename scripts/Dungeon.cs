@@ -438,7 +438,7 @@ public static partial class Dungeon
         if (Inst != 0) { e.NetIdx = NetList.Count; e.Puppet = Owner != Net.MyId; NetList.Add(e); }
         Root!.AddChild(e); return e;
     }
-    static void MakeChest(float x, float z, float bonus, int lvl) => Root!.AddChild(new Chest { Id = "dc" + GD.Randi(), Level = lvl, Bonus = bonus, Position = new Vector3(x, 0, z) });
+    static void MakeChest(float x, float z, float bonus, int lvl, bool lockable = true) => Root!.AddChild(new Chest { Id = "dc" + GD.Randi(), Level = lvl, Bonus = bonus, NoLock = !lockable, Position = new Vector3(x, 0, z) });   // A-10: room chests may be locked, the boss's never
 
     static Pad MakePad(Vector3 pos, bool down, Color col)
     {
@@ -482,7 +482,7 @@ public static partial class Dungeon
         Game.D.Deepest = Math.Max(Game.D.Deepest, Depth);
         var b = _rooms[_bossRoom]; float bx = (b.Cx + .5f) * Tile, bz = (b.Cz + .5f) * Tile;
         MakePad(new Vector3(bx, 0, bz + 4f), true, new Color(1f, .75f, .38f));
-        MakeChest(bx - 5, bz - 4, 2, (int)_baseLvl + 1); MakeChest(bx + 5, bz - 4, 2, (int)_baseLvl + 1);
+        MakeChest(bx - 5, bz - 4, 2, (int)_baseLvl + 1, false); MakeChest(bx + 5, bz - 4, 2, (int)_baseLvl + 1, false);
         Ui.Note("A way down has opened. Descend for better loot and tougher foes.", new Color(1f, .75f, .38f));
         Game.Save();
     }

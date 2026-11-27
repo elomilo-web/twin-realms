@@ -13,8 +13,11 @@ namespace TwinRealms;
 ///   "prepare" asks both sides to put their offered pets / gold into escrow (PlayerStats.TradeEscrow: taken out of the save first, so a pet is
 ///   never in two places), "done" hands each side the other's offer. A failed check or a cancel returns the escrow. Offers are size-limited
 ///   (data/pets.json duel.trade). Pets keep stats, level and their original trainer (Ot); the receiver gives them a new Id.
+/// - Online server (F-38): nothing is held on the players' machines. The server shows each side its own copy of the offered pets (from the
+///   stored saves, AuctionServer.Offer), and when both confirm it swaps pets and gold in one step on both saves (AuctionServer.Swap, Net.ServerSwap)
+///   and sends each game the change (R_AhDelta) and the end (R_TradeFin). A disconnect at any moment leaves each pet with exactly one owner.
 /// - Alone: Odile the Pet Trader (by the arena) takes one pet for a random pool pet of the same rarity and about the same level, for a fee.
-/// Auction house hook (F-37, later): Pack(pet) / Unpack(json, from) are the serialisation a listing would use.
+/// Auction house (F-37): pets can be listed there (Auction.List with a pet Id); Pack(pet) / Unpack(json) are how a listing carries and hands over a pet.
 /// </summary>
 public static class PetTrade
 {
@@ -94,7 +97,11 @@ public static class PetTrade
             var mine = MyIds.Count > 0 ? Game.D.Pets.Find(p => p.Id == MyIds[0]) : null;
             if (mine != null) { Theirs.Add(NpcOffer(mine)); TheirGold = -Fee(mine); TheirOk = true; }
         }
-        else Net.I?.TradeOffer(OfferJson(), MyGold);
+        else
+        {
+            if (Game.Online) Game.Save();   // the online server checks the offer against its copy of our save: send the latest first
+            Net.I?.TradeOffer(OfferJson(), MyGold);
+        }
         Game.Notify();
     }
     public static void Confirm()
@@ -111,7 +118,8 @@ public static class PetTrade
             Ui.Note($"{mine.Name()} goes with {TraderName}. {got.Name()} (Lv {got.Level}) is yours.", new Color(.7f, 1f, .75f)); Sfx.Play("portal");
             _npcOffers.Clear(); MyIds.Clear(); Theirs.Clear(); TheirGold = 0; Game.Save(); Game.Notify(); return;
         }
-        MyOk = !MyOk; Net.I?.TradeOk(Rev, MyOk); Game.Notify();
+        MyOk = !MyOk; if (MyOk && Game.Online) Game.Save();   // the server swaps on its copy of the saves
+        Net.I?.TradeOk(Rev, MyOk); Game.Notify();
     }
     public static void Cancel(bool tell = true)
     {
@@ -145,6 +153,19 @@ public static class PetTrade
         Ui.Note("Trade complete" + (got.Count > 0 ? ": " + string.Join(", ", got) : "") + (gold > 0 ? $" and {gold} gold" : ""), new Color(.7f, 1f, .75f)); Sfx.Play("portal");
         Open = false; Reset(); Game.Save(); Game.Notify(); if (Ui.I?.PanelName == "pettrade") Ui.I.Close();
     }
+    /// <summary>Online: what the server accepted of our offer (pets it found in its copy of our save, gold capped to what that save holds).</summary>
+    public static void Mine(string ids, int gold)
+    {
+        if (!Open || Npc) return; var d = Game.D;
+        MyIds.Clear(); foreach (var id in ids.Split(',', StringSplitOptions.RemoveEmptyEntries)) if (d.Pets.Exists(p => p.Id == id)) MyIds.Add(id);
+        MyGold = Math.Clamp(gold, 0, MaxGold); Game.Notify();
+    }
+    /// <summary>Online: the server made the swap on its copies of both saves; the changes to our hero came just before this (Net.R_AhDelta).</summary>
+    public static void Finished(string note)
+    {
+        Ui.Note(note, new Color(.7f, 1f, .75f)); Sfx.Play("portal");
+        Open = false; Reset(); Game.Save(); Game.Notify(); if (Ui.I?.PanelName == "pettrade") Ui.I.Close();
+    }
     /// <summary>The trade fell through (cancelled, a check failed, the partner left, we lost the connection): escrowed pets and gold come back.</summary>
     public static void Cancelled(string why)
     {
@@ -162,7 +183,7 @@ public static class PetTrade
 /// <summary>Host side of pet trading: sessions, relaying offers, the two-phase swap. Runs on a LAN host and on the online server alike.</summary>
 public partial class Net
 {
-    class TradeSess { public long A, B; public string OfferA = "[]", OfferB = "[]"; public int GoldA, GoldB, Rev; public bool OkA, OkB, Prep, ReadyA, ReadyB; }
+    class TradeSess { public long A, B; public string OfferA = "[]", OfferB = "[]"; public int GoldA, GoldB, Rev; public bool OkA, OkB, Prep, ReadyA, ReadyB; public List<string> IdsA = new(), IdsB = new(); }
     readonly Dictionary<long, TradeSess> _trades = new();
 
     void TSend(long peer, StringName m, params Variant[] a) { if (peer == MyId && !Dedicated) Call(m, a); else if (Players.ContainsKey(peer)) RpcId(peer, m, a); }
@@ -205,10 +226,45 @@ public partial class Net
     void R_TradeOffer(string json, int gold)
     {
         if (!_server || !_trades.TryGetValue(Sender, out var s) || s.Prep) return; long who = Sender;
-        if (PetTrade.ParseOffer(json) == null) { Tell(who, "That offer is too large"); return; }
-        gold = Math.Clamp(gold, 0, PetTrade.MaxGold);
-        if (who == s.A) { s.OfferA = json; s.GoldA = gold; } else { s.OfferB = json; s.GoldB = gold; }
+        var parsed = PetTrade.ParseOffer(json);
+        if (parsed == null) { Tell(who, "That offer is too large"); return; }
+        gold = Math.Clamp(gold, 0, PetTrade.MaxGold); var ids = parsed.Select(p => p.Id).Where(x => x != "").Distinct().ToList();
+        if (Dedicated)
+        {   // the online server shows the partner its own copy of the offered pets (from the stored save), never the data in the message
+            var o = AuctionServer.Offer(AcctOf(who), ids, gold);
+            if (o == null) { Tell(who, "The server does not have that pet in your save yet. Offer it again in a moment."); json = "[]"; gold = 0; ids = new(); }
+            else { json = o.Value.json; gold = o.Value.gold; ids = o.Value.ids; }
+            TSend(who, MethodName.R_TradeMine, string.Join(",", ids), gold);
+        }
+        if (who == s.A) { s.OfferA = json; s.GoldA = gold; s.IdsA = ids; } else { s.OfferB = json; s.GoldB = gold; s.IdsB = ids; }
         s.OkA = s.OkB = false; s.Rev++; TradeViews(s);
+    }
+    [Rpc(MultiplayerApi.RpcMode.Authority)] void R_TradeMine(string ids, int gold) => PetTrade.Mine(ids, gold);
+    [Rpc(MultiplayerApi.RpcMode.Authority)] void R_TradeFin(string note) => PetTrade.Finished(note);
+    /// <summary>
+    /// Online server: both confirmed. The swap happens here, in one step, on the server's copies of both saves (AuctionServer.Swap); each game then
+    /// gets the change to its hero (R_AhDelta) and the end of the trade. Nothing is held on the players' machines, so a disconnect at any moment
+    /// leaves each pet with exactly one owner: the server's saves are what the players load next time.
+    /// </summary>
+    void ServerSwap(TradeSess s)
+    {
+        var r = AuctionServer.Swap(AcctOf(s.A), s.IdsA, s.GoldA, s.OfferA, AcctOf(s.B), s.IdsB, s.GoldB, s.OfferB);
+        if (!r.ok)
+        {   // something changed since the offers were shown: both see the offers as the server has them now and confirm again
+            foreach (bool isA in new[] { true, false })
+            {
+                long who = isA ? s.A : s.B; var o = AuctionServer.Offer(AcctOf(who), isA ? s.IdsA : s.IdsB, isA ? s.GoldA : s.GoldB);
+                string j = o?.json ?? "[]"; int g = o?.gold ?? 0; var ids = o?.ids ?? new List<string>();
+                if (isA) { s.OfferA = j; s.GoldA = g; s.IdsA = ids; } else { s.OfferB = j; s.GoldB = g; s.IdsB = ids; }
+                TSend(who, MethodName.R_TradeMine, string.Join(",", ids), g); Tell(who, r.msg);
+            }
+            s.OkA = s.OkB = false; s.Rev++; TradeViews(s); return;
+        }
+        _trades.Remove(s.A); _trades.Remove(s.B);
+        static string Got(AhDelta? x) { if (x == null) return "Trade complete"; var l = x.AddPets.Select(p => $"{p.Name()} Lv{p.Level}").ToList(); if (x.Gold > 0) l.Add($"{x.Gold} gold"); return "Trade complete" + (l.Count > 0 ? ": you received " + string.Join(", ", l) : ""); }
+        if (r.a != null) TSend(s.A, MethodName.R_AhDelta, ToJson(r.a)); if (r.b != null) TSend(s.B, MethodName.R_AhDelta, ToJson(r.b));
+        TSend(s.A, MethodName.R_TradeFin, Got(r.a)); TSend(s.B, MethodName.R_TradeFin, Got(r.b));
+        Count("tradesDone"); GD.Print($"[SERVER] pet trade {NameOf(s.A)} <-> {NameOf(s.B)} ({s.IdsA.Count} + {s.GoldA}g for {s.IdsB.Count} + {s.GoldB}g)");
     }
     void TradeViews(TradeSess s)
     {
@@ -224,7 +280,8 @@ public partial class Net
         if (Sender == s.A) s.OkA = ok; else s.OkB = ok;
         if (s.OkA && s.OkB && (s.OfferA != "[]" || s.OfferB != "[]" || s.GoldA + s.GoldB > 0))
         {
-            s.Prep = true; TSend(s.A, MethodName.R_TradePrep, s.Rev); TSend(s.B, MethodName.R_TradePrep, s.Rev);
+            if (Dedicated) { ServerSwap(s); return; }   // online: the server swaps on its own copies of the saves
+            s.Prep = true; TSend(s.A, MethodName.R_TradePrep, s.Rev); TSend(s.B, MethodName.R_TradePrep, s.Rev);   // friend hosting: both games put their offer in escrow first
         }
         else TradeViews(s);
     }
@@ -292,6 +349,8 @@ public partial class Ui
             Lbl($"{(sp.Elem == "physical" ? "" : sp.Elem + " ")}{sp.Arch}   nature {PetDb.Nature(p.Nature).Name}   trainer {p.Ot}", 13, Dim, c);
             Lbl($"HP {st.Hp}  ATK {st.Atk}  DEF {st.Def}  MAG {st.Mag}  SPD {st.Spd}", 14, Parch, c);
             Lbl("Skills: " + string.Join(", ", p.Skills.Select(s => PetDb.Skill(s)?.Name ?? s)), 13, Dim, c).AutowrapMode = TextServer.AutowrapMode.WordSmart;
+            var gear = p.Gear.Values.Where(g => g != null).Select(g => $"{g!.Name} ({PetDb.GearText(g)})").ToList();
+            Lbl($"Bond {p.Bond:0}   xp {p.Xp}/{p.XpNeed()}" + (gear.Count > 0 ? "   Gear: " + string.Join(", ", gear) : ""), 13, Dim, c).AutowrapMode = TextServer.AutowrapMode.WordSmart;
         }
         if (PetTrade.Npc && PetTrade.TheirGold < 0) Lbl($"Fee: {-PetTrade.TheirGold} gold (you have {d.Gold})", 16, d.Gold >= -PetTrade.TheirGold ? GoldC : ErrRed, right);
         else if (PetTrade.TheirGold > 0) Lbl($"+ {PetTrade.TheirGold} gold", 16, GoldC, right);

@@ -66,10 +66,7 @@ public partial class Bot
         int water = 0; for (int dz = -1; dz <= 1; dz++) for (int dx = -1; dx <= 1; dx++) if (a.Get(wx + dx, wy, wz + dz) == Blocks.Water) water++;
         BlockFx.Skill(Skills.Compute("nova"), new Vector3(wx + .5f, wy + 1.2f, wz + .5f), 3f);
         int ice = 0; for (int dz = -1; dz <= 1; dz++) for (int dx = -1; dx <= 1; dx++) if (a.Get(wx + dx, wy, wz + dz) == Blocks.Ice) ice++;
-        Check("a frost spell freezes water into ice", water >= 6 && ice >= 6, $"{water} water, {ice} ice");
-        P.Teleport(new Vector3(wx + .5f, wy + 2.5f, wz + .5f), 0f); await Wait(1.2f);
-        Check("you can walk on the ice", ice > 0 && P.IsOnFloor() && P.GlobalPosition.Y > wy + .85f, $"feet at {P.GlobalPosition.Y:0.00}, ice top {wy + 1}");
-        await Shot("41_blocks_ice");
+        Check("a frost spell leaves the water alone (A-08: spells change no blocks)", water >= 6 && ice == 0, $"{water} water, {ice} ice");
 
         // fire sets wood burning and it burns out
         int fx = Mathf.FloorToInt(spot.X) + 6, fz = Mathf.FloorToInt(spot.Z) - 6, fy = TopOf(a, fx, fz) + 1; byte planks = Blocks.Id("planks");
@@ -77,11 +74,8 @@ public partial class Bot
         P.Teleport(new Vector3(fx + .5f, fy + .5f, fz + 6.5f), 0f); await Wait(.3f);
         BlockFx.Skill(Skills.Compute("fire"), new Vector3(fx + 1f, fy + 1.5f, fz + .5f), 3f);
         int burning = 0; for (int i = 0; i < 4; i++) for (int k = 0; k < 2; k++) if (bw.Burning(fx + k, fy + i, fz)) burning++;
-        Check("a fire spell sets wood burning", burning > 0, $"{burning} of 8 planks burning");
-        await Wait(1.5f); await Shot("42_blocks_fire");
-        float burn = Blocks.Def(planks).Burn; float tw = 0; int left = 8;
-        while (tw < burn * 3 + 6 && left > 0) { await Wait(1f); tw += 1f; left = 0; for (int i = 0; i < 4; i++) for (int k = 0; k < 2; k++) if (a.Get(fx + k, fy + i, fz) == planks) left++; }
-        Check("burning wood burns away", left == 0, $"{left} planks left after {tw:0} s");
+        await Wait(1.5f); int left = 0; for (int i = 0; i < 4; i++) for (int k = 0; k < 2; k++) if (a.Get(fx + k, fy + i, fz) == planks) left++;
+        Check("a fire spell does not set wood burning (A-08)", burning == 0 && left == 8, $"{burning} of 8 planks burning, {left} left");
 
         // a strong spell breaks more than a weak one; a weak hit does nothing to stone
         int Cube(int cx, int cz)
@@ -98,8 +92,7 @@ public partial class Bot
         BlockFx.Skill(strong, new Vector3(bx2 + .5f, by2, az + .5f), strong.Radius);
         int brokeWeak = sa - Stones(ax, ay, az), brokeStrong = sb - Stones(bx2, by2, az);
         Check("a weak spell does nothing to stone", brokeWeak == 0, $"Firebolt ({weak.Dmg:0} damage) broke {brokeWeak}");
-        Check("a strong spell blows a crater", brokeStrong > brokeWeak && brokeStrong >= 8, $"Meteor ({strong.Dmg:0} damage, radius {strong.Radius:0.#}) broke {brokeStrong}");
-        P.Teleport(new Vector3(bx2 + .5f, by2 + 3f, az + 8.5f), Mathf.Pi); await Wait(.4f); await Shot("43_blocks_crater");
+        Check("a strong spell breaks no blocks either (A-08: blocks are only mined)", brokeStrong == 0, $"Meteor ({strong.Dmg:0} damage, radius {strong.Radius:0.#}) broke {brokeStrong}");
 
         // save and load keep the changes
         int sx = Mathf.FloorToInt(spot.X) + 1, sz = Mathf.FloorToInt(spot.Z) + 4, sy = TopOf(a, sx, sz); bw.Change(sx, sy, sz, 0);

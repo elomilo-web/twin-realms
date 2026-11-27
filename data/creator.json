@@ -1,0 +1,109 @@
+{
+  "_help": "Character creator (focus F-36): every option list and range. Read by scripts/AvatarLook.cs (Creator), applied by scripts/AvatarFace.cs and shown by scripts/UiCreate.cs. The hero's choices are saved as PlayerStats.Look (HeroLook: slider values -100..100, list indices, colours as rrggbb or '' = the race's own colour) and sent to other players as one short string (HeroLook.Pack). INDICES ARE SAVED: add new list entries at the END, never reorder or remove.",
+
+  "_bodyHelp": "Sliders run -100..100; 'min' is the factor at -100, 'max' at +100, 0 is always x1 (the race's own proportions, data/races.json). height and build multiply the race's height / bulk (whole-body scale, the same thing races use, so gear always fits). build.headKeep = how much of the widening is taken back off the head (0 = the head widens with the body, 1 = the head keeps its width). shoulders = collarbone length (upper arm bones moved along the clavicles), legs = thigh and shin length (the pelvis is lifted to keep the feet on the ground), head = Head bone scale on top of the race's.",
+  "body": {
+    "height": { "min": 0.93, "max": 1.07 },
+    "build": { "min": 0.9, "max": 1.14, "headKeep": 0.7 },
+    "shoulders": { "min": 0.8, "max": 1.22 },
+    "legs": { "min": 0.94, "max": 1.06 },
+    "head": { "min": 0.93, "max": 1.08 }
+  },
+
+  "_faceHelp": "The head has no blend shapes, so the face is SCULPTED: body vertices near a landmark are moved in the bind pose (real geometry; the painted brows and lips move with the skin). landmarks = [x, y, z] in metres from the point midway between the eyes at the front of the eyeballs (+x = out to each side, mirrored; x = 0 is a single point on the centre line; +y up; +z forward). 'eye' is measured from the eye mesh and is not listed. An op: { at: landmark, r: radius of the soft falloff in metres, move: [out, up, forward] metres, scale: number or [x, y, z] about the landmark, rot: degrees in the face plane (positive lifts the outer end) }. A face entry may add 'head': [x, y, z] (scale of the whole head, hair and helmets with it). Eyeballs move and grow rigidly with the 'eye' landmark and the lids are kept outside them. Measured on both bodies (profile from the eyes: nose tip -40 mm, lips -66 mm, chin -100 mm; brow ridge +22 mm).",
+  "landmarks": {
+    "brow": [0.031, 0.024, 0.006],
+    "browIn": [0.016, 0.022, 0.008],
+    "browOut": [0.046, 0.022, -0.002],
+    "nose": [0, -0.038, 0.02],
+    "mouth": [0, -0.066, 0.012],
+    "mouthCorner": [0.024, -0.066, 0.004],
+    "chin": [0, -0.1, 0],
+    "jaw": [0.055, -0.08, -0.045],
+    "cheek": [0.05, -0.035, -0.012],
+    "cheekbone": [0.058, -0.012, -0.02]
+  },
+  "face": [
+    { "n": "Balanced", "ops": [] },
+    { "n": "Strong jaw", "ops": [ { "at": "jaw", "r": 0.06, "move": [0.006, -0.003, 0] }, { "at": "chin", "r": 0.04, "move": [0, -0.002, 0.002], "scale": [1.12, 1, 1] } ] },
+    { "n": "Narrow", "ops": [ { "at": "jaw", "r": 0.065, "move": [-0.006, 0, 0] }, { "at": "cheek", "r": 0.05, "move": [-0.003, 0, 0] }, { "at": "chin", "r": 0.04, "move": [0, -0.003, 0] } ] },
+    { "n": "Round", "ops": [ { "at": "cheek", "r": 0.055, "move": [0.005, 0, 0.002] }, { "at": "jaw", "r": 0.06, "move": [0.004, 0.002, 0] }, { "at": "chin", "r": 0.04, "move": [0, 0.003, -0.001] } ] },
+    { "n": "Long", "ops": [ { "at": "chin", "r": 0.05, "move": [0, -0.007, 0] }, { "at": "jaw", "r": 0.06, "move": [-0.002, -0.004, 0] } ] },
+    { "n": "Sharp", "ops": [ { "at": "cheekbone", "r": 0.04, "move": [0.004, 0.001, 0.002] }, { "at": "cheek", "r": 0.04, "move": [-0.004, 0, -0.002] }, { "at": "chin", "r": 0.035, "move": [0, -0.004, 0.003], "scale": [0.88, 1, 1] } ] },
+    { "n": "Heavy", "ops": [ { "at": "jaw", "r": 0.065, "move": [0.007, -0.002, 0] }, { "at": "cheek", "r": 0.055, "move": [0.004, 0, 0.001] }, { "at": "chin", "r": 0.045, "move": [0, -0.002, 0.003], "scale": [1.15, 1, 1] } ] }
+  ],
+  "eyes": [
+    { "n": "Natural", "ops": [] },
+    { "n": "Wide", "ops": [ { "at": "eye", "r": 0.03, "scale": [1.08, 1.28, 1] } ] },
+    { "n": "Narrow", "ops": [ { "at": "eye", "r": 0.03, "scale": [1.05, 0.72, 1] } ] },
+    { "n": "Upturned", "ops": [ { "at": "eye", "r": 0.03, "rot": 10 } ] },
+    { "n": "Downturned", "ops": [ { "at": "eye", "r": 0.03, "rot": -9 } ] },
+    { "n": "Close-set", "ops": [ { "at": "eye", "r": 0.032, "move": [-0.0028, 0, 0] } ] },
+    { "n": "Wide-set", "ops": [ { "at": "eye", "r": 0.032, "move": [0.003, 0, 0] } ] },
+    { "n": "Deep-set", "ops": [ { "at": "eye", "r": 0.03, "move": [0, 0, -0.003] }, { "at": "brow", "r": 0.024, "move": [0, -0.001, 0.002] } ] }
+  ],
+  "_eyeSizeHelp": "The eye size slider: one more op on the 'eye' landmark, scale min at -100 .. max at +100.",
+  "eyeSize": { "r": 0.03, "min": 0.86, "max": 1.16 },
+  "_irisHelp": "Eye colour: when a colour is chosen the eyeballs use a small shader that recolours the iris of the eye texture (iris centred in the texture; irisR = its radius in UV, irisGain = brightness of the chosen colour over the iris pattern; glow = iris glow for races with glowing eyes). Without a chosen colour the eyes are the model's own (as before F-36).",
+  "iris": { "irisR": 0.086, "irisGain": 6.0, "glow": 1.6 },
+  "brows": [
+    { "n": "Natural", "ops": [] },
+    { "n": "High", "ops": [ { "at": "brow", "r": 0.022, "move": [0, 0.003, 0] } ] },
+    { "n": "Low", "ops": [ { "at": "brow", "r": 0.022, "move": [0, -0.003, 0.001] } ] },
+    { "n": "Arched", "ops": [ { "at": "brow", "r": 0.016, "move": [0, 0.003, 0] }, { "at": "browIn", "r": 0.012, "move": [0, -0.001, 0] } ] },
+    { "n": "Stern", "ops": [ { "at": "brow", "r": 0.022, "rot": 10, "move": [0, -0.0015, 0.001] } ] },
+    { "n": "Soft", "ops": [ { "at": "brow", "r": 0.022, "rot": -8 } ] },
+    { "n": "Heavy", "ops": [ { "at": "brow", "r": 0.022, "move": [0, -0.001, 0.003], "scale": [1, 1.2, 1] } ] }
+  ],
+  "mouth": [
+    { "n": "Natural", "ops": [] },
+    { "n": "Wide", "ops": [ { "at": "mouth", "r": 0.032, "scale": [1.14, 1, 1] } ] },
+    { "n": "Small", "ops": [ { "at": "mouth", "r": 0.032, "scale": [0.86, 1, 1] } ] },
+    { "n": "Full", "ops": [ { "at": "mouth", "r": 0.028, "scale": [1, 1.22, 1], "move": [0, 0, 0.0015] } ] },
+    { "n": "Thin", "ops": [ { "at": "mouth", "r": 0.028, "scale": [1, 0.8, 1] } ] },
+    { "n": "Smile", "ops": [ { "at": "mouthCorner", "r": 0.016, "move": [0.001, 0.003, 0] } ] },
+    { "n": "Frown", "ops": [ { "at": "mouthCorner", "r": 0.016, "move": [0, -0.003, 0] } ] }
+  ],
+
+  "_markHelp": "Markings are a TINT, not geometry: a mask drawn from the shapes below, projected onto the front of the face (second skin pass) in the marking colour. markBox = the projected area in metres around the point between the eyes (w wide, h high, centred cy below the eyes). Shapes use metres from that point (+x to one side, +y up): line [x1, y1, x2, y2] with width w; dots { c: [x, y], rx, ry, n, size, seed }; mirror: true repeats the shape on the other side. col = the colour used until the player picks one. Reference: eyes y 0 x 0.03, brow y 0.022, nose tip y -0.04, mouth y -0.066, chin y -0.1, cheek x 0.05 y -0.035.",
+  "markBox": { "w": 0.18, "h": 0.24, "cy": -0.03, "px": 384, "alpha": 0.85 },
+  "markings": [
+    { "n": "None" },
+    { "n": "Scar over the eye", "col": "8a4a44", "shapes": [ { "line": [-0.037, 0.03, -0.024, -0.028], "w": 0.0028 } ] },
+    { "n": "Cheek scar", "col": "8a4a44", "shapes": [ { "line": [0.03, -0.03, 0.058, -0.052], "w": 0.0026 }, { "line": [0.04, -0.047, 0.048, -0.032], "w": 0.0016 } ] },
+    { "n": "Freckles", "col": "7a4a30", "shapes": [ { "dots": { "c": [0, -0.022], "rx": 0.055, "ry": 0.016, "n": 90, "size": 0.0011, "seed": 7 } } ] },
+    { "n": "War paint band", "col": "5a1414", "shapes": [ { "line": [-0.068, 0.002, 0.068, 0.002], "w": 0.026 } ] },
+    { "n": "Cheek stripes", "col": "5a1414", "shapes": [ { "line": [0.03, -0.022, 0.06, -0.034], "w": 0.005, "mirror": true }, { "line": [0.03, -0.034, 0.058, -0.047], "w": 0.005, "mirror": true } ] },
+    { "n": "Chin tattoo", "col": "1e3a5a", "shapes": [ { "line": [0, -0.08, 0, -0.106], "w": 0.004 }, { "line": [0.011, -0.084, 0.011, -0.102], "w": 0.003, "mirror": true } ] },
+    { "n": "Brow sigil", "col": "1e3a5a", "shapes": [ { "line": [0, 0.062, 0.007, 0.05], "w": 0.0024, "mirror": true }, { "line": [0.007, 0.05, 0, 0.038], "w": 0.0024, "mirror": true }, { "line": [0, 0.034, 0, 0.026], "w": 0.0024 } ] },
+    { "n": "Tear tracks", "col": "1a1a1e", "shapes": [ { "line": [0.03, -0.012, 0.031, -0.05], "w": 0.003, "mirror": true } ] },
+    { "n": "Nose stripe", "col": "e8e0d0", "shapes": [ { "line": [-0.03, -0.022, 0.03, -0.022], "w": 0.006 } ] }
+  ],
+
+  "_voiceHelp": "Voices: a pitch factor on the hero's own voice sounds (the pain grunt and the death cry, played through Sfx.Voice in Player.cs). index 0 is the default. sample = the sound the creator plays when a voice is picked.",
+  "voiceSample": "hurt",
+  "voices": [
+    { "n": "Natural", "pitch": 1.0 },
+    { "n": "Deep", "pitch": 0.82 },
+    { "n": "Low", "pitch": 0.91 },
+    { "n": "Bright", "pitch": 1.1 },
+    { "n": "High", "pitch": 1.2 },
+    { "n": "Gravel", "pitch": 0.74 }
+  ],
+
+  "_swatchHelp": "Colour swatches (rrggbb). Every colour row also has the race's own colour first and a free colour picker last. Skin multiplies the skin texture (e0b590 is the human reference). skinShades: lighter / darker versions of the race's own skin offered as extra swatches (positive lightens, negative darkens).",
+  "swatches": {
+    "skin": ["f6e0cc", "eccdb0", "e0b590", "c99a72", "a9764f", "8a5a3a", "6b4228", "4a2c1c"],
+    "skinShades": [0.3, 0.15, -0.15, -0.3],
+    "hair": ["0e0c0b", "2a1a10", "52331a", "7a4a24", "a8743a", "d8b060", "e8dca0", "8a3c1a", "c0461e", "9a9a9e", "e8e8f0", "2a6a8a", "5a2a7a", "b03050"],
+    "eyes": ["3a2414", "6a4a22", "8a7a30", "3a6a3a", "2a6a4a", "3a6a9a", "6aa0d0", "8a8a98", "c08cff", "ffb000", "c02020"],
+    "mark": ["5a1414", "8a4a44", "1a1a1e", "1e3a5a", "2a4a2a", "e8e0d0", "7a4a30", "c8a030"]
+  },
+  "_hairHelp": "Hair styles are the models listed in data/avatar.json hair.male / hair.female (assets/models/hair); the label is the last word of the file name unless named here. bald: offer a 'Bald' choice.",
+  "hairNames": { "TR_Hair_Male_short.glb": "Short", "TR_Hair_Male_buzzed.glb": "Buzzed", "TR_Hair_Male_swept.glb": "Swept back", "TR_Hair_Male_long.glb": "Long", "TR_Hair_Female_long.glb": "Long", "TR_Hair_Female_swept.glb": "Swept back", "TR_Hair_Female_flowing.glb": "Flowing" },
+  "bald": true,
+
+  "_previewHelp": "The live preview: camera field of view, how close the face view is (metres from the head), how fast dragging / the right stick turn the hero and the wheel / triggers zoom, and the light colours.",
+  "preview": { "fov": 30, "faceDist": 0.72, "faceUp": 0.045, "margin": 0.16, "dragTurn": 0.01, "stickTurn": 2.6, "wheelZoom": 0.2, "triggerZoom": 1.4, "startYaw": 0.35,
+    "back": "0b0c10", "ambient": "8a8fa0", "ambientEnergy": 0.55, "key": "fff0dc", "keyEnergy": 1.35, "fill": "9ab4e0", "fillEnergy": 0.45, "rim": "c8d8ff", "rimEnergy": 0.8 }
+}

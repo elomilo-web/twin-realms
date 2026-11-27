@@ -12,12 +12,17 @@ STATUS KEY:   [ ] to do     [x] done     [!] blocked
 --- BUGS AND FEEL (first) ------------------------------------------------------
 [ ] A-01  RETICLE vs MINING / PLACING NOT ALIGNED (RECHECK F-07): the mining tool and the aiming reticle are not aligned;
           reticle, placing and mining must hit the same block.
-[ ] A-02  STAMINA / RUN STUCK: still getting stuck running even when not pushing run.
-[ ] A-03  BASE ATTACKS HAVE WEIGHT: slow the base attack animation down by a lot, with a delay between swings to give a
+[x] A-02  STAMINA / RUN STUCK: still getting stuck running even when not pushing run.
+          NOTE (2026-11-27, coded, NOT run in game: play test): four causes fixed. A lost Shift key-up (menu, Alt-Tab) left sprint on: Inputs.ReleaseStuckKeys asks Windows whether held keys are really down, Inputs.ForceRelease sends real releases. Sprint is recomputed every frame (held, moving, not attacking / casting / blocking / sneaking). An empty bar no longer flickers: jog until stamina is back to 25 (tuning.json stamina.sprintResume). The pad L3 run latch drops at an empty bar and after attacks. The sprint animation follows the real sprint state, not speed. Files: Player.cs, Inputs.cs, PadInput.cs, Avatar.cs.
+[x] A-03  BASE ATTACKS HAVE WEIGHT: slow the base attack animation down by a lot, with a delay between swings to give a
           feeling of weight. Attack speed can be raised other ways (stats, gear, skills).
-[ ] A-04  MOB HIT BOXES AND ELEVATION: mobs should not be able to hit you if they are lower in elevation. Fix the hit boxes.
-[ ] A-05  REMOVE THE WHITE LINE at the render distance limit.
-[ ] A-06  DAYTIME LASTS LONGER.
+          NOTE (2026-11-27, coded, NOT run in game: play test): basic swings x1.65 longer (two-handed more, daggers / fists a little less, ranged x0.8), a real recovery pause between swings (light 0.05 -> 0.28 s, finisher 0.5, power 0.7) that blocks the next swing; a press during a swing is buffered. Attack speed (capped x2.5) still shortens swing and recovery. Sword light 0.48+0.05 -> 0.79+0.28 s, greatsword 0.88+0.08 -> 1.62+0.39 s. Numbers: tuning.json game.attack, attacks.json recovery. Basic-attack damage per second about halves; monster health not rebalanced. Files: Player.cs.
+[x] A-04  MOB HIT BOXES AND ELEVATION: mobs should not be able to hit you if they are lower in elevation. Fix the hit boxes.
+          NOTE (2026-11-27, coded, NOT run in game: play test): enemy melee used flat distance only. New Melee.Reaches (Combat.cs, tuning.json game.melee): a blow lands only when the feet are within 0.75 m in height, more for tall attackers (golem about 2 m, dragon 2.6 m) and a little more striking down. Enemies do not start a swing they cannot land; they close in and wait. The hero's own melee uses the same rule. Jumping does not dodge, a ledge does. Ranged, breath, duelist, Scarletta unchanged. Files: Combat.cs, Enemy.cs, Player.cs.
+[x] A-05  REMOVE THE WHITE LINE at the render distance limit.
+          NOTE (2026-11-27, coded, NOT run in game: play test): three possible causes fixed (could not be seen without running): the far terrain ended exactly at the block square's edge, leaving a slit of sky (now sinks 1.5 m and overlaps 4 m, look.json terrain); the far sea plane sat 0.37 m above the block sea (now drawn level); the sky just under the horizon was horizon-bright above the far cut (now fog-coloured, fog a little thicker at short view distances). Files: World.cs, WorldEnv.cs, look.json.
+[x] A-06  DAYTIME LASTS LONGER.
+          NOTE (2026-11-27, coded, NOT run in game: play test): World.DayPace: daytime runs 3x slower than night, eased over dawn and dusk (tuning.json game.time dayPace 2160, nightPace 720): sun up about 17.5 min (was 6), night about 6 min, whole day about 23.5 min. Villagers' daytime hours are 90 s each. Quest time limits, bounties and other played-time timers unchanged.
 [ ] A-07  NO LAND DESTRUCTION IN DUNGEONS.
 [ ] A-08  SPELLS AND SKILLS DO NOT DESTROY BLOCKS: blocks are only mined.
 [ ] A-09  FIRST PERSON (RECHECK F-09): a first-person mode for mining, and for adventuring if wanted, on a hotkey toggle.

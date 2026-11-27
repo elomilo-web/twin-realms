@@ -45,7 +45,7 @@ public static class Races
     }
 
     /// <summary>Appearance for the hero: race body plus the class colours.</summary>
-    public static Appearance Look(PlayerStats d) => LookFor(d.Race, d.Class, d.Body == "female");
+    public static Appearance Look(PlayerStats d) { var ap = LookFor(d.Race, d.Class, d.Body == "female"); Creator.Apply(ap, d.Look); return ap; }   // + the hero's own creator choices (F-36)
 
     /// <summary>Appearance of a race and class (the hero, character creation, dev lineups).</summary>
     public static Appearance LookFor(string race, string cls, bool female)

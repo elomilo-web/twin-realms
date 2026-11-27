@@ -59,7 +59,30 @@ public partial class Torch : Node3D
 public partial class Chest : Node3D, IInteractable
 {
     public string Id = ""; public int Level = 1; public float Bonus = 1f; bool _open; Node3D _lid = null!;
-    public string Prompt => "Open chest";
+    /// <summary>
+    /// A-10: a share of the treasure chests (data/life.json track.lockedChests.chance, the same chests every visit: a hash of the id) is
+    /// locked: Interact opens the lockpicking game (Lockpick.cs; a lockpick in the pack: crafted from iron scrap or bought), and a picked
+    /// chest gives lockedChests.bonus times the loot. NoLock: never locked (a boss's reward).
+    /// </summary>
+    public bool NoLock; bool _picked;
+    public bool Locked
+    {
+        get
+        {
+            if (_open || _picked || NoLock || Id == "") return false;
+            uint h = 2166136261; foreach (char ch in Id) { h ^= ch; h *= 16777619; }
+            return (h >> 8 & 0xffff) / 65535f < LifeSkills.T("lockedChests.chance", .25f);
+        }
+    }
+    public string Prompt
+    {
+        get
+        {
+            if (!Locked) return "Open chest";
+            Game.D.Mats.TryGetValue(Lockpick.Item, out int picks);
+            return picks > 0 ? $"Pick the lock of the chest  ({picks} lockpick{(picks == 1 ? "" : "s")})" : "Locked chest: you need a lockpick";
+        }
+    }
     public bool CanInteract => !_open;
     public override void _Ready()
     {
@@ -74,7 +97,14 @@ public partial class Chest : Node3D, IInteractable
     }
     public void Interact()
     {
-        if (_open) return; _open = true; Game.D.Disc.Add(Id); Sfx.Play("click"); Sfx.Play("coin");
+        if (_open) return;
+        if (Locked)
+        {
+            if (!Game.D.Mats.TryGetValue(Lockpick.Item, out int have) || have <= 0) { Ui.Note("Locked: you need a lockpick (Crafting > Blocks: 2 iron scrap, or a merchant)", new Color(1, .6f, .5f)); Sfx.Play("lock", .6f, .7f); return; }
+            Ui.I?.OpenLockpickFor("Locked Chest", LifeSkills.T("lockedChests.diff", .4f), "chest:" + Id, () => { if (!IsInstanceValid(this) || _open) return; _picked = true; Bonus *= LifeSkills.T("lockedChests.bonus", 1.5f); Interact(); });
+            return;
+        }
+        _open = true; Game.D.Disc.Add(Id); Sfx.Play("click"); Sfx.Play("coin");
         var tw = _lid.CreateTween(); tw.TweenProperty(_lid, "rotation:x", -1.9f, 0.45f).SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
         OpenFx();
         int lvl = Dungeon.Active ? Level : Progression.OverworldLevel(Level, false);   // overworld chests keep up with the heroes, like the monsters

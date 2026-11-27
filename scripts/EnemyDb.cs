@@ -60,6 +60,9 @@ public class EnemyDef
 public static class EnemyDb
 {
     static Dictionary<string, EnemyDef>? _defs;
+    /// <summary>Every enemy type (command bar: /spawn).</summary>
+    public static IEnumerable<string> Types { get { Load(); return _defs!.Keys; } }
+    public static bool Has(string type) { Load(); return _defs!.ContainsKey(type); }
 
     public static EnemyDef Get(string type)
     {

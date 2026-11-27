@@ -1,0 +1,45 @@
+{
+  "_help": "F-37 auction house (scripts/Auction.cs engine, scripts/NetAuction.cs online server, scripts/UiAuction.cs window). rules: feePct = listing fee as % of the start price, paid up front and never refunded (feeMin gold at least); taxPct = % of the sale price kept by the house when a listing sells; durations = allowed listing lengths in hours (offline one hour = offlineHourSec seconds of PlayerStats.Played, online one hour = onlineHourSec real seconds); a new bid must be at least the current bid + max(minBidStep, minBidStepPct %); maxListings per hero; maxPrice caps every price; pageSize listings per page; maxBook = most open listings the online book accepts. value: what things are 'worth' to NPC buyers: an item = Item.Value x itemMul + itemAdd (the shop's buy price), a pet = pet.<rarity> x (1 + petPerLevel x (level - 1)) plus its gear. npc (offline only): the house keeps about 'stock' NPC listings (of them 'pets' pets), adding up to restockPerHour each game hour; items are rolled at the hero's level +- levelSpread with loot bonus lootBonus, petGearChance of them pet gear; start price = value x startMin..startMax, buyout = value x buyoutMin..buyoutMax (noBuyoutChance: none); names = NPC sellers and buyers. npc.buyers: each game hour, per listing of the hero, an NPC buys out with chance buyoutChance x K(buyout / value), else bids the minimum with chance bidChance x K(next bid / value), where K(r) = clamp((maxRatio - r) / (maxRatio - 1), 0, bargainBoost): at r = 1 (a fair price) K = 1, at maxRatio or above nothing sells, bargains sell faster. rivalChance: per game hour an NPC outbids the hero on an NPC listing while the next bid is at most rivalMaxRatio x value (the hero's gold comes back to the Collect tab).",
+  "rules": {
+    "feePct": 5,
+    "feeMin": 1,
+    "taxPct": 8,
+    "durations": [12, 24, 48],
+    "minBidStepPct": 5,
+    "minBidStep": 1,
+    "maxListings": 12,
+    "maxPrice": 1000000,
+    "pageSize": 8,
+    "offlineHourSec": 30,
+    "onlineHourSec": 3600,
+    "maxBook": 4000
+  },
+  "value": {
+    "itemMul": 3,
+    "itemAdd": 12,
+    "pet": { "common": 60, "uncommon": 140, "rare": 320, "epic": 700, "boss": 2500, "raid": 6000 },
+    "petPerLevel": 0.12
+  },
+  "npc": {
+    "stock": 22,
+    "pets": 3,
+    "restockPerHour": 3,
+    "levelSpread": 3,
+    "lootBonus": 0.35,
+    "petGearChance": 0.1,
+    "startMin": 0.4,
+    "startMax": 1.0,
+    "buyoutMin": 1.0,
+    "buyoutMax": 1.8,
+    "noBuyoutChance": 0.2,
+    "names": ["Brannoc Vale", "Ysolde Marr", "Old Hemlock", "Tavish Crane", "Mirela Dusk", "Corwin Ashgrove", "Sabine Thorne", "Garrow the Grey", "Linnea Frost", "Dunmar Kell", "Petra Vantrell", "Iosef Rook"],
+    "buyers": {
+      "bidChance": 0.3,
+      "buyoutChance": 0.1,
+      "maxRatio": 1.6,
+      "bargainBoost": 2.5,
+      "rivalChance": 0.1,
+      "rivalMaxRatio": 1.1
+    }
+  }
+}

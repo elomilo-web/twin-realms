@@ -17,6 +17,8 @@ public partial class Lockpick : Control
     public const string Item = "lockpick";
     public static Lockpick? Cur;
     public Vector3I Cell; public bool Door; public string LockName = "";
+    /// <summary>A-10: a lock that is not a block (a locked treasure chest, Props.cs Chest): its own key for the once-per-10-minutes XP rule; the block lock at Cell is left alone.</summary>
+    public string LockKey = "";
     public float Angle = 90, Sweet = 90, Turn, Strain, Diff = .3f;
     public bool Solved; public int Broken;
     /// <summary>DevCapture: pick movement (-1..1) and tension without input.</summary>
@@ -70,8 +72,8 @@ public partial class Lockpick : Control
     }
     void Success()
     {
-        Solved = true; Turn = 1; BlockUse.Lockpicked(Cell); Sfx.Play("lock", .9f, 1.3f);
-        string key = BlockWorld.I?.Area is { } a ? BlockUse.Key(a, Cell.X, Cell.Y, Cell.Z) : Cell.ToString(); double now = Time.GetTicksMsec() / 1000.0;
+        Solved = true; Turn = 1; if (LockKey == "") BlockUse.Lockpicked(Cell); Sfx.Play("lock", .9f, 1.3f);   // (a treasure chest, LockKey set: its own Finished opens it)
+        string key = LockKey != "" ? LockKey : BlockWorld.I?.Area is { } a ? BlockUse.Key(a, Cell.X, Cell.Y, Cell.Z) : Cell.ToString(); double now = Time.GetTicksMsec() / 1000.0;
         bool fresh = !_picked.TryGetValue(key, out var when) || now - when > 600; _picked[key] = now;
         if (fresh) LifeSkills.Award("lockpicking", 8 + Diff * 20);   // the same lock again soon after (re-locked by its owner) teaches nothing
         LastResult = $"picked {LockName} (difficulty {Diff:0.00}, sweet spot {Width:0.#} deg), {Broken} picks broken, xp {(fresh ? "given" : "none (picked recently)")}";

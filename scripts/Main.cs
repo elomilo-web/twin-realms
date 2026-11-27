@@ -37,15 +37,16 @@ public partial class Main : Node3D
         AddChild(new Flag { Name = "Flag" });   // F8: playtest flag (screenshot + report in user://playtest/)
         AddChild(new CommandKey { Name = "CommandKey" });   // F9: "/stats dump" (Commands.cs) until the command bar exists
         AddChild(new Net { Name = "Net" });
+        AddChild(new AuctionNode { Name = "Auction" });   // F-37: the auction house clock and its dev commands (NetAuction.cs)
         var ui = new Ui { Name = "Ui" }; AddChild(ui);
         // loading screens (LoadScreen.cs): not for the test bots, whose timings and pictures expect the world at once (the dev capture loop keeps them)
         Player.Frozen = false; LoadScreen.On = !testing || DevCapture.Wanted();
         AddChild(new LoadScreen { Name = "LoadScreen" });
         // logged in to the online server: the hero goes into the shared world instead of a private one
-        Ui.OnNew = (cls, name, race) => { Game.NewGame(cls, name, race); Game.D.Body = Ui.PickedBody; Game.D.PosX = 0; Game.D.PosZ = 9; if (Game.Online) Net.I!.EnterOnline(JoinWorld); else BeginStaged(); };
+        Ui.OnNew = (cls, name, race) => { Game.NewGame(cls, name, race); Game.D.Body = Ui.PickedBody; Game.D.Look = Ui.PickedLook; Game.D.PosX = 0; Game.D.PosZ = 9; if (Game.Online) Net.I!.EnterOnline(JoinWorld); else BeginStaged(); };
         Ui.OnContinue = () => { if (!Game.Load()) Game.NewGame("warrior", "Hero"); if (Game.Online) Net.I!.EnterOnline(JoinWorld); else BeginStaged(); };   // plays the hero in Game.Slot (chosen on the character select screen)
         // multiplayer from the title: bring the saved hero (or the one picked on the title screen)
-        void Hero() { if (!Game.HasSave() || !Game.Load()) { Game.NewGame(Ui.PickedClass, Ui.PickedName, Ui.PickedRace); Game.D.Body = Ui.PickedBody; Game.D.PosX = 0; Game.D.PosZ = 9; } }
+        void Hero() { if (!Game.HasSave() || !Game.Load()) { Game.NewGame(Ui.PickedClass, Ui.PickedName, Ui.PickedRace); Game.D.Body = Ui.PickedBody; Game.D.Look = Ui.PickedLook; Game.D.PosX = 0; Game.D.PosZ = 9; } }
         Ui.OnHost = port => { Hero(); BeginStaged(() => Net.I!.Host(port)); };
         Ui.OnJoin = (addr, port) => { Hero(); Net.I!.Join(addr, port, JoinWorld); };
         if (Observer.Wanted() || Bot.Wanted() || Shots.Wanted() || Showcase.Wanted() || DevCapture.Wanted()) Game.SavePath = "user://test_save.json";
@@ -99,6 +100,7 @@ public partial class Main : Node3D
         Game.SavePath = "user://server_world_save.json"; Game.SetPath = "user://server_settings.json";        Net.ChestPath = System.IO.Path.Combine(Accounts.Dir, "party_chest.json");
         AddChild(new Sfx { Name = "Sfx" });
         AddChild(new Net { Name = "Net" });
+        AddChild(new AuctionNode { Name = "Auction" });   // F-37: settles ended listings on the server's clock (NetAuction.cs)
         AddChild(new Ui { Name = "Ui" });
         Net.Dedicated = true;
         Game.NewGame("warrior", "Server"); Game.D.PosX = 0; Game.D.PosZ = 9;
@@ -172,7 +174,7 @@ public partial class Main : Node3D
         AddChild(new BlockWorld());   // the ground around the player as blocks (BlockWorld.cs)
         AddChild(new Hud { Name = "Hud" });
         AddChild(new Ambient { Name = "Ambient" }); AddChild(new Weather { Name = "Weather" });
-        AddChild(new FishField { Name = "FishField" }); AddChild(new Fishing { Name = "Fishing" });   // fish in the water and the fishing rod (F-22, F-23)
+        AddChild(new FishField { Name = "FishField" }); AddChild(new Fishing { Name = "Fishing" }); AddChild(new Instruments { Name = "Instruments" });   // fish in the water and the fishing rod (F-22, F-23)
         Ui.InGame = true; Input.MouseMode = Input.MouseModeEnum.Captured;
         if (LoadScreen.Busy) LoadScreen.SetProgress(.97f, "Lighting the lamps");
         Warmup.Run(this);   // fire each lazily-built effect once so the first real use does not hitch (Warmup.cs)

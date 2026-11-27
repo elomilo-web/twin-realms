@@ -198,6 +198,7 @@ public partial class Ui
                         },
                     });
                 }
+                InstrumentRecipes(recs);   // F-40: lute, flute, drum, harp (Instruments.cs, data/instruments.json)
                 // the pickaxe (data/blocks.json dig.pickaxes): each tier is made from the one before; the next tier only, as alternatives
                 if (Blocks.Node("dig.pickaxes.tiers") is { ValueKind: JsonValueKind.Array } tiers)
                     for (int ti = 2; ti <= tiers.GetArrayLength(); ti++)

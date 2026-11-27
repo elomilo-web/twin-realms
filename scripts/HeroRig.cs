@@ -11,6 +11,10 @@ public class Appearance
     public float Height = 1f, Bulk = 1f; public bool PointyEars, Tusks, Beard, Horns, GlowEyes, Female;
     // F-35 race body options: head size (Head bone scale) and fitted attachments (Avatar.RaceFeatures)
     public float HeadScale = 1f; public string Ears = "", HornKind = "", Tail = "", Wings = "";
+    // F-36 character creator (Creator.Apply lays a HeroLook over the race look): collarbone and leg length factors, the head's
+    // own shape (model-space x, y, z on top of HeadScale), the chosen hair style (-1 = picked by the name, past the list = bald),
+    // IrisTint = Eyes colours the iris (a chosen eye colour), Custom = the choices themselves (face sculpt, markings; AvatarFace.cs)
+    public float Shoulders = 1f, Legs = 1f; public Vector3 HeadShape = Vector3.One; public int HairStyle = -1; public bool IrisTint; public HeroLook? Custom;
     public Appearance Copy() => (Appearance)MemberwiseClone();
 }
 

@@ -41,8 +41,10 @@ public partial class CameraRig : Node3D
     /// which this camera does not draw (their shadows stay). Mounted or dead the view drops back to third person.
     /// </summary>
     public const uint HeadLayer = 1u << 19;
-    public bool FirstPerson => Game.Set.FirstPerson && Target is Player p && p == Player.Instance && !p.Mounted && !p.Dead;
-    Vector3 _fpRel; bool _fpWas;
+    public bool FirstPerson => (Game.Set.FirstPerson || AutoFirstPerson) && Target is Player p && p == Player.Instance && !p.Mounted && !p.Dead;
+    /// <summary>A-09, Settings > Game "First person while building": build mode (the pickaxe out) switches to first person by itself and back when it is put away.</summary>
+    public static bool AutoFirstPerson => Game.Set.FirstPersonBuild && Player.BuildMode && BlockWorld.Enabled && BlockWorld.I?.Area != null;
+    Vector3 _fpRel; bool _fpWas; float _sneakY;
     /// <summary>Horizontal facing of the camera in radians (rig yaw).</summary>
     public float Yaw => Rotation.Y;
 
@@ -134,6 +136,13 @@ public partial class CameraRig : Node3D
 
     public override void _Process(double delta)
     {
+        Follow(delta);
+        // A-01: the camera is now where this frame draws it: solve the block aim through the reticle once, for the outline, the ghost,
+        // digging and placing alike (PlayerBlocks.BlockAimFrame)
+        if (Target is Player bp && bp == Player.Instance && IsInstanceValid(bp)) bp.BlockAimFrame();
+    }
+    void Follow(double delta)
+    {
         PadLook((float)delta);
         if (Target != null)
         {
@@ -169,7 +178,8 @@ public partial class CameraRig : Node3D
             float kf = 1f - Mathf.Exp(-(float)delta / .25f);
             _frame = _frame.Lerp(frameGoal, kf); _frameDist = Mathf.Lerp(_frameDist, distGoal, kf); _framePitch = Mathf.Lerp(_framePitch, pitchGoal, kf);
             _pivot.Rotation = new Vector3(Mathf.Clamp(_pitch + _framePitch, MinPitch, MaxPitch), 0, 0);
-            var goal = tp + new Vector3(0, 1.6f, 0) + _lead + _frame;
+            _sneakY = Mathf.Lerp(_sneakY, Target is Player { Sneaking: true } ? -.28f : 0f, 1f - Mathf.Exp(-6f * (float)delta));   // A-10: the view sinks with the crouch
+            var goal = tp + new Vector3(0, 1.6f + _sneakY, 0) + _lead + _frame;
             GlobalPosition = GlobalPosition.Lerp(goal, 1f - Mathf.Exp(-14f * (float)delta));
         }
         lockTurn:

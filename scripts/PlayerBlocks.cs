@@ -18,6 +18,8 @@ public partial class Player
     /// <summary>Tests aim here instead of at the crosshair (block x, y, z and the face normal).</summary>
     public static (Vector3I b, Vector3I n)? ForcedTarget;
     (Vector3I b, Vector3I n)? _bTarget; float _digT; Vector3I _digAt; float _placeCd, _placeRep; byte _rot;
+    // A-01: the one aim answer (BlockAim) of the last drawn frame, the point it hit, and where the swing is aimed (yaw, pitch)
+    (Vector3I b, Vector3I n, Vector3 hit)? _aim; ulong _aimFrame = ulong.MaxValue; Vector3 _bHit; float _swingYaw, _swingPitch; HeroPose? _pose; ulong _noEditMs;
     string _sel = ""; MeshInstance3D? _ghost, _crack; StandardMaterial3D? _ghostMat, _crackMat; ImageTexture[]? _cracks;
     float _fluidSpeed = 1f, _accelMul = 1f; float _lavaT; bool _wasWater;
     float _swingT, _swingCd, _swingHit; int _swingSerial, _avSwing; const float SwingTime = .42f;
@@ -87,7 +89,7 @@ public partial class Player
     {
         if (n.Y < 0) return true; if (n.Y > 0) return false;
         if (ForcedTarget != null) return ForcedUpper;
-        return BlockAim.Target(GetViewport(), BlockEye, Blocks.F("world.reach", 6f)) is { } t && t.hit.Y - Mathf.Floor(t.hit.Y) > .5f;
+        return AimNow() is { } t && t.hit.Y - Mathf.Floor(t.hit.Y) > .5f;   // the same aim answer the outline and the ghost show
     }
     /// <summary>Tests: with a ForcedTarget on a wall, place as if aimed at the upper half of the face.</summary>
     public static bool ForcedUpper;
@@ -143,30 +145,43 @@ public partial class Player
         _swingT = Mathf.Max(0, _swingT - dt);
         if (on) BarInput(captured, dt);
         BlockHud(); bool lockUsed = BlockUseInput(captured);
-        if (!on) { HideBlockFx(); _digT = 0; _swingCd = 0; return; }
+        if (!on) { HideBlockFx(); _digT = 0; _swingCd = 0; _bTarget = null; SwingPose(false); return; }
         if (captured && !lockUsed && Input.IsActionJustPressed(Inputs.BlockRotate)) { _rot = (byte)((_rot + 1) % 3); Ui.Note("Placing along " + (_rot == 0 ? "up" : _rot == 1 ? "east-west" : "north-south"), Ui.Dim); }
         _placeCd = Mathf.Max(0, _placeCd - dt); _placeRep -= dt;
-        _bTarget = ForcedTarget ?? Aim();
+        // A-01: one aim answer for everything below (the one the last drawn frame showed: BlockAimFrame); tests force a cell instead
+        if (ForcedTarget is { } ft) { _bTarget = ft; _bHit = new Vector3(ft.b.X + .5f, ft.b.Y + .5f, ft.b.Z + .5f) + new Vector3(ft.n.X, ft.n.Y, ft.n.Z) * .5f; }
+        else if (AimNow() is { } an) { _bTarget = (an.b, an.n); _bHit = an.hit; }
+        else _bTarget = null;
         bool act = captured || ForcedTarget != null;
         bool dig = act && Input.IsActionPressed(Inputs.Attack);
+        SwingPose(_swingT > 0 && _bTarget != null);
         if (_bTarget is not { } t)
         {
             HideBlockFx(); _digT = 0;
-            if (dig) DigSwing(dt, null); else _swingCd = 0;   // swinging at the air
+            if (dig) { _swingYaw = Rig?.Yaw ?? _modelYaw; _swingPitch = 0; DigSwing(dt, null); } else _swingCd = 0;   // swinging at the air
             return;
         }
         var a = BlockWorld.I!.Area!;
         ShowOutline(t.b, a.Get(t.b.X, t.b.Y, t.b.Z));
         // dig: hold attack; the pickaxe swings every SwingTime, chips fly at each blow
         byte id = a.Get(t.b.X, t.b.Y, t.b.Z);
+        // A-07: no digging or building in a dungeon or the arena (the outline still shows what you point at; doors and chests still open)
+        string? noEdit = BlockFx.NoEdit();
+        if (noEdit != null)
+        {
+            if (_ghost != null && IsInstanceValid(_ghost)) _ghost.Visible = false; if (_crack != null && IsInstanceValid(_crack)) _crack.Visible = false;
+            _digT = 0; _swingCd = 0;
+            if (act && (Input.IsActionJustPressed(Inputs.Attack) || Input.IsActionJustPressed(Inputs.Heavy)) && Time.GetTicksMsec() - _noEditMs > 1500) { _noEditMs = Time.GetTicksMsec(); Ui.Note(noEdit, new Color(1, .6f, .5f)); Sfx.Play("hit", .3f, 1.7f); }
+            return;
+        }
         if (dig && id != 0 && id != 255)
         {
             if (t.b != _digAt) { _digAt = t.b; _digT = 0; }
             var def = Blocks.Def(id); float need = Blocks.DigTime(def, Game.D.WType(), Game.D.Pick) * (BlockWorld.I.Frozen(t.b.X, t.b.Y, t.b.Z) ? .5f : 1f) / DigMul(def);   // F-24: mining / woodcutting levels dig faster
             bool locked = BlockUse.Protects(a, t.b.X, t.b.Y, t.b.Z) && !BlockUse.MayOpen(a, BlockUse.Anchor(a, t.b.X, t.b.Y, t.b.Z), BlockUse.Me, BlockUse.Admin);
-            string? townMsg = TownZones.Deny(t.b.X, t.b.Z);
+            string? townMsg = TownZones.Deny(t.b.X, t.b.Z) ?? OnlineRules.DenyDig(a, t.b.X, t.b.Y, t.b.Z);   // F-18 town zone, F-44 no mining on the online server
             bool prot = a.Gen.Protected(t.b.X, t.b.Y, t.b.Z) || locked || townMsg != null;
-            _modelYaw = Rig?.Yaw ?? _modelYaw;
+            FaceBlockAim();   // the hero turns to the point under the reticle and the swing is pitched at it (it used to face the camera's way)
             if (float.IsInfinity(need) || prot)
             {
                 if (townMsg != null) TownZones.Notify(townMsg);
@@ -218,7 +233,7 @@ public partial class Player
                     BlockUse.Placed(a, at.X, at.Y, at.Z, BlockUse.Me);   // doors and chests: you own them (and may lock them)
                     NotePlaced(at);   // digging your own block back gives no mining XP (F-25 anti-spam)
                     var m = Game.D.Mats; string k = Blocks.Item(_sel); m[k] = m.GetValueOrDefault(k) - 1; if (m[k] <= 0) m.Remove(k); Game.Notify();
-                    BlockFx.PlacePuff(at.X, at.Y, at.Z, bid); _swingT = .28f; _swingSerial++; _modelYaw = Rig?.Yaw ?? _modelYaw; _barRefresh = 0;
+                    BlockFx.PlacePuff(at.X, at.Y, at.Z, bid); _swingT = .28f; _swingSerial++; FaceBlockAim(); _barRefresh = 0;
                 }
             }
         }
@@ -234,10 +249,69 @@ public partial class Player
             _swingHit -= dt;
             if (_swingHit <= 0)
             {
-                if (b is { } c) { BlockFx.Chip(c.X, c.Y, c.Z); BlockFx.Chip(c.X, c.Y, c.Z); Sfx.Play("hit", .32f, 1.2f); }
+                // the chips fly from the point under the reticle on the struck face (they used to come from the block's centre)
+                Vector3? at = _bTarget is { } bt && b is { } bc && bt.b == bc ? _bHit + new Vector3(bt.n.X, bt.n.Y, bt.n.Z) * .04f : null;
+                if (b is { } c) { BlockFx.Chip(c.X, c.Y, c.Z, at); BlockFx.Chip(c.X, c.Y, c.Z, at); Sfx.Play("hit", .32f, 1.2f); }
                 else if (_bTarget != null) Sfx.Play("hit", .4f, 1.7f);   // a clink off something too hard
             }
         }
+    }
+
+    // ---------------------------------------------------------------- A-01: one aim answer, the swing aimed at it
+    /// <summary>
+    /// The aim answer everything uses: BlockAim.Target (the camera ray through the HUD reticle, reach from the eye), solved once per drawn
+    /// frame after the camera has moved (BlockAimFrame, called by CameraRig) and read back by the physics frame, so the outline, the ghost,
+    /// the block dug and the cell filled are the same answer the screen showed. Solved on the spot when no drawn frame did it (tests).
+    /// </summary>
+    (Vector3I b, Vector3I n, Vector3 hit)? AimNow()
+    {
+        ulong f = Engine.GetProcessFrames();
+        if (_aimFrame == ulong.MaxValue || f < _aimFrame || f - _aimFrame > (_aimDrawn ? 1u : 0u)) { _aim = BlockAim.Target(GetViewport(), BlockEye, Blocks.F("world.reach", 6f)); _aimFrame = f; _aimDrawn = false; }
+        return _aim;
+    }
+    bool _aimDrawn;
+    /// <summary>Called by CameraRig at the end of every drawn frame (the camera is where the frame shows it): solves the aim and moves the
+    /// outline and the ghost with it, so they never trail the reticle by a physics tick while the view turns or the hero walks.</summary>
+    internal void BlockAimFrame()
+    {
+        _aimFrame = Engine.GetProcessFrames(); _aimDrawn = true;
+        if (!BlockWorld.Enabled || BlockWorld.I?.Area is not { } a || Dead) { _aim = null; return; }
+        _aim = BlockAim.Target(GetViewport(), BlockEye, Blocks.F("world.reach", 6f));
+        if (!BuildMode || ForcedTarget != null) return;
+        if (_aim is not { } t) { HideBlockFx(); return; }
+        if (_bTarget is { } was && was.b == t.b && was.n == t.n) return;   // same block and face: the physics frame keeps it drawn
+        ShowOutline(t.b, a.Get(t.b.X, t.b.Y, t.b.Z));
+        if (_crack != null && IsInstanceValid(_crack)) _crack.Visible = false;
+        if (_ghost != null && IsInstanceValid(_ghost) && _ghost.Visible)
+        {
+            if (BlockFx.NoEdit() != null) { _ghost.Visible = false; return; }
+            var at = t.b + t.n; string shape = _sel == "" ? "" : Blocks.Def(Blocks.Id(_sel)).Shape;
+            bool ok = _sel != "" && BlockFx.CanPlace(at.X, at.Y, at.Z) == null && (shape != "door" || BlockFx.CanPlace(at.X, at.Y + 1, at.Z) == null);
+            ShowGhost(at, ok, shape, PlaceMeta(shape, t.n));
+        }
+    }
+    /// <summary>Turns the hero to the aimed point and pitches the swing at it (third person; in first person the body already faces the view).</summary>
+    void FaceBlockAim()
+    {
+        var chest = GlobalPosition + Vector3.Up * 1.25f; var d = _bHit - chest; float flat = new Vector2(d.X, d.Z).Length();
+        _swingYaw = flat > .3f ? Util.YawTo(d.X, d.Z) : Rig?.Yaw ?? _modelYaw;
+        // the chop clip lands about 25 degrees below the horizon by itself: bend the back by the rest (data/tuning.json game build.swingBase / swingPitch)
+        _swingPitch = Mathf.Clamp((Mathf.Atan2(d.Y, Mathf.Max(flat, .2f)) - Tune.F("build.swingBase", -.42f)) * Tune.F("build.swingPitch", .7f), -.7f, .8f);
+        _modelYaw = _swingYaw;
+    }
+    /// <summary>Keeps the hero turned to the aimed block for the length of a pickaxe swing (called after the movement facing; Player.cs).</summary>
+    void BlockSwingFacing() { if (BuildMode && _swingT > 0 && _bTarget != null && !(Rig?.FirstPerson ?? false)) _modelYaw = _swingYaw; }
+    /// <summary>The pose layer over the clips (HeroPose: crouch and swing pitch), made on first use on the current skeleton.</summary>
+    HeroPose? PoseLayer()
+    {
+        var sk = _av?.Skel; if (sk == null || !IsInstanceValid(sk)) return null;
+        if (_pose == null || !IsInstanceValid(_pose) || _pose.GetParent() != sk) { _pose = new HeroPose { Name = "HeroPose" }; sk.AddChild(_pose); }
+        return _pose;
+    }
+    void SwingPose(bool on)
+    {
+        if (!on && _pose == null) return;
+        if (PoseLayer() is { } pl) pl.AimPitch = on && !(Rig?.FirstPerson ?? false) ? _swingPitch : 0f;   // first person: the view itself is pitched at the block (and the camera rides the head)
     }
     /// <summary>Plays the pickaxe swing on the model while one is running (called from AnimateAvatar).</summary>
     bool BuildSwing(Avatar a)
@@ -307,8 +381,10 @@ public partial class Player
 
     /// <summary>The hero's eye, where block reach is measured from.</summary>
     internal Vector3 BlockEye => GlobalPosition + Vector3.Up * 1.5f;
-    /// <summary>The block under the reticle within reach (BlockAim.Target: the camera ray through the screen centre, reach from the eye).</summary>
-    (Vector3I b, Vector3I n)? Aim() => BlockAim.Target(GetViewport(), BlockEye, Blocks.F("world.reach", 6f)) is { } t ? (t.b, t.n) : null;
+    /// <summary>The block under the reticle within reach (AimNow: this frame's one BlockAim answer, the camera ray through the reticle, reach from the eye).</summary>
+    (Vector3I b, Vector3I n)? Aim() => AimNow() is { } t ? (t.b, t.n) : null;
+    /// <summary>Whether the reticle is on a block within reach right now (the HUD lights the build reticle with it).</summary>
+    internal bool AimHasBlock => BuildMode && _bTarget != null;
     /// <summary>This frame's build-mode target (block, face normal) for tests and captures; null when nothing is in reach.</summary>
     internal (Vector3I b, Vector3I n)? BlockTarget => BuildMode ? _bTarget : null;
 
@@ -459,7 +535,7 @@ public partial class BuildHotbar : Control
         float nameY = y0 - s * .32f;
         if (p.HotbarNameT > 0 && sk != "" && Blocks.Exists(sk))
             Txt(font, new Vector2(0, nameY), Blocks.Def(Blocks.Id(sk)).Name, fs + 4, Gold with { A = Mathf.Clamp(p.HotbarNameT, 0, 1) }, HorizontalAlignment.Center, sz.X);
-        string hint = $"{Blocks.PickName(Game.D.Pick)}   ·   hold {Inputs.KeyOf(Inputs.Attack)} dig   ·   {Inputs.KeyOf(Inputs.Heavy)} place   ·   1-9 / wheel choose   ·   {Inputs.KeyOf(Inputs.BlockRotate)} rotate   ·   {Inputs.KeyOf(Inputs.BuildMode)} leave";
+        string hint = $"{Blocks.PickName(Game.D.Pick)}   ·   hold {Inputs.KeyOf(Inputs.Attack)} dig   ·   {Inputs.KeyOf(Inputs.Heavy)} place   ·   1-9 / wheel choose   ·   {Inputs.KeyOf(Inputs.BlockRotate)} rotate   ·   {Inputs.KeyOf(Inputs.View)} first / third person   ·   {Inputs.KeyOf(Inputs.BuildMode)} leave";
         if (keys.All(x => x == "")) hint = "No blocks in your pack: dig some   ·   " + hint;
         Txt(font, new Vector2(0, nameY - fs * 1.9f), hint, fs, UiTheme.Dim.Lightened(.25f), HorizontalAlignment.Center, sz.X);
     }

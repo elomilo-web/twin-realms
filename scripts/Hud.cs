@@ -260,8 +260,25 @@ public partial class HudCanvas : Control
             foreach (var s in tgt.Status.List) { StatusChip(new Vector2(tx, ty + 14 + Mathf.Max(7, u * .75f) + extra), ic, s.Def.Col, s.Def.Name[..1], s.T, s.Stacks); tx += ic + 3; }
         }
         if (Net.Active) DrawLobby(sz, u, pad, fs(1f));
-        // crosshair
-        DrawCircle(sz / 2, 3f, new Color(1, 1, 1, .75f));
+        // crosshair: drawn at BlockAim.Reticle, the very screen point the block-aim ray (dig, place, outline, ghost) and the spell aim start from
+        var rc = GetGlobalTransformWithCanvas().AffineInverse() * BlockAim.Reticle(GetViewport());
+        if (Player.BuildMode && BlockWorld.Enabled && !p.Dead)
+        {
+            // build mode: a small cross, gold while a block is under it within reach, grey when nothing is
+            var cc = p.AimHasBlock ? new Color(1f, .86f, .45f, .95f) : new Color(1, 1, 1, .5f); float g = Mathf.Max(3f, u * .28f), l = Mathf.Max(6f, u * .6f);
+            foreach (var d2 in new[] { Vector2.Right, Vector2.Left, Vector2.Up, Vector2.Down })
+            { DrawLine(rc + d2 * g, rc + d2 * (g + l), new Color(0, 0, 0, .6f), 4f); DrawLine(rc + d2 * g, rc + d2 * (g + l), cc, 2f); }
+            DrawCircle(rc, 1.6f, cc);
+        }
+        else DrawCircle(rc, 3f, new Color(1, 1, 1, .75f));
+        // A-10: sneaking shows under the reticle (an eye: open and red once something hunts you)
+        if (p.Sneaking && !p.Dead)
+        {
+            bool seen = p.InCombat; var sc = seen ? new Color(1f, .5f, .4f) : new Color(.75f, .85f, 1f); var ec = rc + new Vector2(0, u * 3.1f); float ew = Mathf.Max(9f, u * .9f);
+            DrawArc(ec + new Vector2(0, ew * .55f), ew, -Mathf.Pi * .78f, -Mathf.Pi * .22f, 12, sc, 2f, true);
+            if (seen) { DrawArc(ec - new Vector2(0, ew * .55f), ew, Mathf.Pi * .22f, Mathf.Pi * .78f, 12, sc, 2f, true); DrawCircle(ec, ew * .22f, sc); }
+            Txt(new Vector2(rc.X - u * 10, ec.Y + ew + fs(.95f)), seen ? "SNEAKING  ·  SPOTTED" : $"SNEAKING  ·  HIDDEN   ({Inputs.KeyOf(Inputs.Sneak)} stands up)", fs(.95f), sc, HorizontalAlignment.Center, u * 20);
+        }
         // charging a spell: a bar under the crosshair, golden when full
         if (p.ChargeFrac >= 0)
         {

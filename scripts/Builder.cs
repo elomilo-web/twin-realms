@@ -32,6 +32,7 @@ public static class Builder
         Village(over); Arena(over); foreach (var p in World.Pois) if (p.Dun != null) Entrance(over, p);
         Wayshrine.BuildAll(over);
         Lair(over); Stones(over); Obelisks(over); Chests(over); Npcs(over); Spawns(over);
+        Wayside.Build(over);       // F-33: camps, farms, watchtowers, ruins, shrines, inns and crypts along the roads
         Structures.Finish(over);   // F-19: every block structure is stamped; the far meshes build and the block world may start
     }
 

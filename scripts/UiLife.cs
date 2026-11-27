@@ -160,6 +160,22 @@ public partial class Ui
         v.AddChild(lp);
         Row(v, $"{Inputs.KeyOf(Inputs.Left)} / {Inputs.KeyOf(Inputs.Right)} or the left stick: move the pick.   Hold {Inputs.KeyOf(Inputs.Jump)} or {Inputs.KeyOf(Inputs.Use)} (pad A / RT): turn the lock.   Off the sweet spot the lock stops and the pick strains, then snaps.", Dim, 13);
     }
+    /// <summary>A-10: the same minigame for a lock that is not a block (a locked treasure chest, Props.cs): picked calls back and the window closes.</summary>
+    public void OpenLockpickFor(string name, float diff, string key, Action picked)
+    {
+        var v = Frame("lockpick", "Pick the Lock", new Vector2(640, 560), () => { }); HideInfo();
+        int picks = Game.D.Mats.GetValueOrDefault(Lockpick.Item);
+        Row(v, $"{name}   ·   {picks} lockpick{(picks == 1 ? "" : "s")}   ·   lockpicking level {LifeSkills.Level("lockpicking")}", Parch, 15);
+        var lp = new Lockpick { LockName = name, LockKey = key, Diff = Mathf.Clamp(diff, 0f, 1f), CustomMinimumSize = new Vector2(580, 360) };
+        lp.Finished = () =>
+        {
+            if (!IsInstanceValid(lp) || _panelName != "lockpick") return;
+            bool ok = lp.Solved && lp.Turn >= .999f; Close();
+            if (ok) picked();
+        };
+        v.AddChild(lp);
+        Row(v, $"{Inputs.KeyOf(Inputs.Left)} / {Inputs.KeyOf(Inputs.Right)} or the left stick: move the pick.   Hold {Inputs.KeyOf(Inputs.Jump)} or {Inputs.KeyOf(Inputs.Use)} (pad A / RT): turn the lock.   Off the sweet spot the lock stops and the pick strains, then snaps.", Dim, 13);
+    }
     public static Lockpick? LockpickGame => Lockpick.Cur;
 
     // ---------------------------------------------------------------- the merchant: lockpicks and recipe books

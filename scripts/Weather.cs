@@ -27,7 +27,7 @@ public partial class Weather : Node3D
     static AudioStreamPlayer? MakeLoop(Node parent, string id)
     {
         var s = LoadLoop($"res://assets/audio/sfx/{id}.wav"); if (s == null) return null;
-        var p = new AudioStreamPlayer { Stream = s, VolumeDb = -80f }; parent.AddChild(p);
+        var p = new AudioStreamPlayer { Stream = s, VolumeDb = -80f, Bus = Sfx.BusAmbient }; parent.AddChild(p);   // F-39: the Ambient slider is that bus's volume
         p.Finished += () => p.Play();   // safety net if the loop flag is ignored
         return p;
     }
@@ -48,8 +48,8 @@ public partial class Weather : Node3D
         if (r < .2f && r >= .05f) g = Mathf.DbToLinear(-18f) * (r - .05f) / .15f;
         float light = 1f - Mathf.Clamp((r - .2f) / .25f, 0f, 1f);   // light loop at low intensity, full loop above ~.45
         if (Dungeon.Active || amb <= 0f) { g = 0f; }
-        Fade(_rainP, ref _rainLv, g * (1f - light), amb, dt);
-        Fade(_lightP, ref _lightLv, g * light, amb, dt);
+        Fade(_rainP, ref _rainLv, g * (1f - light), 1f, dt);
+        Fade(_lightP, ref _lightLv, g * light, 1f, dt);
 
         Flash = Mathf.MoveToward(Flash, 0f, dt * 2.5f);
         if (_thunderDelay >= 0f)

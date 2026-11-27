@@ -17,7 +17,7 @@ public partial class PadInput : Node
     readonly Dictionary<string, bool> _raw = new(), _claimMod = new();
     readonly HashSet<string> _menuHeld = new(), _chorded = new(), _down = new(), _blocked = new();
     readonly Dictionary<string, float> _moveS = new();
-    bool _trigR, _trigL, _latch, _sprintOn; float _rollHeld, _idleT, _refresh;
+    bool _trigR, _trigL, _latch, _sprintOn; float _rollHeld, _idleT, _refresh, _noRunT;
 
     public override void _Ready()
     {
@@ -131,6 +131,7 @@ public partial class PadInput : Node
         float dt = (float)delta;
         _refresh -= dt; if (_refresh <= 0) { _refresh = 2f; Refresh(); }
         if (Inputs.IsSetup) MenuNav(dt);
+        Inputs.ReleaseStuckKeys(dt);   // A-02: a key whose release Windows never delivered (keyboard; runs with or without a pad)
         if (!Inputs.IsSetup || Inputs.Pads.Length == 0) return;
         bool game = InGame;
         float lta = Inputs.PadAxis(JoyAxis.TriggerLeft); _trigL = _trigL ? lta > .3f : lta > .5f; bool lt = _trigL;
@@ -183,6 +184,15 @@ public partial class PadInput : Node
         _rollHeld = rollHeld ? _rollHeld + dt : 0f;
         if (ls.LengthSquared() < .04f) _idleT += dt; else _idleT = 0f;
         if (!game || _idleT > .25f) _latch = false;
+        // A-02: the toggled run also ends when the hero is out of breath, and when the hero has not actually been sprinting for a moment
+        // (attacking, guarding, sneaking, riding, swimming, staggered, dead...). It used to stay armed through all of those and through an
+        // empty stamina bar, and started the sprint again by itself: "stuck running without pushing run".
+        if (_latch && Player.Instance is Player hero)
+        {
+            _noRunT = hero.Sprinting ? 0f : _noRunT + dt;
+            if (hero.SprintTired || hero.Dead || _noRunT > Tune.F("stamina.padSprintDrop", .6f)) _latch = false;
+        }
+        if (!_latch) _noRunT = 0f;
         bool want = game && (_latch || _rollHeld > .35f);
         if (want != _sprintOn) { _sprintOn = want; Emit(Inputs.Sprint, want); }
     }

@@ -21,3 +21,8 @@ data/ambient.json ("sound" toggle); files in res://assets/audio/sfx/id_N.(wav|og
 - Dynamic combat music layer triggered by `Targeting`/`Threat` in `TickMusic()`.
 - Replace synth fallback in `Gen()` L84 with dark drone/low gong tones.
 - Split into SfxPlayer, Ambience, Music classes.
+## F-39 / F-40 (2026-11-27)
+- Buses made in code (`Sfx.EnsureBuses`): Music, Effects, Ambient, Voice under Master; `Sfx.ApplyVolumes` maps Settings.Music / Sfx / Ambient / Voice to them. Footsteps and interface sounds stay on Master with their own sliders. `Sfx.Voice(id, vol, pitch)` plays on Voice.
+- `scripts/Music.cs` + `data/music.json`: picker by place (boss > dungeon > home > town > night > explore), crossfade, on/off per category and song (Settings.MusicOff), dev command `/music`. `scripts/UiMusic.cs`: the Music part of Settings > Audio.
+- `tools/music_gen.ps1` writes the seven generated songs to assets/audio/music/gen (no Godot needed); Music.ReadWav loads a .wav that has no .import yet.
+- `scripts/Instruments.cs` + `data/instruments.json` + `scripts/NetMusic.cs`: playable instruments (runtime synth `InstrumentDb.Tone`), dev command `/play`.

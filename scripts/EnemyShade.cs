@@ -25,7 +25,7 @@ public partial class Enemy
             foreach (var id in ids)
             {
                 if (id == Net.MyId) { l.Add(Game.D); continue; }
-                if (net.Players.GetValueOrDefault(id) is { } p) l.Add(new PlayerStats { Name = p.Name, Race = p.Race, Class = p.Class, Body = p.Body, Eq = new Dictionary<string, Item?>(p.Eq) });
+                if (net.Players.GetValueOrDefault(id) is { } p) l.Add(new PlayerStats { Name = p.Name, Race = p.Race, Class = p.Class, Body = p.Body, Look = HeroLook.Unpack(p.Look), Eq = new Dictionary<string, Item?>(p.Eq) });
             }
         }
         if (l.Count == 0) l.Add(Game.D);

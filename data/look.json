@@ -53,6 +53,8 @@
   "fogHeightDensity": 0.0035,
   "aerial": 0.5,
   "skyAffect": 0.2,
+  "_farFogHelp": "A-05 (pale band where the view distance ends). farFog: the fog is at least this thick at the camera far plane (density = farFog / far plane metres; far plane = view distance + 200), so the ground is mostly fog-coloured where the far plane cuts it off. 1.2 changes nothing at the default 1200 m view distance (0.00086 is under fogDay) and only thickens the fog at short view distances; 0 = off.",
+  "farFog": 1.2,
   "glowIntensity": 0.55,
   "glowBloom": 0.04,
   "sunDay": 1.6,
@@ -80,6 +82,8 @@
   "grass_tint": "a8b088", "meadow_tint": "ffffff", "forest_tint": "8e8a74", "road_tint": "f2e6d2", "rock_tint": "d8d4cc", "sand_tint": "ffffff",
   "saturation": 0.75, "brightness": 0.9, "normal_depth": 0.9,
   "meadow_amount": 0.55, "gravel_amount": 0.5,
+  "_edgeHelp": "A-05 (bright line along the edge of the block square, about 90 m out). The smooth far ground no longer stops exactly at the edge of the block square: it carries on vox_inset metres into the square, pushed vox_drop metres down, so it dives under the blocks (a block top can sit half a metre under the smooth ground, and the sky showed through that slit). vox_inset must be at least two terrain cells (1 m at home, 1.6 m on the other lands); vox_drop more than 0.5. Was: cut exactly at the edge, no drop (0 and 0).",
+  "vox_inset": 4.0, "vox_drop": 1.5,
   "_set": "terrain",
   "_setHelp": "_set = folder under assets/textures with the six ground layers: 'terrain' (ambientCG photos) or 'terrain_painted' (the painted anime pack, tools/kit_gen/tex_gen.py). The block named after the set overrides the values above while that set is in use.",
   "terrain_painted": { "grass_tint": "ffffff", "meadow_tint": "ffffff", "forest_tint": "ffffff", "road_tint": "ffffff", "rock_tint": "ffffff", "sand_tint": "ffffff", "saturation": 1.0, "brightness": 1.0, "normal_depth": 0.6 }
@@ -105,13 +109,18 @@
   "shadowTop": "1a1530",
   "shadowHorizon": "6a6488",
   "cloudCover": 0.55,
-  "cloudSpeed": 0.006
+  "cloudSpeed": 0.006,
+  "_belowHelp": "A-05: the sky under the horizon (seen where the far plane cuts the ground and the sea off). It is the fog colour mixed belowSkyMix toward the horizon colour (the colour fogged far ground has; was the horizon colour darkened 55%), reached at belowRate x the slope under the horizon (40 = fully there 1.4 degrees down; was 5 = 11 degrees, which left a bright band).",
+  "belowRate": 40,
+  "belowSkyMix": 0.5
  },
  "water": {
   "shallow": "4a5a52",
   "deep": "0e1a1c",
   "foam": "eaf6ff",
   "shadowShallow": "4a5070",
-  "shadowDeep": "181a30"
+  "shadowDeep": "181a30",
+  "_seaHelp": "A-05: seaDrawY = height the far sea plane is drawn at. -0.12 is the surface of the block sea (water blocks fill to y 0, a source's top is 0.88 of its block), so the two meet level at the edge of the block square. Was 0.25 (the sea level used for swimming and shores, unchanged), which left a 0.37 m step with the pale sea bed showing through it.",
+  "seaDrawY": -0.12
  }
 }

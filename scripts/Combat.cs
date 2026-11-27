@@ -41,6 +41,25 @@ public static class Util
     public static float YawTo(float dx, float dz) => Mathf.Atan2(-dx, -dz);
 }
 
+/// <summary>
+/// A-04: can a melee blow reach across a height difference? (data/tuning.json game.melee). Feet heights and body heights in metres.
+/// A blow reaches when the two stand within stepTolerance of each other's level (slopes, slabs, a stair lip: less than one block).
+/// A taller attacker reaches further up and down: reachPerHeight for every metre it stands above bodyHeight. Striking down gets
+/// downExtra more, and a tall target standing lower still rises into reach: targetPerHeight for every metre above bodyHeight.
+/// So a man-sized monster one block below (or above) the hero cannot hit, and the hero cannot hit it; a golem or a dragon can.
+/// Used by Enemy (starting a wind-up and landing the blow) and by the hero's own swings (Player.ResolveMelee, the step-in).
+/// </summary>
+public static class Melee
+{
+    public static bool Reaches(float atkFeet, float atkHeight, float tgtFeet, float tgtHeight)
+    {
+        float dy = tgtFeet - atkFeet, refH = Tune.F("melee.bodyHeight", 1.9f);
+        float reach = Tune.F("melee.stepTolerance", .75f) + Mathf.Max(0f, atkHeight - refH) * Tune.F("melee.reachPerHeight", .6f);
+        if (dy >= 0f) return dy <= reach;
+        return -dy <= reach + Tune.F("melee.downExtra", .35f) + Mathf.Max(0f, tgtHeight - refH) * Tune.F("melee.targetPerHeight", .8f);
+    }
+}
+
 /// <summary>Floating damage numbers and notices.</summary>
 public static class FloatText
 {

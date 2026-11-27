@@ -54,8 +54,8 @@ public partial class RemoteHero : Node3D, IDamageable, IInteractable
     public void Refresh(PeerInfo p)
     {
         if (_rig == null || !IsInsideTree()) return;
-        var ps = new PlayerStats { Name = p.Name, Race = p.Race, Class = p.Class, Body = p.Body, Eq = new System.Collections.Generic.Dictionary<string, Item?>(p.Eq) };
-        string look = p.Race + "|" + p.Class + "|" + p.Body;
+        var ps = new PlayerStats { Name = p.Name, Race = p.Race, Class = p.Class, Body = p.Body, Look = HeroLook.Unpack(p.Look), Eq = new System.Collections.Generic.Dictionary<string, Item?>(p.Eq) };   // Look: their creator choices (F-36)
+        string look = p.Race + "|" + p.Class + "|" + p.Body + "|" + p.Look;
         if (look != _lookSig)
         {
             if (_lookSig != "") { _rig.QueueFree(); _rig = new HeroRig { Name = "Model2" }; AddChild(_rig); _av = null; }   // a rig is built once, so a new look gets a new rig

@@ -7,8 +7,9 @@
   "_animHelp": "anim = the attack animation a step plays (data/avatar.json \"attackAnims\"); powerAnim = the power attack's. rec (optional, per step) = the follow-through animation during its recovery.",
   "recovery": {
 	"_help": "Weight: seconds after a swing before the next one can start (you can still move, roll or block). light = ordinary chain steps, finisher = the chain's finisher steps, power = power (heavy) attacks. twoHandedMul / daggerMul / rangedMul scale it for those weapons. Faster attack speed shortens it. A step can set its own \"recover\". recLight / recHeavy: follow-through animations for one- and two-handed weapons.",
-	"light": 0.05, "finisher": 0.32, "power": 0.5,
-	"twoHandedMul": 1.6, "daggerMul": 0.5, "rangedMul": 0.6,
+	"_a03": "A-03 (weight): light 0.05 -> 0.28, finisher 0.32 -> 0.5, power 0.5 -> 0.7; twoHandedMul 1.6 -> 1.4, daggerMul 0.5 -> 0.6 (rangedMul 0.6 kept). The swing itself is lengthened in data/tuning.json game.attack.",
+	"light": 0.28, "finisher": 0.5, "power": 0.7,
+	"twoHandedMul": 1.4, "daggerMul": 0.6, "rangedMul": 0.6,
 	"recLight": "recA", "recHeavy": "recHook"
   },
   "styles": {

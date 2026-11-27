@@ -9,8 +9,11 @@ public class Settings
 {
     public float Master = 0.8f, Sfx = 0.8f, Ambient = 0.6f, Music = 0.5f, Sens = 1f;
     public float Steps = 0.7f, UiVol = 0.7f;   // footsteps and interface sounds (older settings files get these defaults)
+    // F-39: the Voice bus (grunts, cries, roars) and the music switched off in Settings > Audio > Music ("cat:<id>" or a song id, data/music.json); older settings files get these defaults
+    public float Voice = 0.8f; public List<string> MusicOff = new();
     public bool InvertY = false;
     public bool FirstPerson = false;       // camera view (toggle_view key, default F5); older settings files get third person
+    public bool FirstPersonBuild = false;  // A-09: first person by itself while build mode (the pickaxe) is out, back when it is put away (Settings > Game)
     // display and game options (Settings > Display / Game); older settings files get these defaults
     public int WindowMode = 0;            // 0 windowed, 1 fullscreen (borderless), 2 exclusive fullscreen
     public bool VSync = true;

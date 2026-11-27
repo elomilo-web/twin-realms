@@ -113,6 +113,7 @@ public static class BlockUse
         if (!MayOpen(a, c, Me, Admin)) { Sfx.Play("lock", .6f, .7f); Ui.Note($"Locked{(Owner(a, c) is { Length: > 0 } o ? " by " + o : "")}", new Color(1f, .6f, .5f)); return; }
         Sfx.Play("chest_open", .8f);
         var def = Blocks.Def(a.Get(c.X, c.Y, c.Z));
+        Wayside.FillChest(Key(a, c.X, c.Y, c.Z));   // F-33: a roadside loot chest fills the first time it is opened
         Ui.I?.OpenChest(Key(a, c.X, c.Y, c.Z), def.Name, Math.Max(1, def.Capacity));
     }
 }

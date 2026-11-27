@@ -39,6 +39,8 @@ public static class Accounts
     {
         public string Email = "", Salt = "", Hash = ""; public int Iter; public long Created, LastLogin;
         public List<Token> Tokens = new();   // saved logins (launcher "Remember me"): only a hash of each token is stored
+        // F-43 / F-42: admin access (set by the server after the admin login), ban and mute (unix time they end; long.MaxValue = for good), the last hero played (to find the account by name)
+        public bool Admin; public long BanUntil, MuteUntil; public string BanReason = "", Hero = "";
     }
     public class Token { public string Hash = ""; public long Expires; }
     public const int TokenDays = 30, MaxTokens = 5;
@@ -122,7 +124,9 @@ public static class Accounts
                 return new(false, "Wrong email or password.");
             }
             Fails.Remove(key);
-            acc!.LastLogin = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            acc = ReadAcc(key) ?? acc!;   // again, under the lock: a flag set while the password was being checked (ban, admin) must not be written over
+            if (BanText(acc) is { } banned) return new(false, banned);
+            acc.LastLogin = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             WriteAtomic(AccPath(key), JsonSerializer.Serialize(acc, Opt));
         }
         GD.Print($"[ACCOUNTS] login {Mask(email)}");
@@ -130,6 +134,46 @@ public static class Accounts
     }
 
     static string TokHash(string token) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token ?? ""))).ToLowerInvariant();
+    // ---- admin, ban, mute (F-42 / F-43)
+    /// <summary>The refusal shown at login while the account is banned, or null.</summary>
+    public static string? BanText(Account a)
+    {
+        long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds(); if (a.BanUntil <= now) return null;
+        string until = a.BanUntil == long.MaxValue ? "" : $" until {DateTimeOffset.FromUnixTimeSeconds(a.BanUntil):yyyy-MM-dd HH:mm} UTC";
+        return $"This account is banned{until}." + (a.BanReason != "" ? " Reason: " + a.BanReason : "");
+    }
+    /// <summary>The account file as it is now (null if there is none).</summary>
+    public static Account? Info(string key) { if (string.IsNullOrEmpty(key)) return null; lock (Gate) return ReadAcc(key); }
+    /// <summary>Reads the account, lets `change` edit it and writes it back, all under the file lock. False if there is no such account.</summary>
+    public static bool Update(string key, Action<Account> change)
+    {
+        if (string.IsNullOrEmpty(key)) return false;
+        lock (Gate)
+        {
+            var acc = ReadAcc(key); if (acc == null) return false;
+            try { change(acc); WriteAtomic(AccPath(key), JsonSerializer.Serialize(acc, Opt)); return true; }
+            catch (Exception e) { GD.PushError("account not updated: " + e.Message); return false; }
+        }
+    }
+    /// <summary>Accounts whose last hero had this name (for commands about players who are offline). Reads every account file: admin commands only.</summary>
+    public static List<(string key, Account acc)> FindByHero(string hero)
+    {
+        var l = new List<(string, Account)>();
+        lock (Gate)
+        {
+            try
+            {
+                foreach (var f in Directory.GetFiles(Path.Combine(Dir, "accounts"), "*.json"))
+                {
+                    string key = Path.GetFileNameWithoutExtension(f); var a = ReadAcc(key);
+                    if (a != null && (hero.StartsWith('@') ? hero.Length >= 5 && key.StartsWith(hero[1..], StringComparison.OrdinalIgnoreCase) : (a.Hero ?? "").Equals(hero, StringComparison.OrdinalIgnoreCase))) l.Add((key, a));
+                }
+            }
+            catch (Exception e) { GD.PushError("accounts not searched: " + e.Message); }
+        }
+        return l;
+    }
+
     static Account? ReadAcc(string key) { try { return File.Exists(AccPath(key)) ? JsonSerializer.Deserialize<Account>(File.ReadAllText(AccPath(key)), Opt) : null; } catch (Exception e) { GD.PushError("account unreadable: " + e.Message); return null; } }
 
     /// <summary>A new login token for the account (valid TokenDays; the oldest is dropped beyond MaxTokens). Lets the launcher log in again without the password.</summary>
@@ -157,6 +201,7 @@ public static class Accounts
             var acc = ReadAcc(key); long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds(); string h = TokHash(token);
             if (acc == null || string.IsNullOrEmpty(token) || acc.Tokens == null || !acc.Tokens.Exists(t => t.Expires >= now && CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(t.Hash), Encoding.UTF8.GetBytes(h))))
                 return new(false, "Your saved login has expired. Log in with your password.");
+            if (BanText(acc) is { } banned) return new(false, banned);
             acc.LastLogin = now; WriteAtomic(AccPath(key), JsonSerializer.Serialize(acc, Opt));
         }
         GD.Print($"[ACCOUNTS] login (saved) {Mask(email)}");
@@ -186,6 +231,7 @@ public static class Accounts
             if (f == null || f.Slots == null || f.Slots.Length != Game.MaxSlots) return "save has the wrong shape";
         }
         catch (Exception e) { return "save unreadable: " + e.Message; }
+        json = AuctionServer.Reconcile(key, json);   // F-37/F-38: auction and trade changes the server made that this upload does not contain yet (NetAuction.cs)
         lock (Gate)
         {
             string p = SavePath(key); if (File.Exists(p)) File.Copy(p, p + ".bak", true);

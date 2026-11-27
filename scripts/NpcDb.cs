@@ -25,6 +25,7 @@ public sealed class NpcRec
     public NpcSpot Home = new(), Work = new(); public NpcRoute? Route; public float Wander;
     public List<NpcAct> Schedule = new();
     public string[] Traits = Array.Empty<string>(), Likes = Array.Empty<string>(), Dislikes = Array.Empty<string>(), Greet = Array.Empty<string>(), Quests = Array.Empty<string>();
+    public bool Generated;   // F-33: made at world build (Wayside), not from data/npcs.json
     public bool Core;   // also in data/quests.json "npcs": Builder spawns it once and keeps the node (quests, shops); the schedule moves and hides it
     public float Phase => (Math.Abs(Id.GetHashCode()) % 1000) / 1000f;
 }
@@ -43,6 +44,18 @@ public static class NpcDb
     static readonly Dictionary<string, NpcRec> _by = new();
     static bool _loaded;
     public static NpcRec? Get(string id) => _by.TryGetValue(id, out var r) ? r : null;
+    /// <summary>F-33: an NPC made while the world is built (Wayside: innkeepers, farmers, wardens). Its Idx continues after the data NPCs;
+    /// the same build order gives the same Idx on every machine. False when the id is empty or taken.</summary>
+    public static bool AddGenerated(NpcRec rec)
+    {
+        Load(); if (rec.Id == "" || _by.ContainsKey(rec.Id)) return false;
+        rec.Generated = true; rec.Idx = All.Count; All.Add(rec); _by[rec.Id] = rec; return true;
+    }
+    /// <summary>A new world build starts: forget the generated NPCs (they are appended after the data ones, so the data Idx values stay).</summary>
+    public static void ClearGenerated()
+    {
+        for (int i = All.Count - 1; i >= 0; i--) if (All[i].Generated) { _by.Remove(All[i].Id); All.RemoveAt(i); }
+    }
 
     static string[] Arr(JsonElement e, string k) => e.TryGetProperty(k, out var a) && a.ValueKind == JsonValueKind.Array ? a.EnumerateArray().Select(x => x.GetString() ?? "").ToArray() : Array.Empty<string>();
     static NpcSpot Spot(JsonElement e, string k)

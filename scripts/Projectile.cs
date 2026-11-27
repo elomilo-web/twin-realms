@@ -229,9 +229,7 @@ public partial class Projectile : Node3D
         }
 
         if (!end) return;
-        // the block world: a skill's projectile hits blocks with its power and element; plain shots chip; monsters' shots follow their rules
-        if (Own == 'p') { if (Calc != null) BlockFx.Skill(Calc, to, Aoe); else BlockFx.Basic(to, Dmg, Kind == "bolt" ? "arcane" : "physical"); }
-        else if (Own == 'e') BlockFx.Enemy(to, Aoe, Dmg, Source != null && IsInstanceValid(Source) && Source.Def.Boss);
+        // (A-08: shots and spell projectiles no longer change blocks, the hero's or a monster's; blocks are only mined)
         if (Own == 'x') { if (Aoe > 0) Vfx.Explosion(to, Aoe); else Fx.Burst(to, new Color(0.8f, 0.8f, 0.9f), 4, 2f, 0.25f, 0.06f); QueueFree(); return; }
         if (Own == 'p')
         {

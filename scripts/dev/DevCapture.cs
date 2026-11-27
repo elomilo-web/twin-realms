@@ -725,6 +725,7 @@ public partial class DevCapture : Node
                         case "create": if (arg.Split('/') is { Length: 2 } rc) Ui.DevPick(rc[0], rc[1]); ui.ShowCreate(); break;   // ui:create:race/class
                         case "pets": ui.OpenPets(null, arg.Length > 0 ? arg : "skills"); break;
                         case "pettrade": PetTrade.DevStart(); ui.OpenPetTrade(); break;   // Odile's trade window with the first pet offered
+                        case "auction": foreach (var ln in ui.DevAuction(arg).Split('\n')) if (ln.Trim() != "") Say("cmd> " + ln.TrimEnd('\r')); break;   // F-37: ui:auction:<browse|sell|mine|collect>[/command;command]
                         case "pack": ui.OpenPackTab(arg); break;   // ui:pack:gems / ui:pack:materials
                         case "gemtip": ui.OpenPackTab("gems"); await Secs(.3f); ui.DevHoverItem(Game.D.Eq.GetValueOrDefault("armor")); break;   // a socketed item's tooltip (F-10)
                     }

@@ -34,7 +34,7 @@ HOW TO WORK THROUGH THIS FILE (instructions for Claude Code)
 7. If something is unclear, make the most reasonable choice, write it under
    the item as "ASSUMPTION: ...", and keep going.
 
-STATUS KEY:   [ ] to do     [x] done     [!] blocked
+STATUS KEY:   [ ] to do     [x] done     [!] blocked     [~] coded and compiling, NOT yet run in game (owner play tests)
 
 
 ================================================================================
@@ -676,10 +676,21 @@ PHASE 6 - NPCS AND A LIVING WORLD
     ASSUMPTION: area spells and skills pass over townsfolk (only weapon blows and shots count as attacking an NPC), so
       a fight with monsters in the street cannot make the hero a criminal by accident.
 
-[ ] F-33  MORE STRUCTURES BETWEEN TOWNS
+[~] F-33  MORE STRUCTURES BETWEEN TOWNS
     DONE WHEN: the roads and wilderness between towns have block-style
     places to find: camps, farms, watchtowers, ruins, shrines, small
     dungeons, bridges, and inns, with NPCs and loot where it makes sense.
+    NOTE (2026-11-27): CODE ONLY, NOT RUN IN GAME. scripts/Wayside.cs + data/wayside.json. Wayside.Build (Builder.BuildAll, before
+      Structures.Finish) walks every road (home + 5 lands); every 170 m (home 60) it tries a site 16 m to the side, kind from the
+      land's cycle: camp, farm, watchtower, ruin, shrine, inn, crypt (small dungeon: mausoleum, 2-wide stair 6 down, lined chamber).
+      Validity = terrain and distances only (towns, POIs, roads, bridges, water, slope, 60 m apart), so the server gets the same sites.
+      Loot chests (camp, watchtower, ruin, crypt) fill on first opening (Wayside.FillChest: 2-4 items at level + tier, gold). People:
+      generated NPCs (NpcDb.AddGenerated): innkeeper (trades) + guest, farmer, road warden, shrine keeper / pilgrim, hunter / traveller;
+      inn and farm people sleep indoors. Ruins and crypts: 2-3 monsters as streamed camp slots. Bridges are the existing ones.
+      Dev: /wayside, /wayside list, /wayside goto <n|kind>.
+    PLAY TEST: /wayside counts per land (every kind present?), each kind via goto (facing the road, trees inside, pad edges), the crypt
+      stairs both ways, first-open loot, NPCs in place, world build time, and that host / client enemy fingerprints still match online.
+    ASSUMPTION: only camp, watchtower, ruin and crypt have loot chests; loot is per hero.
 
 
 ================================================================================
@@ -730,7 +741,7 @@ PHASE 7 - CHARACTERS
     on again: elf ears, orc tusks, shadowkin/drakeling horns, drakeling
     tail). Seen: race_lineup, race_lineup_back, race_heads, create_screen.
 
-[ ] F-36  FULL CHARACTER CREATOR
+[~] F-36  FULL CHARACTER CREATOR
     DONE WHEN: the character creator includes:
       - race and class,
       - body (height, build, proportions),
@@ -739,22 +750,51 @@ PHASE 7 - CHARACTERS
       - a live preview with camera rotate and zoom, and
       - random and reset buttons.
     Choices are saved and work online.
+    NOTE (2026-11-27): CODE ONLY, NOT RUN IN GAME. Creator rebuilt in scripts/UiCreate.cs: tabs Origin / Body / Face / Hair / Marks and
+      a live turntable preview (drag or right stick turns, wheel or triggers zoom body..face; Random look, Random all, Reset, Gear
+      toggle). All lists and ranges in data/creator.json. Choices are one HeroLook (scripts/AvatarLook.cs) saved as PlayerStats.Look;
+      old saves keep the plain race look. Body: height / build scale with the race; shoulders, legs, head are bones (Avatar.cs
+      BodyShape). Face: the models have no blend shapes, so shape, eyes, eye size, brows and mouth are a vertex sculpt around landmarks
+      (AvatarFace.cs, real geometry); eye colour is an iris tint; markings (9 + none, with a colour) are a mask drawn on the face.
+      Hair: the 4 male / 3 female hair models + Bald, free colours. Voice: 6 pitch presets on the hero's hurt / death sounds.
+      Online: the look travels as a short packed string in the player roster (PeerInfo.Look) and is part of the online save.
+      Dev: /look, /look test (round trip, not yet run), /look set | random | reset.
+    PLAY TEST: the preview shows and frames well at 1280x720; every face preset close up on both bodies (eyelids, mouth); eye colour;
+      marking placement; body sliders at the extremes with gear on; reload keeps the look; a second client sees it.
+    ASSUMPTION: voice = pitch of the hero's own pain and death sounds; the look is chosen at creation only (no barber yet).
 
 
 ================================================================================
 PHASE 8 - ECONOMY AND PETS
 ================================================================================
 
-[ ] F-37  AUCTION HOUSE
+[~] F-37  AUCTION HOUSE
     DONE WHEN: players can list items (price, buyout, duration), search and
     filter, bid, and buy. Unsold items come back to the seller, and there is
     a listing fee or tax. It works offline with NPC buyers and online as a
     shared auction house run by the server.
+    NOTE (2026-11-27): CODE ONLY, NOT RUN IN GAME. scripts/Auction.cs = one engine (List, Cancel, Bid, Buy, Collect, Tick, Search) used
+      offline and by the server; rules in data/auction.json (fee 5% of the start price up front, tax 8% of the sale, durations 12/24/48 h,
+      bid step 5%, 12 listings). Offline: book saved with the hero, NPC sellers restock, NPC buyers act each game hour with a chance that
+      falls to 0 at 1.6x worth; proceeds, unsold things and outbid gold go to the Collect tab (28-slot pack respected). Online:
+      scripts/NetAuction.cs, shared book in the server's data folder, every check against the server's copy of the save (messages R_Ah /
+      R_AhRe / R_AhDelta, numbered deltas re-applied to late uploads and after a crash), box delivered on entering the world.
+      UI scripts/UiAuction.cs (Browse / Sell / My listings / Collect); 5 auctioneers added to data/npcs.json. Net protocol is now 15:
+      server and published game must be updated together. Dev: /auction ... and /auction test (about 30 PASS / FAIL steps, not yet run).
+    PLAY TEST: run /auction test; auctioneer positions (guessed); window layout at 1280x720; list cheap and dear items and pass hours;
+      with two real clients: list, bid, outbid refund, buyout, collect, delivery on login.
+    ASSUMPTION: no NPC listings online; online durations are real hours, offline game hours; a bid is always the minimum next bid.
 
-[ ] F-38  PET TRADING
+[~] F-38  PET TRADING
     DONE WHEN: pets can be traded safely through a two-sided trade window
     where both players must confirm. Pets keep their stats and level, and can
     also be listed on the auction house.
+    NOTE (2026-11-27): CODE ONLY, NOT RUN IN GAME. Online the pet trade is run by the server (PetTrade.cs Net.ServerSwap, AuctionServer
+      Offer / Swap in NetAuction.cs): each side sees the server's own copy of the offered pets (species, level, stats, skills, bond,
+      gear), any change clears both confirmations, both confirm, then pets and gold swap in one step on both stored saves, so a
+      disconnect cannot duplicate or lose a pet. Pets move whole (new Id only). Friend hosting keeps the older escrow flow; Odile's
+      offline trade is unchanged. Pets can be auction listings (not the active companion). Dev: /pettrade test (not yet run).
+    PLAY TEST: /pettrade test; a real trade between two clients, including a disconnect in the middle.
 
 
 ================================================================================
@@ -789,7 +829,7 @@ PHASE 10 - UI
 PHASE 11 - ADMIN TOOLS AND ONLINE SERVER
 ================================================================================
 
-[ ] F-42  IN-GAME COMMAND BAR
+[~] F-42  IN-GAME COMMAND BAR
     DONE WHEN:
       - A key (for example / or ~) opens a command bar with autocomplete,
         command history (up and down arrows), and /help.
@@ -801,8 +841,16 @@ PHASE 11 - ADMIN TOOLS AND ONLINE SERVER
           /mute    /whois  /blocklog       /rollback  /deadmin
       - Commands are simple to type, give clear error messages, and are easy
         to add to (one class or entry per command).
+    NOTE (2026-11-27): CODE ONLY, NOT RUN IN GAME. scripts/CommandBar.cs: / or ~ opens a bar at the bottom (suggestions above it, Tab
+      completes, Up / Down history kept in user://command_history.txt, Enter runs, Esc closes; gameplay input is off while it is open).
+      scripts/Commands.cs is the one registry (Cmd: name, usage, help, permission Everyone / Admin / Dev, runs on client or server);
+      scripts/AdminCommands.cs has one entry each for spawn, give, tp, heal, god, fly, noclip, time, weather, setlevel, setskill, kill,
+      clear, debug, kick, ban / unban, mute / unmute, whois, blocklog, rollback, deadmin (+ help, stats dump). Clear errors (usage lines,
+      'did you mean', 'you are not an admin'). The older debug commands (/npcs, /rep, /story, /crime ...) are now Dev-only.
+    PLAY TEST: bar layout and the / key, typing does not move the hero, each command offline; /noclip and /fly landing.
+    ASSUMPTION: /clear alone clears the bar's output; /kill alone kills monsters within 15 m; /mute is stored but there is no chat yet.
 
-[ ] F-43  ADMIN ACCESS
+[~] F-43  ADMIN ACCESS
     DONE WHEN:
       - Typing the admin password into the command bar once gives that
         player PERMANENT admin access, offline and online.
@@ -816,8 +864,17 @@ PHASE 11 - ADMIN TOOLS AND ONLINE SERVER
             admin.
           * Failed attempts are rate-limited and logged.
       - /deadmin <player> removes admin access.
+    NOTE (2026-11-27): CODE ONLY, NOT RUN IN GAME. The game holds only a PBKDF2-SHA256 hash of the login line (Admin.cs, 210,000 rounds;
+      a server can override it with TR_ADMIN_HASH). A bar line that is no command is tried as the login and is never echoed, kept in
+      history or logged. Offline: user://admin.dat (tied to the computer, apart from the saves) = admin for every hero. Online: the
+      server checks the line, sets Admin on the account file and every command is checked against that flag (the client's flag only
+      drives the UI). 5 fails per account (20 per address) in 10 minutes lock for 10 minutes, doubling up to a day; attempts are logged
+      to admin_log.txt. /deadmin <player> clears it. Bans and mutes live on the account; a banned login is refused with the reason.
+    PLAY TEST: log in offline, new hero is still admin; online login and relog; a non-admin is refused every command.
+    ASSUMPTION: the login typed offline makes you admin offline only (type it once more online for the account); in a friend's hosted
+      world only the host can be admin.
 
-[ ] F-44  ONLINE SERVER RULES AND BLOCK AUDIT
+[~] F-44  ONLINE SERVER RULES AND BLOCK AUDIT
     DONE WHEN:
       - Players on the online server CANNOT mine the world. Mobs drop
         different block types instead (drop tables by mob and biome), so
@@ -833,6 +890,16 @@ PHASE 11 - ADMIN TOOLS AND ONLINE SERVER
       - Admin commands run on the server and are checked against the
         server's admin flag.
       - Tested with at least 2 clients connected.
+    NOTE (2026-11-27): CODE ONLY, NOT RUN IN GAME; THE TWO-CLIENT TEST IS STILL OPEN (owner). Online server: removing a world block is
+      refused for non-admins (client refuses first, the server rejects and sends the true blocks back); placing is allowed outside town
+      zones. Mobs drop blocks instead: data/blockdrops.json (by biome, realm, mob type, kind) via BlockDrops in Enemy.Die. Audit:
+      scripts/BlockAudit.cs logs time, account, hero, place / remove / undo, block, previous block, x y z (rotated at 1 MB, 5 files).
+      /blocklog (aimed block | r <radius> | <player>) [page]; /rollback <player> [time, default 1h] undoes newest first and logs itself.
+      Self-test: dev command admintest (not yet run; takes the password from the TR_ADMIN_TEST_PW environment variable).
+    PLAY TEST with two clients: digging refused, placing seen by both and refused in town, B cannot remove A's block, /blocklog,
+      /rollback, every admin command, block drops from kills.
+    ASSUMPTION: a player may remove blocks they placed themselves; block drops are active online only; dungeons keep normal digging.
+    LIMIT: the server keeps no block world across a restart (as before), so after a restart the log remains but rollback has nothing to undo.
 
 
 ================================================================================

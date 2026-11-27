@@ -407,6 +407,11 @@ varying vec3 wpos;
 varying vec3 wnrm;
 global uniform vec4 vox_rect;   // the block world's square around the player (BlockWorld.SetCut): the blocks are drawn there instead
 uniform float vox_cut = 1.0;    // 0 on ground the blocks never replace (the sky islands float far above the block world's top)
+// A-05 (the bright line at the edge of the block square): a block top sits up to half a metre under the smooth ground, and the smooth
+// ground used to stop exactly at the square's edge, so at a low angle the sky showed through that slit all along the edge. Now the smooth
+// ground carries on vox_inset metres into the square and is pushed vox_drop metres down there: it dives under the blocks instead of ending in the air.
+uniform float vox_inset = 4.0;
+uniform float vox_drop = 1.5;
 uniform float under_fill = 0.0; // faint light on faces that look down (the rock under a sky island, which no sun, moon or sky ambient reaches)
 float h21(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(h21(i), h21(i+vec2(1.0,0.0)), f.x), mix(h21(i+vec2(0.0,1.0)), h21(i+vec2(1.0,1.0)), f.x), f.y); }
@@ -419,6 +424,8 @@ float lum(vec3 c){ return dot(c, vec3(0.3, 0.59, 0.11)); }
 void vertex(){
   wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
   wnrm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
+  // inside the block square: sink (the textures still read the true position in wpos; the terrain meshes are not rotated or scaled)
+  if (vox_cut > 0.5 && wpos.x > vox_rect.x && wpos.z > vox_rect.y && wpos.x < vox_rect.z && wpos.z < vox_rect.w) VERTEX.y -= vox_drop;
   // the terrain mesh has no tangents: build them from the world X/Z axes the textures are laid along
   vec3 tg = vec3(1.0, 0.0, 0.0) - NORMAL * NORMAL.x;
   if (dot(tg, tg) < 1e-4) tg = vec3(0.0, 0.0, 1.0) - NORMAL * NORMAL.z;   // a face looking along X (cliff walls, sky island sides): no NaN tangent (black)
@@ -427,7 +434,7 @@ void vertex(){
 }
 void fragment(){
   vec2 p = wpos.xz;
-  if (vox_cut > 0.5 && p.x > vox_rect.x && p.y > vox_rect.y && p.x < vox_rect.z && p.y < vox_rect.w) discard;
+  if (vox_cut > 0.5 && p.x > vox_rect.x + vox_inset && p.y > vox_rect.y + vox_inset && p.x < vox_rect.z - vox_inset && p.y < vox_rect.w - vox_inset) discard;
   float k = smoothstep(0.35, 0.65, fb(p * 0.05 + 3.1));                 // which of the two texture reads shows
   float macro = fb(p * 0.012), patchy = fb(p * 0.06 + 11.0), grit = fb(p * 0.045 + 31.0);
   float slope = 1.0 - clamp(wnrm.y, 0.0, 1.0);
@@ -704,12 +711,22 @@ void fragment(){
     }
 
     // =================================================================== runtime
+    /// <summary>
+    /// A-06: how fast the clock runs at a time of day, as the seconds a whole day would take at that pace (data/tuning.json game.time).
+    /// Daylight runs at dayPace, night at nightPace, blended by the same sun-height curve the light uses (UpdateVisuals "day"), so the
+    /// pace eases over dawn and dusk. Only the rate changes: TimeOfDay is still 0..1 and is what Net syncs.
+    /// </summary>
+    public static float DayPace(float timeOfDay)
+    {
+        float elev = Mathf.Sin((timeOfDay - 0.25f) * Mathf.Tau), day = Smooth(-0.12f, 0.25f, elev);
+        return Mathf.Max(30f, Mathf.Lerp(Tune.F("time.nightPace", 720f), Tune.F("time.dayPace", 2160f), day));
+    }
     public override void _Process(double delta)
     {
         if (!_built) return;   // still being built behind the loading screen
         float dt = (float)delta;
         Clock += dt; ShiftCd = Mathf.Max(0, ShiftCd - dt);
-        if (!Dungeon.Active) TimeOfDay = (TimeOfDay + dt / 720f) % 1f;
+        if (!Dungeon.Active) TimeOfDay = (TimeOfDay + dt / DayPace(TimeOfDay)) % 1f;
         float target = Realm; if (Mathf.Abs(RealmT - target) > 0.0005f) { RealmT = Mathf.MoveToward(RealmT, target, dt * 1.2f); Sfx.I?.SetRealmMix(RealmT); }
         else RealmT = target;
         UpdateVisuals(dt, false);

@@ -29,6 +29,9 @@ public partial class Avatar : Node3D
     readonly List<Node> _hair = new();
     public Node3D? BladeBase, BladeTip; public bool HasModel;
 
+    /// <summary>Hair models of a body, in the order of data/avatar.json hair.male / hair.female (the creator's hair styles index into this).</summary>
+    public static List<string> HairFiles(bool female) => Cfg.TryGetProperty("hair", out var h) ? L(h, female ? "female" : "male") : new List<string>();
+
     static bool? _ok;
     /// <summary>True when the character models are installed (otherwise callers keep their procedural bodies).</summary>
     public static bool Available => _ok ??= ResourceLoader.Exists(S(Cfg.GetProperty("bodies"), "male"));
@@ -47,7 +50,12 @@ public partial class Avatar : Node3D
             if (c is MeshInstance3D mi)
             {
                 mi.LodBias = 4f;   // the body's auto-LOD would open seams against the garments as the camera distance changes
-                if (mi.Name.ToString().Contains("Eye") && !mi.Name.ToString().Contains("brow")) { if (ap.GlowEyes) Tint(mi, null, ap.Eyes, 2.5f); continue; }
+                if (mi.Name.ToString().Contains("Eye") && !mi.Name.ToString().Contains("brow"))
+                {
+                    _eyeMi = mi; _eyeFull = mi.Mesh as ArrayMesh;
+                    if (ap.IrisTint && IrisEyes(mi, ap)) continue;   // F-36: a chosen eye colour recolours the iris only (AvatarFace.cs)
+                    if (ap.GlowEyes) Tint(mi, null, ap.Eyes, 2.5f); continue;
+                }
                 if (mi.Name.ToString().Contains("brow")) { Tint(mi, null, ap.Hair.Darkened(.2f), 0, true, 0, Genshin.Kind.Hair); continue; }
                 if (RealSkin(mi, ap.Skin)) continue;   // gothic realism body (tools/blender_gothic/humans.py): textured skin
                 Tint(mi, null, ap.Skin, 0, true, 0, Genshin.Kind.Skin);   // flat skin colour reads best under the toon shader and follows the race
@@ -56,14 +64,16 @@ public partial class Avatar : Node3D
         var hl = L(Cfg.GetProperty("hair"), _sex); if (hl.Count > 0)
         {
             int sh = 17; foreach (char ch in seed) sh = unchecked(sh * 31 + ch);   // string.GetHashCode is randomised per run in .NET: the style changed every launch
-            int h = (int)((uint)sh % (uint)hl.Count);
+            int h = ap.HairStyle >= 0 ? ap.HairStyle : (int)((uint)sh % (uint)hl.Count);   // F-36: the style chosen in the creator; past the list = bald
             string Ext(string n) => n.EndsWith(".glb") || n.EndsWith(".gltf") ? n : n + ".gltf";   // TR_* hair is .glb
-            _hair.AddRange(AddPart(HairDir + Ext(hl[h]), "hair", ap.Hair, true));
+            if (h < hl.Count) _hair.AddRange(AddPart(HairDir + Ext(hl[h]), "hair", ap.Hair, true));
             string beard = S(Cfg.GetProperty("hair"), "beard");
             if (ap.Beard && !Female && beard != "") _hair.AddRange(AddPart(HairDir + Ext(beard), "hair", ap.Hair, true));
         }
         if (Cfg.TryGetProperty("raceFeatures", out var rf) && rf.ValueKind == JsonValueKind.True) RaceFeatures(ap);   // ears, horns, tusks, tails, wings (F-35)
-        if (Mathf.Abs(ap.HeadScale - 1f) > .005f && _sk.FindBone("Head") >= 0) _sk.AddChild(new BodyShape { Name = "BodyShape", Head = ap.HeadScale });   // race head size
+        // race head size (F-35) and the creator's proportions (F-36: head shape, shoulders, legs), all on bones after the animation
+        if ((Mathf.Abs(ap.HeadScale - 1f) > .005f || !ap.HeadShape.IsEqualApprox(Vector3.One) || Mathf.Abs(ap.Shoulders - 1f) > .002f || Mathf.Abs(ap.Legs - 1f) > .002f) && _sk.FindBone("Head") >= 0)
+            _sk.AddChild(new BodyShape { Name = "BodyShape", Head = ap.HeadScale, HeadShape = ap.HeadShape, Shoulders = ap.Shoulders, Legs = ap.Legs });
         _ap = new AnimationPlayer { Name = "Anim" }; Body.AddChild(_ap); _ap.RootNode = new NodePath("..");
         _ap.AddAnimationLibrary("", Library(_sex, _sk));
         HasModel = true; Play("idle"); CharRim.Apply(this); ApplyHeadLayer();
@@ -342,7 +352,7 @@ public partial class Avatar : Node3D
             }
             _masked[k] = masked;
         }
-        _bodyMi.Mesh = masked;
+        _bodyMi.Mesh = FaceMesh(masked);   // F-36: the creator's face sculpt and markings on top (AvatarFace.cs); the plain mesh when there are none
     }
     static Vector3I Cell(Vector3 v, float r) => new(Mathf.FloorToInt(v.X / r), Mathf.FloorToInt(v.Y / r), Mathf.FloorToInt(v.Z / r));
     bool _slotHas(Node n) { foreach (var l in _slot.Values) if (l.Contains(n)) return true; return false; }
@@ -973,14 +983,16 @@ public partial class Avatar : Node3D
 
     /// <summary>Walking / running / idle from ground speed (m/s).</summary>
     /// <summary>Walking / running / idle from ground speed (m/s). back = moving backwards (the walk or run plays in reverse; the clips only go forward).</summary>
-    public void Move(float speed, bool grounded, bool armed, bool shield, bool back = false)
+    /// <summary>sprint (A-02): the mover says whether it is sprinting; null = judge by speed (gait "sprintAt"). The hero passes it, because a
+    /// jog with enough movement-speed bonus passed sprintAt and played the sprint clip without the sprint key.</summary>
+    public void Move(float speed, bool grounded, bool armed, bool shield, bool back = false, bool? sprint = null)
     {
         if (!grounded) { Play("fall", .2f); return; }
         bool moving = speed > .4f;
         if (Busy && Cur != Clip("land") && !moving) return;   // a one-shot clip runs on only while standing
         // quick blend into motion so the feet start with the body; slower between gaits and back to idle
         bool fromStill = Cur == Clip("idle") || Cur == Clip("idleArmed") || Cur == Clip("idleShield") || Busy;
-        string gait = speed > Gait("sprintAt", 6.2f) && !back ? "sprint" : speed > Gait("runAt", 2.6f) ? "run" : moving ? "walk" : "";
+        string gait = (sprint ?? speed > Gait("sprintAt", 6.2f)) && speed > Gait("runAt", 2.6f) && !back ? "sprint" : speed > Gait("runAt", 2.6f) ? "run" : moving ? "walk" : "";
         Play(gait != "" ? gait : shield ? "idleShield" : armed ? "idleArmed" : "idle", moving && fromStill ? .07f : .2f, 0, false, 0, back && moving);
         // feet keep pace with the ground: the clip plays at (speed / the clip's own speed), within limits (data/avatar.json "gait")
         if (_ap != null) _ap.SpeedScale = gait == "" ? 1f : Mathf.Clamp(speed / Gait(gait, 2.5f), Gait("minScale", .8f), Gait("maxScale", 2f));
@@ -1220,15 +1232,50 @@ public static partial class CharRim
     }
 }
 
-/// <summary>F-35 race proportions: scales the Head bone after the animation (the head, its face parts and head attachments grow or shrink together).</summary>
+/// <summary>
+/// Body proportions on bones, after the animation. F-35 race head size: scales the Head bone (the head, its face parts and head
+/// attachments grow or shrink together). F-36 creator: HeadShape = the head's own x / y / z scale in model space (a broad build
+/// keeps a normal head; face presets may reshape it); Shoulders = collarbone length (the upper arm bones are moved out along the
+/// clavicles, no scale, so the arms keep their shape); Legs = thigh and shin length (shin and foot bones moved along their parents,
+/// the pelvis lifted by the same amount so the feet stay on the ground). The animation clips only carry rotations (plus the pelvis
+/// position), so these bone positions are free; the skeleton restores the unmodified pose after every update.
+/// </summary>
 public partial class BodyShape : SkeletonModifier3D
 {
-    public float Head = 1f;
-    int _head = -2;
+    public float Head = 1f, Shoulders = 1f, Legs = 1f; public Vector3 HeadShape = Vector3.One;
+    int _head = -2, _pelvis = -1; Vector3 _headScale = Vector3.One; float _lift;
+    readonly List<(int bone, Vector3 rest)> _arms = new(), _legs = new();
+    void Init(Skeleton3D sk)
+    {
+        _head = sk.FindBone("Head"); _pelvis = sk.FindBone("pelvis");
+        if (_head >= 0)
+        {   // the model-space shape expressed on the bone's own axes (the Head bone is tilted a little)
+            var b = sk.GetBoneGlobalRest(_head).Basis.Orthonormalized();
+            _headScale = new Vector3((b.X * HeadShape).Length(), (b.Y * HeadShape).Length(), (b.Z * HeadShape).Length()) * Head;
+        }
+        if (Mathf.Abs(Shoulders - 1f) > .002f)
+            foreach (var n in new[] { "upperarm_l", "upperarm_r" }) { int i = sk.FindBone(n); if (i >= 0) _arms.Add((i, sk.GetBoneRest(i).Origin)); }
+        if (Mathf.Abs(Legs - 1f) > .002f && _pelvis >= 0)
+        {
+            float len = 0; int side = 0;
+            foreach (var n in new[] { "calf_l", "foot_l", "calf_r", "foot_r" }) { int i = sk.FindBone(n); if (i < 0) continue; var r = sk.GetBoneRest(i).Origin; _legs.Add((i, r)); if (n.EndsWith("_l")) len += r.Length(); side++; }
+            if (side == 4) _lift = len * (Legs - 1f); else _legs.Clear();   // both legs or nothing
+        }
+    }
     public override void _ProcessModificationWithDelta(double delta)
     {
         var sk = GetSkeleton(); if (sk == null) return;
-        if (_head == -2) _head = sk.FindBone("Head");
-        if (_head >= 0) sk.SetBonePoseScale(_head, Vector3.One * Head);
+        if (_head == -2) Init(sk);
+        if (_head >= 0) sk.SetBonePoseScale(_head, _headScale);
+        foreach (var (bone, rest) in _arms) sk.SetBonePosePosition(bone, rest * Shoulders);
+        if (_legs.Count > 0)
+        {
+            foreach (var (bone, rest) in _legs) sk.SetBonePosePosition(bone, rest * Legs);
+            int par = sk.GetBoneParent(_pelvis); var pb = par >= 0 ? sk.GetBoneGlobalPose(par).Basis.Orthonormalized() : Basis.Identity;
+            // skeleton space is Y-up. Added on top of the animated hip height; never twice (a held pose that nothing reset keeps its lift)
+            var cur = sk.GetBonePosePosition(_pelvis);
+            if (!cur.IsEqualApprox(_lifted)) { _lifted = cur + pb.Inverse() * new Vector3(0, _lift, 0); sk.SetBonePosePosition(_pelvis, _lifted); }
+        }
     }
+    Vector3 _lifted = new(float.MaxValue, 0, 0);
 }

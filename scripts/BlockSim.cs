@@ -111,6 +111,7 @@ public partial class BlockWorld
     public bool Ignite(int x, int y, int z)
     {
         var a = Area; if (a == null) return false; byte id = a.Get(x, y, z); if (id == 0 || id == 255) return false;
+        if (BlockFx.NoEdit() != null) return false;   // A-07: nothing burns down in a dungeon or the arena
         var d = Blocks.Def(id); long k = BlockArea.BKey(x, y, z);
         if (d.Burn <= 0 || _burning.ContainsKey(k) || _burning.Count >= (int)Blocks.F("world.maxBurning", 220)) return false;
         if (Net.IsClient) { _wantFire.Add((x, y, z)); return true; }   // the host runs fire; it sends the result

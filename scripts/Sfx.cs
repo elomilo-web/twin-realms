@@ -8,7 +8,8 @@ namespace TwinRealms;
 /// Sound effects, ambience and music.
 /// Effects: Play("id") picks a random file res://assets/audio/sfx/id_N.(wav|ogg|mp3); ids with no file fall back to a soft synthesised bell/whoosh.
 /// Ambience: looping nature layers (day birds, night crickets, breeze, shadow wind, dungeon) cross-faded by time of day, realm and place.
-/// Music: calm tracks from assets/audio/music/day|night, played with long quiet gaps between them (Minecraft style).
+/// Music: scripts/Music.cs (F-39) picks calm songs of data/music.json by place (home, town, night, exploring, dungeon, boss lair), with quiet gaps.
+/// Buses (made in code, ApplyVolumes): Music, Effects, Ambient, Voice under Master; footsteps and interface sounds keep their own sliders on Master.
 /// </summary>
 public partial class Sfx : Node
 {
@@ -17,18 +18,18 @@ public partial class Sfx : Node
     static readonly Dictionary<string, List<AudioStream>> Files = new();
     readonly List<AudioStreamPlayer> _pool = new();
     const int Rate = 22050;
-    const string SfxDir = "res://assets/audio/sfx/", AmbDir = "res://assets/audio/ambient/", MusicDir = "res://assets/audio/music/";
+    const string SfxDir = "res://assets/audio/sfx/", AmbDir = "res://assets/audio/ambient/";
 
     public override void _Ready()
     {
         I = this; ProcessMode = ProcessModeEnum.Always;
         for (int i = 0; i < 12; i++) { var p = new AudioStreamPlayer(); AddChild(p); _pool.Add(p); }
         if (Files.Count == 0) ScanSfx();
-        BuildAmbience(); BuildMusic();
-        ApplyVolumes();
+        ApplyVolumes();   // first: it makes the Music / Effects / Ambient / Voice buses the players below sit on
+        BuildAmbience(); Music.Build(this);
     }
     // "Quit to title" reloads the scene; forget the old players so nothing touches them after they are freed
-    public override void _ExitTree() { if (I == this) I = null; }
+    public override void _ExitTree() { if (I == this) I = null; Music.Forget(this); }
 
     // ------------------------------------------------------------------ files
     /// <summary>Lists audio files in a folder. Exported builds only keep "x.wav.import", so the suffix is stripped.</summary>
@@ -211,7 +212,17 @@ public partial class Sfx : Node
     public static void Play(string id, float vol = 1f) => Play(id, vol, 1f);
     /// <summary>Which volume slider a sound follows: Footsteps (step_*), Interface (menu clicks, level-ups, coins, pickups, portals) or Combat and spells (everything else).</summary>
     static readonly HashSet<string> UiSounds = new() { "click", "level", "coin", "pickup", "portal", "shift" };
-    static float Channel(string id) => id.StartsWith("step_") ? Game.Set.Steps : id.StartsWith("ui_") || UiSounds.Contains(id) ? Game.Set.UiVol : Game.Set.Sfx;
+    // F-39: Effects, Ambient and Voice sounds get their slider from their audio bus (ApplyVolumes), so the per-sound factor is 1 for them;
+    // footsteps and interface sounds keep their own sliders and play straight on Master.
+    static float Channel(string id) => id.StartsWith("step_") ? Game.Set.Steps : id.StartsWith("ui_") || UiSounds.Contains(id) ? Game.Set.UiVol : 1f;
+    /// <summary>Voices and grunts (the hero's pain grunt, death cries, monster roars; any id starting "voice_"): the Voice slider.</summary>
+    static readonly HashSet<string> VoiceSounds = new() { "hurt", "die", "roar" };
+    static string BusOf(string id) => id.StartsWith("step_") || id.StartsWith("ui_") || UiSounds.Contains(id) ? "Master" : VoiceSounds.Contains(id) || id.StartsWith("voice_") ? BusVoice : id.StartsWith("thunder") ? BusAmbient : BusEffects;
+    /// <summary>
+    /// A voice sound (grunt, shout, line) on the Voice bus whatever its id. pitch: 1 = as recorded (a hero's voice pitch goes here).
+    /// The extra parameters are optional so callers may pass only what they have.
+    /// </summary>
+    public static void Voice(string id, float vol = 1f, float pitch = 1f) => Play(id, vol, pitch, BusVoice);
     // Gothic menu sounds (tools/kit_gen/sfx_synth.py): every "click" uses the heavier ui_click clack when the files exist.
     static ulong _hoverAt; static string _openName = "";
     /// <summary>Soft tick when the mouse enters a button; at most one per 60 ms.</summary>
@@ -222,7 +233,9 @@ public partial class Sfx : Node
     public static void UiConfirm() => Play("ui_confirm");
     public static void UiError() => Play("ui_error");
     /// <summary>Plays a sound at a pitch (1 = as recorded, a little random spread is added).</summary>
-    public static void Play(string id, float vol, float pitch)
+    public static void Play(string id, float vol, float pitch) => Play(id, vol, pitch, null);
+    /// <summary>bus: null = by the sound's id (BusOf), else the bus to play on.</summary>
+    public static void Play(string id, float vol, float pitch, string? bus)
     {
         if (I == null) return;
         vol *= Gain.GetValueOrDefault(id, 1f);
@@ -230,7 +243,7 @@ public partial class Sfx : Node
         bool file = Files.TryGetValue(id, out var l) && l.Count > 0;
         var stream = file ? l![(int)(GD.Randi() % (uint)l.Count)] : Gen(id);
         foreach (var p in I._pool)
-            if (!p.Playing) { p.Stream = stream; p.VolumeDb = Mathf.LinearToDb(Channel(id) * vol * 0.7f + 0.0001f); p.PitchScale = pitch * (0.95f + GD.Randf() * 0.1f); p.Play(); return; }
+            if (!p.Playing) { p.Stream = stream; p.Bus = bus ?? BusOf(id); p.VolumeDb = Mathf.LinearToDb(Channel(id) * vol * 0.7f + 0.0001f); p.PitchScale = pitch * (0.95f + GD.Randf() * 0.1f); p.Play(); return; }
     }
 
     // ------------------------------------------------------------------ footsteps
@@ -301,7 +314,7 @@ public partial class Sfx : Node
         {
             var s = Load(AmbDir + f); if (s == null) continue;
             var key = System.IO.Path.GetFileNameWithoutExtension(f);
-            var p = new AudioStreamPlayer { Stream = s, VolumeDb = -80f }; AddChild(p);
+            var p = new AudioStreamPlayer { Stream = s, VolumeDb = -80f, Bus = BusAmbient }; AddChild(p);
             p.Finished += () => p.Play();   // loop every format the same way
             p.Play(); _amb[key] = new Layer { P = p };
         }
@@ -314,8 +327,8 @@ public partial class Sfx : Node
         if (_ext.Count == 0) { T("day_birds", (1 - night) * (1 - shadow) * out_ * .8f); T("night_crickets", night * (1 - shadow) * out_ * .6f); T("breeze", (1 - shadow) * out_ * .3f); T("shadow_wind", shadow * out_ * .45f); }   // fallback until Ambient.cs drives the layers
         else foreach (var kv in _ext) T(kv.Key, inD ? 0f : kv.Value);
         T("dungeon", inD ? .55f : 0f);
-        float a = Game.Set.Ambient;
-        foreach (var l in _amb.Values) { l.Level = Mathf.MoveToward(l.Level, l.Gain, dt / Mathf.Max(.2f, FadeSecs)); l.P.VolumeDb = Mathf.LinearToDb(Mathf.Max(l.Level * a, 0.0001f)); }
+        // the Ambient slider is the Ambient bus's volume (ApplyVolumes)
+        foreach (var l in _amb.Values) { l.Level = Mathf.MoveToward(l.Level, l.Gain, dt / Mathf.Max(.2f, FadeSecs)); l.P.VolumeDb = Mathf.LinearToDb(Mathf.Max(l.Level, 0.0001f)); }
     }
     readonly Dictionary<string, float> _ext = new();
     /// <summary>Crossfade time of the ambience layers (data/ambient.json soundscape.fade).</summary>
@@ -328,51 +341,40 @@ public partial class Sfx : Node
     public static void PlayAt(Node parent, string id, Vector3 pos, float vol, float pitch)
     {
         if (!Has(id) || !AmbienceOn) return; var l = Files[id];
-        var p = new AudioStreamPlayer3D { Stream = l[(int)(GD.Randi() % (uint)l.Count)], VolumeDb = Mathf.LinearToDb(Mathf.Max(vol * Game.Set.Ambient, 0.0001f)), PitchScale = pitch, UnitSize = 12f, MaxDistance = 90f, AttenuationModel = AudioStreamPlayer3D.AttenuationModelEnum.InverseDistance };
+        var p = new AudioStreamPlayer3D { Stream = l[(int)(GD.Randi() % (uint)l.Count)], Bus = BusAmbient, VolumeDb = Mathf.LinearToDb(Mathf.Max(vol, 0.0001f)), PitchScale = pitch, UnitSize = 12f, MaxDistance = 90f, AttenuationModel = AudioStreamPlayer3D.AttenuationModelEnum.InverseDistance };
         parent.AddChild(p); p.GlobalPosition = pos; p.Finished += p.QueueFree; p.Play();
     }
 
-    // ------------------------------------------------------------------ music
-    readonly List<AudioStream> _day = new(), _night = new();
-    AudioStreamPlayer _music = null!; float _gap; AudioStream? _last;
-    void BuildMusic()
-    {
-        foreach (var f in List(MusicDir + "day")) if (Load(MusicDir + "day/" + f) is AudioStream s) { Unloop(s); _day.Add(s); }
-        foreach (var f in List(MusicDir + "night")) if (Load(MusicDir + "night/" + f) is AudioStream s) { Unloop(s); _night.Add(s); }
-        _music = new AudioStreamPlayer(); AddChild(_music);
-        _music.Finished += () => _gap = (float)GD.RandRange(60.0, 150.0);   // a quiet stretch before the next song
-        _gap = (float)GD.RandRange(6.0, 14.0);
-    }
-    static void Unloop(AudioStream s) { if (s is AudioStreamMP3 m) m.Loop = false; else if (s is AudioStreamOggVorbis o) o.Loop = false; }
-    // the raid lair's own song (assets/audio/music/lair): plays, looping, only while we are inside that instance
-    AudioStream? _lairSong; bool _inLair;
-    void TickMusic(float dt)
-    {
-        _music.VolumeDb = Mathf.LinearToDb(Mathf.Max(Game.Set.Music * .55f, 0.0001f));
-        bool lair = Dungeon.Active && Dungeon.IsLair(Dungeon.Key);
-        if (lair != _inLair)
-        {
-            _inLair = lair; _music.Stop();
-            if (lair) { _lairSong ??= Load(MusicDir + "lair/scarletta_sadness.ogg") as AudioStream; if (_lairSong is AudioStreamOggVorbis o) o.Loop = true; if (_lairSong != null) { _music.Stream = _lairSong; _music.Play(); } }
-            else _gap = (float)GD.RandRange(8.0, 20.0);   // back to the world's own music after a while
-        }
-        if (_inLair) { if (!_music.Playing && _lairSong != null) _music.Play(); return; }
-        if (_music.Playing) return;
-        _gap -= dt; if (_gap > 0) return;
-        bool dark = Dungeon.Active || World.RealmT > .5f || World.Night > .55f;
-        var list = dark && _night.Count > 0 ? _night : _day.Count > 0 ? _day : _night; if (list.Count == 0) { _gap = 9999; return; }
-        AudioStream pick; int guard = 0; do pick = list[(int)(GD.Randi() % (uint)list.Count)]; while (pick == _last && list.Count > 1 && ++guard < 8);
-        _last = pick; _music.Stream = pick; _music.Play();
-    }
+    // ------------------------------------------------------------------ music (F-39: the picker is scripts/Music.cs, songs in data/music.json)
     /// <summary>Skips the wait so a song starts now (used when the scene changes mood, e.g. entering a dungeon).</summary>
-    public static void MusicSoon() { if (I != null && !I._music.Playing) I._gap = Mathf.Min(I._gap, 3f); }
+    public static void MusicSoon() => Music.Soon();
 
-    public override void _Process(double delta) { float dt = (float)delta; MixAmbience(dt); TickMusic(dt); }
+    public override void _Process(double delta) { float dt = (float)delta; MixAmbience(dt); Music.Tick(dt); }
 
+    // ------------------------------------------------------------------ audio buses and volumes (F-39)
+    public const string BusMusic = "Music", BusEffects = "Effects", BusAmbient = "Ambient", BusVoice = "Voice";
+    /// <summary>The four buses under Master, made in code on first use (the project has no bus layout file).</summary>
+    static void EnsureBuses()
+    {
+        foreach (var name in new[] { BusMusic, BusEffects, BusAmbient, BusVoice })
+        {
+            if (AudioServer.GetBusIndex(name) >= 0) continue;
+            int i = AudioServer.BusCount; AudioServer.AddBus(i); AudioServer.SetBusName(i, name); AudioServer.SetBusSend(i, "Master");
+        }
+    }
+    static void BusVol(string name, float v) { int i = AudioServer.GetBusIndex(name); if (i < 0) return; AudioServer.SetBusVolumeDb(i, Mathf.LinearToDb(Mathf.Max(v, 0.0001f))); AudioServer.SetBusMute(i, v <= 0f); }
+    /// <summary>Sliders to buses: Master, Music, Effects (combat, spells, tools, instruments), Ambient (nature layers, weather) and Voice (grunts, cries, roars).</summary>
     public static void ApplyVolumes()
     {
-        AudioServer.SetBusVolumeDb(0, Mathf.LinearToDb(Mathf.Max(Game.Set.Master, 0.0001f)));
+        EnsureBuses(); Music.Load(); var s = Game.Set;   // (Music.BusGain comes from data/music.json)
+        AudioServer.SetBusVolumeDb(0, Mathf.LinearToDb(Mathf.Max(s.Master, 0.0001f)));
+        BusVol(BusMusic, s.Music * Music.BusGain); BusVol(BusEffects, s.Sfx); BusVol(BusAmbient, s.Ambient); BusVol(BusVoice, s.Voice);
     }
-    /// <summary>Kept for World: realm blending is now read from World.RealmT every frame.</summary>
+    /// <summary>Dev ("/music"): every bus with its volume.</summary>
+    public static string BusInfo()
+    {
+        var l = new List<string>(); for (int i = 0; i < AudioServer.BusCount; i++) l.Add($"{AudioServer.GetBusName(i)} {AudioServer.GetBusVolumeDb(i):0.0} dB{(AudioServer.IsBusMute(i) ? " muted" : "")}");
+        return string.Join(", ", l);
+    }    /// <summary>Kept for World: realm blending is now read from World.RealmT every frame.</summary>
     public void SetRealmMix(float t) { }
 }

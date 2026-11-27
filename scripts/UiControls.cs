@@ -20,7 +20,12 @@ public partial class Ui
         var scroll = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled, CustomMinimumSize = new Vector2(0, 300) }; v.AddChild(scroll);
         var grid = new GridContainer { Columns = 2, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; grid.AddThemeConstantOverride("h_separation", 26); grid.AddThemeConstantOverride("v_separation", 5); scroll.AddChild(grid);
         var used = new System.Collections.Generic.Dictionary<string, int>();
-        foreach (var (id, _) in Inputs.Rebindable) { var nm = Inputs.Name(Inputs.Current(id)); used[nm] = used.GetValueOrDefault(nm) + 1; }
+        foreach (var (id, _) in Inputs.Rebindable)
+        {
+            var nm = Inputs.Name(Inputs.Current(id));
+            if (id == Inputs.Dive && Inputs.SharedOk(Inputs.Dive, Inputs.Sneak) && nm == Inputs.Name(Inputs.Current(Inputs.Sneak))) continue;   // A-10: Sneak (land) and Dive (water) share a key on purpose: no clash
+            used[nm] = used.GetValueOrDefault(nm) + 1;
+        }
         foreach (var (id, name) in Inputs.Rebindable)
         {
             string a = id;

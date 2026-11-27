@@ -93,6 +93,8 @@ public partial class Enemy : CharacterBody3D, IDamageable
         return (up.Count > 0 ? string.Join(", ", up) : "") + (gear != "" ? (up.Count > 0 ? "  [" + gear + "]" : "[" + gear + "]") : "") + "\n";
     }
     public float HeightM() => Def.Model != "" ? (Def.H > 0 ? Def.H : 1.6f) * _scale + Def.Lift : Def.Kind == "quad" ? Def.R * (2.4f + 0.75f * (LegK() - 1f)) : Def.Kind == "dragon" ? 5f : 1.9f * _scale;
+    /// <summary>A-04: this monster's melee can reach the target's height (the hero's standing height: a jump does not dodge it, a ledge does).</summary>
+    bool CanReachUp(Node3D? target) => target != null && Melee.Reaches(GlobalPosition.Y, HeightM(), target is Player hero ? hero.StandY : target.GlobalPosition.Y, Player.HeroHeight);
     float LegK() => Def.Look == "deer" ? 1.8f : Def.Look == "rabbit" ? 0.55f : Def.Look == "boar" ? 0.75f : 1f; // leg length relative to a wolf
 
     StandardMaterial3D Mat(Color c, float emission = 0f)
@@ -687,6 +689,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
                 int lo = kv.Value.Length > 0 ? kv.Value[0] : 1, hi = kv.Value.Length > 1 ? kv.Value[1] : lo, n = GD.RandRange(lo, hi);
                 if (netKill) mats.Append(kv.Key).Append(':').Append(n).Append(';'); else GatherDb.Give(kv.Key, n, GlobalPosition);
             }
+        if (!Summoned && !noDrops && DefOverride == null && !Arena) BlockDrops.Roll(this, netKill, mats);   // F-44: building blocks instead of mining on the online server (data/blockdrops.json)
         bool lootable = !Summoned && DefOverride == null && !Def.NoLoot && !noDrops;
         int gold = Mathf.RoundToInt(GD.RandRange(Tune.F("monsters.goldMin", 2) + Level * Tune.F("monsters.goldMinPerLevel", 1), Tune.F("monsters.goldMax", 6) + Level * Tune.F("monsters.goldMaxPerLevel", 2)) * (Def.Boss ? Tune.F("monsters.bossGoldMul", 12) : 1) * Tune.F("monsters.goldMul", 1) * zGold);
         float chance = Def.Boss ? 1f : Mathf.Min(1f, Tune.F("monsters.itemChance", .2f) + (Def.Realm == 1 ? Tune.F("monsters.shadowItemChance", .06f) : 0f) + Tune.F("monsters.upgradeItemChance", .06f) * UpgradeCount() + zItem), bonus = (Def.Boss ? Tune.F("monsters.bossLootBonus", 2) : 0) + (Def.Realm == 1 ? Tune.F("monsters.shadowLootBonus", 1) : 0) + _lootBonus + zLoot;
@@ -874,8 +877,11 @@ public partial class Enemy : CharacterBody3D, IDamageable
                 }
                 else
                 {
-                    if (dist > Def.Reach * 0.8f) move = toP.Normalized() * Def.Spd;
-                    if (dist <= Def.Reach + 0.2f && _timer <= 0) { _state = State.Wind; _timer = Def.Wind; _swingSerial++; Telegraph(); }
+                    // A-04: a target standing on a ledge above (or in a pit below) is out of reach unless this monster is tall enough
+                    // (Combat.cs Melee.Reaches): no swinging at the air, it keeps closing in to the foot of the ledge and waits there
+                    bool vReach = CanReachUp(pl);
+                    if (dist > Def.Reach * 0.8f || (!vReach && dist > Def.R * _scale + Tune.F("melee.crowdGap", .7f))) move = toP.Normalized() * Def.Spd;
+                    if (dist <= Def.Reach + 0.2f && _timer <= 0 && vReach) { _state = State.Wind; _timer = Def.Wind; _swingSerial++; Telegraph(); }
                 }
                 break;
             case State.Wind:
@@ -896,7 +902,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
                             if (pl is Pet shotPet) shotPet.TakeHit(OnHit(new HitInfo { Damage = Damage, From = GlobalPosition, Knock = 2f, IsProjectile = true, Attacker = this }));   // shots only strike heroes: a pet takes it directly
                             Sfx.Play(Def.Ranged == "arrow" ? "swing" : "zap", 0.6f);
                         }
-                        else if (dist - 0.4f <= Def.Reach + 0.5f)
+                        else if (dist - 0.4f <= Def.Reach + 0.5f && CanReachUp(pl))   // A-04: in reach across the ground and in height
                         {
                             if (Def.Slam) { Fx.Ring(GlobalPosition + Vector3.Up * 0.1f, Def.Reach + 0.8f, new Color(1, 0.5f, 0.2f)); if (pl is Player) Player.Instance?.Rig?.Shake(0.2f); }
                             // the block world: the blow lands on the blocks in front too (monster rules: soft blocks only, never a dungeon floor; bosses capped)

@@ -27,6 +27,9 @@ public static class Inputs
     public const string View = "toggle_view";   // third / first person (CameraRig.cs, Settings.FirstPerson)
     public const string Dive = "swim_down";     // swimming: dive / swim down (Roll does it too, so the pad's B / Circle dives) (PlayerSwim.cs)
     public const string Sneak = "sneak";        // sneak toggle: slower, monsters notice you from less far (PlayerLife.cs, F-25)
+    public const string Instrument = "instrument";   // take out / put away the chosen instrument (Instruments.cs, F-40)
+    /// <summary>Two actions that share a key on purpose (Settings > Controls shows no clash for them): Sneak and Dive, on land and in water.</summary>
+    public static bool SharedOk(string a, string b) => (a == Sneak && b == Dive) || (a == Dive && b == Sneak);
 
     /// <summary>Actions shown in the Controls menu, in order, with their names.</summary>
     public static readonly (string id, string name)[] Rebindable =
@@ -42,7 +45,8 @@ public static class Inputs
         (BuildMode, "Build mode (dig and place blocks)"), (BlockRotate, "Rotate block (build mode)"),
         (PetsUi, "Pets"), (ThrowCube, "Throw Soul Cube"), (CubeNext, "Next Soul Cube tier"), (PetStay, "Pet: follow / stay"),
         (View, "Switch first / third person"), (Dive, "Swim down / dive (in water; Roll also dives)"),
-        (Sneak, "Sneak (toggle)"),
+        (Sneak, "Sneak / crouch (toggle; Caps Lock too by default)"),
+        (Instrument, "Instrument: take out / put away (1-8 play, Shift an octave up)"),
     };
 
     static bool _done;
@@ -60,8 +64,13 @@ public static class Inputs
         Bind(BuildMode, Key.N); Bind(BlockRotate, Key.Y);
         Bind(PetsUi, Key.P); Bind(ThrowCube, Key.V); Bind(CubeNext, Key.Comma); Bind(PetStay, Key.Period);
         Bind(View, Key.F5);   // Minecraft's view key (V throws Soul Cubes)
+        Bind(Instrument, Key.Key9);   // F-40: next to the note keys 1-8 (7 is the fishing rod, which waits while an instrument is out)
         Bind(Dive, Key.Ctrl);
-        Bind(Sneak, Key.Capslock);   // every letter is taken (C rolls, V throws cubes); Caps Lock toggles like a sneak should
+        // A-10: Sneak / crouch on Left Ctrl (every letter is taken: C rolls, V throws cubes). Ctrl is also the dive key, which only acts in
+        // water, where nobody sneaks: the two share it on purpose (Settings > Controls does not mark the pair as a clash). The old key,
+        // Caps Lock, stays as a second default until Sneak is rebound.
+        Bind(Sneak, Key.Ctrl);
+        InputMap.ActionAddEvent(Sneak, new InputEventKey { PhysicalKeycode = Key.Capslock });
         BindMouse(Attack, MouseButton.Left); BindMouse(Heavy, MouseButton.Right); Bind(Guard, Key.F);
         InputMap.ActionAddEvent(Lock, new InputEventMouseButton { ButtonIndex = MouseButton.Middle });   // extra default, dropped once rebound
         // the analog stick arrives already dead-zoned and rescaled (PadInput), so the move actions keep only a tiny deadzone of their own
@@ -146,6 +155,7 @@ public static class Inputs
         Game.Set.Binds.Clear(); _keyCache.Clear();
         foreach (var (id, _) in Rebindable) if (_defaults.TryGetValue(id, out var ev)) { InputMap.ActionEraseEvents(id); InputMap.ActionAddEvent(id, ev); }
         InputMap.ActionAddEvent(Lock, new InputEventMouseButton { ButtonIndex = MouseButton.Middle });
+        InputMap.ActionAddEvent(Sneak, new InputEventKey { PhysicalKeycode = Key.Capslock });
         if (save) Game.SaveSettings();
     }
 
@@ -275,6 +285,60 @@ public static class Inputs
             JoyButton.Paddle1 => "P1", JoyButton.Paddle2 => "P2", JoyButton.Paddle3 => "P3", JoyButton.Paddle4 => "P4",
             _ => "Button " + v,
         };
+    }
+
+    // ---- stuck keys (A-02: the hero kept sprinting / walking after the key was let go)
+    // Godot only knows a key is up from its key-up event. When Windows never delivers that event (Shift is the usual victim: Sticky Keys
+    // and the Shift+Alt / Shift+Ctrl layout switch swallow it, so does letting go while another window or an overlay has the keyboard,
+    // and with both Shift keys down Windows reports only one release), the action stays "pressed" for good. Input.ActionRelease does not
+    // help: since Godot 4.3 it only clears presses made with Input.ActionPress, not a held key or a controller press. So: ask Windows.
+    [System.Runtime.InteropServices.DllImport("user32.dll")] static extern short GetAsyncKeyState(int vKey);
+    static readonly bool _win = OS.GetName() == "Windows"; static bool _pollBroken; static float _stuckT;
+    static readonly Dictionary<Key, float> _upFor = new();
+    const float StuckPoll = .05f, StuckAfter = .2f;   // seconds between checks; a key Windows calls up this long is let go
+    /// <summary>Windows virtual-key code of a physical key in the current layout; 0 = not one we check.</summary>
+    static int Vk(Key physical)
+    {
+        Key k = DisplayServer.KeyboardGetKeycodeFromPhysical(physical); if (k == Key.None) k = physical;
+        if ((k >= Key.A && k <= Key.Z) || (k >= Key.Key0 && k <= Key.Key9)) return (int)k;
+        return k switch { Key.Shift => 0x10, Key.Ctrl => 0x11, Key.Alt => 0x12, Key.Space => 0x20, Key.Tab => 0x09, _ => 0 };
+    }
+    /// <summary>
+    /// Every bound key Godot still holds down but Windows says is up (for <see cref="StuckAfter"/> seconds) gets its missing key-up
+    /// event, which clears the key and its action properly. Run every frame by PadInput (which also runs in menus and while paused).
+    /// Other systems: nothing to poll, so nothing happens (Player falls back to <see cref="ForceRelease"/> when a menu opens).
+    /// </summary>
+    public static void ReleaseStuckKeys(float dt)
+    {
+        if (!_done || !_win || _pollBroken) return;
+        _stuckT -= dt; if (_stuckT > 0) return; _stuckT = StuckPoll;
+        try
+        {
+            foreach (var (id, _) in Rebindable)
+            {
+                if (Current(id) is not InputEventKey k || k.PhysicalKeycode == Key.None) continue;
+                Key pk = k.PhysicalKeycode;
+                if (!Input.IsPhysicalKeyPressed(pk)) { _upFor.Remove(pk); continue; }
+                int vk = Vk(pk); if (vk == 0) continue;
+                if ((GetAsyncKeyState(vk) & 0x8000) != 0) { _upFor.Remove(pk); continue; }   // really held
+                float t = _upFor.GetValueOrDefault(pk) + StuckPoll;
+                if (t < StuckAfter) { _upFor[pk] = t; continue; }
+                _upFor.Remove(pk); KeyUp(pk);
+            }
+        }
+        catch (Exception) { _pollBroken = true; }   // no user32 here after all: stop asking
+    }
+    static void KeyUp(Key physical) => Input.ParseInputEvent(new InputEventKey { PhysicalKeycode = physical, Keycode = DisplayServer.KeyboardGetKeycodeFromPhysical(physical), Pressed = false });
+    /// <summary>
+    /// Lets an action go whatever is holding it: a press made in code (Input.ActionPress), the bound key (a key-up event) and a controller
+    /// press (an action release event). The key or button has to be pressed again to count.
+    /// </summary>
+    public static void ForceRelease(string action)
+    {
+        if (!InputMap.HasAction(action) || !Input.IsActionPressed(action)) return;
+        Input.ActionRelease(action);
+        if (Current(action) is InputEventKey k && k.PhysicalKeycode != Key.None && Input.IsPhysicalKeyPressed(k.PhysicalKeycode)) KeyUp(k.PhysicalKeycode);
+        Input.ParseInputEvent(new InputEventAction { Action = action, Pressed = false });
     }
 
     // ---- reading the pads (every connected pad counts; the one moved most wins)

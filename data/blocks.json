@@ -34,22 +34,22 @@
   }
  },
  "power": {
-  "_help": "How hits change the world. strength = damage x mul (enemyMul for monsters, basicMul for plain attacks). A block breaks when strength x falloff >= its hardness x hardnessCost; falloff goes from 1 at the centre to 1 - edgeLoss at the edge. Crater radius = the hit's area x areaMul (pointRadius for single-target hits) x clamp(strength / refStrength, minScale, maxScale), at most maxRadius; at most maxBlocks per hit. Monsters never break more than enemyMaxHardness, nor floors in dungeons; bosses at most bossMaxRadius. dropChance = chance a block broken by a hit drops.",
-  "mul": 1.0, "basicMul": 0.55, "enemyMul": 0.35, "hardnessCost": 30, "edgeLoss": 0.5,
-  "areaMul": 0.75, "pointRadius": 0.7, "refStrength": 120, "minScale": 0.35, "maxScale": 1.4, "maxRadius": 6.5, "maxBlocks": 90,
-  "enemyMaxHardness": 0.8, "bossMaxRadius": 1.5, "dropChance": 0.25,
-  "earthSkills": ["earthquake", "groundslam", "leap", "quake"]
+  "_help": "NOT USED since after-focus A-08 (the owner: spells and skills do not destroy blocks, blocks are only mined). Hits of skills, spells, shots, weapon swings and monsters no longer break or change blocks (scripts/BlockFx.cs: Skill / Basic / Enemy / Hit change nothing and the game no longer reads this section). The keys stay, all at zero, so old tools and saves that look for them find harmless values. Blocks are removed only by digging in build mode ('dig' above: the pickaxe, or a weapon as a tool).",
+  "mul": 0, "basicMul": 0, "enemyMul": 0, "hardnessCost": 30, "edgeLoss": 0.5,
+  "areaMul": 0, "pointRadius": 0, "refStrength": 120, "minScale": 0, "maxScale": 0, "maxRadius": 0, "maxBlocks": 0,
+  "enemyMaxHardness": 0, "bossMaxRadius": 0, "dropChance": 0,
+  "earthSkills": []
  },
  "elements": {
-  "_help": "what each damage type does to blocks within the hit's area (+reach). ignite = chance to set a flammable block burning; melt/freeze/rot/wither/bless/pack = chance to turn a block into its meltsTo/freezesTo/rotsTo/withersTo/blessTo/packsTo; frozen = seconds blocks stay frozen (slippery, half as hard); shatter = breaks 'shatter' blocks.",
-  "fire":      { "ignite": 0.65, "melt": 0.9, "reach": 1.0 },
-  "frost":     { "freeze": 1.0, "frozen": 20, "reach": 1.5 },
-  "lightning": { "ignite": 0.25, "shatter": 1.0, "reach": 0.5 },
-  "poison":    { "rot": 0.7, "reach": 1.0 },
-  "holy":      { "melt": 0.5, "bless": 0.6, "reach": 1.0 },
-  "shadow":    { "wither": 0.6, "reach": 1.0 },
-  "physical":  { "pack": 0.0, "reach": 0.0 },
-  "earth":     { "pack": 0.7, "reach": 1.0 }
+  "_help": "NOT USED since after-focus A-08: damage types no longer ignite, melt, freeze, rot, wither, bless, pack or shatter blocks (the game no longer reads this section; all chances are zero). The per-block fields meltsTo / freezesTo / rotsTo / withersTo / blessTo / packsTo / shatter are likewise unused by hits; meltsTo is still used by a burning block melting snow and ice next to it ('fire' below), which nothing sets alight any more.",
+  "fire":      { "ignite": 0, "melt": 0, "reach": 0 },
+  "frost":     { "freeze": 0, "frozen": 0, "reach": 0 },
+  "lightning": { "ignite": 0, "shatter": 0, "reach": 0 },
+  "poison":    { "rot": 0, "reach": 0 },
+  "holy":      { "melt": 0, "bless": 0, "reach": 0 },
+  "shadow":    { "wither": 0, "reach": 0 },
+  "physical":  { "pack": 0, "reach": 0 },
+  "earth":     { "pack": 0, "reach": 0 }
  },
  "fire": {
   "_help": "a burning block spreads to each flammable neighbour with 'spread' chance per second, then becomes its burnsTo when its burn time ends; it melts snow and ice next to it",

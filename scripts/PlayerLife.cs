@@ -30,9 +30,17 @@ public partial class Player
 
     public void ToggleSneak(bool? on = null)
     {
-        bool want = on ?? !Sneaking; if (want && (Mounted || InBoat != null || Flying)) want = false;
+        bool want = on ?? !Sneaking; if (want && (Mounted || InBoat != null || Flying || Swimming)) want = false;   // (in water the same key dives)
         if (want == Sneaking) return; Sneaking = want;
         Ui.Note(Sneaking ? $"Sneaking: slower, monsters notice you from {SneakNoticeMul * 100:0}% as far ({Inputs.KeyOf(Inputs.Sneak)} to stand up)" : "You stop sneaking", new Color(.75f, .8f, .9f));
+    }
+    /// <summary>A-10: the crouch itself (HeroPose over the clips: hips down, knees bent, back leaning), in while sneaking on the ground.</summary>
+    void SneakPose()
+    {
+        if (!Sneaking && _pose == null) return;
+        if (PoseLayer() is not { } pl) return;
+        pl.Crouch = Sneaking && !Dead && !Swimming && _rollT <= 0 ? 1f : 0f;
+        pl.Drop = LifeSkills.T("sneak.crouchDrop", .26f); pl.Lean = LifeSkills.T("sneak.crouchLean", .3f);
     }
 
     // ---- movement XP
@@ -42,6 +50,8 @@ public partial class Player
     void LifeTick(float dt)
     {
         var p = GlobalPosition;
+        if (Sneaking && Swimming) Sneaking = false;
+        SneakPose();
         if (!_lifeInit) { _lifeLast = p; _lifeInit = true; return; }
         var d = p - _lifeLast; _lifeLast = p;
         float h = new Vector2(d.X, d.Z).Length(), maxStep = LifeSkills.T("maxStep", 1.2f);

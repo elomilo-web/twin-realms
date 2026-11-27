@@ -44,6 +44,8 @@ public static class TownZones
     }
     /// <summary>The zone a block cell is in, ignoring admins (server-side checks).</summary>
     public static Zone? AtBlock(int bx, int bz) => At(bx + .5f, bz + .5f);
+    /// <summary>The refusal text for a zone (the host sends it with a rejected edit).</summary>
+    public static string Message(Zone z) => _msg.Replace("{town}", z.Name);
 
     /// <summary>True if this machine's player may not change the block here (in a zone and not an admin).</summary>
     public static bool Blocks(int bx, int bz) => !Admin.IsAdmin && AtBlock(bx, bz) != null;
