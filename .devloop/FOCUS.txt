@@ -596,15 +596,32 @@ PHASE 6 - NPCS AND A LIVING WORLD
       (health potion 30g -> 25g at Beloved, 32g at Disliked).
     ASSUMPTION: a gift is one unit of a pack material (gathered goods, fish, cooked food); gear is not given away.
 
-[ ] F-29  NPCS ROAM AND INTERACT WITH EACH OTHER
+[x] F-29  NPCS ROAM AND INTERACT WITH EACH OTHER
     DONE WHEN: NPCs walk around on their schedules and use doors and stairs.
     They stop to talk to each other and react to weather, time of day, the
     player, and other NPCs (they wave, gossip, argue, and trade).
+    NOTE (2026-11-26): scripts/NpcSocial.cs on NpcSchedule's tick (NpcLive holds each NPC's social state). Walking on the
+      schedule through doors and up stairs was there from F-14/F-16/F-27 (Npc.WalkTo); new: two NPCs within 2.8 m stop,
+      face each other and trade lines: gossip, an argument when one's likes meet the other's dislikes (the listener folds
+      its arms, someone near comments, guards tell them to break it up), a trade when one is a trader, a quick greeting
+      when one only walks past; people socializing in the same square walk up to each other first. The schedule waits
+      while they talk, then they walk back to their spot. The hero walking up gets a greeting by what the NPC remembers
+      (F-28) with a nod / wave ("cheer" clip) unless it dislikes them. Rain: lines when it starts and stops (farmers are
+      glad, guards grumble) and the square empties into the inn (NpcDb.Shelter); time: lines at dawn, dusk and nightfall
+      and when the schedule moves on (work, meal, bed). Numbers and all lines: data/npcs.json "social", "bubbles".
+      Checked in the capture log with "/social log": chats of every kind running at the Oakhaven inn and square, a
+      walk-up chat, an onlooker line, rain lines, shelter; pictures social_chat, social_argue, social_greet, social_rain.
+    ASSUMPTION: the baked animation set has no wave clip, so the greeting gesture is the "cheer" clip (raised arm / nod)
+      and talking uses "talk"; client-local like the NPCs themselves (each player sees their own chatter).
 
-[ ] F-30  FLOATING NPC DIALOG
+[x] F-30  FLOATING NPC DIALOG
     DONE WHEN: short lines (greetings, chatter, reactions) appear as speech
     bubbles above NPC heads. The bubbles fade with distance and don't block
     the view. Full conversations still use the dialog window.
+    NOTE (2026-11-26): Npc.Say (Props.cs): a small outlined text line above the name, no panel behind it, wrapped at
+      2 m; fades in and out, fades from 9 m and is gone at 18 m, fades when the camera is on top of it, and is hidden by
+      walls. At most three loose bubbles at once besides running chats. Used by every F-29 line; talking to an NPC (E)
+      still opens the dialog window. Pictures social_chat ("Brynn! Still breathing, I see."), social_greet.
 
 [ ] F-31  COMPLEX STORY QUESTS AND MISSIONS
     DONE WHEN:

@@ -216,5 +216,66 @@
     "took.soon": ["You have given me enough for one day, {name}. Keep it."],
     "insulted": ["How dare you!", "I will remember that, {name}."],
     "insulted.nervous": ["W-why would you say that?"], "insulted.gruff": ["Say that again. Go on."], "insulted.sly": ["Careful. I collect debts, and that is one."], "insulted.cheerful": ["Oh. That... wasn't very nice."]
+  },
+
+  "_help_social": "F-29 / F-30 (scripts/NpcSocial.cs): the short lines shown as speech bubbles above heads, and when. chats: two NPCs within chatDist metres (or socializing within approachDist: one walks over) stop, face each other and trade lines; a chat is a list of [speaker 0 or 1, line]. gossip is the usual kind, argue when one's likes meet the other's dislikes (or argueChance), trade when one of them is a trader, pass when one is only walking by. {other} = the other's first name, {like} / {dislike} = one of the speaker's own, {town}, {name} = the hero. onlooker: someone near an argument. act.<activity>: said when the schedule moves on. rain / rainstop / dawn / dusk / night: reactions to weather and the time of day. player.<standing>: said to the hero walking up (by what the NPC remembers, F-28); unknown heroes get one of the NPC's own greetings.",
+  "social": {
+    "chatDist": 2.8, "approachDist": 9, "chatEvery": [70, 150], "pairEvery": 240, "lineGap": 2.9, "greetDist": 4.5, "greetEvery": [50, 90],
+    "argueChance": 0.12, "actChance": 0.6, "weatherChance": 0.75, "rainAt": 0.35, "hearDist": 30, "onlookerDist": 7
+  },
+  "bubbles": {
+    "gossip": [
+      [[0, "Did you hear about the lights over the barrow?"], [1, "Again? That's the third night."], [0, "Mark my words, {other}. Trouble."]],
+      [[0, "How's the work, {other}?"], [1, "Can't complain. Well. I could."], [0, "Ha! Couldn't we all."]],
+      [[0, "They say a hero's been seen about {town}."], [1, "Heroes. They never stay long."]],
+      [[0, "Nothing beats {like}, I always say."], [1, "You do always say."], [0, "Because it's true!"]],
+      [[0, "My knees say rain."], [1, "Your knees said snow last week."], [0, "And was I wrong?"], [1, "Yes."]],
+      [[0, "Have you seen the price of bread?"], [1, "Don't start. I've seen it."]],
+      [[0, "{other}! Still breathing, I see."], [1, "Sorry to disappoint."]],
+      [[0, "Strange folk on the road lately."], [1, "Stranger than us?"], [0, "Fair point."]],
+      [[0, "I dreamt of the Rift again."], [1, "Hush. Not out loud."]],
+      [[0, "If I never see {dislike} again, it'll be too soon."], [1, "Tell me about it."]]
+    ],
+    "argue": [
+      [[0, "You and your {like}. I can't stand it."], [1, "Better than {dislike}, which is all YOU bring."], [0, "Take that back!"], [1, "I will not."]],
+      [[0, "You still owe me, {other}."], [1, "I owe you nothing!"], [0, "We'll see what the guard says."]],
+      [[0, "That was MY spot, {other}."], [1, "I don't see your name on it."], [0, "Unbelievable."]],
+      [[0, "You always do this."], [1, "Do what?"], [0, "THIS."], [1, "..."]]
+    ],
+    "trade": [
+      [[0, "Got anything fresh today?"], [1, "For you? The best I have."], [0, "And the price?"], [1, "For you? The worst I have."]],
+      [[0, "Two for the price of one?"], [1, "One for the price of two. Final offer."], [0, "Robbery."], [1, "Business."]],
+      [[0, "I'll take the usual."], [1, "Already wrapped, {other}."], [0, "You know me too well."]],
+      [[0, "Same time tomorrow?"], [1, "If the coin's good."]]
+    ],
+    "pass": [
+      [[0, "Morning, {other}."], [1, "Morning."]],
+      [[0, "{other}."], [1, "{other}."]],
+      [[0, "Keeping well?"], [1, "Well enough!"]],
+      [[0, "Mind how you go."], [1, "And you."]]
+    ],
+    "onlooker": ["Not again, you two.", "Here we go...", "Somebody fetch the guard.", "Every week. Every single week."],
+    "onlooker.guard": ["Break it up. Both of you.", "Keep it civil, citizens."],
+    "act.work": ["Back to it.", "Right. Work.", "No rest for the honest."],
+    "act.eat": ["I'm starving.", "Something smells good.", "Time for a bite."],
+    "act.sleep": ["Time I was abed.", "*yawns*", "That's me done for the day."],
+    "act.socialize": ["Let's see who's about.", "A drink wouldn't hurt.", "Finally, some air."],
+    "act.patrol": ["On my rounds.", "Eyes open.", "Another lap."],
+    "act.travel": ["Miles to go yet.", "On we go."],
+    "rain": ["Oh, here it comes.", "Rain. Lovely.", "And I just hung the washing!", "Get under a roof!", "My hat is not built for this."],
+    "rain.farmer": ["Good. The fields needed it.", "Drink up, little turnips."], "rain.guard": ["Rain or shine, the watch stands.", "Rust weather. Wonderful."], "rain.fisher": ["Fish bite best in the wet."],
+    "rainstop": ["There, it's passing.", "Sun's back.", "About time."],
+    "dawn": ["Up with the sun.", "*stretches* Another day.", "Morning already?"],
+    "dusk": ["Light's going.", "Lamps will be lit soon.", "Getting late."],
+    "night": ["Quiet tonight.", "Don't like that moon.", "Should be indoors, the lot of us."],
+    "night.guard": ["All's well.", "Lantern's lit. Move along."],
+    "player.unknown": ["Hm? A stranger.", "Don't know that face.", "Traveller."],
+    "player.known": ["{name}.", "Oh, hello again.", "Back again, {name}?"],
+    "player.liked": ["{name}! Good to see you.", "Hello, {name}!", "There's a friendly face."],
+    "player.trusted": ["{name}, my friend!", "Look who it is! {name}!", "Always a pleasure, {name}."],
+    "player.disliked": ["Oh. You.", "Hmph.", "Keep walking."],
+    "player.hated": ["Stay away from me.", "You're not welcome here.", "Guards have their eye on you."],
+    "player.night": ["Out late, aren't you?", "You'll catch your death out here."],
+    "player.rain": ["You'll want a roof, {name}.", "Dreadful weather to be wandering in."]
   }
 }

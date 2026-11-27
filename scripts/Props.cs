@@ -257,11 +257,45 @@ public partial class Npc : Node3D, IInteractable
         if (!_walking) { _walking = true; _av?.Play("walk"); }
     }
 
+    // ---- F-29 / F-30: gestures and speech bubbles. FaceAt: who it is talking to (else it turns to a hero close by). Emote plays a clip of
+    // data/avatar.json "clips" for a while, then the idle again. Say shows a short line above the head: it fades in and out, fades with
+    // distance (gone past BubbleFar) and when the camera is right on top of it, and is hidden by walls, so it never covers the view.
+    public Vector3? FaceAt; float _emoteT; Label3D? _bub; float _bubT, _bubDur;
+    public const float BubbleNear = 9f, BubbleFar = 18f;
+    public bool Speaking => _bub != null && _bub.Visible;
+    public void Emote(string clip, float secs) { if (_av == null || _walking) return; _av.Play(clip); _emoteT = secs; }
+    public void Say(string text, float secs = 3.6f)
+    {
+        if (text == "") return;
+        if (_bub == null)
+        {
+            _bub = new Label3D { FontSize = 28, OutlineSize = 9, PixelSize = .005f, Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, Position = new Vector3(0, 2.6f, 0),
+                AutowrapMode = TextServer.AutowrapMode.WordSmart, Width = 400, VerticalAlignment = VerticalAlignment.Bottom, HorizontalAlignment = HorizontalAlignment.Center };
+            AddChild(_bub);
+        }
+        _bub.Text = text; _bubT = 0; _bubDur = secs; _bub.Visible = true; BubbleTick(0);
+    }
+    void BubbleTick(float dt)
+    {
+        if (_bub == null || !_bub.Visible) return; _bubT += dt;
+        float a = Mathf.Clamp(_bubT / .25f, 0, 1) * Mathf.Clamp((_bubDur - _bubT) / .5f, 0, 1);
+        if (GetViewport()?.GetCamera3D() is { } cam)
+        {
+            float dist = cam.GlobalPosition.DistanceTo(GlobalPosition + Vector3.Up * 2.4f);
+            a *= Mathf.Clamp((BubbleFar - dist) / (BubbleFar - BubbleNear), 0, 1) * Mathf.Clamp((dist - .8f) / 1.2f, 0, 1);
+        }
+        if (_bubT >= _bubDur) { _bub.Visible = false; return; }
+        _bub.Modulate = new Color(.97f, .95f, .88f, a); _bub.OutlineModulate = new Color(.05f, .04f, .03f, a * .9f);
+    }
+
     public override void _Process(double delta)
     {
-        WalkTick((float)delta);
+        WalkTick((float)delta); BubbleTick((float)delta);
+        if (_emoteT > 0 && (_emoteT -= (float)delta) <= 0 && !_walking) _av?.Play(_idle);
         var p = Player.Instance; if (p == null) return; _t += (float)delta;
-        var d = p.GlobalPosition - GlobalPosition; if (d.Length() < 8f && !_walking) Rotation = new Vector3(0, Mathf.LerpAngle(Rotation.Y, Util.YawTo(d.X, d.Z), 0.08f), 0);
+        var d = p.GlobalPosition - GlobalPosition;
+        if (FaceAt is { } fa) { var fd = fa - GlobalPosition; if (!_walking && new Vector2(fd.X, fd.Z).LengthSquared() > .01f) Rotation = new Vector3(0, Mathf.LerpAngle(Rotation.Y, Util.YawTo(fd.X, fd.Z), 0.12f), 0); }
+        else if (d.Length() < 8f && !_walking) Rotation = new Vector3(0, Mathf.LerpAngle(Rotation.Y, Util.YawTo(d.X, d.Z), 0.08f), 0);
         if (d.Length() > 40f || _av != null) return;   // the model breathes through its idle clip
         // idle life: breathing, a slow weight shift, arms drifting
         float b = Mathf.Sin(_t * 1.6f + _phase), w = Mathf.Sin(_t * .45f + _phase);

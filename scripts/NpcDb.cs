@@ -60,7 +60,7 @@ public static class NpcDb
 
     public static void Load()
     {
-        if (_loaded) return; _loaded = true; NpcMemory.Init();   // F-28: memory and standing (registers "/rep")
+        if (_loaded) return; _loaded = true; NpcMemory.Init(); NpcSocial.Init();   // F-28: memory and standing ("/rep"); F-29: chats and bubbles ("/social")
         Commands.Register("npcs", "F-27: NPC counts per town / road / wilderness, a check of every entry, and what they are doing now; npcs <town|road|wild>: each one", a =>
             a.Length == 0 ? Report() : string.Join("\n", All.Where(r => r.Town == a[0] && r.Area == "town" || r.Area == a[0]).Select(r => { var t = Target(r, Hour); return $"{r.Id,-14} {t.act.Act,-9} {t.act.Place,-7} want {t.at.X:0.0},{t.at.Z:0.0}  {NpcSchedule.NodeInfo(r.Id)}"; })));
         Commands.Register("npc", "npc <id> [goto]: where the NPC's schedule has it now; goto puts the hero 6 m away, facing it", a =>
@@ -196,7 +196,9 @@ public static class NpcDb
         }
         return Vector3.Zero;
     }
-    public const float RoadSpeed = 42f;   // metres of road per game hour (1.4 m/s: one game hour is 30 s)
+    /// <summary>It is raining (set by NpcSchedule each tick): people who would stand in the square shelter at the inn.</summary>
+    public static bool Shelter;
+    public const float RoadSpeed = 42f;  // metres of road per game hour (1.4 m/s: one game hour is 30 s)
 
     /// <summary>Where the NPC should be now and whether it is out of sight (asleep indoors / in its bedroll); moving = patrol or road.</summary>
     public static (Vector3 at, NpcAct act, bool hidden, bool moving, NpcHomes.House? house) Target(NpcRec r, float h)
@@ -206,7 +208,9 @@ public static class NpcDb
         {
             case "home": return (Resolve(r, r.Home), a, hid, false, HouseOf(r, r.Home));
             case "inn": { var s = InnSpot(r); return (Resolve(r, s), a, hid, false, HouseOf(r, s)); }
-            case "square": return (Square(r), a, hid, false, null);
+            case "square":
+                if (Shelter) { var s = InnSpot(r); return (Resolve(r, s), a, hid, false, HouseOf(r, s)); }   // F-29: raining, so they meet at the inn instead
+                return (Square(r), a, hid, false, null);
             case "road":
                 if (r.Route != null) return (RoadAt(r.Route, RoadHours(r, h) * RoadSpeed + r.Phase * 300f), a, hid, Roams(a), null);
                 break;
