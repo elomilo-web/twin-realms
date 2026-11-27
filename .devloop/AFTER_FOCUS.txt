@@ -39,12 +39,16 @@ STATUS KEY:   [ ] to do     [x] done     [!] blocked
 [ ] A-13  DURABILITY for weapons and armor, by tier and upgrade. At zero durability the item loses its stats but does not
           break. Repair by smelting scraps into different metals along with other ingredients.
 [ ] A-14  MORE ATTRIBUTES, like Wisdom for healing.
-[ ] A-15  ADVANCED SKILL TREES: once 100 points are invested, a second, more advanced tree opens for every path (Wizard ->
+[x] A-15  ADVANCED SKILL TREES: once 100 points are invested, a second, more advanced tree opens for every path (Wizard ->
           Archmage, and so on for all paths). Add about 10 more skill tree branches, including one for each base class if
           not in the game yet.
-[ ] A-16  TRANSFORMATIONS into animals and spirits.
-[ ] A-17  BETTER DESCRIPTIONS of how careers (classes) and spellcraft work.
-[ ] A-18  UNIQUE QUEST REWARD ITEMS.
+          NOTE (2026-11-27, coded, NOT run in game: play test): base tree regenerated (tools/gen_tree.ps1): 23 paths, 737 nodes. Monk, Bard, Shaman, Samurai and Chronomancer now have their own path (all 18 classes do), plus five themed branches open to everyone: Gladiator, Wayfarer, Fortune Seeker, Elementalist, Shapeshifter; each with a keystone that has a price. Advanced tree (data/skilltree_adv.json, second tab of the tree window): one 13-node path per base path (Warrior > Warlord, Mage > Archmage, Ranger > Sharpshooter, Paladin > Crusader, Assassin > Shadowblade, Cleric > High Priest, Druid > Archdruid, Necromancer > Lich Lord, Monk > Grandmaster, Bard > Maestro, Shaman > Stormcaller, Samurai > Kensei, Chronomancer > Timelord and so on), opened by 100 points in the base tree plus that path's keystone or 8 of its nodes. Tree points per level 2 > 3 (102 points at level 34). Old heroes: every point refunded, plus one extra per level already gained. Advanced effects use existing stat and skill-level keys (no new bespoke mechanics).
+[x] A-16  TRANSFORMATIONS into animals and spirits.
+          NOTE (2026-11-27, coded, NOT run in game: play test): 10 forms (data/forms.json; scripts/Transform.cs, PlayerForm.cs): Wolf, Great Boar, Stag, Spirit Fox, Drake (flies outdoors), Wisp and Wraith (pass through monsters), Shade Hound, Ember Spirit, Stone Spirit. Each is a skill learned from tree nodes (Druid: Wolf and Boar; Shaman: Wisp and Ember; Shapeshifter: Stag; advanced paths: the rest) or from a unique item. The hero's body is replaced by that creature's model; 3-4 form abilities on Attack / Heavy / keys 1-3, key 6 changes back; no gear skills, roll, block or mounting while changed; ends on timer, death or deep water. Friends see the form. There is no bear or bird model in the game: the tanky animal is a Great Boar and the flier a Drake. Model scale, facing and animation are unseen.
+[x] A-17  BETTER DESCRIPTIONS of how careers (classes) and spellcraft work.
+          NOTE (2026-11-27, coded, NOT run in game: play test): a 'How it works' panel in the Spellcraft window (what carriers, effects and modifiers are, how cost / cooldown / power are worked out, lingering zones, a worked example; data/spellhelp.json), a first-time hint, a 'when to use it' line on all 59 cards, and tooltips that state the numbers. Classes: every class has a guide (role, weapon, resource, signature skills, tree path, a tip; data/classes.json) shown on the creation screen and behind 'How a <class> plays' in the Character window.
+[x] A-18  UNIQUE QUEST REWARD ITEMS.
+          NOTE (2026-11-27, coded, NOT run in game: play test): 29 named unique items (data/uniques.json, scripts/Uniques.cs) with fixed stats, a signature effect, flavour text and a glow colour: a different one for each ending of the six story finales, for notable side quests and for the nine older quests (for example Sealstone Aegis or Riftbinder for the Rift; Wolfsbane Cloak from Wolves at the Gate, which also grants the Wolf form). Given once per hero, cannot be re-rolled at the smith, go to the home chest when the pack is full. Weapon uniques have a fixed weapon class.
 
 --- PETS AND ANIMALS -----------------------------------------------------------
 [ ] A-19  PETS CAN BE MOUNTED.

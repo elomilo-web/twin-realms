@@ -273,7 +273,8 @@ public partial class Player : CharacterBody3D, IDamageable
 
     void Die()
     {
-        Flag.Event("DIED"); CancelChannel(); CancelCast(); Dead = true; Durability.Death(Game.D);   // A-13: a death wears everything worn a little Statuses.Clear(); Flying = false;   // death cleanses: nothing burns or slows the hero after respawning
+        Flag.Event("DIED"); CancelChannel(); CancelCast(); Dead = true; Durability.Death(Game.D);   // A-13: a death wears everything worn a little
+        Statuses.Clear(); Flying = false;   // death cleanses: nothing burns or slows the hero after respawning
         FormRevert(true);   // A-16: death ends an animal or spirit form (PlayerForm.cs)
         Hp = 0; _deadT = 0; _atkT = 0; _blocking = false; if (Mounted) ToggleMount(true); if (InBoat != null) LeaveBoat(); Breath = MaxBreath;
         if (LairRules) Ui.Note($"You are down. A party member can revive you; press {Inputs.KeyOf(Inputs.Use)} to give up.", new Color(1f, .7f, .5f));
