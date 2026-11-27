@@ -443,6 +443,14 @@ public partial class Player : CharacterBody3D, IDamageable
             if (crit) CritFx(e, hitPt, new Vector3(d.X, 0, d.Z).Normalized());
             hits++;
         }
+        if (hits == 0)
+            foreach (var n in GetTree().GetNodesInGroup("npcs"))
+            {   // F-32: a blow that lands on a villager (and on no monster: a fight in the street is not an assault) is a crime (Crime.cs)
+                if (n is not Npc npc || npc.Down || !npc.IsVisibleInTree()) continue; var d = npc.GlobalPosition - GlobalPosition; d.Y = 0; float dist = d.Length() - .4f;
+                if (dist > range || Mathf.Abs(npc.GlobalPosition.Y - GlobalPosition.Y) > 3f) continue;
+                if (dist > 0.6f && arc < Mathf.Pi - .01f && Mathf.Abs(Util.AngDiff(_modelYaw, Util.YawTo(d.X, d.Z))) > arc) continue;
+                Crime.Struck(npc, D.WpnDmg() * mult, this); hits++;
+            }
         if (hits > 0) { Rig?.Shake(_atkPower ? Tune.F("heavy.shake", .32f) : fin ? 0.15f : 0.08f); Sfx.Weapon(W.Id, "hit"); if (_atkPower) Fx.Dust(GlobalPosition + GlobalTransform.Basis.Z * -1.2f, Tune.F("heavy.dust", 1.4f)); }   // a connecting heavy blow kicks up dust
         else Sfx.Weapon(W.Id, "miss");   // the swing connected nothing
         if (fin && hits > 0 && !_atkPower)

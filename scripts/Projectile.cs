@@ -191,7 +191,11 @@ public partial class Projectile : Node3D
         // world collision (ground, walls)
         var q = PhysicsRayQueryParameters3D.Create(from, to, 1);
         var hit = GetWorld3D().DirectSpaceState.IntersectRay(q);
-        if (hit.Count > 0) { to = (Vector3)hit["position"]; end = true; _worldHit = true; }
+        if (hit.Count > 0)
+        {
+            to = (Vector3)hit["position"]; end = true; _worldHit = true;
+            if (Own == 'p' && hit["collider"].As<Node>()?.GetParent() is Npc shot && Player.Instance is { } shooter) Crime.Struck(shot, Game.D.WpnDmg(), shooter);   // F-32: a shot into a villager is a crime
+        }
         GlobalPosition = to;
         if (_streak != null && (Homing || _age < dt * 1.5f || BlockWorld.FluidAt(to) == "water")) AimStreak();   // straight shots keep their first aim
         if (Kind == "arrow" && Vel.LengthSquared() > 0.01f)

@@ -12,7 +12,8 @@ public class NpcMem
 {
     public bool Met; public int Rep, Talks, Quests, Gifts, BadGifts, Insults, Crimes, Trades, TradeRep;
     public string LastGift = "", Last = "";   // Last: the latest thing remembered (gift, badgift, insult, crime, quest, trade)
-    public float GiftAt = -1e9f;              // PlayerStats.Played when the last gift was taken
+    public float GiftAt = -1e9f, PickAt = -1e9f;   // PickAt: when its pocket was last picked (Crime.cs)
+    // (GiftAt)              // PlayerStats.Played when the last gift was taken
 }
 
 /// <summary>

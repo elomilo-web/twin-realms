@@ -195,6 +195,7 @@
                                    "armor":  18,
                                    "mr":  8
                                },
+                    "townGuard":  { "n": "Town Guard", "kind": "hum", "outfit": "guard", "weapon": "sword", "shield": true, "hp": 150, "dmg": 13, "spd": 4.6, "aggro": 40, "reach": 2.4, "wind": 0.45, "cd": 1.1, "xp": 0, "r": 0.45, "realm": 0, "armor": 40, "mr": 20 },
                     "archer":  {
                                    "n":  "Bandit Archer",
                                    "kind":  "hum",
@@ -501,6 +502,7 @@
                                }
                 },
     "outfits":  {
+                    "guard":  { "skin": 14264188, "shirt": 7372944, "pants": 4473924, "boots": 2760728, "hood": 9211020, "cloak": 4868736 },
                     "bandit":  {
                                    "skin":  14264188,
                                    "shirt":  5982774,

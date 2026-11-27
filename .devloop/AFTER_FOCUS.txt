@@ -1,0 +1,62 @@
+================================================================================
+TWIN REALMS - AFTER FOCUS (the user's second list, given 2026-11-26)
+================================================================================
+Do these AFTER every item of FOCUS.txt is done. Same way of working as FOCUS.txt:
+top to bottom, check in game, mark [x] + NOTE, one commit per item
+("after A-XX: <title>"). Items are the user's own words, grouped; nothing dropped.
+Several overlap with finished FOCUS items: for those, first check what is there
+and fix what the user still sees wrong (marked RECHECK).
+
+STATUS KEY:   [ ] to do     [x] done     [!] blocked
+
+--- BUGS AND FEEL (first) ------------------------------------------------------
+[ ] A-01  RETICLE vs MINING / PLACING NOT ALIGNED (RECHECK F-07): the mining tool and the aiming reticle are not aligned;
+          reticle, placing and mining must hit the same block.
+[ ] A-02  STAMINA / RUN STUCK: still getting stuck running even when not pushing run.
+[ ] A-03  BASE ATTACKS HAVE WEIGHT: slow the base attack animation down by a lot, with a delay between swings to give a
+          feeling of weight. Attack speed can be raised other ways (stats, gear, skills).
+[ ] A-04  MOB HIT BOXES AND ELEVATION: mobs should not be able to hit you if they are lower in elevation. Fix the hit boxes.
+[ ] A-05  REMOVE THE WHITE LINE at the render distance limit.
+[ ] A-06  DAYTIME LASTS LONGER.
+[ ] A-07  NO LAND DESTRUCTION IN DUNGEONS.
+[ ] A-08  SPELLS AND SKILLS DO NOT DESTROY BLOCKS: blocks are only mined.
+[ ] A-09  FIRST PERSON (RECHECK F-09): a first-person mode for mining, and for adventuring if wanted, on a hotkey toggle.
+[ ] A-10  SNEAKING / CROUCHING and LOCK PICKING (RECHECK F-24/F-25: both exist; check they are easy to find and work).
+
+--- COMBAT, GEAR, CHARACTER ----------------------------------------------------
+[ ] A-11  MORE WEAPONS, with more variation in weapon sizes and hit boxes.
+[ ] A-12  DUAL WIELD for all single-handed weapons, with dual-wield skills and spells.
+[ ] A-13  DURABILITY for weapons and armor, by tier and upgrade. At zero durability the item loses its stats but does not
+          break. Repair by smelting scraps into different metals along with other ingredients.
+[ ] A-14  MORE ATTRIBUTES, like Wisdom for healing.
+[ ] A-15  ADVANCED SKILL TREES: once 100 points are invested, a second, more advanced tree opens for every path (Wizard ->
+          Archmage, and so on for all paths). Add about 10 more skill tree branches, including one for each base class if
+          not in the game yet.
+[ ] A-16  TRANSFORMATIONS into animals and spirits.
+[ ] A-17  BETTER DESCRIPTIONS of how careers (classes) and spellcraft work.
+[ ] A-18  UNIQUE QUEST REWARD ITEMS.
+
+--- PETS AND ANIMALS -----------------------------------------------------------
+[ ] A-19  PETS CAN BE MOUNTED.
+[ ] A-20  PET HEALTH BAR and PET SKILL TREE.
+[ ] A-21  MORE ANIMAL TYPES (a lot more animals).
+[ ] A-22  BETTER LOOKING WOLVES, DEER and DRAGON (the wolves and deer are ugly).
+[ ] A-23  SCARLETTA: triple the spawn rate, and more level variation of the mirrored mobs.
+
+--- BUILDING, CRAFTING, FARMING ------------------------------------------------
+[ ] A-24  FARMING AND HARVESTING.
+[ ] A-25  FENCES WITH GATES, craftable and placeable, to herd and ranch animals.
+[ ] A-26  CRAFTING STATIONS: move the crafting menu to a crafting table; add crafting table, smithing table, forging and an
+          alchemy table, more like the Minecraft crafting system.
+[ ] A-27  PARTY BOX AND HOME BOXES become placeable chests, like Minecraft.
+[ ] A-28  BUILD LIBRARY: save a build design by highlighting its blocks; place a saved design instantly if you have the
+          materials.
+
+--- ONLINE AND SOCIAL (ask before multiplayer tests) ---------------------------
+[ ] A-29  PARTY QUESTS: if one person in the party completes a quest, everyone in the party completes it.
+[ ] A-30  PLAYER TO PLAYER TRADING of items and gold.
+[ ] A-31  CHAT: world chat, local chat, party chat and whisper.
+[ ] A-32  FRIENDS LIST.
+
+--- WORLD ----------------------------------------------------------------------
+[ ] A-33  A TAVERN with an elf maid cafe: elf maids who sing and dance.

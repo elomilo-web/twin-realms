@@ -216,6 +216,7 @@ public partial class Ui : CanvasLayer
     public static void OpenDialogue(Npc n) => I?.Talk(n);
     void Talk(Npc n)
     {
+        if (n.Role == "arrest") { Crime.Confront(); return; }
         var nr = NpcDb.Get(n.Id);   // F-27/F-28: its record (personality, memory); null for NPCs outside data/npcs.json
         _shopNpc = nr != null ? n.Id : ""; _shopName = n.NpcName;
         if (nr == null)
@@ -274,6 +275,16 @@ public partial class Ui : CanvasLayer
             DlgOpt(v, ++k, "Insult them", () => Say(n, NpcMemory.Insult(nr), ("Leave", Close)));
         }
         DlgOpt(v, ++k, "Farewell", Close);
+    }
+    /// <summary>F-32: the watch has stopped the hero: pay the fine, resist or run (Crime.cs).</summary>
+    public void Arrest(string town, int bounty, string say)
+    {
+        var v = Frame("dialog", "Town Guard of " + town, new Vector2(900, 240), () => { }); var d = Game.D; int k = 0;
+        Row(v, say, Parch, 18); Row(v, $"You carry {d.Gold} gold.", Dim, 13);
+        if (d.Gold >= bounty) DlgOpt(v, ++k, $"Pay the fine ({bounty} gold)", () => { Crime.Pay(); Close(); });
+        else DlgOpt(v, ++k, "I cannot pay. (they take all your gold and throw you out of town)", () => { Crime.Pay(); Close(); });
+        DlgOpt(v, ++k, "Resist arrest (fight the guards; the bounty grows)", () => { Close(); if (Player.Instance is { } p) Crime.Resist(p); });
+        DlgOpt(v, ++k, "Run for it", () => { Close(); Crime.Run(); });
     }
     /// <summary>Dev captures: this NPC's first quest conversation, opened directly.</summary>
     public static void DevStoryTalk(Npc n) { foreach (var (_, q, t) in Story.For(n.Id)) if (t != null && I != null) { I.StoryTalk(n, q, t); return; } }
@@ -662,6 +673,7 @@ public partial class Ui : CanvasLayer
         var gr = new GridContainer { Columns = 3 }; gr.AddThemeConstantOverride("h_separation", 28); gr.AddThemeConstantOverride("v_separation", 2); v.AddChild(gr);
         foreach (var (k, val) in new[] { ("Best wave", d.BestWave), ("Best duel streak", d.BestDuel), ("Deepest depth", d.Deepest), ("Kills", d.Kills), ("Valor", d.Valor) })
         { var cell = new HBoxContainer(); cell.AddThemeConstantOverride("separation", 8); gr.AddChild(cell); Lbl(k, 15, Parch, cell); Lbl(val.ToString(), 17, Gold, cell); }
+        if (d.Bounty != null && d.Bounty.Count > 0) Row(v, "Wanted: " + string.Join(", ", d.Bounty.Select(kv => $"{NpcMemory.TownName(kv.Key)} {kv.Value} gold")) + "  (a bounty falls with time; guards who see you will stop you)", Muted, 14);
         // F-31: active, finished and failed quests (story quests of data/story.json and the old ones of data/quests.json)
         var sAct = Story.With(1).ToList(); var sDone = Story.With(2).ToList(); var sFail = Story.With(3).ToList(); var oldDone = Quests.All.Where(q => Game.Q(q.Id).S == 3).ToList();
         var tabs = new HBoxContainer(); v.AddChild(tabs);

@@ -78,7 +78,7 @@ public static class NpcSocial
     static bool Outdoors(NpcLive L) => L.Inside == null || NpcSchedule.Flat(L.N.GlobalPosition, L.Inside.In) > 3.5f;
 
     // ------------------------------------------------------------------ the tick
-    static bool Ok(NpcLive L) => GodotObject.IsInstanceValid(L.N) && !L.Hidden;
+    static bool Ok(NpcLive L) => GodotObject.IsInstanceValid(L.N) && !L.Hidden && !L.N.Down;
     static bool Free(NpcLive L) => Ok(L) && L.Busy <= Clock && L.Partner == null && L.Act.Act != "sleep";
     static float Flat(NpcLive a, NpcLive b) => NpcSchedule.Flat(a.N.GlobalPosition, b.N.GlobalPosition);
 

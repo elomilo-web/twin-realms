@@ -70,6 +70,7 @@ public class PlayerStats
     // Story quests (Story.cs, data/story.json, focus F-31): state per quest, and world flags set by their choices (also "npc:<id>:gone|schedule|line"). Older saves load with none.
     public Dictionary<string, StoryState> Story = new();
     public Dictionary<string, string> Flags = new();
+    public Dictionary<string, int> Bounty = new();   // gold on the hero's head per town (Crime.cs, F-32); falls by the hour. Older saves load with none.
 
     // ---- derived stats (methods so they are not serialised)
     static TreeStats TS => Game.TS;

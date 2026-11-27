@@ -654,11 +654,27 @@ PHASE 6 - NPCS AND A LIVING WORLD
     ASSUMPTION: quest items are pack materials (no separate quest-item bag); a kill objective may list several enemy
       types so it can be met wherever the hero hunts; story quests are per hero (not shared in multiplayer).
 
-[ ] F-32  ATTACKING NPCS SPAWNS GUARDS
+[x] F-32  ATTACKING NPCS SPAWNS GUARDS
     DONE WHEN: attacking or stealing from an NPC is a crime if someone sees
     it. Guards come, and the player can pay a fine, fight, or run. Each town
     keeps a bounty that goes down over time. NPCs needed for quests can't be
     killed; they get knocked down instead.
+    NOTE (2026-11-26): scripts/Crime.cs; numbers and lines in data/npcs.json "crime". A weapon blow (when it lands on no
+      monster) or a shot that hits an NPC, or picking its pocket (interact while sneaking; chance from the sneaking skill,
+      harder from the front, gold by role, once per NPC per game day, sneaking XP) is a crime when a witness sees it: an
+      awake NPC within 14 m with a clear line of sight, or the victim unless it never noticed; unseen = "Nobody saw
+      that". Witnesses shout (bubbles), townsfolk back away, all of them remember it (F-28), and the town's bounty grows
+      (assault 40, theft 35, knockdown 120, murder 400, resisting 150, killing a guard 250). Two guards run in and stop
+      the hero: pay the fine (bounty cleared; with too little gold they take it all and throw you out of town), resist
+      (they become Town Guard enemies at the hero's level, data/enemies.json) or run (they chase and give up when outrun;
+      the bounty stays and any guard who sees the hero later calls the watch again). Bounties are saved per town
+      (PlayerStats.Bounty), fall by 8 gold per game hour and are listed in the journal. NPCs needed for a quest (story
+      givers and contacts, the old quest NPCs) are knocked down for 30 s; the others die for good (world flag).
+      Checked with "/crime" in the capture log: seen theft and assault with witnesses named, the watch arriving by itself
+      and the arrest window (crime_arrest), paying, resisting into a fight with 2 guards, Elder Maren knocked down vs the
+      innkeeper killed, "Wanted" row in the journal (crime_down).
+    ASSUMPTION: area spells and skills pass over townsfolk (only weapon blows and shots count as attacking an NPC), so
+      a fight with monsters in the street cannot make the hero a criminal by accident.
 
 [ ] F-33  MORE STRUCTURES BETWEEN TOWNS
     DONE WHEN: the roads and wilderness between towns have block-style

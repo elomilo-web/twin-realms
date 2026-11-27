@@ -61,7 +61,7 @@ public static class NpcDb
 
     public static void Load()
     {
-        if (_loaded) return; _loaded = true; NpcMemory.Init(); NpcSocial.Init();   // F-28: memory and standing ("/rep"); F-29: chats and bubbles ("/social")
+        if (_loaded) return; _loaded = true; NpcMemory.Init(); NpcSocial.Init(); Crime.Init();   // F-28: memory and standing ("/rep"); F-29: chats and bubbles ("/social")
         Commands.Register("npcs", "F-27: NPC counts per town / road / wilderness, a check of every entry, and what they are doing now; npcs <town|road|wild>: each one", a =>
             a.Length == 0 ? Report() : string.Join("\n", All.Where(r => r.Town == a[0] && r.Area == "town" || r.Area == a[0]).Select(r => { var t = Target(r, Hour); return $"{r.Id,-14} {t.act.Act,-9} {t.act.Place,-7} want {t.at.X:0.0},{t.at.Z:0.0}  {NpcSchedule.NodeInfo(r.Id)}"; })));
         Commands.Register("npc", "npc <id> [goto]: where the NPC's schedule has it now; goto puts the hero 6 m away, facing it", a =>

@@ -139,11 +139,16 @@ public partial class Npc : Node3D, IInteractable
     public string Id = "", NpcName = "", Role = "talk"; public string[] Lines = new string[0]; public string[] QuestIds = new string[0];
     public string Outfit = "", Sex = ""; public Color? Tint;   // F-27 (data/npcs.json): data/avatar.json "npcs" outfit role, "f"/"m", outfit colour
     int _line;
-    public string Prompt => "Talk to " + NpcName;
-    public bool CanInteract => true;
+    public string Prompt => Role == "arrest" ? "Answer the guard" : Player.Instance is { Sneaking: true } && Crime.CanPick(this) ? "Pickpocket " + NpcName : "Talk to " + NpcName;
+    public bool CanInteract => !Down;
+    // ---- F-32 (Crime.cs): NPCs can be struck. Hp is set on the first blow and comes back after a minute in peace. Down: knocked out (an NPC a
+    // quest needs) and getting up after a while, or dead (Gone) and removed a few seconds later.
+    public float Hp, MaxHp, HurtAt, GoneAt; public bool Down, Gone; float _downT;
+    public void KnockDown(float secs) { Down = true; _downT = secs; Goal = null; FaceAt = null; _av?.Play("die"); if (_av == null) Rotation = new Vector3(-1.45f, Rotation.Y, 0); }
+    public void Die() { Gone = true; GoneAt = NpcSocial.Clock; KnockDown(1e9f); }
     public override void _Ready()
     {
-        AddToGroup("interact");
+        AddToGroup("interact"); AddToGroup("npcs");
         var rg = new System.Random(Id.GetHashCode());
         if (Avatar.Available) BuildAvatar(rg); else BuildBody(rg);
         var shape = new StaticBody3D { CollisionLayer = 1 }; shape.AddChild(new CollisionShape3D { Shape = new CapsuleShape3D { Radius = .4f, Height = 1.8f }, Position = new Vector3(0, .9f, 0) }); AddChild(shape);
@@ -290,6 +295,13 @@ public partial class Npc : Node3D, IInteractable
 
     public override void _Process(double delta)
     {
+        if (Down)
+        {   // knocked out: lies there, then gets up with its strength back
+            BubbleTick((float)delta);
+            if (!Gone && (_downT -= (float)delta) <= 0) { Down = false; Hp = MaxHp; Rotation = new Vector3(0, Rotation.Y, 0); _av?.Play(_idle, .3f, 0, true); }
+            return;
+        }
+        if (MaxHp > 0 && Hp < MaxHp && NpcSocial.Clock - HurtAt > 60f) Hp = MaxHp;
         WalkTick((float)delta); BubbleTick((float)delta);
         if (_emoteT > 0 && (_emoteT -= (float)delta) <= 0 && !_walking) _av?.Play(_idle);
         var p = Player.Instance; if (p == null) return; _t += (float)delta;
@@ -303,5 +315,10 @@ public partial class Npc : Node3D, IInteractable
         _armL.Rotation = new Vector3(Mathf.Sin(_t * .7f + _phase) * .06f, 0, -.12f - b * .02f); _armR.Rotation = new Vector3(Mathf.Sin(_t * .8f + _phase + 1) * .05f, 0, .12f + b * .02f);
     }
     public string NextLine() { if (Lines.Length == 0) return "..."; return Lines[_line++ % Lines.Length]; }
-    public void Interact() { Sfx.Play("click"); Ui.OpenDialogue(this); }
+    public void Interact()
+    {
+        if (Role == "arrest") { Crime.Confront(); return; }
+        if (Player.Instance is { Sneaking: true } p && Crime.CanPick(this)) { Crime.Pickpocket(this, p); return; }   // F-32: a hand in the purse
+        Sfx.Play("click"); Ui.OpenDialogue(this);
+    }
 }

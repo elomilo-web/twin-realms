@@ -63,6 +63,7 @@ public partial class NpcSchedule : Node
             if (L != null && !IsInstanceValid(L.N)) { _live.Remove(r.Id); L = null; }
             if (Story.NpcGone(r.Id))
             {   // F-31: a quest sent this one away (left town, jailed, dead): no node; a core NPC is kept but hidden
+                if (L != null && L.N.Gone && NpcSocial.Clock - L.N.GoneAt < 8f) continue;   // just killed: the body lies a moment
                 if (L != null) { NpcSocial.Break(L); if (r.Core) { if (!L.Hidden) Show(L, false); } else { L.N.QueueFree(); _live.Remove(r.Id); } }
                 else if (r.Core && _core.TryGetValue(r.Id, out var gn) && IsInstanceValid(gn) && gn.Visible) { _live[r.Id] = L = new NpcLive { N = gn, Rec = r, Last = gn.GlobalPosition }; Show(L, false); }
                 continue;
@@ -84,6 +85,7 @@ public partial class NpcSchedule : Node
             }
             if (!r.Core && Flat(L.N.GlobalPosition, hp) > Far && Flat(at, hp) > Far) { L.N.QueueFree(); _live.Remove(r.Id); continue; }
             L.Act = act; L.Moving = moving;
+            if (L.N.Down) continue;   // knocked out (F-32)
             string key = act.Act + "|" + act.Place + (moving ? "" : $"|{Mathf.Round(at.X)},{Mathf.Round(at.Z)}");
             if (jump || L.Key == "")
             {   // the clock jumped (sleep, dev time, rejoin) or a core NPC's first tick: everyone is simply where the schedule says
@@ -97,7 +99,7 @@ public partial class NpcSchedule : Node
             Step(L, at, hidden, moving);
         }
         Spawned = _live.Values.Count(l => !l.Hidden);
-        NpcSocial.Tick(_live.Values, p, Dt);
+        NpcSocial.Tick(_live.Values, p, Dt); Crime.Tick(Dt);
     }
 
     static void Plan(NpcLive L, Vector3 at, NpcHomes.House? house, bool moving)

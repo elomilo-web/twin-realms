@@ -218,6 +218,27 @@
     "insulted.nervous": ["W-why would you say that?"], "insulted.gruff": ["Say that again. Go on."], "insulted.sly": ["Careful. I collect debts, and that is one."], "insulted.cheerful": ["Oh. That... wasn't very nice."]
   },
 
+  "_help_crime": "F-32 (scripts/Crime.cs): attacking or robbing an NPC is a crime when a witness (an awake NPC within witnessDist metres with a clear line of sight; the victim too unless it never noticed) sees it. bounty: gold added to the town's bounty per crime (assault = a blow, knockdown = an essential NPC beaten down, murder, theft, resist = resisting arrest, guardKill). The bounty falls by decayPerHour gold per game hour. guards: how many come, how fast, how far they chase before giving up (giveUpDist metres or giveUpSecs seconds out of reach). npcHp / guardHp + hpPerLevel x hero level; an NPC needed for a quest (any giver or contact of data/story.json or data/quests.json) is knocked down for knockdownSecs instead of killed. pickpocket (sneaking, from behind is easier): chance = base + perLevel x sneaking level (max), minus facing when the NPC looks your way; gold range by role; once per NPC per every seconds.",
+  "crime": {
+    "witnessDist": 14, "decayPerHour": 8,
+    "bounty": { "assault": 40, "knockdown": 120, "murder": 400, "theft": 35, "resist": 150, "guardKill": 250 },
+    "guards": { "count": 2, "speed": 4.4, "spawnDist": 16, "giveUpDist": 70, "giveUpSecs": 25, "spotDist": 11 },
+    "npcHp": 70, "guardHp": 160, "hpPerLevel": 8, "knockdownSecs": 30,
+    "pickpocket": { "base": 0.4, "perLevel": 0.06, "max": 0.92, "facing": 0.3, "gold": [6, 30], "richGold": [25, 90], "every": 720, "xp": 14 },
+    "lines": {
+      "help": ["Help! Guards!", "Murder! Murder!", "Somebody stop them!", "Guards! GUARDS!"],
+      "thief": ["Thief! My purse!", "Stop, thief!", "Hands off! Guards!"],
+      "hurt": ["Ow! What are you doing?!", "Stop! Please!", "Are you mad?!"],
+      "down": ["Ugh...", "No more..."],
+      "saw": ["I saw that!", "Guards! Over here!", "You will hang for that!"],
+      "spot": ["There! Stop right there!", "That is the one! Seize them!", "Halt, criminal!"],
+      "lost": ["Lost them. Keep your eyes open.", "They will be back. They always come back."]
+    },
+    "arrest": "Stop! You have broken the law of {town}. The bounty on your head is {bounty} gold. Pay your fine, or answer to the watch.",
+    "paid": "Your fine is paid. {town} holds nothing against you. Keep it that way.",
+    "broke": "No coin? Then we take what you have and throw you out of {town}. Do not come back empty-handed again."
+  },
+
   "_help_social": "F-29 / F-30 (scripts/NpcSocial.cs): the short lines shown as speech bubbles above heads, and when. chats: two NPCs within chatDist metres (or socializing within approachDist: one walks over) stop, face each other and trade lines; a chat is a list of [speaker 0 or 1, line]. gossip is the usual kind, argue when one's likes meet the other's dislikes (or argueChance), trade when one of them is a trader, pass when one is only walking by. {other} = the other's first name, {like} / {dislike} = one of the speaker's own, {town}, {name} = the hero. onlooker: someone near an argument. act.<activity>: said when the schedule moves on. rain / rainstop / dawn / dusk / night: reactions to weather and the time of day. player.<standing>: said to the hero walking up (by what the NPC remembers, F-28); unknown heroes get one of the NPC's own greetings.",
   "social": {
     "chatDist": 2.8, "approachDist": 9, "chatEvery": [70, 150], "pairEvery": 240, "lineGap": 2.9, "greetDist": 4.5, "greetEvery": [50, 90],
