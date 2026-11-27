@@ -9,43 +9,52 @@ public partial class Ui
 {
     // ---------------------------------------------------------------- shop and smith
     static int _stockLvl = -1; static List<Item> _stock = new();
-    static int BuyPrice(Item it) => Mathf.RoundToInt(it.Value * Tune.F("shop.buyMul", 3) + Tune.F("shop.buyAdd", 12));   // data/tuning.json "game.shop"
+    static int BuyPrice(Item it) => Cost(Mathf.RoundToInt(it.Value * Tune.F("shop.buyMul", 3) + Tune.F("shop.buyAdd", 12)));   // data/tuning.json "game.shop"
+    // F-28: the NPC whose shop / forge is open ("" = none: plain prices). Standing with it and its town moves every price (NpcMemory).
+    static string _shopNpc = "", _shopName = "";
+    public static void DevShopNpc(string id) { _shopNpc = id; _shopName = NpcDb.Get(id)?.Name ?? ""; }
+    /// <summary>What the open shop asks for something of this base price / pays for something of this value.</summary>
+    static int Cost(int g) => Math.Max(1, Mathf.RoundToInt(g * NpcMemory.BuyMul(_shopNpc)));
+    static int Pays(int g) => g <= 0 ? 0 : Math.Max(1, Mathf.RoundToInt(g * NpcMemory.SellMul(_shopNpc)));
+    static void Traded() => NpcMemory.Trade(_shopNpc);
     public void OpenShop(string tab)
     {
         var d = Game.D; if (_stockLvl != d.Level) { _stockLvl = d.Level; _stock.Clear(); for (int i = 0; i < 6; i++) _stock.Add(Items.Roll(d.Level + 1, .2f)); }
-        var v = Frame("shop", "Brynn's Wares", new Vector2(720, 560), () => OpenShop(tab));
+        var v = Frame("shop", NpcDb.Get(_shopNpc) != null ? _shopName + ": wares" : "Brynn's Wares", new Vector2(720, 560), () => OpenShop(tab));
+        if (NpcDb.Get(_shopNpc) is { } keeper && Mathf.Abs(NpcMemory.BuyMul(_shopNpc) - 1f) > .004f)
+        { float bm = NpcMemory.BuyMul(_shopNpc); Row(v, $"{NpcMemory.Summary(keeper)}   (you pay {(bm < 1 ? "less" : "more")}, your goods fetch {(bm < 1 ? "more" : "less")})", bm < 1 ? new Color(.6f, .9f, .6f) : new Color(1f, .6f, .5f), 13); }
         var top = new HBoxContainer(); v.AddChild(top); Tabs(top, tab, ("buy", "Buy", () => OpenShop("buy")), ("sell", "Sell", () => OpenShop("sell"))); top.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }); Lbl($"{d.Gold} gold", 20, Gold, top);
         var sc = Scroll(v, 420); var list = Inner(sc); list.AddThemeConstantOverride("separation", 6); sc.HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled;
         if (tab == "buy")
         {
-            int hpc = Tune.I("shop.healthPotion", 30), mpc = Tune.I("shop.manaPotion", 35), hc = Tune.I("shop.horse", 350);
-            AddRow(list, "Health potion  (have " + d.HpPot + ")", Colors.White, $"Buy {hpc}g", () => { if (d.Gold < hpc) { Sfx.UiError(); Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= hpc; d.HpPot++; Sfx.Play("coin"); OpenShop(tab); }, d.Gold >= hpc);
-            AddRow(list, "Mana potion  (have " + d.MpPot + ")", Colors.White, $"Buy {mpc}g", () => { if (d.Gold < mpc) { Sfx.UiError(); Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= mpc; d.MpPot++; Sfx.Play("coin"); OpenShop(tab); }, d.Gold >= mpc);
-            if (!d.Horse) AddRow(list, "Horse (ride with T)", Colors.White, $"Buy {hc}g", () => { if (d.Gold < hc) { Sfx.UiError(); Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= hc; d.Horse = true; Sfx.Play("coin"); Note("You bought a horse. Press T to ride.", Gold); OpenShop(tab); }, d.Gold >= hc);
-            int rodc = (int)JsonUtil.F(FishDb.RodData(), "price", 120);   // the fishing rod (Fishing.cs, data/fishing.json "rod")
-            if (d.Rod <= 0) AddRow(list, "Fishing rod (take out with 7, attack casts)", Colors.White, $"Buy {rodc}g", () => { if (d.Gold < rodc) { Sfx.UiError(); Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= rodc; d.Rod = 1; Sfx.Play("coin"); Note("You bought a fishing rod. Press 7 to take it out.", Gold); OpenShop(tab); }, d.Gold >= rodc);
+            int hpc = Cost(Tune.I("shop.healthPotion", 30)), mpc = Cost(Tune.I("shop.manaPotion", 35)), hc = Cost(Tune.I("shop.horse", 350));
+            AddRow(list, "Health potion  (have " + d.HpPot + ")", Colors.White, $"Buy {hpc}g", () => { if (d.Gold < hpc) { Sfx.UiError(); Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= hpc; d.HpPot++; Traded(); Sfx.Play("coin"); OpenShop(tab); }, d.Gold >= hpc);
+            AddRow(list, "Mana potion  (have " + d.MpPot + ")", Colors.White, $"Buy {mpc}g", () => { if (d.Gold < mpc) { Sfx.UiError(); Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= mpc; d.MpPot++; Traded(); Sfx.Play("coin"); OpenShop(tab); }, d.Gold >= mpc);
+            if (!d.Horse) AddRow(list, "Horse (ride with T)", Colors.White, $"Buy {hc}g", () => { if (d.Gold < hc) { Sfx.UiError(); Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= hc; d.Horse = true; Traded(); Sfx.Play("coin"); Note("You bought a horse. Press T to ride.", Gold); OpenShop(tab); }, d.Gold >= hc);
+            int rodc = Cost((int)JsonUtil.F(FishDb.RodData(), "price", 120));   // the fishing rod (Fishing.cs, data/fishing.json "rod")
+            if (d.Rod <= 0) AddRow(list, "Fishing rod (take out with 7, attack casts)", Colors.White, $"Buy {rodc}g", () => { if (d.Gold < rodc) { Sfx.UiError(); Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= rodc; d.Rod = 1; Traded(); Sfx.Play("coin"); Note("You bought a fishing rod. Press 7 to take it out.", Gold); OpenShop(tab); }, d.Gold >= rodc);
             LifeShopRows(list, tab);   // F-24/F-25: lockpicks and cooking recipe books (UiLife.cs)
             foreach (var cb in PetDb.Cubes)
             {   // Soul Cubes (data/pets.json "cubes"): bind a weakened monster as a pet
-                var cd = cb; AddRow(list, $"{cd.Name}  (have {Cubes.Count(cd.Id)})  x{cd.Mul:0.#} catch", cd.Col.Lightened(.2f), $"Buy {cd.Cost}g",
-                    () => { if (d.Gold < cd.Cost) { Sfx.UiError(); Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= cd.Cost; Cubes.Give(cd.Id, 1, false); Sfx.Play("coin"); OpenShop(tab); }, d.Gold >= cd.Cost);
+                var cd = cb; int cc = Cost(cd.Cost); AddRow(list, $"{cd.Name}  (have {Cubes.Count(cd.Id)})  x{cd.Mul:0.#} catch", cd.Col.Lightened(.2f), $"Buy {cc}g",
+                    () => { if (d.Gold < cc) { Sfx.UiError(); Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= cc; Cubes.Give(cd.Id, 1, false); Traded(); Sfx.Play("coin"); OpenShop(tab); }, d.Gold >= cc);
             }
-            for (int i = 0; i < _stock.Count; i++) { int k = i; var it = _stock[i]; ItemRow(list, it, BuyPrice(it) + "g", () => { int c = BuyPrice(it); if (d.Gold < c) { Sfx.UiError(); Note("Not enough gold", new Color(1, .5f, .5f)); return; } if (d.Inv.Count >= 28) { Note("Pack is full", new Color(1, .5f, .5f)); return; } d.Gold -= c; d.Inv.Add(it); _stock.RemoveAt(k); Sfx.Play("coin"); OpenShop(tab); }, d.Gold >= BuyPrice(it)); }
+            for (int i = 0; i < _stock.Count; i++) { int k = i; var it = _stock[i]; ItemRow(list, it, BuyPrice(it) + "g", () => { int c = BuyPrice(it); if (d.Gold < c) { Sfx.UiError(); Note("Not enough gold", new Color(1, .5f, .5f)); return; } if (d.Inv.Count >= 28) { Note("Pack is full", new Color(1, .5f, .5f)); return; } d.Gold -= c; d.Inv.Add(it); _stock.RemoveAt(k); Traded(); Sfx.Play("coin"); OpenShop(tab); }, d.Gold >= BuyPrice(it)); }
         }
         else
         {
             if (d.Inv.Count == 0 && d.Mats.Count == 0) Empty(list, "Your pack is empty. Nothing here to sell.");
             // gathered materials sell by the stack
             // "sell all" keeps crafting scraps (sell those one stack at a time below)
-            int matGold = 0; foreach (var kv in d.Mats) if (!GatherDb.Mat(kv.Key).Scrap) matGold += kv.Value * GatherDb.Mat(kv.Key).Value;
-            if (matGold > 0) list.AddChild(Btn($"Sell all gathered materials ({matGold}g, keeps scraps)", () => { d.Gold += matGold; foreach (var k in d.Mats.Keys.ToList()) if (!GatherDb.Mat(k).Scrap) d.Mats.Remove(k); Sfx.Play("coin"); Game.Notify(); OpenShop(tab); }, true));
+            int matGold = 0; foreach (var kv in d.Mats) if (!GatherDb.Mat(kv.Key).Scrap) matGold += Pays(kv.Value * GatherDb.Mat(kv.Key).Value);
+            if (matGold > 0) list.AddChild(Btn($"Sell all gathered materials ({matGold}g, keeps scraps)", () => { d.Gold += matGold; foreach (var k in d.Mats.Keys.ToList()) if (!GatherDb.Mat(k).Scrap) d.Mats.Remove(k); Traded(); Sfx.Play("coin"); Game.Notify(); OpenShop(tab); }, true));
             foreach (var kv in new List<KeyValuePair<string, int>>(d.Mats))
             {
                 if (kv.Value <= 0) continue; var m = GatherDb.Mat(kv.Key); string id = kv.Key; int n = kv.Value;
-                AddRow(list, $"{m.Name}  x{n}", m.Col.Lightened(0.25f), $"Sell {n * m.Value}g", () => { d.Gold += n * m.Value; d.Mats.Remove(id); Sfx.Play("coin"); Game.Notify(); OpenShop(tab); });
+                AddRow(list, $"{m.Name}  x{n}", m.Col.Lightened(0.25f), $"Sell {Pays(n * m.Value)}g", () => { d.Gold += Pays(n * m.Value); d.Mats.Remove(id); Traded(); Sfx.Play("coin"); Game.Notify(); OpenShop(tab); });
             }
-            list.AddChild(Btn("Sell all Common", () => { int g = 0; d.Inv.RemoveAll(it => { if (it.Rar == 0) { g += it.Value; GemDb.ReturnAll(d, it); return true; } return false; }); d.Gold += g; if (g > 0) Sfx.Play("coin"); OpenShop(tab); }, true));
-            for (int i = 0; i < d.Inv.Count; i++) { int k = i; var it = d.Inv[i]; ItemRow(list, it, "Sell " + it.Value + "g", () => { d.Gold += it.Value; GemDb.ReturnAll(d, it); d.Inv.RemoveAt(k); Sfx.Play("coin"); OpenShop(tab); }); }
+            list.AddChild(Btn("Sell all Common", () => { int g = 0; d.Inv.RemoveAll(it => { if (it.Rar == 0) { g += Pays(it.Value); GemDb.ReturnAll(d, it); return true; } return false; }); d.Gold += g; if (g > 0) { Traded(); Sfx.Play("coin"); } OpenShop(tab); }, true));
+            for (int i = 0; i < d.Inv.Count; i++) { int k = i; var it = d.Inv[i]; ItemRow(list, it, "Sell " + Pays(it.Value) + "g", () => { d.Gold += Pays(it.Value); GemDb.ReturnAll(d, it); d.Inv.RemoveAt(k); Traded(); Sfx.Play("coin"); OpenShop(tab); }); }
         }
     }
 

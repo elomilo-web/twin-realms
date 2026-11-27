@@ -92,7 +92,7 @@ public partial class Ui
                 Lbl($"{(k == "fish_*" ? "any fish" : GatherDb.Mat(k).Name)} {have}/{n}", 13, have >= n ? new Color(.6f, 1f, .6f) : Muted, ing);
             }
             var br = new HBoxContainer(); br.AddThemeConstantOverride("separation", 8); cv.AddChild(br);
-            var rr = r;
+            var rr = r; int bp = Cost(r.Price);
             var cb = Btn(known ? "Cook" : "Try it", () => { if (Player.Instance?.AtFire != true) { Note("You need a fire to cook", new Color(1, .6f, .5f)); return; } if (Cooking.Cook(Game.D, rr) is { } why) { Note(why, new Color(1, .6f, .5f)); Sfx.UiError(); } OpenCooking(); }, true);
             cb.Disabled = pay == null || !fire; PriceStyle(cb, pay != null && fire); br.AddChild(cb);
             if (known)
@@ -165,13 +165,13 @@ public partial class Ui
     // ---------------------------------------------------------------- the merchant: lockpicks and recipe books
     void LifeShopRows(VBoxContainer list, string tab)
     {
-        var d = Game.D; int lpc = (int)LifeSkills.T("lockpickPrice", 25);
-        AddRow(list, $"Lockpicks x2  (have {d.Mats.GetValueOrDefault(Lockpick.Item)})", Colors.White, $"Buy {lpc}g", () => { if (d.Gold < lpc) { Sfx.UiError(); Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= lpc; d.Mats[Lockpick.Item] = d.Mats.GetValueOrDefault(Lockpick.Item) + 2; Sfx.Play("coin"); Game.Notify(); OpenShop(tab); }, d.Gold >= lpc);
+        var d = Game.D; int lpc = Cost((int)LifeSkills.T("lockpickPrice", 25));   // Cost: by standing with the shopkeeper (F-28, UiShop.cs)
+        AddRow(list, $"Lockpicks x2  (have {d.Mats.GetValueOrDefault(Lockpick.Item)})", Colors.White, $"Buy {lpc}g", () => { if (d.Gold < lpc) { Sfx.UiError(); Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= lpc; d.Mats[Lockpick.Item] = d.Mats.GetValueOrDefault(Lockpick.Item) + 2; Traded(); Sfx.Play("coin"); Game.Notify(); OpenShop(tab); }, d.Gold >= lpc);
         Cooking.Ensure(d);
         foreach (var r in Cooking.All.Values.Where(r => r.Kind == "book" && !Cooking.Knows(d, r.Id)))
         {
-            var rr = r;
-            AddRow(list, $"Recipe book: {r.Name}  ({Cooking.CostText(r)})", r.Col.Lightened(.3f), $"Buy {r.Price}g", () => { if (d.Gold < rr.Price) { Sfx.UiError(); Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= rr.Price; Cooking.Learn(d, rr.Id); Sfx.Play("coin"); Note($"New recipe: {rr.Name} (Cooking book)", UiTheme.Highlight); Game.Notify(); OpenShop(tab); }, d.Gold >= r.Price);
+            var rr = r; int bp = Cost(r.Price);
+            AddRow(list, $"Recipe book: {r.Name}  ({Cooking.CostText(r)})", r.Col.Lightened(.3f), $"Buy {bp}g", () => { if (d.Gold < bp) { Sfx.UiError(); Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= bp; Cooking.Learn(d, rr.Id); Traded(); Sfx.Play("coin"); Note($"New recipe: {rr.Name} (Cooking book)", UiTheme.Highlight); Game.Notify(); OpenShop(tab); }, d.Gold >= bp);
         }
     }
 

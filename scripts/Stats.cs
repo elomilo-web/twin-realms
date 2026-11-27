@@ -64,6 +64,9 @@ public class PlayerStats
     // (PetTrade.cs): pets taken out for a trade in flight (put back if it falls through). Older saves load with none.
     public int DuelRank = 0, SoulWins = 0, SoulLosses = 0;
     public List<PetState> TradeEscrow = new(); public int TradeEscrowGold = 0;
+    // NPC memory and standing (NpcMemory.cs, focus F-28): what each NPC of data/npcs.json remembers of this hero, and standing per town. Older saves load with none.
+    public Dictionary<string, NpcMem> Npcs = new();
+    public Dictionary<string, int> TownRep = new();
 
     // ---- derived stats (methods so they are not serialised)
     static TreeStats TS => Game.TS;

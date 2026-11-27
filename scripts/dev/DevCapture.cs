@@ -699,8 +699,18 @@ public partial class DevCapture : Node
                         case "attacks": ui.OpenAttacks(null); break;
                         case "macros": ui.OpenMacros(); break;
                         case "mods": ui.OpenMods(); break;
-                        case "shop": ui.OpenShop(arg.Length > 0 ? arg : "buy"); break;
+                        case "shop": Ui.DevShopNpc(""); ui.OpenShop(arg.Length > 0 ? arg : "buy"); break;
                         case "smith": ui.OpenSmith(); break;
+                        case "talk":      // F-28: ui:talk:<npc id>[/command;command]: runs the debug commands, then opens the dialog with that NPC (must be near the hero)
+                        case "npcshop":   // ui:npcshop:<npc id>[/command;command]: the shop as that NPC keeps it (prices by standing)
+                        {
+                            var tp = arg.Split('/', 2);
+                            if (tp.Length > 1) foreach (var c in tp[1].Split(';')) foreach (var ln in Commands.Run(c.Trim()).Split('\n')) Say("cmd> " + ln.TrimEnd('\r'));
+                            if (nm == "npcshop") { Ui.DevShopNpc(tp[0]); ui.OpenShop("buy"); break; }
+                            for (int t = 0; t < 60 && NpcSchedule.NodeOf(tp[0]) == null; t++) await Secs(.1f);
+                            if (NpcSchedule.NodeOf(tp[0]) is { } tn) Ui.OpenDialogue(tn); else Say("talk: no node for " + tp[0]);
+                            break;
+                        }
                         case "craft": ui.OpenCraft(arg.Length > 0 ? arg : "gear"); break;
                         case "valor": ui.OpenValor(arg.Length > 0 ? arg : "gacha"); break;
                         case "totals": ui.OpenTotals(); break;

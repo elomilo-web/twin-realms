@@ -575,13 +575,26 @@ PHASE 6 - NPCS AND A LIVING WORLD
       The hook-up edits (Builder, Lands, Ui, Npc) went in with the F-34/F-35 commit; this commit adds the three new files.
     ASSUMPTION: the 10 old Oakhaven NPCs (data/quests.json) count toward the 100 and keep their quests and shops.
 
-[ ] F-28  NPC MEMORY AND REPUTATION
+[x] F-28  NPC MEMORY AND REPUTATION
     DONE WHEN:
       - NPCs remember the player: whether they have met, quests done, gifts,
         insults, crimes they saw, and trades.
       - Greetings and dialog change based on what the NPC remembers.
       - Reputation with each NPC and each town changes prices and dialog.
       - Memory is saved and is still there after reloading.
+    NOTE (2026-11-26): scripts/NpcMemory.cs + PlayerStats.Npcs / TownRep (saved with the hero). Each NPC remembers met, talks,
+      quests turned in, gifts and bad gifts (with the last gift's name), insults, crimes and trades. Standing runs -100..100 per
+      NPC and per town (tiers Hated..Beloved); all numbers and lines are in data/npcs.json "reputation" and "memory_lines".
+      The dialog opens with a line from what is remembered (first meeting, gift, bad gift, insult, crime, quest, trade, liked,
+      trusted, disliked, hated; variants per speech style) and shows the standing; new options "Offer a gift" (any pack
+      material, one per NPC per game day; liked by the NPC's own likes or its role) and "Insult them". Prices in the shop
+      (goods, potions, lockpicks, recipe books, cubes, selling) and at the smith follow 0.6 x NPC + 0.4 x town standing, up
+      to 20% either way; at -50 an NPC refuses quests, trade and services (gifts mend it). Shop and smith NPCs now open the
+      dialog first (Ui.cs, UiShop.cs, UiSmith.cs, UiLife.cs). NpcMemory.Crime(victim, witnesses) is ready for F-32.
+      Checked: "/rep test" (every kind of memory on one NPC, greeting after each, then the hero written and read back the way
+      Game.Save / Load do: SAVE ROUND TRIP OK) and captures rep_first, rep_liked, rep_hated, rep_shop_base / good / bad
+      (health potion 30g -> 25g at Beloved, 32g at Disliked).
+    ASSUMPTION: a gift is one unit of a pack material (gathered goods, fish, cooked food); gear is not given away.
 
 [ ] F-29  NPCS ROAM AND INTERACT WITH EACH OTHER
     DONE WHEN: NPCs walk around on their schedules and use doors and stairs.

@@ -216,16 +216,35 @@ public partial class Ui : CanvasLayer
     public static void OpenDialogue(Npc n) => I?.Talk(n);
     void Talk(Npc n)
     {
-        if (n.Role == "shop") { OpenShop("buy"); return; }
-        if (n.Role == "smith") { OpenSmith(); return; }
-        if (n.Role == "valor") { OpenValor("gacha"); return; }
+        var nr = NpcDb.Get(n.Id);   // F-27/F-28: its record (personality, memory); null for NPCs outside data/npcs.json
+        _shopNpc = nr != null ? n.Id : ""; _shopName = n.NpcName;
+        if (nr == null)
+        {
+            if (n.Role == "shop") { OpenShop("buy"); return; }
+            if (n.Role == "smith") { OpenSmith(); return; }
+            if (n.Role == "valor") { OpenValor("gacha"); return; }
+        }
         var v = Frame("dialog", n.NpcName, new Vector2(900, 220), () => { });
         var d = Game.D; int k = 0;
-        Row(v, n.Role == "arena" ? $"Welcome to the Crimson Arena. Best wave: {d.BestWave}. Best duel streak: {d.BestDuel}. Waves pay valor (first at wave {Valor.NextMilestone(0)}), spent with Sera in Oakhaven; leave by the gate whenever you like." : n.NextLine(), Parch, 18);
+        // F-28: the opening line comes from what the NPC remembers of the hero; below it, the standing with it and its town
+        string hello = nr != null ? NpcMemory.Greet(nr, n.Role == "arena" ? "" : n.NextLine()) : n.NextLine();
+        bool refuses = nr != null && NpcMemory.Refuses(nr);
+        if (n.Role == "arena" && !refuses) hello = (nr != null ? hello + " " : "") + $"Welcome to the Crimson Arena. Best wave: {d.BestWave}. Best duel streak: {d.BestDuel}. Waves pay valor (first at wave {Valor.NextMilestone(0)}), spent with Sera in Oakhaven; leave by the gate whenever you like.";
+        Row(v, hello, Parch, 18);
+        if (nr != null) Row(v, NpcMemory.Summary(nr), Dim, 13);
+        if (refuses)
+        {   // hated: no quests, trade or services until the standing is mended (gifts still work)
+            DlgOpt(v, ++k, "Offer a gift", () => GiftPick(n, nr!));
+            DlgOpt(v, ++k, "Farewell", Close);
+            return;
+        }
+        if (n.Role == "shop") DlgOpt(v, ++k, "Show me your wares", () => OpenShop("buy"));
+        if (n.Role == "smith") DlgOpt(v, ++k, "I need some smithing done", OpenSmith);
+        if (n.Role == "valor") DlgOpt(v, ++k, "Spend valor", () => OpenValor("gacha"));
         foreach (var id in n.QuestIds)
         {
             var q = Quests.ById(id); if (q == null) continue; var s = Game.Q(id);
-            if (s.S == 2) DlgOpt(v, ++k, "Report: " + q.Name, () => Say(n, q.Done, ("Claim reward", () => { Quests.Reward(q); Talk(n); })));
+            if (s.S == 2) DlgOpt(v, ++k, "Report: " + q.Name, () => Say(n, q.Done, ("Claim reward", () => { Quests.Reward(q); NpcMemory.QuestDone(n.Id); Talk(n); })));
             else if (s.S == 1) DlgOpt(v, ++k, q.Name + " (in progress)", () => Say(n, q.Goal + (q.Need > 1 ? $" ({s.N}/{q.Need})" : "") + ".", ("Back", () => Talk(n))));
             else if (Quests.Available(q)) DlgOpt(v, ++k, "Quest: " + q.Name + (q.Lvl > 0 ? $" (lvl {q.Lvl}+)" : ""), () => Say(n, q.Offer, ("Accept", () => { Quests.Accept(q); Close(); }), ("Not now", () => Talk(n))));
         }
@@ -239,13 +258,27 @@ public partial class Ui : CanvasLayer
         {
             DlgOpt(v, ++k, "Trade a pet", () => { PetTrade.StartNpc(); OpenPetTrade(); });
         }
-        if (NpcDb.Get(n.Id) is { } nr)
-        {   // F-27: the role's own options and a word about themselves (data/npcs.json personality)
+        if (nr != null)
+        {   // F-27: the role's own options and a word about themselves (data/npcs.json personality); F-28: gifts and insults are remembered
             if (n.Role == "talk" && NpcDb.Trades(nr)) DlgOpt(v, ++k, "Show me your wares", () => OpenShop("buy"));
             if (n.Role == "talk" && NpcDb.Smiths(nr)) DlgOpt(v, ++k, "I need some smithing done", OpenSmith);
             DlgOpt(v, ++k, "Tell me about yourself", () => Say(n, NpcDb.About(nr), ("Back", () => Talk(n))));
+            DlgOpt(v, ++k, "Offer a gift", () => GiftPick(n, nr));
+            DlgOpt(v, ++k, "Insult them", () => Say(n, NpcMemory.Insult(nr), ("Leave", Close)));
         }
         DlgOpt(v, ++k, "Farewell", Close);
+    }
+    /// <summary>F-28: pick one pack material to hand to the NPC (one gift per NPC per game day); what it thinks of it is remembered.</summary>
+    void GiftPick(Npc n, NpcRec nr)
+    {
+        var d = Game.D; var mats = d.Mats.Where(kv => kv.Value > 0).OrderBy(kv => GatherDb.Mat(kv.Key).Name).ToList();
+        if (!NpcMemory.CanGift(nr)) { Say(n, NpcMemory.Gift(nr, mats.Count > 0 ? mats[0].Key : ""), ("Back", () => Talk(n))); return; }
+        if (mats.Count == 0) { Say(n, "(You have nothing in your pack to give. Gathered materials, fish and cooked food can be gifts.)", ("Back", () => Talk(n))); return; }
+        var v = Frame("dialog", n.NpcName, new Vector2(900, 420), () => { });
+        Row(v, $"What will you give {nr.Name}? (one gift a day; they remember what they are given)", Parch, 17);
+        var sc = Scroll(v, 280); sc.HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled; var list = Inner(sc); int k = 0;
+        foreach (var kv in mats) { string id = kv.Key; DlgOpt(list, ++k, $"{GatherDb.Mat(id).Name}  (have {kv.Value})", () => Say(n, NpcMemory.Gift(nr, id), ("Back", () => Talk(n)))); }
+        DlgOpt(v, 0, "Never mind", () => Talk(n));
     }
     void Say(Npc n, string text, params (string, Action)[] opts)
     {

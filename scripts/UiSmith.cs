@@ -26,7 +26,7 @@ public partial class Ui
 
     public void OpenSmith()
     {
-        var d = Game.D; var v = Frame("smith", "Dorrin the Smith", new Vector2(1120, 660), OpenSmith); HideTip();
+        var d = Game.D; var v = Frame("smith", NpcDb.Get(_shopNpc) != null ? _shopName : "Dorrin the Smith", new Vector2(1120, 660), OpenSmith); HideTip();
         if (_anvil != null && !d.Inv.Contains(_anvil) && !d.Eq.Values.Contains(_anvil)) _anvil = null;   // sold, dropped or scrapped since
         var top = new HBoxContainer(); top.AddThemeConstantOverride("separation", 18); v.AddChild(top);
         Lbl($"{d.Gold} G", 18, Gold, top);
@@ -105,7 +105,7 @@ public partial class Ui
         if (maxed) CraftHint(box, "Honed as far as steel allows (+10).");
         else
         {
-            var (gold, mats) = HoneCost(it);
+            var (gold, mats) = HoneCost(it); gold = Cost(gold);   // F-28: standing with the smith moves the price
             var cr = new HBoxContainer(); cr.AddThemeConstantOverride("separation", 10); box.AddChild(cr);
             Lbl($"Cost  {gold} G", 15, d.Gold >= gold ? UiTheme.Highlight : Bad, cr);
             foreach (var (id, need) in mats)
@@ -118,7 +118,7 @@ public partial class Ui
             {
                 if (d.Gold < gold) { Note("Not enough gold", new Color(1, .5f, .5f)); Sfx.UiError(); return; }
                 if (!CanPay(mats)) { Note("Not enough materials", new Color(1, .5f, .5f)); Sfx.UiError(); return; }
-                d.Gold -= gold; Pay(mats); Hone(it); LifeSkills.Award("smithing", 8 + it.Up * 3); Sfx.Play("hit"); Sfx.Play("coin"); Sfx.UiConfirm(); Note($"{it.Name}: +{Mathf.RoundToInt(Affixes.HonePer * 100)}% to its stats", it.Color); Game.Notify(); Game.Save(); _smithFlash = it; OpenSmith();
+                d.Gold -= gold; Pay(mats); Hone(it); Traded(); LifeSkills.Award("smithing", 8 + it.Up * 3); Sfx.Play("hit"); Sfx.Play("coin"); Sfx.UiConfirm(); Note($"{it.Name}: +{Mathf.RoundToInt(Affixes.HonePer * 100)}% to its stats", it.Color); Game.Notify(); Game.Save(); _smithFlash = it; OpenSmith();
             }); hb.CustomMinimumSize = new Vector2(150, 36); hb.AddThemeColorOverride("font_color", UiTheme.Highlight); hr.AddChild(hb);
             Lbl($"+{Mathf.RoundToInt(Affixes.HonePer * 100)}% to base and bonus stats", 12, Dim, hr);
         }
@@ -129,11 +129,11 @@ public partial class Ui
         if (nm == 0) CraftHint(box, "This piece has no bonus stats (epic and legendary gear rolls them).");
         else
         {
-            int cost = RerollCost();
+            int cost = Cost(RerollCost());
             box.AddChild(Btn($"Reroll its {nm} bonus stats  ({cost}g, 3% of your gold)", () =>
             {
                 if (d.Gold < cost) { Note("Not enough gold", new Color(1, .5f, .5f)); Sfx.UiError(); return; }
-                d.Gold -= cost; Affixes.Reroll(it); Sfx.Play("level"); Sfx.UiConfirm(); Note($"New bonus stats on {it.Name}", it.Color); Game.Notify(); Game.Save(); OpenSmith();
+                d.Gold -= cost; Affixes.Reroll(it); Traded(); Sfx.Play("level"); Sfx.UiConfirm(); Note($"New bonus stats on {it.Name}", it.Color); Game.Notify(); Game.Save(); OpenSmith();
             }, true));
         }
 
