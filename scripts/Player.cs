@@ -102,7 +102,8 @@ public partial class Player : CharacterBody3D, IDamageable
         {
             // the drawn hero: base body + separate gear models. HeroRig stays as the invisible pose source (hand targets, look-at).
             var ap = Races.Look(Game.D); _av = new Avatar { Name = "Avatar", Scale = new Vector3(1 / ap.Bulk, 1 / ap.Height, 1 / ap.Bulk) };
-            _rig.AddChild(_av); _av.Build(ap, Game.D.Name); _av.OwnHeadLayer = true; HideRig();   // head pieces on their own layer: the first-person camera skips them _feet = FootPlant.Attach(_av, GetRid());   // feet on slopes
+            _rig.AddChild(_av); _av.Build(ap, Game.D.Name); _av.OwnHeadLayer = true; HideRig();   // head pieces on their own layer: the first-person camera skips them
+            _feet = FootPlant.Attach(_av, GetRid());   // feet on slopes
             if (_feet != null) _feet.Stepped = at => { float sp = new Vector2(Velocity.X, Velocity.Z).Length(); if (sp > .6f && IsOnFloor() && !Mounted) { Sfx.Step(at, this, sp); Rig?.StepBob(); } };   // footsteps on the real footfalls   // the cape is an equipment slot now (Avatar.Dress)
         }
         _trail = new SwordTrail(); AddChild(_trail);

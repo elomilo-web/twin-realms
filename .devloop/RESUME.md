@@ -1,10 +1,13 @@
 # RESUME (updated 2026-11-26)
 
-## Where things stand
-- Work list: .devloop/FOCUS.txt. Done: F-01..F-32, F-34, F-35.
-- Next: F-33 (structures between towns), then F-36..F-45.
-- Ask the user before multiplayer tests (F-43/F-44). No bot / mp runs unless asked.
-- AFTER FOCUS.txt is finished: the user's second list, .devloop/AFTER_FOCUS.txt (33 items A-01..A-33, given 2026-11-26).
+## Where things stand (2026-11-27)
+- FOCUS.txt: every item is coded. F-01..F-32, F-34, F-35 were verified in game ([x]). F-33, F-36..F-44 are [~]: coded and compiling but NOT run in game
+  (the owner said: write the code, do not run Godot or bots; he play tests). F-45 (full playthrough) is the owner's.
+- AFTER_FOCUS.txt (the owner's second list, A-01..A-33): every item is coded and marked [x] with a note, NONE run in game.
+- Next: wait for the owner's play-test findings and fix what he reports. Each note lists what to look at.
+- Open follow-ups named in the notes: no bear / bird models for forms, thrown weapons fly as arrows, no left-handed swing clips,
+  no dance clip or tavern music track, hoe tool, seeds in chests, snakes / scorpions / swimming animals, the two-client tests.
+- No bot / mp / capture / Godot runs unless the owner asks. New music .wav files need one editor open to import. Net protocol is 16.
 
 ## How to resume
 1. `git status`; `dotnet build`.

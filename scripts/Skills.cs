@@ -237,7 +237,8 @@ public static class Skills
         c.DurMul = Mathf.Max(.3f, dur); c.TickMul = Mathf.Max(.25f, tick); c.Rank = rank;
         c.Dur = k.Dur * Mathf.Max(.3f, dur); c.Tick = k.Tick; c.Heal = k.Heal * Mathf.Max(0, heal); c.ManaBack = Mathf.Min(c.ManaBack, 90f);
         c.Speed = k.Speed; c.Range = k.Range; c.Arc = k.Arc; c.Delay = k.Delay;
-        c.Mp = k.Mp * Mathf.Max(0, cost) * (1f - Mathf.Clamp(d.Weapon?.Mc ?? 0f, 0f, .9f));   // a weapon's mana cost cut never makes mana negative c.St = k.St * Mathf.Max(0, cost);
+        c.Mp = k.Mp * Mathf.Max(0, cost) * (1f - Mathf.Clamp(d.Weapon?.Mc ?? 0f, 0f, .9f));   // a weapon's mana cost cut never makes mana negative
+        c.St = k.St * Mathf.Max(0, cost);
         float cdMul = Mathf.Max(.2f, cd), castMul = Mathf.Max(.3f, cast);
 
         // ---- every modifier does something on every kind of skill: where its natural effect has no meaning, it gets a stand-in
