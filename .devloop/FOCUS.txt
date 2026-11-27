@@ -801,17 +801,39 @@ PHASE 8 - ECONOMY AND PETS
 PHASE 9 - AUDIO AND MUSIC
 ================================================================================
 
-[ ] F-39  MORE RELAXING MUSIC AND A MUSIC SETTINGS MENU
+[~] F-39  MORE RELAXING MUSIC AND A MUSIC SETTINGS MENU
     DONE WHEN: more relaxing tracks are added for towns, exploring, night,
     and the player's home. The settings menu lets the player turn each track
     or category on and off. There are volume sliders for music, effects,
     ambient sound, and voice.
+    NOTE (2026-11-27): CODE ONLY, NOT RUN IN GAME (nobody has listened to it). scripts/Music.cs + data/music.json (categories home,
+      town, explore, night, dungeon, boss). Seven new original songs synthesised by tools/music_gen.ps1 into assets/audio/music/gen:
+      Hearthside 80 s and Market Morning 69 s (town), The Open Road 87 s and Far Hills 80 s (explore), Starlit 77 s and Lantern Watch
+      89 s (night), By the Fire 87 s (home); peak -3 dBFS, RMS -17..-20 dBFS, loop seams small. The eight old songs are mapped in.
+      The picker goes boss lair > dungeon > home (9 m round the home chest) > town > night / Shadow > exploring, crossfades 3.5 s,
+      never plays a song twice in a row, 20-70 s of quiet between songs. Buses Music, Effects, Ambient, Voice made in code; rain and
+      thunder on Ambient, grunts and roars on Voice. Settings > Audio: sliders Master, Music, Effects, Ambient sound, Voice (plus
+      Footsteps, Interface), a Now playing line with Skip, a switch per category and per song. Dev: /music (list, check, sim, skip, ctx).
+    PLAY TEST: open the project in the editor once so the new .wav files are imported (needed before the next release); /music check;
+      listen to each new song and its loop point; each slider affects only its own sounds; the Audio page layout.
+    ASSUMPTION: 'home' is the hero's storage chest in Oakhaven; the Shadow realm counts as night.
 
-[ ] F-40  PLAYABLE INSTRUMENTS
+[~] F-40  PLAYABLE INSTRUMENTS
     DONE WHEN: instruments (for example lute, flute, drum, harp) can be
     crafted or bought. With one equipped, the player plays notes on the
     keyboard: a row of keys maps to a scale, and Shift plays an octave up.
     Other players hear it online, and nearby NPCs can react.
+    NOTE (2026-11-27): CODE ONLY, NOT RUN IN GAME. scripts/Instruments.cs + data/instruments.json: Lute (140g; 4 timber, 2 leather
+      strips), Flute (110g), Hand Drum (90g), Harp (220g). Bought as shop rows or crafted (Crafting > Blocks > Instruments); saved on the
+      hero. Key 9 (rebindable) takes the chosen one out and puts it away, 0 switches instrument. While it is out the hero holds a
+      block-style model, keys 1-8 play its scale and Shift plays an octave up; skill keys, attacks and the rod wait. A strip above the
+      hotbar shows key > note. Tones are synthesised at runtime (plucked string, breathy pipe, pitched drum), positional at the hero.
+      Online: one small message per note (at most 14 a second), played at that player's hero within 45 m (scripts/NetMusic.cs).
+      NPCs within 10 m turn after four notes, say a line by role and standing and cheer (guards grumble at night), toss 1-4 gold now
+      and then, and after a longer piece give +1 standing (once per 4 minutes per NPC). Dev: /play (give, <instrument> <notes>, remote, react).
+    PLAY TEST: /play give all, key 9, the four timbres, the strip's position on the HUD, how each model sits in the hand, NPC reactions;
+      with two clients the other player hears it (server must be redeployed with the clients).
+    ASSUMPTION: note keys 1-8 are fixed; there is no playing animation yet.
 
 
 ================================================================================
