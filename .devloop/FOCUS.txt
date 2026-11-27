@@ -411,10 +411,13 @@ PHASE 4 - BUILDING BLOCKS AND PROTECTED AREAS
       sines, Torch.HueFlicker); only the nearest 8 (world.torchFlames) carry the small flame + smoke particles (reused the Torch
       CPU particles rather than adding GPU ones). Capture blocks_torches (night): 5 lights, energy 1.3-1.8 with colour shift.
 
-[ ] F-18  PROTECTED TOWN ZONES
+[x] F-18  PROTECTED TOWN ZONES
     DONE WHEN: each main town has a protected radius (set in data). Inside
     it, players cannot mine or place blocks, and trying shows a clear
     message. The zone border can be shown on the map. Admins can bypass it.
+    NOTE (2026-11-26): done in commit e943b11 (the mark was missed then): data/towns.json holds 13 towns with radii;
+      scripts/TownZones.cs blocks dig / place / blast inside them with a message (PlayerBlocks, BlockFx), the host rejects
+      such edits from clients (NetBlocks), UiMap draws the zone rings, Admin.cs has the bypass hook (wired up in F-43).
 
 [x] F-19  ALL STRUCTURES IN BLOCK STYLE
     DONE WHEN: every structure not built from game blocks (houses, walls,
@@ -553,7 +556,7 @@ PHASE 5 - WATER, FISHING, AND LIFE SKILLS
 PHASE 6 - NPCS AND A LIVING WORLD
 ================================================================================
 
-[ ] F-27  ABOUT 100 NPCS ACROSS THE WORLD
+[x] F-27  ABOUT 100 NPCS ACROSS THE WORLD
     DONE WHEN: about 100 named NPCs are placed in towns, on roads, and in the
     wilderness. Each has:
       - a role (merchant, guard, farmer, blacksmith, hunter, traveller, quest
@@ -561,6 +564,16 @@ PHASE 6 - NPCS AND A LIVING WORLD
       - a home,
       - a daily schedule (work, eat, sleep, socialize), and
       - a personality in data (traits, likes, dislikes, speech style).
+    NOTE (2026-11-26): data/npcs.json: 106 named NPCs (86 in 14 towns, 10 on roads, 10 in the wilds), 42 roles, each with
+      home, work spot, a 24 h schedule (15 templates + per-NPC shift: sleep, eat, work, socialize, patrol, travel) and a
+      personality (traits, likes, dislikes, speech style, greetings). scripts/NpcDb.cs loads and resolves places (block houses
+      registered by Builder / Lands via NpcHomes), scripts/NpcSchedule.cs streams nodes within 120 m and walks them between
+      places through house doors; sleepers are hidden indoors. Where each one is follows from the synced time of day only.
+      Dialog got "Tell me about yourself" (speech style) and trade / smithing for merchant and smith roles (Ui.cs).
+      Checked with "/npcs" (every entry complete, 0 BAD) and captures npc_report, npc_square_day, npc_night, npc_road,
+      npc_oak, npc_wild, npc_kesh (nodes stand where the schedule says; 56-69 fps).
+      The hook-up edits (Builder, Lands, Ui, Npc) went in with the F-34/F-35 commit; this commit adds the three new files.
+    ASSUMPTION: the 10 old Oakhaven NPCs (data/quests.json) count toward the 100 and keep their quests and shops.
 
 [ ] F-28  NPC MEMORY AND REPUTATION
     DONE WHEN:
