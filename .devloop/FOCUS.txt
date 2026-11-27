@@ -840,11 +840,23 @@ PHASE 9 - AUDIO AND MUSIC
 PHASE 10 - UI
 ================================================================================
 
-[ ] F-41  COMPACT MENUS
+[~] F-41  COMPACT MENUS
     DONE WHEN: the inventory, character, skills, gems, crafting, quest
     journal, and settings menus are tighter: less padding, tabs instead of
     extra windows, and no wasted space. Everything stays readable at
     1280x720 and at 4K. Before and after screenshots are in the log.
+    NOTE (2026-11-27): CODE ONLY, NOT RUN IN GAME (no before / after screenshots; sizes are from the code). UI scale: the project
+      stretches a 1152x648 canvas to the window, so 720p and 4K share one layout (a 15 px font is about 17 px at 720p, 50 px at 4K).
+      Spacing now lives in UiTheme constants: window padding 14/10 (was 22/14), screen margin 12 (24), gaps 6 and 4, card padding 8/4
+      (10/6), button padding 10/3 (14/5), title 20 (24), tabs 16 (18), body font 15 (16), smallest 12, one-line controls 26 high.
+      Pack 820x560 -> 708x416: the pickup filter is a fourth tab, help lines became tooltips. Character 1120x620 -> 1050x472: one
+      window with tabs Attributes | Life skills | All bonuses (bonuses was its own window). Skills 1100x640 -> 1080x590. Crafting
+      860x640 -> 820x540. Journal 700x560 -> 680x500 (records are one line beside the tabs). Settings 940x600 -> 780x580: tabs on top,
+      one-line rows, the hint for the row under the mouse or pad focus shows in one line at the bottom. Gems tab tightened.
+      Not merged: Macros / Modifier tree / Spellcraft / Basic attacks are still separate windows opened from Skills.
+    PLAY TEST: windows that now scroll because a height is a few pixels short (Pack, Character, Journal: one number each, PackH / CharH
+      in Ui.cs, SetH in UiSystem.cs); pack doll slots overlapping; pad focus and LB / RB tabs; buttons that feel cramped in windows
+      not reviewed (shop, smith, pets, auction); the smaller X button; 4K.
 
 
 ================================================================================
