@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
@@ -227,7 +227,8 @@ public partial class Ui : CanvasLayer
         var v = Frame("dialog", n.NpcName, new Vector2(900, 220), () => { });
         var d = Game.D; int k = 0;
         // F-28: the opening line comes from what the NPC remembers of the hero; below it, the standing with it and its town
-        string hello = nr != null ? NpcMemory.Greet(nr, n.Role == "arena" ? "" : n.NextLine()) : n.NextLine();
+        string own = Story.NpcLine(n.Id) is { Length: > 0 } sl ? sl : n.NextLine();   // F-31: a quest can change what an NPC has to say
+        string hello = nr != null ? NpcMemory.Greet(nr, n.Role == "arena" ? "" : own) : own;
         bool refuses = nr != null && NpcMemory.Refuses(nr);
         if (n.Role == "arena" && !refuses) hello = (nr != null ? hello + " " : "") + $"Welcome to the Crimson Arena. Best wave: {d.BestWave}. Best duel streak: {d.BestDuel}. Waves pay valor (first at wave {Valor.NextMilestone(0)}), spent with Sera in Oakhaven; leave by the gate whenever you like.";
         Row(v, hello, Parch, 18);
@@ -248,6 +249,12 @@ public partial class Ui : CanvasLayer
             else if (s.S == 1) DlgOpt(v, ++k, q.Name + " (in progress)", () => Say(n, q.Goal + (q.Need > 1 ? $" ({s.N}/{q.Need})" : "") + ".", ("Back", () => Talk(n))));
             else if (Quests.Available(q)) DlgOpt(v, ++k, "Quest: " + q.Name + (q.Lvl > 0 ? $" (lvl {q.Lvl}+)" : ""), () => Say(n, q.Offer, ("Accept", () => { Quests.Accept(q); Close(); }), ("Not now", () => Talk(n))));
         }
+        foreach (var (label, sq, talk) in Story.For(n.Id))
+        {   // F-31: story quests (data/story.json): the ones this NPC offers and the conversations of active ones
+            var q2 = sq; var t2 = talk;
+            if (t2 == null) DlgOpt(v, ++k, label, () => Say(n, Story.Fill(q2.Offer), ("Accept", () => { Story.Accept(q2); Close(); }), ("Not now", () => Talk(n))));
+            else DlgOpt(v, ++k, label, () => StoryTalk(n, q2, t2));
+        }
         if (n.Role == "arena")
         {
             DlgOpt(v, ++k, "Wave Survival", () => { Close(); Arenas.Start("waves"); });
@@ -267,6 +274,21 @@ public partial class Ui : CanvasLayer
             DlgOpt(v, ++k, "Insult them", () => Say(n, NpcMemory.Insult(nr), ("Leave", Close)));
         }
         DlgOpt(v, ++k, "Farewell", Close);
+    }
+    /// <summary>Dev captures: this NPC's first quest conversation, opened directly.</summary>
+    public static void DevStoryTalk(Npc n) { foreach (var (_, q, t) in Story.For(n.Id)) if (t != null && I != null) { I.StoryTalk(n, q, t); return; } }
+    /// <summary>F-31: a quest conversation: what the NPC says, the choices open to this hero, and (greyed) the ones that need something more.</summary>
+    void StoryTalk(Npc n, Story.Quest q, Story.Talk t)
+    {
+        var v = Frame("dialog", n.NpcName, new Vector2(900, 300), () => { }); Row(v, Story.Fill(t.Say), Parch, 18); int k = 0;
+        for (int i = 0; i < t.Choices.Count; i++)
+        {
+            int ci = i; var c = t.Choices[i];
+            if (!Story.Cond(c.If, out string why)) { Row(v, $"      {c.Text}   (needs {why})", Dim, 15); continue; }
+            DlgOpt(v, ++k, c.Text, () => { string reply = Story.Pick(q, t, ci); if (reply != "") Say(n, Story.Fill(reply), ("Farewell", Close)); else Close(); });
+        }
+        if (t.Choices.Count == 0) DlgOpt(v, ++k, "Continue", () => { Story.Pick(q, t, -1); Close(); });
+        DlgOpt(v, ++k, "Not now", () => Talk(n));
     }
     /// <summary>F-28: pick one pack material to hand to the NPC (one gift per NPC per game day); what it thinks of it is remembered.</summary>
     void GiftPick(Npc n, NpcRec nr)
@@ -631,6 +653,8 @@ public partial class Ui : CanvasLayer
         Attr("Vitality", "Health, stamina and armor", "hp", d.Vit, n => d.Vit += n, new Color("ffd36a")); Attr("Magic", "Mana and spell power", "zap", d.Mag, n => d.Mag += n, new Color("8fb0ff"));
     }
     // ---------------------------------------------------------------- journal
+    static string _jTab = "active";
+    public static void DevJournalTab(string t) => _jTab = t is "done" or "failed" ? t : "active";
     public void OpenJournal()
     {
         var v = Frame("journal", "Journal", new Vector2(700, 560), OpenJournal); var d = Game.D;
@@ -638,9 +662,37 @@ public partial class Ui : CanvasLayer
         var gr = new GridContainer { Columns = 3 }; gr.AddThemeConstantOverride("h_separation", 28); gr.AddThemeConstantOverride("v_separation", 2); v.AddChild(gr);
         foreach (var (k, val) in new[] { ("Best wave", d.BestWave), ("Best duel streak", d.BestDuel), ("Deepest depth", d.Deepest), ("Kills", d.Kills), ("Valor", d.Valor) })
         { var cell = new HBoxContainer(); cell.AddThemeConstantOverride("separation", 8); gr.AddChild(cell); Lbl(k, 15, Parch, cell); Lbl(val.ToString(), 17, Gold, cell); }
-        Header("Active quests", v);
-        var sc = Scroll(v, 400); var list = Inner(sc); var act = Quests.Active(); list.AddThemeConstantOverride("separation", 8); sc.HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled;
-        if (act.Count == 0) Empty(list, "No active quests. Speak to Elder Maren, Guard Tomas or Kael.");
+        // F-31: active, finished and failed quests (story quests of data/story.json and the old ones of data/quests.json)
+        var sAct = Story.With(1).ToList(); var sDone = Story.With(2).ToList(); var sFail = Story.With(3).ToList(); var oldDone = Quests.All.Where(q => Game.Q(q.Id).S == 3).ToList();
+        var tabs = new HBoxContainer(); v.AddChild(tabs);
+        Tabs(tabs, _jTab, ("active", $"Active ({Quests.Active().Count + sAct.Count})", () => { _jTab = "active"; OpenJournal(); }), ("done", $"Finished ({oldDone.Count + sDone.Count})", () => { _jTab = "done"; OpenJournal(); }), ("failed", $"Failed ({sFail.Count})", () => { _jTab = "failed"; OpenJournal(); }));
+        var sc = Scroll(v, 380); var list = Inner(sc); var act = Quests.Active(); list.AddThemeConstantOverride("separation", 8); sc.HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled;
+        if (_jTab != "active")
+        {
+            var shown = _jTab == "done" ? sDone : sFail;
+            if (shown.Count == 0 && (_jTab == "failed" || oldDone.Count == 0)) Empty(list, _jTab == "done" ? "Nothing finished yet." : "No quest has gone wrong. Yet.");
+            foreach (var q in shown)
+            {
+                var s = Story.St(q.Id); var card = CardBox(list); var cv = new VBoxContainer(); cv.AddThemeConstantOverride("separation", 4); card.AddChild(cv);
+                Row(cv, q.Name.ToUpperInvariant() + (q.Arc != "" && Story.Arcs.TryGetValue(q.Arc, out var arc) ? "   " + arc.name : ""), _jTab == "done" ? Gold : Muted, 17);
+                Row(cv, q.Summary, Parch, 15);
+                if (_jTab == "done") { if (s.End != "" && q.Endings.TryGetValue(s.End, out var et)) Row(cv, et, new Color(.75f, .9f, .75f), 15); }
+                else Row(cv, s.End != "" ? "Failed: " + s.End + "." : "Failed.", Muted, 15);
+            }
+            if (_jTab == "done") foreach (var q in oldDone) { var card = CardBox(list); var cv = new VBoxContainer(); card.AddChild(cv); Row(cv, q.Name.ToUpperInvariant(), Gold, 17); Row(cv, q.Goal + ".", Dim, 15); }
+            return;
+        }
+        foreach (var q in sAct)
+        {
+            if (Story.Now(q) is not { } st) continue; var card = CardBox(list); var cv = new VBoxContainer(); cv.AddThemeConstantOverride("separation", 4); card.AddChild(cv);
+            Row(cv, q.Name.ToUpperInvariant() + (q.Arc != "" && Story.Arcs.TryGetValue(q.Arc, out var arc) ? "   " + arc.name : ""), Gold, 17);
+            if (q.Motive != "" && NpcDb.Get(q.Giver) is { } gv) Row(cv, $"{gv.Name}: {q.Motive}", Dim, 13);
+            Row(cv, st.Text, Parch, 15); bool done = Story.ObjsDone(q, st);
+            for (int i = 0; i < st.Objs.Count; i++) { bool ok = Story.Have(q, st, i) >= st.Objs[i].N; Row(cv, (ok ? "[x] " : "[ ] ") + Story.ObjText(q, st, i), ok ? Dim : Parch, 15); }
+            foreach (var who in st.Talks.Where(t => (done || t.Early) && Story.Cond(t.If)).Select(t => t.Npc).Distinct()) Row(cv, "Speak to " + (NpcDb.Get(who)?.Name ?? who) + ".", new Color(.55f, 1f, .55f), 15);
+            float left = Story.HoursLeft(q); if (left >= 0) Row(cv, $"Time left: {left:0.0} hours", left < 3 ? Muted : Parch, 14);
+        }
+        if (act.Count == 0 && sAct.Count == 0) Empty(list, "No active quests. People with work for you say so when you talk to them.");
         foreach (var q in act)
         {
             var s = Game.Q(q.Id); bool rdy = s.S == 2; var card = CardBox(list, rdy); var cv = new VBoxContainer(); cv.AddThemeConstantOverride("separation", 4); card.AddChild(cv);
@@ -650,8 +702,7 @@ public partial class Ui : CanvasLayer
             if (rdy) Row(cv, "Return to " + Quests.GiverName(q.Giver) + ".", Parch, 15);
             if (q.Gold > 0 || q.Xp > 0) Row(cv, $"Reward: {(q.Gold > 0 ? q.Gold + " gold" : "")}{(q.Gold > 0 && q.Xp > 0 ? ", " : "")}{(q.Xp > 0 ? q.Xp + " xp" : "")}", Gold with { A = .8f }, 14);
         }
-        int done = 0; foreach (var q in Quests.All) if (Game.Q(q.Id).S == 3) done++;
-        Row(list, $"Completed: {done}", Dim, 14);
+
     }
 
     // ---------------------------------------------------------------- skill tree

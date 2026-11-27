@@ -17,7 +17,7 @@ if (-not (Test-Path $rep)) { "CAPTURE_FAIL: no report (crashed?), see $log"; Get
 # the long-known missing outfit normal maps are not counted (those files never existed)
 # (stderr is a separate file, so a cut at "[DEVCAP] done" cannot work; the .NET teardown on quit logs a harmless "Handle is not initialized")
 $all = @(Get-Content $log, .devloop/capture_err.txt -ErrorAction SilentlyContinue)
-$errs = @($all | Select-String "SCRIPT ERROR|ERROR:|Unhandled exception|\[DEVCAP\].*failed|tour threw" | Where-Object { $_ -notmatch "assets/models/outfit/T_|Handle is not initialized|RID allocations of type .* were leaked at exit" } | ForEach-Object { $_.Line.Trim() } | Select-Object -Unique -First 40)
+$errs = @($all | Select-String "SCRIPT ERROR|ERROR:|Unhandled exception|\[DEVCAP\].*failed|tour threw" | Where-Object { $_ -notmatch "\[DEVCAP\] cmd>|\[DEVCAP\] \w+: \d+ fps|assets/models/outfit/T_|Handle is not initialized|RID allocations of type .* were leaked at exit" } | ForEach-Object { $_.Line.Trim() } | Select-Object -Unique -First 40)
 $j = Get-Content $rep -Raw | ConvertFrom-Json; $j.errors = $errs
 $j | ConvertTo-Json -Depth 5 | Out-File -Encoding utf8 $rep
 $n = (Get-ChildItem .devloop/screenshots/current -Filter *.png).Count

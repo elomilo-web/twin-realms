@@ -38,6 +38,7 @@ public static class Quests
     }
     public static void OnKill(string type, int realm, bool boss)
     {
+        Story.OnKill(type, realm, boss);   // F-31: story quests count kills too
         Load(); foreach (var q in All) { if (Game.Q(q.Id).S != 1 || q.Kind != "kill") continue; if (q.MatchType != "" && q.MatchType != type) continue; if (q.MatchRealm >= 0 && q.MatchRealm != realm) continue; Progress(q); }
     }
     public static void OnWave(int wave) { Load(); foreach (var q in All) if (Game.Q(q.Id).S == 1 && q.Kind == "wave" && wave >= q.MinWave) Progress(q); }

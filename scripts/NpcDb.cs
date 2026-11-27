@@ -39,6 +39,7 @@ public static class NpcDb
 {
     public static readonly List<NpcRec> All = new();
     public static readonly Dictionary<string, NpcTown> Towns = new();
+    public static readonly Dictionary<string, List<NpcAct>> Templates = new();   // the schedule templates by name (a quest can move an NPC onto another one: Story.NpcDays)
     static readonly Dictionary<string, NpcRec> _by = new();
     static bool _loaded;
     public static NpcRec? Get(string id) => _by.TryGetValue(id, out var r) ? r : null;
@@ -87,7 +88,7 @@ public static class NpcDb
             Towns[t.Name] = tw;
         }
         var tpl = new Dictionary<string, JsonElement>();
-        if (r.TryGetProperty("schedules", out var ss)) foreach (var s in ss.EnumerateObject()) tpl[s.Name] = s.Value.Clone();
+        if (r.TryGetProperty("schedules", out var ss)) foreach (var s in ss.EnumerateObject()) { tpl[s.Name] = s.Value.Clone(); Templates[s.Name] = s.Value.EnumerateArray().Select(a => Act(a, 0)).ToList(); }
         var core = new HashSet<string>();
         if (FileAccess.FileExists("res://data/quests.json")) { using var q = JsonUtil.Load("res://data/quests.json"); foreach (var n in q.RootElement.GetProperty("npcs").EnumerateArray()) core.Add(JsonUtil.S(n, "id")); }
         foreach (var n in r.GetProperty("npcs").EnumerateArray())
@@ -115,8 +116,9 @@ public static class NpcDb
     static bool In(NpcAct a, float h) => a.From <= a.To ? h >= a.From && h < a.To : h >= a.From || h < a.To;
     public static NpcAct Now(NpcRec r, float h)
     {
-        foreach (var a in r.Schedule) if (In(a, h)) return a;
-        return r.Schedule.Count > 0 ? r.Schedule[0] : new NpcAct();
+        var sch = Story.NpcDays(r.Id) is { Length: > 0 } t && Templates.TryGetValue(t, out var o) ? o : r.Schedule;   // F-31: a quest changed its days
+        foreach (var a in sch) if (In(a, h)) return a;
+        return sch.Count > 0 ? sch[0] : new NpcAct();
     }
     /// <summary>Hours spent on "travel"/road "patrol" so far today: where a traveller is along its road follows from it.</summary>
     static float RoadHours(NpcRec r, float h)

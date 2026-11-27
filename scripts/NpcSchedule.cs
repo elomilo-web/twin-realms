@@ -34,7 +34,7 @@ public partial class NpcSchedule : Node
 
     static NpcSchedule? _i;
     public override void _Ready() => _i = this;
-    public override void _Process(double delta) { _t -= delta; if (_t > 0) return; _t = Dt; Tick(); }
+    public override void _Process(double delta) { Story.Tick((float)delta); _t -= delta; if (_t > 0) return; _t = Dt; Tick(); }   // Story: quest objectives and time limits (F-31)
     /// <summary>The NPC's node, if it has one now (for /npc and the later Phase 6 items).</summary>
     public static Npc? NodeOf(string id) => _i != null && IsInstanceValid(_i) && _i._live.TryGetValue(id, out var l) && IsInstanceValid(l.N) ? l.N : null;
     public static NpcLive? LiveOf(string id) => _i != null && IsInstanceValid(_i) && _i._live.TryGetValue(id, out var l) && IsInstanceValid(l.N) ? l : null;
@@ -61,6 +61,12 @@ public partial class NpcSchedule : Node
             var (at, act, hidden, moving, house) = NpcDb.Target(r, h);
             _live.TryGetValue(r.Id, out var L);
             if (L != null && !IsInstanceValid(L.N)) { _live.Remove(r.Id); L = null; }
+            if (Story.NpcGone(r.Id))
+            {   // F-31: a quest sent this one away (left town, jailed, dead): no node; a core NPC is kept but hidden
+                if (L != null) { NpcSocial.Break(L); if (r.Core) { if (!L.Hidden) Show(L, false); } else { L.N.QueueFree(); _live.Remove(r.Id); } }
+                else if (r.Core && _core.TryGetValue(r.Id, out var gn) && IsInstanceValid(gn) && gn.Visible) { _live[r.Id] = L = new NpcLive { N = gn, Rec = r, Last = gn.GlobalPosition }; Show(L, false); }
+                continue;
+            }
             if (L == null && r.Core)
             {
                 if (!_core.TryGetValue(r.Id, out var cn) || !IsInstanceValid(cn)) continue;

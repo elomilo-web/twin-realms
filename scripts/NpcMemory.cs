@@ -64,6 +64,13 @@ public static class NpcMemory
         if (town != 0 && r.Town != "") Ui.Note($"{TownName(r.Town)}: standing {(town > 0 ? "+" : "")}{town}", town > 0 ? new Color(.6f, .9f, .6f) : new Color(1f, .6f, .5f));
         Game.Notify();
     }
+    /// <summary>Standing moved by something else (story quests): with an NPC (and its town), or with a town alone.</summary>
+    public static void Change(string npcId, int npc, int town = 0) { if (NpcDb.Get(npcId) is { } r) { Of(r.Id).Met = true; Add(r, npc, town); } }
+    public static void ChangeTown(string town, int n)
+    {
+        if (town == "" || n == 0) return; AddTown(town, n);
+        Ui.Note($"{TownName(town)}: standing {(n > 0 ? "+" : "")}{n}", n > 0 ? new Color(.6f, .9f, .6f) : new Color(1f, .6f, .5f)); Game.Notify();
+    }
     public static string TownName(string town) => NpcDb.Towns.GetValueOrDefault(town)?.Name ?? town;
     public static string Tier(int rep) { Load(); string n = "Neutral"; foreach (var (at, name) in _tiers) if (rep >= at) n = name; return n; }
     /// <summary>Standing used for prices: the NPC's own and its town's, weighted (-100..100).</summary>

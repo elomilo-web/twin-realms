@@ -67,6 +67,9 @@ public class PlayerStats
     // NPC memory and standing (NpcMemory.cs, focus F-28): what each NPC of data/npcs.json remembers of this hero, and standing per town. Older saves load with none.
     public Dictionary<string, NpcMem> Npcs = new();
     public Dictionary<string, int> TownRep = new();
+    // Story quests (Story.cs, data/story.json, focus F-31): state per quest, and world flags set by their choices (also "npc:<id>:gone|schedule|line"). Older saves load with none.
+    public Dictionary<string, StoryState> Story = new();
+    public Dictionary<string, string> Flags = new();
 
     // ---- derived stats (methods so they are not serialised)
     static TreeStats TS => Game.TS;

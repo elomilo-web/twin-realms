@@ -201,7 +201,16 @@ public partial class HudCanvas : Control
         if (Game.Set.ShowFps) Txt(new Vector2(sz.X - pad - 200, sz.Y - 4), $"{Engine.GetFramesPerSecond():0} FPS", 11, UiTheme.Dim, HorizontalAlignment.Right, 200);
         if (Arenas.Active) Txt(new Vector2(sz.X / 2 - u * 20, infoY + fs(1.2f) + 4), Arenas.Status, fs(1.15f), UiTheme.Highlight, HorizontalAlignment.Center, u * 40);
         // quest tracker, top right
-        var aq = Quests.Active();
+        var aq = new System.Collections.Generic.List<(string name, string line, int sig)>();
+        foreach (var q in Quests.Active()) { var s = Game.Q(q.Id); aq.Add((q.Name, s.S == 2 ? "Return to " + Quests.GiverName(q.Giver) : q.Goal + (q.Need > 1 ? $" {s.N}/{q.Need}" : ""), q.Id.GetHashCode() * 31 + s.N * 7 + s.S)); }
+        foreach (var q in Story.With(1))
+        {   // F-31: story quests: the first objective still open, else who to speak to
+            if (Story.Now(q) is not { } st) continue; string line = st.Text; int sg = q.Id.GetHashCode() * 31 + st.Id.GetHashCode();
+            for (int i = 0; i < st.Objs.Count; i++) { int hv = Story.Have(q, st, i); sg = sg * 31 + hv; if (hv < st.Objs[i].N && line == st.Text) line = Story.ObjText(q, st, i); }
+            if (line == st.Text && st.Talks.Count > 0 && Story.ObjsDone(q, st)) line = "Speak to " + (NpcDb.Get(st.Talks[0].Npc)?.Name ?? st.Talks[0].Npc);
+            float left = Story.HoursLeft(q); if (left >= 0) line += $"  ({left:0.0} h left)";
+            aq.Insert(0, (q.Name, line, sg));
+        }
         if (aq.Count > 0)
         {
             // right-aligned text needs a box: draw from (right edge - width) with that width
@@ -407,9 +416,9 @@ public partial class HudCanvas : Control
 
     int _qSig; float _qAge = 99, _qA = 1;
     /// <summary>Quest tracker, top right: gold caps name, parchment objective lines with progress, thin gold rule on the left. Dims after 10 s, pulses on progress.</summary>
-    void DrawTracker(System.Collections.Generic.List<QuestDef> aq, Vector2 sz, float u, float pad, int nameSz, int lineSz, float dt)
+    void DrawTracker(System.Collections.Generic.List<(string name, string line, int sig)> aq, Vector2 sz, float u, float pad, int nameSz, int lineSz, float dt)
     {
-        int sig = 17; for (int i = 0; i < aq.Count && i < 3; i++) { var qi = aq[i]; var si = Game.Q(qi.Id); sig = sig * 31 + qi.Id.GetHashCode(); sig = sig * 31 + si.N * 7 + si.S; }
+        int sig = 17; for (int i = 0; i < aq.Count && i < 3; i++) sig = sig * 31 + aq[i].sig;
         if (sig != _qSig) { _qSig = sig; _qAge = 0; } else _qAge += dt;
         float target = _qAge < 10f ? 1f : .6f; _qA = Mathf.MoveToward(_qA, target, dt * (target > _qA ? 6f : .5f));
         float pulse = _qAge < .7f ? 1f - _qAge / .7f : 0f;
@@ -418,12 +427,11 @@ public partial class HudCanvas : Control
         if (pulse > 0) DrawRect(new Rect2(x - 8, y - 2, qw + 8, h + 4), new Color(Gold, pulse * .18f));
         var gold = Gold.Lightened(pulse * .4f) with { A = _qA }; var par = Parch with { A = _qA };
         DrawRect(new Rect2(x - 7, y, 2, h), gold);
-        Txt(new Vector2(x, y + nameSz), q0.Name.ToUpper(), nameSz, gold);
+        Txt(new Vector2(x, y + nameSz), q0.name.ToUpper(), nameSz, gold);
         for (int i = 0; i < rows; i++)
         {
-            var q = aq[i]; var s = Game.Q(q.Id);
-            string line = s.S == 2 ? "Return to " + Quests.GiverName(q.Giver) : q.Goal + (q.Need > 1 ? $" {s.N}/{q.Need}" : "");
-            if (i > 0) line = q.Name + ": " + line;
+            string line = aq[i].line;
+            if (i > 0) line = aq[i].name + ": " + line;
             Txt(new Vector2(x, y + nameSz + 6 + (i + 1) * (lineSz + 4) - 4), line, lineSz, par, HorizontalAlignment.Left, qw);
         }
     }
