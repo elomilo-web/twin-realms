@@ -10,8 +10,9 @@ and fix what the user still sees wrong (marked RECHECK).
 STATUS KEY:   [ ] to do     [x] done     [!] blocked
 
 --- BUGS AND FEEL (first) ------------------------------------------------------
-[ ] A-01  RETICLE vs MINING / PLACING NOT ALIGNED (RECHECK F-07): the mining tool and the aiming reticle are not aligned;
+[x] A-01  RETICLE vs MINING / PLACING NOT ALIGNED (RECHECK F-07): the mining tool and the aiming reticle are not aligned;
           reticle, placing and mining must hit the same block.
+          NOTE (2026-11-27, coded, NOT run in game: play test): the ray itself was right; four things around it were not. The aim was solved before the camera moved each frame, so outline and ghost trailed the reticle while turning (now solved once per drawn frame after the camera, and digging / placing use that same answer). Slabs, stairs, fences, ladders, doors, torches and chests were hit as full cubes (now their real shapes). Slab / stair half used a second ray (now the same one). The hero swung along the camera, not at the block (now turns and bends to the hit point; chips fly from it). Build mode shows a small cross, gold when a block is in reach. Files: BlockAim.cs, PlayerBlocks.cs, CameraRig.cs, Hud.cs, HeroPose.cs.
 [x] A-02  STAMINA / RUN STUCK: still getting stuck running even when not pushing run.
           NOTE (2026-11-27, coded, NOT run in game: play test): four causes fixed. A lost Shift key-up (menu, Alt-Tab) left sprint on: Inputs.ReleaseStuckKeys asks Windows whether held keys are really down, Inputs.ForceRelease sends real releases. Sprint is recomputed every frame (held, moving, not attacking / casting / blocking / sneaking). An empty bar no longer flickers: jog until stamina is back to 25 (tuning.json stamina.sprintResume). The pad L3 run latch drops at an empty bar and after attacks. The sprint animation follows the real sprint state, not speed. Files: Player.cs, Inputs.cs, PadInput.cs, Avatar.cs.
 [x] A-03  BASE ATTACKS HAVE WEIGHT: slow the base attack animation down by a lot, with a delay between swings to give a
@@ -23,10 +24,14 @@ STATUS KEY:   [ ] to do     [x] done     [!] blocked
           NOTE (2026-11-27, coded, NOT run in game: play test): three possible causes fixed (could not be seen without running): the far terrain ended exactly at the block square's edge, leaving a slit of sky (now sinks 1.5 m and overlaps 4 m, look.json terrain); the far sea plane sat 0.37 m above the block sea (now drawn level); the sky just under the horizon was horizon-bright above the far cut (now fog-coloured, fog a little thicker at short view distances). Files: World.cs, WorldEnv.cs, look.json.
 [x] A-06  DAYTIME LASTS LONGER.
           NOTE (2026-11-27, coded, NOT run in game: play test): World.DayPace: daytime runs 3x slower than night, eased over dawn and dusk (tuning.json game.time dayPace 2160, nightPace 720): sun up about 17.5 min (was 6), night about 6 min, whole day about 23.5 min. Villagers' daytime hours are 90 s each. Quest time limits, bounties and other played-time timers unchanged.
-[ ] A-07  NO LAND DESTRUCTION IN DUNGEONS.
-[ ] A-08  SPELLS AND SKILLS DO NOT DESTROY BLOCKS: blocks are only mined.
-[ ] A-09  FIRST PERSON (RECHECK F-09): a first-person mode for mining, and for adventuring if wanted, on a hotkey toggle.
-[ ] A-10  SNEAKING / CROUCHING and LOCK PICKING (RECHECK F-24/F-25: both exist; check they are easy to find and work).
+[x] A-07  NO LAND DESTRUCTION IN DUNGEONS.
+          NOTE (2026-11-27, coded, NOT run in game: play test): BlockFx.NoEdit refuses digging, placing and fire in dungeons and the arena with a note; doors, chests and scripted changes still work. Dungeon mining (and its gem chance) is gone with it. A remote player's edit in a dungeon is not yet guarded.
+[x] A-08  SPELLS AND SKILLS DO NOT DESTROY BLOCKS: blocks are only mined.
+          NOTE (2026-11-27, coded, NOT run in game: play test): all block damage from spells, skills, projectiles, weapon swings and monster attacks removed everywhere (craters, burning, melting, freezing and the rest); spell visuals untouched. Blocks are only removed in build mode with the pickaxe or a weapon used as a tool (axe for wood). Files: BlockFx.cs, Player.cs, PlayerSkills.cs, Projectile.cs, data/blocks.json.
+[x] A-09  FIRST PERSON (RECHECK F-09): a first-person mode for mining, and for adventuring if wanted, on a hotkey toggle.
+          NOTE (2026-11-27, coded, NOT run in game: play test): the F5 toggle (rebindable, remembered) already existed; added Settings > Game rows 'First person' and 'First person while building' (off by default: switches to first person while build mode is out).
+[x] A-10  SNEAKING / CROUCHING and LOCK PICKING (RECHECK F-24/F-25: both exist; check they are easy to find and work).
+          NOTE (2026-11-27, coded, NOT run in game: play test): sneak now has a crouch pose (HeroPose.cs: hips down, legs bent, back lean; tune life.json sneak.crouchDrop / crouchLean), a HUD eye with HIDDEN / SPOTTED, a lower camera, and Left Ctrl as the key (Caps Lock still works); no pad default (bind it in Settings > Controller). Lock picking existed but a solo player never met a lock: about a quarter of treasure chests are now locked (never boss chests), picked ones give 1.5x loot; lockpicks from crafting or the merchant.
 
 --- COMBAT, GEAR, CHARACTER ----------------------------------------------------
 [ ] A-11  MORE WEAPONS, with more variation in weapon sizes and hit boxes.
