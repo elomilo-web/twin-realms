@@ -1,8 +1,8 @@
 # RESUME (updated 2026-11-26)
 
 ## Where things stand
-- Work list: .devloop/FOCUS.txt. Done: F-01..F-30, F-34, F-35.
-- Next: F-31 (story quests: big, several commits), then F-32, F-33, F-36..F-45.
+- Work list: .devloop/FOCUS.txt. Done: F-01..F-31, F-34, F-35.
+- Next: F-32 (crime and guards), then F-33, F-36..F-45.
 - Ask the user before multiplayer tests (F-43/F-44). No bot / mp runs unless asked.
 
 ## How to resume
@@ -16,6 +16,9 @@
 - Capture views npc_* and rep_* in .devloop/viewpoints.json; actions "ui:talk:<id>[/cmd;cmd]", "ui:npcshop:<id>[/cmd;cmd]".
 - Social: NpcSocial (chats, greetings, weather / time lines), bubbles via Npc.Say(text); dev command `/social [chat|stage|greet|log]`.
   `social stage <kind>` stands two NPCs in front of the camera for pictures. Capture views social_*.
+- Story quests: Story.cs + data/story.json (format in its "_help"); dev command `/story [check|flags|resetall|<id> start|goto|pick|objs|late|done|fail]`.
+  World consequences are flags "npc:<id>:gone|schedule|line" (Story.NpcGone / NpcDays / NpcLine). Capture views story_*;
+  actions "ui:journal:<tab>[/cmds]", "ui:storytalk:<npc>[/cmds]".
 - Memory / standing: NpcMemory (Of, Greet, Gift, Insult, QuestDone, Trade, Crime, BuyMul, SellMul, Refuses); dev command `/rep`.
 
 ## Open notes

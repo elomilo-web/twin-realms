@@ -623,7 +623,7 @@ PHASE 6 - NPCS AND A LIVING WORLD
       walls. At most three loose bubbles at once besides running chats. Used by every F-29 line; talking to an NPC (E)
       still opens the dialog window. Pictures social_chat ("Brynn! Still breathing, I see."), social_greet.
 
-[ ] F-31  COMPLEX STORY QUESTS AND MISSIONS
+[x] F-31  COMPLEX STORY QUESTS AND MISSIONS
     DONE WHEN:
       - The quest system supports multiple stages, branching choices,
         conditions (reputation, items, skills, time), failure states, and
@@ -633,6 +633,26 @@ PHASE 6 - NPCS AND A LIVING WORLD
         100 NPCs. Each quest giver has their own motives and personality.
       - A quest journal shows active, finished, and failed quests.
     NOTE: this is a big item. Split it into several commits.
+    NOTE (2026-11-26): two commits. (1) The engine, scripts/Story.cs: quests are read from data/story.json; a quest is a
+      set of stages with objectives (kill by type / in the Shadow / boss, have materials, reach a place, flag, standing,
+      skill, level), time limits (game hours) and fail conditions, and conversations whose choices branch to other
+      stages, named endings or failure. Conditions (standing with NPCs and towns, materials, gold, life skills, level,
+      hour of day, other quests and their endings, world flags, any / not) gate quests, conversations and single
+      choices; a choice the hero cannot take yet is shown greyed with what it needs. Effects pay out and change the
+      world: gold, xp, materials, items, NPC and town standing, flags, and NPC behaviour (gone from the world, another
+      daily schedule, another greeting: NpcSchedule / NpcDb / the dialog read them). State and flags are saved with the
+      hero (PlayerStats.Story, Flags). Journal (J): tabs Active / Finished / Failed with the giver's motive, objectives,
+      time left, the ending reached or why it failed; the HUD tracker shows story quests too. The 9 old quests keep working.
+      (2) The content, data/story.json: 32 quests from 29 quest givers: 6 arcs (The Widening Rift, The Ashen Crown,
+      The Drowned Bells, The Vizier's Game, The Long Night, The Withering Root; 17 quests) and 15 side quests across
+      all six lands, every giver with a written motive. "/story check": 13 multi-stage, 18 with branching choices,
+      20 with conditions, 7 that can fail, 28 that change the world; every stage target, NPC, enemy, material and place
+      resolves. Played through by command in the capture log (story_done view): a branch by who gets the crystals, a
+      timed failure (The Long Watch: Tomas's greeting changes), Captain Rahim moved to the night watch (asleep by day
+      afterwards), Mott Silt gone. Pictures: story_offer, story_choice (locked choices), story_active, story_done,
+      story_failed, story_tracker.
+    ASSUMPTION: quest items are pack materials (no separate quest-item bag); a kill objective may list several enemy
+      types so it can be met wherever the hero hunts; story quests are per hero (not shared in multiplayer).
 
 [ ] F-32  ATTACKING NPCS SPAWNS GUARDS
     DONE WHEN: attacking or stealing from an NPC is a crime if someone sees
