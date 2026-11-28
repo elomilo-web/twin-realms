@@ -241,8 +241,13 @@ public partial class Player
         }
         else { float u = Mathf.Clamp((prog - _atk.Wind * .5f) / Mathf.Max(.05f, e1 - _atk.Wind * .5f), 0, 1); f = u * u * (3 - 2 * u); }
         float df = Mathf.Max(0, f - _rmPrev); _rmPrev = f;
-        // no shoving into a foe already in contact
-        if (_magnet != null && IsInstanceValid(_magnet) && _magnet.GlobalPosition.DistanceTo(GlobalPosition) - _magnet.Def.R * _magnet.ScaleF() < Tune.F("attack.stepStopGap", .7f)) return Vector3.Zero;
+        // keep the measure: with a target, the step carries the body to where the weapon's strong part meets it (MeasureGap), and backs
+        // off when already closer (it used to stop at a fixed 0.7 m for every weapon, so later swings landed with the fist and the hilt)
+        if (_magnet != null && IsInstanceValid(_magnet))
+        {
+            var dm = _magnet.GlobalPosition - GlobalPosition; dm.Y = 0; float edge = dm.Length() - _magnet.Def.R * _magnet.ScaleF();
+            dist = Mathf.Clamp(edge - MeasureGap(), -dist * Tune.F("attack.stepBackMul", 1f), dist);
+        }
         var fw = new Vector3(-Mathf.Sin(_spinBase), 0, -Mathf.Cos(_spinBase));
         return fw * (df * dist / dt);
     }
@@ -271,6 +276,18 @@ public partial class Player
     // ------------------------------------------------------------------ small helpers
     bool _bsFresh; float _torsoYaw, _deathRate = 1f, _deathBlend = .15f, _lastFwd, _accF;
     /// <summary>How far the swinging weapon reaches from the body now (m): arm plus the blade's real length.</summary>
+    /// <summary>
+    /// The measure (hitbox.measureBase + measureK x the weapon's length, fist to tip): how far from a foe's edge the hero stands so the
+    /// swing meets it with the blade's percussion point (the last third), not the hilt. AnimeTool measured: a sword at 0.94 m met with
+    /// 88 % of its length, a greatsword's wide swing at 1.24 m with 65 %, a spear's thrust at 1.27 m with 63 %.
+    /// </summary>
+    float MeasureGap()
+    {
+        float len = 0;
+        if (_av?.BladeTip != null && IsInstanceValid(_av.BladeTip) && _av.HandPos(false) is Vector3 hp && W.Id != "unarmed") len = hp.DistanceTo(_av.BladeTip.GlobalPosition);
+        else if (_trail.Tip != null && _trail.Base != null && IsInstanceValid(_trail.Tip) && W.Id != "unarmed") len = _trail.Tip.GlobalPosition.DistanceTo(_trail.Base.GlobalPosition) / .7f;
+        return Tune.F("hitbox.measureBase", .2f) + Tune.F("hitbox.measureK", .55f) * len;
+    }
     float ReachNow()
     {
         float blade = _trail.Tip != null && _trail.Base != null && IsInstanceValid(_trail.Tip) && W.Id != "unarmed" ? _trail.Tip.GlobalPosition.DistanceTo(_trail.Base.GlobalPosition) : 0f;
@@ -302,6 +319,11 @@ public partial class Player
         // the tucked roll and the arms in the air (HeroPose.TuckRoll / AirArms)
         pl.Roll = _rollT > 0 && _av.HasClip("rollBase") ? Mathf.Clamp(_rollEl / Mathf.Max(.05f, RollTime), 0, 1) : -1f;
         pl.Armed = Game.D.Weapon != null && !W.Ranged && W.Id != "unarmed";
+        // both hands on the weapon when the off hand is free (no shield, no second weapon), fighting, on the ground and not running hard
+        bool freeOff = Game.D.Eq.GetValueOrDefault("shield") == null && !OffNow;
+        bool twoOk = pl.Armed && freeOff && _av.OffGrip != null && IsOnFloor() && _rollT <= 0 && _bsT <= 0 && _stagger <= 0 && !Mounted && !Swimming && _castT <= 0 && (InCombat || _recT > 0);
+        float run = new Vector2(Velocity.X, Velocity.Z).Length();
+        pl.OffGrip = _av.OffGrip; pl.TwoHand = twoOk ? Mathf.Clamp(1f - (run - Tune.F("anim.twoHandRunFrom", 1.5f)) / 2f, 0, 1) : 0f;
         pl.Air = !IsOnFloor() && _airT > .06f && !Flying && !Swimming && !Mounted && _rollT <= 0 && _atkT <= 0 && _castT <= 0 ? 1f : 0f;
     }
 

@@ -110,6 +110,7 @@ public static class Weapons
     // every weapon drawn bigger (data/weapons.json size.grandScale, bows / wands / thrown size.grandScaleRanged) so weapons read grand and
     // heavy; melee reach grows with it (size.grandReach) so the swing still lands where the bigger blade is
     static float _grand = 1f, _grandRanged = 1f, _grandReach = 1f;
+    static readonly Dictionary<string, float> _maxLen = new();
     public static float Grand(string wt) { Load(); return Get(wt) is { Ranged: true } || wt is "bow" or "wand" or "crossbow" or "javelin" or "kunai" ? _grandRanged : _grand; }
     /// <summary>The swing with the item's size applied to its reach and arc (a copy; the weapon data is not touched).</summary>
     public static AttackDef Sized(AttackDef a, Item? it)
@@ -210,6 +211,7 @@ public static class Weapons
             _szMin = JsonUtil.F(sz, "min", .85f); _szMax = Mathf.Max(_szMin, JsonUtil.F(sz, "max", 1.2f));
             _szReach = JsonUtil.F(sz, "reachPer", 1f); _szArc = JsonUtil.F(sz, "arcPer", .35f); _szSpeed = JsonUtil.F(sz, "speedPer", .5f);
             _grand = JsonUtil.F(sz, "grandScale", 1f); _grandRanged = JsonUtil.F(sz, "grandScaleRanged", 1f); _grandReach = JsonUtil.F(sz, "grandReach", 1f);
+            if (sz.TryGetProperty("maxLen", out var ml) && ml.ValueKind == JsonValueKind.Object) foreach (var x in ml.EnumerateObject()) if (x.Value.ValueKind == JsonValueKind.Number) _maxLen[x.Name] = x.Value.GetSingle();
             if (sz.TryGetProperty("names", out var sn) && sn.ValueKind == JsonValueKind.Array)
                 foreach (var x in sn.EnumerateArray()) if (x.ValueKind == JsonValueKind.Array && x.GetArrayLength() >= 2) _szNames.Add((x[0].GetSingle(), x[1].GetString() ?? ""));
         }
@@ -407,9 +409,26 @@ public static class Weapons
         // size: the listed scale for this name, and a small stable variation per item so two swords of a kind differ
         // (A-11: an item with a rolled size uses that instead of the name jitter, so the model matches its reach)
         float jit = it != null && Mathf.Abs(it.Size - 1f) > .005f ? SizeOf(it) : 1f + (((Hash((it?.Name ?? "") + "#size") % 1000) / 1000f) * 2f - 1f) * _jitter, sc = pick.Scale * jit * (wt == "tool" ? 1f : Grand(wt));   // x the overall weapon scale (not the pickaxe)
+        // the model's own extent along its length (+Y before the turn): kit weapons have their origin at the cross-guard, the handle below it
+        float yMin = 0, yMax = 0;
+        foreach (var mi in model.FindChildren("*", "MeshInstance3D", true, false)) if (mi is MeshInstance3D m && m.Mesh != null) { var ab = m.Transform * m.Mesh.GetAabb(); yMin = Mathf.Min(yMin, ab.Position.Y); yMax = Mathf.Max(yMax, ab.End.Y); }
+        // a believable size: no longer than the class's maxLen (data/weapons.json size.maxLen, hand to tip, metres)
+        if (wt != "tool" && wt != "bow" && _maxLen.TryGetValue(wt, out float cap) && yMax * sc > cap) sc = cap / yMax;
         model.Scale = Vector3.One * sc;
         if (wt != "bow") model.Rotation = new Vector3(-H, 0, 0);
+        // the hand closes on the handle, not on the guard: the guard sits a little ahead of the fist (half a hand, or the middle of a short
+        // handle); a model with no handle below its origin (origin at the pommel) is held a hand-width up from its end
+        float handle = -yMin * sc, ahead = 0;
+        if (wt != "bow" && wt != "tool") ahead = handle > .05f ? Mathf.Clamp(handle * .45f, .045f, .075f) : -.07f;
+        model.Position = new Vector3(0, 0, -ahead);
         parent.AddChild(model);
+        // where a second hand holds: behind the fist toward the pommel (both hands on a long grip; over the pommel on a short one); spears
+        // and polearms further back along the shaft (OffGrip, Avatar / HeroPose)
+        if (wt != "bow" && wt != "tool" && _d.TryGetValue(wt, out var od) && !od.Ranged)
+        {
+            float room = handle - ahead, back = room > .6f ? Mathf.Min(.45f, room - .08f) : Mathf.Clamp(room - .03f, .075f, .11f);   // a shaft: hands a forearm apart
+            var og = new Node3D { Name = "OffGrip", Position = new Vector3(0, 0, back) }; parent.AddChild(og);
+        }
         // colour: the element tints the metal and gems (vertex colours stay, multiplied); GearFx adds glow, light and sparks on top
         var ec = GearFx.Get(it?.Elem)?.Col;
         foreach (var n in model.FindChildren("*", "MeshInstance3D", true, false))
@@ -423,9 +442,7 @@ public static class Weapons
                         if (ec != null && (mn.Contains("Metal") || mn.Contains("Glow"))) d.AlbedoColor = src.AlbedoColor * Colors.White.Lerp(ec.Value.Lightened(.2f), _elemTint);
                         mi.SetSurfaceOverrideMaterial(s, d);
                     }
-        float len = 0;
-        foreach (var mi in model.FindChildren("*", "MeshInstance3D", true, false)) if (mi is MeshInstance3D m && m.Mesh != null) len = Mathf.Max(len, (m.Transform * m.Mesh.GetAabb()).End.Y);
-        len *= sc;
+        float len = yMax * sc + ahead;   // hand to tip
         Node3D? b = null, t = null;
         if (wt != "tool" && _d.TryGetValue(wt, out var kd) && !kd.Ranged && wt != "unarmed" && len > .1f)
         {

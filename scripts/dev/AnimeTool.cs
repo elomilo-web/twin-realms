@@ -31,7 +31,9 @@ public partial class AnimeTool : Node
     /// <summary>--animetool-clips=A,B: raw library clips (any clip the hero can play, by name) posed at 12 even points on a second body,
     /// side view: bot_out/animetool/clip_&lt;name&gt;.png. For choosing clips before wiring them in.</summary>
     static string? ClipsArg => OS.GetCmdlineUserArgs().FirstOrDefault(a => a.StartsWith("--animetool-clips="));
-    static bool Batching => ShotsArg != null || ClipsArg != null;
+    /// <summary>--animetool-grips[=class,class]: every kit model of each melee class held in the guard pose: a close-up of the hand and the whole weapon, bot_out/animetool/grip_&lt;class&gt;.png.</summary>
+    static string? GripsArg => OS.GetCmdlineUserArgs().FirstOrDefault(a => a.StartsWith("--animetool-grips"));
+    static bool Batching => ShotsArg != null || ClipsArg != null || GripsArg != null;
     public static readonly string[] Actions = { "idle", "run", "sprint", "light5", "light5foe", "heavy", "heavyfoe", "roll", "rollmove", "jump", "jumpmove", "block", "parry", "blockhit", "hit", "hitheavy" };
 
     /// <summary>Where the studio floats (above the village, well clear of any terrain).</summary>
@@ -49,7 +51,7 @@ public partial class AnimeTool : Node
 
     public override void _Ready()
     {
-        ProcessMode = ProcessModeEnum.Always;
+        ProcessMode = ProcessModeEnum.Always; HeroPose.Debug = true;
         BuildStudio();
         _ = Begin();
     }
@@ -94,7 +96,7 @@ void fragment(){
         {
             var parts = wa.Split('=', 2)[1].Split(':', 2); string wt = parts[0];
             Game.D.Eq["weapon"] = new Item { Name = parts.Length > 1 ? parts[1] : char.ToUpper(wt[0]) + wt[1..], Slot = "weapon", Wt = wt, Dmg = 10 };
-            if (Weapons.Get(wt).Hands > 1) Game.D.Eq["shield"] = null;
+            if (Weapons.Get(wt).Hands > 1 || OS.GetCmdlineUserArgs().Contains("--animetool-noshield")) Game.D.Eq["shield"] = null;
         }
         Game.Notify();
         if (P.Rig != null) P.Rig.ProcessMode = ProcessModeEnum.Disabled;   // our camera drives the view and the rig's yaw
@@ -102,6 +104,7 @@ void fragment(){
         Reset();
         await Secs(1f, true);
         _cam.Current = true;
+        if (GripsArg is string ga) { await GripSheets(ga.Contains('=') ? ga.Split('=', 2)[1] : "all"); GetTree().Quit(); return; }
         if (ClipsArg is string ca) { await ClipSheets(ca.Split('=', 2)[1].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)); GetTree().Quit(); return; }
         if (ShotsArg is string arg)
         {
@@ -135,6 +138,7 @@ void fragment(){
             if (P.Rig != null) P.Rig.Rotation = new Vector3(0, fy, 0);
             var at = hero + new Vector3(0, .95f, 0);
             var off = _view == "front" ? new Vector3(-3.0f, .35f, -2.0f) : new Vector3(3.6f, .15f, 0);   // front: three-quarter, clear of a sparring foe 1.7 m ahead
+            if (OS.GetCmdlineUserArgs().Contains("--animetool-close")) { off = _view == "front" ? new Vector3(-1.5f, .45f, -1.0f) : new Vector3(1.9f, .35f, .5f); at += new Vector3(0, .25f, 0); }   // upper body: hands and grip
             _cam.GlobalPosition = at + off; _cam.LookAt(at, Vector3.Up);
         }
         else
@@ -208,7 +212,22 @@ void fragment(){
         }
         string cape = "-";
         if (av.Cape != null && IsInstanceValid(av.Cape)) { var hang = -av.Cape.GlobalTransform.Basis.Y.Normalized(); cape = $"tilt {Mathf.RadToDeg(hang.AngleTo(Vector3.Down)),3:0} front {hang.Dot(fw),5:0.00}"; }
-        string s = $"clip {av.Cur,-22} bladeStep {_maxStep,5:0.0}  blade {blade}  pelvis {pel:0.00} head {head:0.00}  armUp R {ArmUp("r"),3:0} L {ArmUp("l"),3:0}  cape {cape}  floor {P.IsOnFloor()} at {P.GlobalPosition - S:0.00} v {P.Velocity.Length():0.0}";
+        string tgt = "";
+        if (_foe != null && IsInstanceValid(_foe) && av.BladeTip != null && av.HandPos(false) is Vector3 hp)
+        {   // the point of the weapon nearest the foe's body (a vertical line through it, radius R): u = 0 at the fist, 1 at the tip
+            var tp = av.BladeTip.GlobalPosition; var fp = _foe.GlobalPosition; float R = _foe.Def.R * _foe.ScaleF(), hgt = _foe.HeightM();
+            float best = 1e9f, bu = 0;
+            for (int i = 0; i <= 40; i++)
+            {
+                float u = i / 40f; var p = hp.Lerp(tp, u); float y = Mathf.Clamp(p.Y, fp.Y, fp.Y + hgt);
+                float dd = new Vector2(p.X - fp.X, p.Z - fp.Z).Length() - R + Mathf.Abs(p.Y - y);
+                if (dd < best) { best = dd; bu = u; }
+            }
+            float edge = new Vector2(fp.X - P.GlobalPosition.X, fp.Z - P.GlobalPosition.Z).Length() - R;
+            tgt = $"  foeEdge {edge:0.00} near u {bu:0.00} gap {best:0.00} fist {new Vector2(hp.X - fp.X, hp.Z - fp.Z).Length() - R:0.00} len {hp.DistanceTo(tp):0.00}";
+        }
+        if (sk.GetNodeOrNull<HeroPose>("HeroPose") is { } hpz) tgt += "  two[" + hpz.TwoDebug + "]";
+        string s = $"clip {av.Cur,-22} bladeStep {_maxStep,5:0.0}  blade {blade}  pelvis {pel:0.00} head {head:0.00}  armUp R {ArmUp("r"),3:0} L {ArmUp("l"),3:0}  cape {cape}  floor {P.IsOnFloor()} at {P.GlobalPosition - S:0.00} v {P.Velocity.Length():0.0}" + tgt;
         _maxStep = 0; return s;
     }
     string Info() => $"{(_play ? "PLAY (` for tool)" : "TOOL (` to play)")}   speed {(_paused ? "paused" : _speed.ToString("0.00") + "x")}   " + (P.Av != null ? "clip " + P.Av.Cur : "");
@@ -359,6 +378,44 @@ void fragment(){
             Sheet(tiles).SavePng(dir + $"clip_{c}.png"); GD.Print($"[ANIMETOOL] clip {c}: {av.ClipLength(c):0.00}s");
         }
         av.QueueFree(); P.Visible = true;
+    }
+
+    async Task GripSheets(string which)
+    {
+        string dir = ProjectSettings.GlobalizePath("res://") + "bot_out/animetool/"; DirAccess.MakeDirRecursiveAbsolute(dir);
+        DisplayServer.WindowSetSize(new Vector2I(1280, 720)); _trace = false; P.Visible = false; _camLock = true;
+        var classes = new List<string>();
+        using (var doc = JsonUtil.Load("res://data/weapons.json"))
+            foreach (var t in doc.RootElement.GetProperty("types").EnumerateObject()) if (!Weapons.Get(t.Name).Ranged && t.Name != "unarmed" && t.Name != "wand" && t.Name != "staff") classes.Add(t.Name);
+        if (which != "all") classes = classes.Where(c => which.Split(',').Contains(c)).ToList();
+        var rep = new StringBuilder();
+        foreach (var wt in classes)
+        {
+            var models = Weapons.KitModels(wt).ToList(); if (models.Count == 0) models.Add("");
+            var tiles = new List<Image>();
+            foreach (var m in models.Take(8))
+            {
+                var it = new Item { Name = char.ToUpper(wt[0]) + wt[1..], Slot = "weapon", Wt = wt, Dmg = 10, Model = m == "" ? null : m };
+                var av = new Avatar { Name = "GripBody", Position = S + new Vector3(0, 0, -3) }; GetParent().AddChild(av);
+                av.Build(Races.Look(Game.D), "grips"); av.Dress(s => s == "weapon" ? it : null, wt, Classes.Get(Game.D.Class).Tunic);
+                await Frames(3);
+                av.PoseAt(Weapons.Get(wt).Hands > 1 ? "idleArmed" : "idleArmed", .3f); await Frames(2);
+                var sk = av.Skel!; var hand = sk.GlobalTransform * sk.GetBoneGlobalPose(sk.FindBone("hand_r")).Origin;
+                // close-up of the grip, from the hero's right and a little in front
+                _cam.GlobalPosition = hand + new Vector3(.75f, .12f, .45f); _cam.LookAt(hand, Vector3.Up); var a = await Grab();
+                // the whole weapon
+                var mid = av.BladeTip != null ? (hand + av.BladeTip.GlobalPosition) / 2 : hand;
+                float len = av.BladeTip != null ? hand.DistanceTo(av.BladeTip.GlobalPosition) : 1f;
+                _cam.GlobalPosition = mid + new Vector3(1.2f + len, .3f, .9f + len * .5f); _cam.LookAt(mid, Vector3.Up); var b = await Grab();
+                foreach (var img in new[] { a, b }) { var sz = img.GetSize(); int w = sz.Y; var r = img.GetRegion(new Rect2I((sz.X - w) / 2, 0, w, sz.Y)); r.Convert(Image.Format.Rgb8); r.Resize(288, 288, Image.Interpolation.Bilinear); tiles.Add(r); }
+                string tipInfo = av.BladeTip != null && av.BladeBase != null ? $"hand->tip {hand.DistanceTo(av.BladeTip.GlobalPosition):0.00} m" : "no marks";
+                rep.AppendLine($"{wt,-14} {(m == "" ? "(built-in)" : m),-32} {tipInfo}");
+                av.QueueFree(); await Frames(1);
+            }
+            Sheet(tiles).SavePng(dir + $"grip_{wt}.png"); GD.Print($"[ANIMETOOL] grips {wt}: {tiles.Count / 2} models");
+        }
+        System.IO.File.WriteAllText(dir + "grips.txt", rep.ToString());
+        P.Visible = true;
     }
 
     // ================================================================ interactive

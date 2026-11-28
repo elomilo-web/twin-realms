@@ -441,7 +441,7 @@ public partial class Player : CharacterBody3D, IDamageable
         var d = _magnet.GlobalPosition - GlobalPosition; d.Y = 0; float edge = d.Length() - _magnet.Def.R * _magnet.ScaleF();
         _modelYaw = Mathf.LerpAngle(_modelYaw, Util.YawTo(d.X, d.Z), 1f - Mathf.Exp(-18f * dt)); _spinBase = _modelYaw;
         // stand where the real blade reaches (hitbox), not at the old reach number; the step-in moves the body only, it never lands a blow
-        float want = Mathf.Min(_atk.Range * .6f, ReachNow() * Tune.F("hitbox.magnetReachK", .7f)), gap = edge - want; if (gap <= .05f) return false;
+        float want = MeasureGap(), gap = edge - want; if (gap <= .05f) return false;   // the weapon's measure (PlayerCombat.MeasureGap), not a share of a reach number
         if (gap > Tune.F("hitbox.magnetMax", 1.8f) && _critTgt != _magnet) return false;   // too far to close in one swing: no lunge across the room
         float left = Mathf.Max(.04f, (_atk.Hit - prog) * _atkDur), sp = Mathf.Min(gap / left, Tune.F("hitbox.magnetSpeed", 6f));
         var dir = d.Normalized(); v.X = dir.X * sp; v.Z = dir.Z * sp; return true;

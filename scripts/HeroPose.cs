@@ -63,9 +63,72 @@ public partial class HeroPose : SkeletonModifier3D
         }
         Life(sk, dt);
         AirArms(sk, dt);
+        TwoHands(sk, dt);
         TuckRoll(sk);
     }
 
+    /// <summary>Set by Player: the free hand's grip on the main weapon (Avatar.OffGrip) and how much to use it (0..1).</summary>
+    public Node3D? OffGrip; public float TwoHand;
+    float _two; int _hl = -1, _hr = -1; BoneAttachment3D? _gripAtt; Node3D? _gripFor;
+    /// <summary>For AnimeTool: the two-hand blend now, the last reach weight and why it last skipped.</summary>
+    public string TwoDebug = ""; public static bool Debug;
+    /// <summary>
+    /// Both hands on the weapon (data/tuning.json game.anim.twoHand*): the library's sword clips swing with the right arm only, the left
+    /// doing its own thing. When the off hand is free, two-bone IK puts it on the handle behind the sword hand (on a shaft, a forearm
+    /// apart), elbow down and out, so a one-handed sword is swung with both arms and a two-handed one is actually held with two.
+    /// </summary>
+    void TwoHands(Skeleton3D sk, float dt)
+    {
+        if (_hl < 0) { _hl = sk.FindBone("hand_l"); _hr = sk.FindBone("hand_r"); }
+        _two = Mathf.MoveToward(_two, OffGrip != null && IsInstanceValid(OffGrip) ? Mathf.Clamp(TwoHand, 0, 1) : 0f, dt * Tune.F("anim.twoHandBlend", 7f));
+        if (Debug) TwoDebug = $"want {TwoHand:0.0} now {_two:0.00} grip {(OffGrip != null)}";
+        if (_two < .01f || OffGrip == null || !IsInstanceValid(OffGrip) || _ua1 < 0 || _la < 0 || _hl < 0 || _hr < 0) return;
+        if (_gripFor != OffGrip) { _gripFor = OffGrip; _gripAtt = null; for (Node? n = OffGrip.GetParent(); n != null; n = n.GetParent()) if (n is BoneAttachment3D ba) { _gripAtt = ba; break; } }
+        if (_gripAtt == null || !OffGrip.IsInsideTree()) return;
+        // the grip in the sword hand's bone space is rigid; placed on this frame's hand pose, in skeleton space
+        var rel = _gripAtt.GlobalTransform.AffineInverse() * OffGrip.GlobalTransform;
+        int ur = _ua2, lr = _ra; if (ur < 0 || lr < 0) return;
+        float e = _two * _two * (3 - 2 * _two);
+        var gripNow = sk.GetBoneGlobalPose(_hr) * rel.Origin;
+        Vector3 SL = G(sk, _ua1); float lenL = SL.DistanceTo(G(sk, _la)) + G(sk, _la).DistanceTo(G(sk, _hl));
+        // both hands meet near the middle: the clips hold the sword out to the right, beyond the left arm's reach (0.6-0.9 m from the left
+        // shoulder for a 0.52 m arm), so the sword hand comes in toward the left shoulder first (the blade keeps its angle), as in a real
+        // two-handed cut, then the left hand closes on the handle
+        float need = SL.DistanceTo(gripNow) - lenL * Tune.F("anim.twoHandReach", .9f);
+        if (need > 0)
+        {
+            var shift = (SL - gripNow).Normalized() * Mathf.Min(need, Tune.F("anim.twoHandPullMax", .45f)) * e;
+            var gR = sk.GetBoneGlobalPose(_hr);
+            ArmIK(sk, ur, lr, _hr, gR.Origin + shift, new Vector3(-Tune.F("anim.twoHandPoleOut", .55f), -1f, -.25f));
+            SetGlobal(sk, _hr, gR.Basis);   // the sword keeps its angle
+        }
+        var target = sk.GetBoneGlobalPose(_hr) * rel.Origin;
+        Vector3 W = G(sk, _hl);
+        float far = SL.DistanceTo(target), w = e * Mathf.Clamp((lenL * 1.1f - far) / (lenL * .15f), 0, 1);
+        if (Debug) TwoDebug += $" far {far:0.00} len {lenL:0.00} w {w:0.00}";
+        if (w < .01f) return;
+        var gH = sk.GetBoneGlobalPose(_hl);
+        ArmIK(sk, _ua1, _la, _hl, W.Lerp(target, w), new Vector3(Tune.F("anim.twoHandPoleOut", .55f), -1f, -.25f));
+        // the hand wraps the handle the same way round as the sword hand (blended in), so the two fists stack on the grip
+        var cur = sk.GetBoneGlobalPose(_hl).Basis.Orthonormalized();
+        var want = (sk.GetBoneGlobalPose(_hr).Basis * new Basis(new Vector3(0, 0, 1), Mathf.Pi)).Orthonormalized();
+        SetGlobal(sk, _hl, new Basis(new Quaternion(cur).Slerp(new Quaternion(want), w * Tune.F("anim.twoHandWrap", .6f))));
+    }
+
+    /// <summary>Two-bone arm IK in skeleton space: upper arm and forearm turn so the hand reaches T, the elbow toward pole (a direction).</summary>
+    void ArmIK(Skeleton3D sk, int up, int low, int hand, Vector3 T, Vector3 pole)
+    {
+        var gU = sk.GetBoneGlobalPose(up); var gL = sk.GetBoneGlobalPose(low);
+        Vector3 S = gU.Origin, E = gL.Origin, W = sk.GetBoneGlobalPose(hand).Origin; float a = S.DistanceTo(E), b = E.DistanceTo(W), len = a + b;
+        if (a < 1e-4f || b < 1e-4f) return;
+        var toT = T - S; if (toT.LengthSquared() < 1e-10f) return;
+        float d = Mathf.Clamp(toT.Length(), Mathf.Abs(a - b) + len * .001f, len * .999f); var dir = toT.Normalized();
+        float cosA = Mathf.Clamp((a * a + d * d - b * b) / (2 * a * d), -1, 1), sinA = Mathf.Sqrt(1 - cosA * cosA);
+        var bend = pole - dir * pole.Dot(dir); if (bend.LengthSquared() < 1e-8f) bend = (E - S) - dir * (E - S).Dot(dir); if (bend.LengthSquared() < 1e-8f) return; bend = bend.Normalized();
+        Vector3 E2 = S + dir * a * cosA + bend * a * sinA, W2 = S + dir * d;
+        var q1 = Rot(E - S, E2 - S); var q2 = Rot(q1 * (W - E), W2 - E2);
+        SetGlobal(sk, up, new Basis(q1) * gU.Basis); SetGlobal(sk, low, new Basis(q2 * q1) * gL.Basis);
+    }
     /// <summary>Set by Player: 1 while airborne from a jump or a fall (not flying, swimming, rolling or attacking).</summary>
     public float Air;
     /// <summary>Set by Player: a melee weapon is in the right hand (its arm swings less in the run).</summary>

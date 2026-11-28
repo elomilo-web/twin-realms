@@ -622,7 +622,7 @@ public partial class Avatar : Node3D
     public void Dress(Func<string, Item?> eq, string wt, Color classTint, Color? outfitTint = null)
     {
         foreach (var s in new[] { "armor", "head", "hands", "feet", "weapon", "shield", "cape" }) Clear(s);
-        BladeBase = BladeTip = null; Cape = null; WingL = WingR = null; _feathers.Clear(); bool hideHair = false;
+        BladeBase = BladeTip = null; OffGrip = null; Cape = null; WingL = WingR = null; _feathers.Clear(); bool hideHair = false;
         // cape: an equipment slot (none when nothing is equipped)
         var cp = eq("cape");
         if (cp != null && Rule("cape", cp.Name) is { } cr)
@@ -696,6 +696,8 @@ public partial class Avatar : Node3D
 
     /// <summary>The off-hand weapon's trail marks when dual wielding (A-12); null otherwise.</summary>
     public Node3D? OffBase, OffTip;
+    /// <summary>Where the free hand holds the main weapon (behind the fist on the handle; Weapons.BuildKit), null for none. HeroPose.TwoHands.</summary>
+    public Node3D? OffGrip;
     /// <param name="hand">0 = the type's own hand (data/avatar.json); 1 = forced into the right hand (main weapon while dual wielding);
     /// 2 = the off-hand weapon: left hand, in the "shield" slot nodes, its marks in OffBase / OffTip.</param>
     void HoldWeapon(string wt, JsonElement wc, Item? it, int hand = 0)
@@ -712,7 +714,7 @@ public partial class Avatar : Node3D
         {
             // no model yet: the procedural weapon, turned to point along +Z like the models
             var turn = new Node3D { Rotation = new Vector3(0, Mathf.Pi, 0) }; h.AddChild(turn);
-            var (b, t) = Weapons.Build(turn, wt, it); if (hand == 2) { OffBase = b; OffTip = t; } else { BladeBase = b; BladeTip = t; }
+            var (b, t) = Weapons.Build(turn, wt, it); if (hand == 2) { OffBase = b; OffTip = t; } else { BladeBase = b; BladeTip = t; OffGrip = left ? null : turn.GetNodeOrNull<Node3D>("OffGrip"); }
             GearFx.Apply(turn, it, true, 0, .9f); return;
         }
         if (hand == 2) return;   // (only the built models are fitted for the off hand)
