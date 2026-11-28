@@ -1,0 +1,15 @@
+[remap]
+
+importer="effekseer.resource"
+type="Resource"
+uid="uid://di47pfa1334f8"
+path="res://.godot/imported/mt_wind03_slash01.efkmat-e10ca55a024d19ffc0c067df242dc689.res"
+
+[deps]
+
+source_file="res://assets/vfx/effekseer/spells/Materials/mt_wind03_slash01.efkmat"
+dest_files=["res://.godot/imported/mt_wind03_slash01.efkmat-e10ca55a024d19ffc0c067df242dc689.res"]
+
+[params]
+
+compress=true

@@ -8,12 +8,12 @@
   "critical": { "_help": "Dark Souls pass: the animation of a critical blow (riposte after a parry, backstab), an attackAnims id in data/avatar.json; multipliers and ranges in data/tuning.json game.parry / game.backstab.", "anim": "riposte" },
   "_activeHelp": "Any step (and any combo / power attack in data/weapons.json) may set \"active\": [start, end], the fractions of the swing in which its hitbox is live (default: hit -0.1 .. hit +0.12, data/tuning.json game.hitbox), and \"step\": metres the swing carries the body forward (default by type, game.attack.step*).",
   "recovery": {
-	"_recByAnimHelp": "recByAnim: the follow-through for one-handed steps by their animation (a step's own rec wins): Sword_Regular_B's own _Rec after the return cut.", "recByAnim": { "slashB": "recB" },
+	"_recByAnimHelp": "recByAnim: the follow-through for one-handed steps by their animation (a step's own rec wins): Sword_Regular_B's own _Rec after the return cut.", "recByAnim": {}, "_animetool": "2026-11-27 AnimeTool: the light follow-through clips (Sword_Regular_A_Rec / B_Rec) swung the blade up to vertical with a 150-250 deg snap at the hand-over (and recA followed the thrust too), so light swings now blend straight into the guard (recLight empty; it was recA, recByAnim slashB was recB).",
 	"_help": "Weight: seconds after a swing before the next one can start (you can still move, roll or block). light = ordinary chain steps, finisher = the chain's finisher steps, power = power (heavy) attacks. twoHandedMul / daggerMul / rangedMul scale it for those weapons. Faster attack speed shortens it. A step can set its own \"recover\". recLight / recHeavy: follow-through animations for one- and two-handed weapons.",
 	"_a03": "A-03 (weight): light 0.05 -> 0.28, finisher 0.32 -> 0.5, power 0.5 -> 0.7; twoHandedMul 1.6 -> 1.4, daggerMul 0.5 -> 0.6 (rangedMul 0.6 kept). The swing itself is lengthened in data/tuning.json game.attack.",
 	"light": 0.28, "finisher": 0.5, "power": 0.7,
 	"twoHandedMul": 1.4, "daggerMul": 0.6, "rangedMul": 0.6,
-	"recLight": "recA", "recHeavy": "recHook"
+	"recLight": "", "recHeavy": "recHook"
   },
   "styles": {
 	"colossal": { "name": "Colossal Sword Forms", "start": ["heave", "reverse", "grave"], "powerAnim": "slam", "steps": {

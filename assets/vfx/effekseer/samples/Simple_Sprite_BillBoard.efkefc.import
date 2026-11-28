@@ -1,0 +1,17 @@
+[remap]
+
+importer="effekseer.effect"
+type="Resource"
+uid="uid://cdrtvdhgg5sva"
+path="res://.godot/imported/Simple_Sprite_BillBoard.efkefc-fb0a92643e059441f82af2ceeecc256f.res"
+
+[deps]
+
+source_file="res://assets/vfx/effekseer/samples/Simple_Sprite_BillBoard.efkefc"
+dest_files=["res://.godot/imported/Simple_Sprite_BillBoard.efkefc-fb0a92643e059441f82af2ceeecc256f.res"]
+
+[params]
+
+scale=1.0
+data_type=0
+compress=true

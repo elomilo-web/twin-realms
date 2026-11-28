@@ -1,0 +1,17 @@
+[remap]
+
+importer="effekseer.effect"
+type="Resource"
+uid="uid://3c4vyhwqn6sq"
+path="res://.godot/imported/Simple_Sprite_FixedYAxis.efkefc-63f806371ca0eea9dd61101d345186b0.res"
+
+[deps]
+
+source_file="res://assets/vfx/effekseer/samples/Simple_Sprite_FixedYAxis.efkefc"
+dest_files=["res://.godot/imported/Simple_Sprite_FixedYAxis.efkefc-63f806371ca0eea9dd61101d345186b0.res"]
+
+[params]
+
+scale=1.0
+data_type=0
+compress=true

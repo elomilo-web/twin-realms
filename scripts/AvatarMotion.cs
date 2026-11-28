@@ -160,7 +160,7 @@ public partial class Avatar
     public bool Busy => _ap != null && _ap.IsPlaying() && _ap.HasAnimation(Cur) && _ap.GetAnimation(Cur).LoopMode == Animation.LoopModeEnum.None && (_wOn || Remaining() > BlendOutOf(Cur));
 
     // ------------------------------------------------------------------ attack time warp
-    bool _wOn; string _wName = ""; float _wEl, _wH, _wT, _wLen, _wPause, _hpT, _hpMul = 1f;
+    bool _wOn; string _wName = ""; float _wEl, _wH, _wT, _wLen, _wPause, _wOff, _hpT, _hpMul = 1f;
     /// <summary>The attack clip has played its follow-through (the caller blends into the recovery clip).</summary>
     public bool AttackDone => !_wOn || Cur != _wName;
     /// <summary>On contact: the attack animation slows to mul for secs (the weapon bites; works online, unlike the global hit-stop).</summary>
@@ -186,7 +186,7 @@ public partial class Avatar
         if (!_wOn) return;
         if (Cur != _wName || !_ap.IsPlaying()) { _wOn = false; return; }
         _wEl += dt * mul;
-        float c = WarpC(_wEl), rate = (WarpC(_wEl + .02f) - c) / .02f, pos = (float)_ap.CurrentAnimationPosition;
+        float c = _wOff + WarpC(_wEl), rate = (WarpC(_wEl + .02f) + _wOff - c) / .02f, pos = (float)_ap.CurrentAnimationPosition;
         _ap.SpeedScale = Mathf.Clamp((rate + (c - pos) * 8f) * mul, 0f, 4f);
         if (c >= _wLen - BlendOutOf(Cur) * Mathf.Max(.3f, rate)) _wOn = false;   // the follow-through is (nearly) over: hand over to the recovery
     }
@@ -249,7 +249,8 @@ public partial class Avatar
     {
         var used = new HashSet<string>();
         foreach (var p in Cfg.GetProperty("clips").EnumerateObject())
-            if (p.Value.ValueKind == JsonValueKind.String) used.Add(p.Value.GetString()!); else if (p.Value.ValueKind == JsonValueKind.Array) foreach (var x in p.Value.EnumerateArray()) used.Add(x.GetString()!);
+            if (p.Name.StartsWith("_")) continue;   // notes, not clips (they were counted as missing clips)
+            else if (p.Value.ValueKind == JsonValueKind.String) used.Add(p.Value.GetString()!); else if (p.Value.ValueKind == JsonValueKind.Array) foreach (var x in p.Value.EnumerateArray()) used.Add(x.GetString()!);
         foreach (var (_, d) in AttackDefs()) used.Add(d.Clip);
         used.Remove(""); return used;
     }

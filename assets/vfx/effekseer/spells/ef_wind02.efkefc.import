@@ -1,0 +1,17 @@
+[remap]
+
+importer="effekseer.effect"
+type="Resource"
+uid="uid://cqlkhy8mmr54d"
+path="res://.godot/imported/ef_wind02.efkefc-c15258e4e0acd386d1c3725223f936b2.res"
+
+[deps]
+
+source_file="res://assets/vfx/effekseer/spells/ef_wind02.efkefc"
+dest_files=["res://.godot/imported/ef_wind02.efkefc-c15258e4e0acd386d1c3725223f936b2.res"]
+
+[params]
+
+scale=1.0
+data_type=0
+compress=true

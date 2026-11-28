@@ -519,6 +519,7 @@ public partial class SwordTrail : MeshInstance3D
     readonly List<(Vector3 a, Vector3 b, float t)> _pts = new(); readonly ImmediateMesh _im = new(); float _now;
     static ShaderMaterial? _mat; static StandardMaterial3D? _sparkMat; static QuadMesh? _sparkMesh;
     CpuParticles3D? _sparks; Vector3 _lastTip; bool _hasTip;
+    static Vector3 Cr(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float t) { float t2 = t * t, t3 = t2 * t; return .5f * (2f * p1 + (p2 - p0) * t + (2f * p0 - 5f * p1 + 4f * p2 - p3) * t2 + (3f * p1 - p0 - 3f * p2 + p3) * t3); }
     public override void _Ready()
     {
         Mesh = _im; TopLevel = true; GlobalTransform = Transform3D.Identity; CastShadow = ShadowCastingSetting.Off;
@@ -536,10 +537,17 @@ public partial class SwordTrail : MeshInstance3D
         };
         AddChild(_sparks);
     }
-    public override void _Process(double delta)
+    public override void _EnterTree() => RenderingServer.FramePreDraw += Draw;
+    public override void _ExitTree() => RenderingServer.FramePreDraw -= Draw;
+    float _dt;
+    public override void _Process(double delta) { _dt = (float)delta; _now += _dt; }
+    /// <summary>Sampled just before the frame is drawn, when the skeleton (and every pose layer on it) has placed the blade for this frame:
+    /// sampled in _Process the ribbon's newest edge was the last frame's blade, a whole frame behind (far off the sword in a fast swing).</summary>
+    void Draw()
     {
-        float dt = (float)delta; _now += dt;
-        if (Emit && Base != null && Tip != null) _pts.Add((Base.GlobalPosition, Tip.GlobalPosition, _now));
+        if (!IsInsideTree()) return;
+        float dt = _dt;
+        if (Emit && Base != null && Tip != null && IsInstanceValid(Base) && IsInstanceValid(Tip)) { var bp = Base.GlobalPosition; var tp = Tip.GlobalPosition; if (_pts.Count == 0 || _pts[^1].t < _now || _pts[^1].b != tp) { if (_pts.Count > 0 && _pts[^1].t >= _now) _pts.RemoveAt(_pts.Count - 1); _pts.Add((bp, tp, _now)); } }
         while (_pts.Count > 0 && _now - _pts[0].t > Life) _pts.RemoveAt(0);
         // sparks only on fast swings, at the blade tip
         if (_sparks != null)
@@ -556,11 +564,24 @@ public partial class SwordTrail : MeshInstance3D
         _im.ClearSurfaces(); if (_pts.Count < 2) return;
         var edgeCol = Col.Lerp(Colors.White, .35f);
         _im.SurfaceBegin(Mesh.PrimitiveType.TriangleStrip);
-        foreach (var (a, b, t) in _pts)
+        // one sample a frame is far apart in a fast swing: straight lines between them made hooks, triangles and crossed corners.
+        // Catmull-Rom through the samples (base and tip each), 6 steps a gap, so the ribbon follows the blade's arc.
+        int n = _pts.Count;
+        for (int i = 0; i < n - 1; i++)
         {
-            float age = Mathf.Clamp((_now - t) / Life, 0f, 1f);
-            _im.SurfaceSetColor(new Color(edgeCol, 1f)); _im.SurfaceSetUV(new Vector2(age, 0f)); _im.SurfaceAddVertex(a);
-            _im.SurfaceSetColor(new Color(edgeCol, 1f)); _im.SurfaceSetUV(new Vector2(age, 1f)); _im.SurfaceAddVertex(b + (b - a) * .08f);
+            var p0 = _pts[Mathf.Max(0, i - 1)]; var p1 = _pts[i]; var p2 = _pts[i + 1]; var p3 = _pts[Mathf.Min(n - 1, i + 2)];
+            int steps = i == n - 2 ? 6 : 5;
+            for (int k = 0; k <= steps; k++)
+            {
+                if (k == steps && i < n - 2) break;
+                float s = k / 6f;
+                var a = Cr(p0.a, p1.a, p2.a, p3.a, s); var b = Cr(p0.b, p1.b, p2.b, p3.b, s);
+                // keep the ribbon the blade's own length (a curve through far samples can bulge past the tip)
+                float len = Mathf.Lerp(p1.b.DistanceTo(p1.a), p2.b.DistanceTo(p2.a), s); var d = b - a; if (d.LengthSquared() > 1e-6f) b = a + d.Normalized() * len;
+                float t = Mathf.Lerp(p1.t, p2.t, s), age = Mathf.Clamp((_now - t) / Life, 0f, 1f);
+                _im.SurfaceSetColor(new Color(edgeCol, 1f)); _im.SurfaceSetUV(new Vector2(age, 0f)); _im.SurfaceAddVertex(a);
+                _im.SurfaceSetColor(new Color(edgeCol, 1f)); _im.SurfaceSetUV(new Vector2(age, 1f)); _im.SurfaceAddVertex(b + (b - a) * .04f);
+            }
         }
         _im.SurfaceEnd();
     }

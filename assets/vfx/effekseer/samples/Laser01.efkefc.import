@@ -1,0 +1,17 @@
+[remap]
+
+importer="effekseer.effect"
+type="Resource"
+uid="uid://dtiid2vp72f58"
+path="res://.godot/imported/Laser01.efkefc-fbc5396363f4bf315a1af1cb9ff6af0f.res"
+
+[deps]
+
+source_file="res://assets/vfx/effekseer/samples/Laser01.efkefc"
+dest_files=["res://.godot/imported/Laser01.efkefc-fbc5396363f4bf315a1af1cb9ff6af0f.res"]
+
+[params]
+
+scale=1.0
+data_type=0
+compress=true

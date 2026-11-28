@@ -991,9 +991,23 @@ public partial class Avatar : Node3D
         bool same = n == Cur;
         _ap.SpeedScale = 1f; _ap.Play(n, blend < 0 ? Blend("toAttack", .1f) : blend, 1f); if (same) _ap.Seek(0, true); Cur = n; _rev = false;
         // the time warp (AvatarMotion.cs): natural wind-up (held at its top when it must be slower), strike landing at hitAt, natural follow-through
-        _wOn = true; _wName = n; _wEl = 0; _wH = hit * len; _wT = Mathf.Max(.05f, hitAt); _wLen = len; _wPause = pause;
+        _wOn = true; _wName = n; _wEl = 0; _wH = hit * len; _wT = Mathf.Max(.05f, hitAt); _wLen = len; _wPause = pause; _wOff = 0;
+        // a swing that has to land faster than rates.strikeMax x its own speed skips the start of its wind-up instead of playing the whole
+        // clip fast (at 2-2.5x the blade turned 50-90 deg a frame and read as teleporting): the strike itself keeps a natural pace
+        float sMax = Rate("strikeMax", 1.4f), off = pause > 0 ? 0 : Mathf.Max(0, _wH - sMax * _wT);
+        if (off > .01f) { off = Mathf.Min(off, _wH * Rate("skipMax", .7f)); _ap.Seek(off, true); _wOff = off; _wH -= off; }
         return true;
     }
+    /// <summary>The attack already playing (started early, e.g. the heavy wind-up while the press gathers) now lands its blow hitIn seconds from now; the warp carries on from where it is.</summary>
+    /// <summary>Holds an action's clip once it reaches frac of its length (a guard pose kept while the key is held); call after Play each frame.</summary>
+    public void HoldAt(string key, float frac)
+    {
+        if (_ap == null) return; string n = Have(Clip(key)); if (Cur != n || !_ap.HasAnimation(n)) return;
+        if (_ap.CurrentAnimationPosition >= _ap.GetAnimation(n).Length * frac) _ap.SpeedScale = 0f;
+    }
+    /// <summary>Jumps the current clip back to frac of its length and lets it run on (a blocked blow knocks the guard back, then it settles again).</summary>
+    public void Recoil(string key, float frac) { if (_ap == null) return; string n = Have(Clip(key)); if (Cur != n || !_ap.HasAnimation(n)) return; _ap.Seek(_ap.GetAnimation(n).Length * frac, true); _ap.SpeedScale = 1f; }
+    public void RetimeAttack(float hitIn) { if (_wOn) _wT = Mathf.Max(_wEl + .05f, _wEl + hitIn); }
     /// <summary>Plays a recovery (follow-through) animation over this many seconds, kept near its natural rate (data/avatar.json rates.rec).</summary>
     public void PlayRecovery(string id, float secs)
     {

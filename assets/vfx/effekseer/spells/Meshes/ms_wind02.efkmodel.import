@@ -1,0 +1,15 @@
+[remap]
+
+importer="effekseer.resource"
+type="Resource"
+uid="uid://7mviqt3q1d0i"
+path="res://.godot/imported/ms_wind02.efkmodel-03bb53b89feddc799bd59cf006133d47.res"
+
+[deps]
+
+source_file="res://assets/vfx/effekseer/spells/Meshes/ms_wind02.efkmodel"
+dest_files=["res://.godot/imported/ms_wind02.efkmodel-03bb53b89feddc799bd59cf006133d47.res"]
+
+[params]
+
+compress=true

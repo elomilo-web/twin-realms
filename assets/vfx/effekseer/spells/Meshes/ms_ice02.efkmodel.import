@@ -1,0 +1,15 @@
+[remap]
+
+importer="effekseer.resource"
+type="Resource"
+uid="uid://ctaoditrwgep2"
+path="res://.godot/imported/ms_ice02.efkmodel-db4af4927212287a5afde2760f2455e6.res"
+
+[deps]
+
+source_file="res://assets/vfx/effekseer/spells/Meshes/ms_ice02.efkmodel"
+dest_files=["res://.godot/imported/ms_ice02.efkmodel-db4af4927212287a5afde2760f2455e6.res"]
+
+[params]
+
+compress=true

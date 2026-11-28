@@ -62,6 +62,75 @@ public partial class HeroPose : SkeletonModifier3D
             Turn(sk, _sp1, q); Turn(sk, _sp2, q);
         }
         Life(sk, dt);
+        AirArms(sk, dt);
+        TuckRoll(sk);
+    }
+
+    /// <summary>Set by Player: 1 while airborne from a jump or a fall (not flying, swimming, rolling or attacking).</summary>
+    public float Air;
+    /// <summary>Set by Player: a melee weapon is in the right hand (its arm swings less in the run).</summary>
+    public bool Armed;
+    /// <summary>Set by Player: the roll's progress 0..1, or below 0 when not rolling.</summary>
+    public float Roll = -1f;
+    float _air; int _la = -1, _ra = -1, _sp3 = -1, _lowL = -1, _lowR = -1; bool _init2;
+    void Init2(Skeleton3D sk)
+    {
+        if (_init2) return; _init2 = true;
+        _la = sk.FindBone("lowerarm_l"); _ra = sk.FindBone("lowerarm_r"); _sp3 = sk.FindBone("spine_03");
+        _lowL = _la; _lowR = _ra;
+    }
+    Vector3 G(Skeleton3D sk, int b) => b >= 0 ? sk.GetBoneGlobalPose(b).Origin : Vector3.Zero;
+
+    /// <summary>
+    /// The library's jump / fall clip holds both arms straight out to the sides (about 85 deg from hanging: it read as a T-pose in the air).
+    /// While airborne each upper arm is brought down to data/tuning.json game.anim.airArmMax degrees (default 45), eased in and out.
+    /// </summary>
+    void AirArms(Skeleton3D sk, float dt)
+    {
+        Init2(sk);
+        _air = Mathf.MoveToward(_air, Mathf.Clamp(Air, 0, 1), dt * 6f);
+        if (_air < .01f) return;
+        float maxUp = Mathf.DegToRad(Tune.F("anim.airArmMax", 45f)), e = _air * _air * (3 - 2 * _air);
+        foreach (var (up, low) in new[] { (_ua1, _la), (_ua2, _ra) })
+        {
+            if (up < 0 || low < 0) continue;
+            var d = G(sk, low) - G(sk, up); if (d.LengthSquared() < 1e-8f) continue; d = d.Normalized();
+            float elev = d.AngleTo(Vector3.Down); if (elev <= maxUp) continue;
+            var axis = d.Cross(Vector3.Down); if (axis.LengthSquared() < 1e-8f) continue;
+            Turn(sk, up, new Quaternion(axis.Normalized(), (elev - maxUp) * e));
+        }
+    }
+
+    static float Smooth(float a, float b, float x) { float t = Mathf.Clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); }
+    /// <summary>
+    /// The roll (data/tuning.json game.anim.roll*): the library's only rolls (Roll, Roll_RM) are dive rolls (a flat launch, the hands,
+    /// a flip over the head), so the roll is built here over a crouch: the back curls, knees come to the chest, arms tuck in, and the
+    /// whole ball turns once forward about its own centre, resting on the ground, then opens back out. Skeleton space (faces +Z).
+    /// </summary>
+    void TuckRoll(Skeleton3D sk)
+    {
+        if (Roll < 0 || _pel < 0) return; Init2(sk);
+        float u = Mathf.Clamp(Roll, 0, 1);
+        float w = Smooth(0f, Tune.F("anim.rollTuckIn", .16f), u) * (1f - Smooth(Tune.F("anim.rollOpen", .74f), 1f, u));
+        float th = Mathf.Tau * Smooth(Tune.F("anim.rollTurnFrom", .08f), Tune.F("anim.rollTurnTo", .8f), u);
+        if (w < .001f) return;
+        // the tuck
+        float curl = Tune.F("anim.rollCurl", 1.05f) * w;
+        Turn(sk, _sp1, new Quaternion(Vector3.Right, curl * .35f)); Turn(sk, _sp2, new Quaternion(Vector3.Right, curl * .35f)); Turn(sk, _sp3, new Quaternion(Vector3.Right, curl * .3f));
+        Turn(sk, _head, new Quaternion(Vector3.Right, Tune.F("anim.rollHead", .5f) * w));
+        float knee = Tune.F("anim.rollKnees", 1.0f) * w, shin = Tune.F("anim.rollShins", .9f) * w, arm = Tune.F("anim.rollArms", .7f) * w;
+        foreach (var t in new[] { _tl, _tr }) Turn(sk, t, new Quaternion(Vector3.Right, -knee));
+        foreach (var c in new[] { _cl, _cr }) Turn(sk, c, new Quaternion(Vector3.Right, shin));
+        foreach (var a in new[] { _ua1, _ua2 }) Turn(sk, a, new Quaternion(Vector3.Right, -arm));
+        foreach (var a in new[] { _lowL, _lowR }) Turn(sk, a, new Quaternion(Vector3.Right, -arm * .8f));
+        // the turn: about the ball's centre, which rests a radius above the ground
+        float hip = Mathf.Max(.01f, sk.GetBoneGlobalRest(_pel).Origin.Y);
+        var P = G(sk, _pel); var C0 = (P + G(sk, _sp3 >= 0 ? _sp3 : _sp2) + G(sk, _cl) + G(sk, _cr)) / 4f;
+        var q = new Quaternion(Vector3.Right, th);
+        Turn(sk, _pel, q);
+        var Cn = P + q * (C0 - P); var T = new Vector3(C0.X, hip * Tune.F("anim.rollRadius", .5f), C0.Z);
+        int par = sk.GetBoneParent(_pel); var pb = par >= 0 ? sk.GetBoneGlobalPose(par).Basis : Basis.Identity;
+        sk.SetBonePosePosition(_pel, sk.GetBonePosePosition(_pel) + pb.Inverse() * ((T - Cn) * w));
     }
 
     /// <summary>
@@ -91,9 +160,12 @@ public partial class HeroPose : SkeletonModifier3D
             if (!_mInit) { _m1 = first ? cur : _m1; _m2 = first ? _m2 : cur; }
             ref var mean = ref (first ? ref _m1 : ref _m2);
             mean = mean.Slerp(cur, 1f - Mathf.Exp(-2f * dt)).Normalized();
-            if (amp < .01f || Speed < .5f) continue;
+            // the sword arm swings less while armed: the clips pump an empty fist, and a blade held at a right angle to the forearm
+            // pointed straight up, then behind, then at the ground on every stride (tuning life.armedSwingDamp)
+            float k = (1 + amp) * (!first && Armed ? 1f - Tune.F("life.armedSwingDamp", .45f) : 1f);
+            if (Mathf.Abs(k - 1f) < .01f || Speed < .5f) continue;
             var dev = (mean.Inverse() * cur).Normalized(); float ang = dev.GetAngle(); if (ang < .001f || ang > 1.2f) continue;
-            sk.SetBonePoseRotation(b, (mean * new Quaternion(dev.GetAxis().Normalized(), ang * (1 + amp))).Normalized());
+            sk.SetBonePoseRotation(b, (mean * new Quaternion(dev.GetAxis().Normalized(), ang * k)).Normalized());
         }
         _mInit = true;
     }

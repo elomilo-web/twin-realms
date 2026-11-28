@@ -21,7 +21,7 @@ public partial class Main : Node3D
         World.I = null; FloraField.I = null; Player.Instance = null; Enemy.CurrentBoss = null; Player.BuildMode = false;
         BlockWorld.InitGlobals();   // the terrain, water and grass shaders read the block world's cut-out square
         if (ServerWanted()) { RunServer(); return; }
-        bool testing = Observer.Wanted() || Bot.Wanted() || Shots.Wanted() || Showcase.Wanted() || FitBot.Wanted() || MpBot.Wanted() != null || OnlineBot.Wanted() || DevCapture.Wanted();
+        bool testing = AnimeTool.Wanted() || Observer.Wanted() || Bot.Wanted() || Shots.Wanted() || Showcase.Wanted() || FitBot.Wanted() || MpBot.Wanted() != null || OnlineBot.Wanted() || DevCapture.Wanted();
         if (testing) Game.SetPath = "user://test_settings.json";
         Game.LoadSettings();
         if (testing) Inputs.ResetAll(false);   // test bots press the default keys
@@ -56,6 +56,7 @@ public partial class Main : Node3D
             Game.Set = new Settings { Master = 0 }; Sfx.ApplyVolumes(); Game.ApplyDisplay();
             DevCapture.StartGame = () => { Ui.I?.Close(); Game.NewGame("warrior", "Capture"); Game.D.PosX = 0; Game.D.PosZ = 9; BeginStaged(); };
         }
+        if (AnimeTool.Wanted()) { Game.SavePath = "user://test_save.json"; Game.NewGame("warrior", "Anime"); Game.D.Time = .42f; Begin(); AddChild(new AnimeTool { Name = "AnimeTool" }); return; }   // white animation studio (scripts/dev/AnimeTool.cs)
         if (Showcase.Wanted()) { Game.NewGame("warrior", "Showcase"); Begin(); AddChild(new Showcase { Name = "Showcase" }); return; }   // a few pretty pictures
         if (FitBot.Wanted()) { AddChild(new FitBot { Name = "FitBot" }); return; }   // gear fit studio: no world, no title
         if (Shots.Wanted()) { Game.NewGame("warrior", "Shots"); Begin(); AddChild(new Shots { Name = "Shots" }); return; }

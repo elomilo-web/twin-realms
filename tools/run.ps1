@@ -2,6 +2,8 @@
 #   powershell -File tools/run.ps1 bot       -> builds, runs the self-test bot, prints FAIL lines and the total
 #   powershell -File tools/run.ps1 bot scaling,dungeons -> only the bot steps whose names contain these words
 #   powershell -File tools/run.ps1 showcase  -> builds, takes ~10 showcase pictures of the game into screenshots/showcase/
+#   powershell -File tools/run.ps1 animetool -> the white animation studio (scripts/dev/AnimeTool.cs), interactive
+#   powershell -File tools/run.ps1 animetool-shots [light5,roll] -> films every move into bot_out/animetool/ (sheets + report.txt)
 #   powershell -File tools/run.ps1 quit      -> builds, plays a hero, quits to the title and plays again (QUIT_OK / QUIT_FAIL)
 #   powershell -File tools/run.ps1 observe  -> builds, runs the observer, writes observe_out/
 #   powershell -File tools/run.ps1 release   -> exports the Windows game and zips it into beta/ (the zip is not committed)
@@ -14,6 +16,7 @@ param([string]$mode = "bot")
 $ErrorActionPreference = "Continue"
 Set-Location (Join-Path $PSScriptRoot "..")
 $godot = $env:GODOT
+if (-not $godot -and (Test-Path .devloop/godot_path.txt)) { $godot = (Get-Content .devloop/godot_path.txt -Raw).Trim() }
 if (-not $godot) { $godot = Join-Path $env:USERPROFILE "Downloads\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stable_mono_win64_console.exe" }
 $b = dotnet build 2>&1 | Out-String
 if ($LASTEXITCODE -ne 0) { $b -split "`n" | Select-String "error" | Select-Object -First 30; "BUILD_FAIL"; exit 1 }
@@ -42,6 +45,16 @@ if ($mode -eq "bot") {
   "SHOTS: $n screenshots in screenshots/ (log: shots_log.txt)"
   $err = Get-Content shots_log.txt | Select-String "ERROR|SCRIPT ERROR|Unhandled|Exception|\[SPELLFX\]|\[KIT\]|\[WEAPONS\]|\[GENSHIN\]"
   if ($err) { "ENGINE ERRORS FOUND"; $err | Select-Object -First 30 }
+} elseif ($mode -eq "animetool") {
+  # AnimeTool (scripts/dev/AnimeTool.cs): the white animation studio with the real hero, interactive
+  & $godot --path . -- --animetool 2>&1 | ForEach-Object { "$_" } | Out-File -Encoding utf8 animetool_log.txt
+} elseif ($mode -eq "animetool-shots") {
+  # AnimeTool batch: every move filmed from the side and the front -> bot_out/animetool/*.png + report.txt (optional list: run.ps1 animetool-shots light5,roll)
+  $list = if ($args.Count -gt 0) { $args[0] } else { "all" }
+  & $godot --path . -- --animetool "--animetool-shots=$list" 2>&1 | ForEach-Object { "$_" } | Out-File -Encoding utf8 animetool_log.txt
+  "ANIMETOOL: $((Get-ChildItem bot_out/animetool -Filter *.png -ErrorAction SilentlyContinue).Count) sheets in bot_out/animetool/ (report.txt, log: animetool_log.txt)"
+  $err = Get-Content animetool_log.txt | Select-String "SCRIPT ERROR|Unhandled|Exception"
+  if ($err) { "ENGINE ERRORS FOUND"; $err | Select-Object -First 20 }
 } elseif ($mode -eq "showcase") {
   # showcase bot (scripts/Showcase.cs): ~10 good-looking pictures of the game on top graphics -> screenshots/showcase/
   if (Test-Path screenshots/showcase) { Get-ChildItem screenshots/showcase -Filter *.png | Remove-Item }

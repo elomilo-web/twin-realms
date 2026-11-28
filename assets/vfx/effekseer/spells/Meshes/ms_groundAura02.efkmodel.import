@@ -1,0 +1,15 @@
+[remap]
+
+importer="effekseer.resource"
+type="Resource"
+uid="uid://qmrkxkamqqau"
+path="res://.godot/imported/ms_groundAura02.efkmodel-08431e491811da2a6c44a0017d158a38.res"
+
+[deps]
+
+source_file="res://assets/vfx/effekseer/spells/Meshes/ms_groundAura02.efkmodel"
+dest_files=["res://.godot/imported/ms_groundAura02.efkmodel-08431e491811da2a6c44a0017d158a38.res"]
+
+[params]
+
+compress=true

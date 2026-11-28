@@ -38,3 +38,5 @@ smoke_log.txt
 .devloop/sheet.png
 .devloop/STOP
 .devloop/godot_path.txt
+animetool_log.txt
+animetool_err.txt

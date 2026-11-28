@@ -1,0 +1,17 @@
+[remap]
+
+importer="effekseer.effect"
+type="Resource"
+uid="uid://jnlbjemc3se3"
+path="res://.godot/imported/ef_lightning03.efkefc-f9f8d237159819d46e4ba10101d2ffe0.res"
+
+[deps]
+
+source_file="res://assets/vfx/effekseer/spells/ef_lightning03.efkefc"
+dest_files=["res://.godot/imported/ef_lightning03.efkefc-f9f8d237159819d46e4ba10101d2ffe0.res"]
+
+[params]
+
+scale=1.0
+data_type=0
+compress=true

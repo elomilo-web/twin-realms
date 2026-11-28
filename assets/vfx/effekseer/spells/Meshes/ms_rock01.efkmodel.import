@@ -1,0 +1,15 @@
+[remap]
+
+importer="effekseer.resource"
+type="Resource"
+uid="uid://vwu803xwdia4"
+path="res://.godot/imported/ms_rock01.efkmodel-057ac0bfe3dde43be516e13bb9dc4cf9.res"
+
+[deps]
+
+source_file="res://assets/vfx/effekseer/spells/Meshes/ms_rock01.efkmodel"
+dest_files=["res://.godot/imported/ms_rock01.efkmodel-057ac0bfe3dde43be516e13bb9dc4cf9.res"]
+
+[params]
+
+compress=true

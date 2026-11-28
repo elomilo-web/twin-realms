@@ -1,0 +1,17 @@
+[remap]
+
+importer="effekseer.effect"
+type="Resource"
+uid="uid://17wrwlcbmw3j"
+path="res://.godot/imported/Laser01_SoftParticle.efkefc-8c564d576e379903a87964de95ee693a.res"
+
+[deps]
+
+source_file="res://assets/vfx/effekseer/samples/Laser01_SoftParticle.efkefc"
+dest_files=["res://.godot/imported/Laser01_SoftParticle.efkefc-8c564d576e379903a87964de95ee693a.res"]
+
+[params]
+
+scale=1.0
+data_type=0
+compress=true

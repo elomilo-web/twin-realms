@@ -299,6 +299,10 @@ public partial class Player
             bend = Mathf.Clamp(Mathf.Atan2(mid - chest, dist), -Tune.F("hitbox.bendMax", .45f), Tune.F("hitbox.bendUp", .15f));
         }
         pl.MeleePitch = bend;
+        // the tucked roll and the arms in the air (HeroPose.TuckRoll / AirArms)
+        pl.Roll = _rollT > 0 && _av.HasClip("rollBase") ? Mathf.Clamp(_rollEl / Mathf.Max(.05f, RollTime), 0, 1) : -1f;
+        pl.Armed = Game.D.Weapon != null && !W.Ranged && W.Id != "unarmed";
+        pl.Air = !IsOnFloor() && _airT > .06f && !Flying && !Swimming && !Mounted && _rollT <= 0 && _atkT <= 0 && _castT <= 0 ? 1f : 0f;
     }
 
     // ------------------------------------------------------------------ backstep

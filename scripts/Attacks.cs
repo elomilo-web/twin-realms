@@ -176,7 +176,7 @@ public static class Attacks
         a.Dmg *= Mathf.Max(.1f, 1 + dmgP / 100f); a.Range *= 1 + rngP / 100f; a.Arc = Mathf.Min(180, a.Arc * (1 + arcP / 100f)); a.Knock *= 1 + kP / 100f;
         r.Speed *= Mathf.Max(.3f, 1 + spdP / 100f); r.Stamina *= Mathf.Max(.2f, 1 + stP / 100f);
         // look and weight: which animation, and the pause after it (heavier swings and finishers wait longer before the next one)
-        r.Anim = power ? (_styleRaw(w.Id) is { } sr ? JsonUtil.S(sr, "powerAnim") : "") : has ? JsonUtil.S(raw, "anim") : "";
+        r.Anim = power ? PowerAnimOf(w.Id) : has ? JsonUtil.S(raw, "anim") : "";
         var rc = C.TryGetProperty("recovery", out var rv) ? rv : default; float R(string k, float d) => rc.ValueKind == JsonValueKind.Object ? JsonUtil.F(rc, k, d) : d;
         float rec = power ? R("power", .5f) : a.Finisher ? R("finisher", .32f) : R("light", .05f);
         if (has && raw.TryGetProperty("recover", out var ov) && ov.ValueKind == JsonValueKind.Number) rec = ov.GetSingle();
@@ -187,5 +187,8 @@ public static class Attacks
             r.Rec = JsonUtil.S(rba, r.Anim);   // the follow-through that belongs to this swing's clip (Sword_Regular_B_Rec after a return cut)
         r.Def = a; return r;
     }
+    /// <summary>The power (heavy) attack's animation for a weapon class (data/attacks.json style powerAnim), "" if none.</summary>
+    public static string PowerAnimOf(string wt) => _styleRaw(wt) is { } sr ? JsonUtil.S(sr, "powerAnim") : "";
+
     static JsonElement? _styleRaw(string wt) => C.GetProperty("styles").TryGetProperty(wt, out var s) ? s : null;
 }

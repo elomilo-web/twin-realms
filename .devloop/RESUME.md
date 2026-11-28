@@ -1,4 +1,20 @@
-# RESUME (updated 2026-11-26)
+# RESUME (updated 2026-11-27)
+
+## AnimeTool + animation pass (2026-11-27, run in game through the tool)
+- New dev tool scripts/dev/AnimeTool.cs: white studio floating above the village with the REAL hero (Player, gear, trail, cape).
+  Interactive: tools/run.ps1 animetool (` toggles tool/play mode; F1-F7 cameras; [ ] \ = speed/pause/step; buttons for every move,
+  sparring foe, bones, blade trace). Batch: tools/run.ps1 animetool-shots [light5,roll,...] -> bot_out/animetool/<move>_<side|front>.png
+  + report.txt (clip, blade turn per frame, hip/head height, arm lift, cape, position). --animetool-clips=A,B poses raw clips and scans them.
+  --animetool-slow=1 for true per-frame numbers (slow-motion numbers are inflated by the attack time warp).
+- Fixed: swing step piled up in _walkV (each light swing threw the hero ~7 m at 16 m/s, so Sprint/Jog clips played mid-combo);
+  parry sound / riposte timer were inside a comment; jump arms (T-pose) lowered in the air (HeroPose.AirArms); roll is a procedural
+  tucked roll over Crouch_Idle (HeroPose.TuckRoll; both library rolls are dive rolls); block holds its guard while held + recoils on a
+  blocked blow; heavy wind-up starts during the press gather; light follow-through clips removed (they snapped the blade upright);
+  swings faster than rates.strikeMax skip into their wind-up instead of playing at 2-2.5x; heavy knockdown gets up with LayToIdle
+  (stagger knockDown+getUp, untouchable while rising); sword arm swings less in the run when armed; trail sampled at FramePreDraw and
+  smoothed with Catmull-Rom; cape streams less. Tunables: data/tuning.json game.anim.*, poise.knockDown/getUp, life.armedSwingDamp.
+- Re-bake clips before a release (new clips: Crouch_Idle as rollBase, LayToIdle as getUp): godot --headless --path . -- --bake-anims
+- Not done: the cape is still one rigid piece (no cloth); attack clips themselves are the library's (fast swings ~60-115 deg/frame).
 
 ## Where things stand (2026-11-27)
 - FOCUS.txt: every item is coded. F-01..F-32, F-34, F-35 were verified in game ([x]). F-33, F-36..F-44 are [~]: coded and compiling but NOT run in game
