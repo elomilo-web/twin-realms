@@ -197,6 +197,7 @@ public partial class Projectile : Node3D
             to = (Vector3)hit["position"]; end = true; _worldHit = true;
             if (Own == 'p' && hit["collider"].As<Node>()?.GetParent() is Npc shot && Player.Instance is { } shooter) Crime.Struck(shot, Game.D.WpnDmg(), shooter);   // F-32: a shot into a villager is a crime
         }
+        if (Own == 'p' && Breakables.ShotHit(this, from, to) is { } bp) { to = bp; end = true; _worldHit = true; }   // A-36: a shot breaks a crate, barrel or pot in its way
         GlobalPosition = to;
         if (_streak != null && (Homing || _age < dt * 1.5f || BlockWorld.FluidAt(to) == "water")) AimStreak();   // straight shots keep their first aim
         if (Kind == "arrow" && Vel.LengthSquared() > 0.01f)
@@ -240,6 +241,7 @@ public partial class Projectile : Node3D
             if (Aoe > 0)
             {
                 Vfx.Explosion(to, Aoe); if (Wpn == "") Sfx.Play("hit");
+                Breakables.Blast(to, Aoe);   // A-36: the blast breaks props in its reach
                 if (Calc != null) SpellStyles.Aoe(to, Aoe, Calc.Type, SpellStyles.PowerOf(Calc), .15f);   // F-12: the blast's rune circle shows its reach Player.Instance?.Rig?.Shake(0.18f);
                 foreach (var n in GetTree().GetNodesInGroup("enemies"))
                 {

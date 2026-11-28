@@ -301,6 +301,7 @@ public static class Lands
     public static void Build(Node3D over)
     {
         Structures.Begin(); BridgeSpots.Clear();   // F-19: this build's block structures start here (Builder.BuildAll finishes them)
+        Breakables.Begin();                        // A-36: this build's breakable props start here (Builder.BuildAll finishes them)
         Load(); if (All.Count == 0 && Sky.Count == 0) return;
         _stone = World.Mat(new Color(.62f, .6f, .57f), null, 1f); Gfx.Tex(_stone, "stone", 2.6f);
         _sandstone = World.Mat(new Color(.82f, .68f, .5f), null, 1f); Gfx.Tex(_sandstone, "stone", 3f);
@@ -668,7 +669,19 @@ public static class Lands
             b.Merge(StructGen.Tent(cl[i], 4), tx, 0, tz, Structures.RotFacing(-tx, -tz));
         }
         b.Merge(StructGen.Campfire(), 0, 0, 0);
-        for (int i = 0; i < 6; i++) K(g, i % 2 == 0 ? "village/crate" : "village/barrel", new Vector3(R(-6, 6), 0, R(-6, 6)), R(0, 6), 1.3f, false);
+        for (int i = 0; i < 6; i++) { R(-6, 6); R(-6, 6); R(0, 6); }   // the old crate / barrel draws, kept so the seed sequence (and every later place) stays the same
+        CampProps(p);   // A-36: breakable crates, barrels and sacks (same spots on every machine: from the place, not the seed)
+    }
+    /// <summary>A-36: a camp's stores as breakable props, placed from a hash of the place (both build paths and the server agree).</summary>
+    static void CampProps(Place p)
+    {
+        uint seed = (uint)Math.Abs((int)(p.X * 13 + p.Z * 29)) + 3u;
+        string[] kinds = { "crate", "barrel", "crate", "sack", "barrel", "crate_small", "fruit_crate" };
+        for (int i = 0; i < kinds.Length; i++)
+        {
+            float a = StructGen.H01(i, 1, 0, seed) * Mathf.Tau, r = p.R * (.22f + .2f * StructGen.H01(i, 2, 0, seed));
+            Breakables.Add(kinds[i], p.X + Mathf.Cos(a) * r, p.Z + Mathf.Sin(a) * r, StructGen.H01(i, 3, 0, seed) * 6f, owned: false);
+        }
     }
     static void BTombs(Blueprint b, uint seed)
     {
@@ -831,7 +844,8 @@ public static class Lands
             var tent = new MeshInstance3D { Mesh = new PrismMesh { Size = new Vector3(3.4f, 2.4f, 4.2f) }, MaterialOverride = _cloth, Position = pos, Rotation = new Vector3(0, -a, 0) }; g.AddChild(tent);
         }
         Pillar(g, .9f, .3f, Vector3.Zero, _stone); World.Lamp(g, new Vector3(0, 1.2f, 0), new Color(1f, .6f, .25f), 14f, 1.6f, -1, false);
-        for (int i = 0; i < 6; i++) K(g, i % 2 == 0 ? "village/crate" : "village/barrel", new Vector3(R(-6, 6), 0, R(-6, 6)), R(0, 6), 1.3f, false);
+        for (int i = 0; i < 6; i++) { R(-6, 6); R(-6, 6); R(0, 6); }   // the old crate / barrel draws, kept so the seed sequence (and every later place) stays the same
+        CampProps(p);   // A-36: breakable crates, barrels and sacks (same spots on every machine: from the place, not the seed)
     }
 
     static void Tombs(Place p, Node3D g)

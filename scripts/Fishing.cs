@@ -175,7 +175,7 @@ public partial class Fishing : Node3D
                 var t = p.Treasure!; xp = 8; int gold = t.G1 > 0 ? (int)GD.RandRange(t.G0, t.G1) : 0;
                 if (t.Kind == "chest")
                 {
-                    var it = Items.Roll(d.Level, 0, null, (int)GD.RandRange(t.R0, t.R1));
+                    var it = WeaponFinds.ForFishing(d.Level) ?? Items.Roll(d.Level, 0, null, (int)GD.RandRange(t.R0, t.R1));   // A-35: now and then an anchor or a frozen tuna
                     if (d.Inv.Count < 28) { d.Inv.Add(it); Note("A sunken chest: " + it.Name, it.Color); } else { gold += it.Value; Note("A sunken chest (pack full: sold its " + it.Name + ")", Ui.Dim); }
                     LastCatch = "Sunken chest: " + it.Name;
                 }

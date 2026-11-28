@@ -12,6 +12,21 @@ All by Quaternius (quaternius.com), CC0 1.0 (licence text kept next to the files
 | `models/weapons/` | Medieval Weapons Pack (FBX) â€” CC0 per quaternius.com/packs/medievalweapons.html | swords, axes, hammers, daggers, spear, bows, shields |
 | `models/anim/clips.res` | baked from Universal Animation Library 1 (`AL_Standard.fbx`) + 2 (`UAL2_Standard.glb`), both CC0, from OpenGameArt | only the clips the game plays; the two source files stay in the folder for rebuilding (`-- --bake-anims`) and are excluded from exports |
 
+## Hair, ears and face skin (A-34, added 2026-11-27): MakeHuman CC0 assets
+The realistic bodies (`models/char/TR_*_Body.glb`) are the MakeHuman base mesh, so MakeHuman's own assets fit them exactly.
+Fitted and converted by `tools/blender_gothic/mh_head_assets.py` (headless Blender; MakeHuman's proxy fit on the game bodies;
+hair textures made light grey so the hair colour tints them, skin neutralised to the old map's tone). Licence text (CC0 1.0 legal code
+plus the source list) in `models/hair/mh/LICENSE_MakeHuman_CC0.txt` and `models/char/LICENSE_MakeHuman_CC0.txt`.
+Rejected for licence: every hair01/bodyparts asset whose own file names AGPL3 / CC-BY (o4saken_long01 "CC BY 4.0", learning_anime_hair,
+elvs_* braids, rehmanpolanski bun, culturalibre_hair_01/02), and the CC-BY packs (hair02/03, animal02-04, bodyparts02/03/06).
+| Files | Source asset (author) | Page | Licence |
+|---|---|---|---|
+| `models/hair/mh/TR_MH_{short01,short02,short03,short04,long01,ponytail01,braid01,twinbraids,bob01,bob02,afro01}_*.glb` + `TR_MH_*_diffuse.png`, `TR_MH_afro_diffuse.png` | MakeHuman system hair short01-04, long01, ponytail01, braid01 (twinbraids = braid01 swung out and mirrored), bob01, bob02, afro01 (MakeHuman team: Data Collection AB, Joel Palmius, Jonas Hauquier) | https://static.makehumancommunity.org/assets/assetpacks/makehuman_system_assets.html (zip: https://files2.makehumancommunity.org/asset_packs/makehuman_system_assets/makehuman_system_assets_cc0.zip) | CC0 ("explicitly released as CC0 in September 2020", in each file) |
+| `models/hair/mh/TR_MH_shaggy_*.glb`, `TR_MH_straightbangs_Female.glb`, `TR_MH_shaggy_green_diff.png`, `TR_MH_straight_bangs_diff.png` | cortu_shaggy_green_hair, cortu_straight_bangs (Cortu) | https://static.makehumancommunity.org/assets/assetpacks/hair01.html (zip: .../asset_packs/hair01/hair01_cc0.zip) | CC0 ("Cortu Johnstone - CC0" in the file) |
+| `models/hair/mh/TR_MH_{bluntbob,curledbob,invertedbob}_Female.glb`, `TR_MH_AuburnHair.png`, `TR_MH_BlondHair.png`, `TR_MH_GoldenBlondHair.png` | toigo_blunt_bob_with_bangs, toigo_curled_under_bob_with_bangs, toigo_inverted_bob (MargaretToigo; subdivided once) | same hair01 pack | CC0 ("license CC0" in the file) |
+| `../data/ear_morphs.json` | MakeHuman ear targets (pointed, scale-vert, rot-backward, trans-up, scale, wing incr/decr) from the MPFB 2 data folder; titleknown_catgirl_ears (titleknown); elvs_flap_ears_1 (Elvaerwyn) | https://static.makehumancommunity.org/mpfb.html ; https://static.makehumancommunity.org/assets/assetpacks/animal01.html ; .../ears01.html | CC0 |
+| `models/char/TR_Male_skin_mh.png`, `TR_Female_skin_mh.png` | MakeHuman skins young_caucasian_male / young_caucasian_female (neutralised), with eyebrow001 / eyebrow010 and eyelashes01 / eyelashes02 painted in | makehuman_system_assets (above) | CC0 |
+
 ## Environment (`models/env/`), used by `scripts/Kit.cs` via `data/env.json`
 All by Quaternius, CC0 1.0 (licence text in each folder). Free "Standard" tiers. Only the models the game places are kept, with base-colour textures only (normal/roughness/ORM maps removed; metallic set to 0 where the file left it unset). Nature and props textures import at 512 px to fit the download size.
 | Path | Pack | Used for |
@@ -19,6 +34,10 @@ All by Quaternius, CC0 1.0 (licence text in each folder). Free "Standard" tiers.
 | `models/env/nature/` | Stylized Nature MegaKit [Standard] | leafy trees, pines, rocks, flowering bushes, flowers, mushrooms |
 | `models/env/village/` | Medieval Village MegaKit [Standard] | Oakhaven houses (walls, windows, doors, corners, roofs, gables, chimneys), wagon, fences |
 | `models/env/props/` | Fantasy Props MegaKit [Standard] | crates, barrels, market stall, anvil, workbench, weapon stand, training dummies, benches, table, cauldron, lanterns, sacks |
+
+## Graveyard props (`models/kit/graveyard/`, added 2026-11-27, A-36), used by `scripts/Breakables.cs` and `scripts/WorldSites.cs`
+"Graveyard Kit" 5.0 by Kenney (www.kenney.nl), https://kenney.nl/assets/graveyard-kit, CC0 1.0 (licence text kept next to the files: `models/kit/graveyard/License.txt`). Preview image checked before choosing. Only these 18 GLB models and their shared `Textures/colormap.png` are kept: urn-round, urn-square (breakable pots and burial urns), grave, grave-border, gravestone-cross / -round / -bevel / -decorative / -roof / -wide / -broken, cross-column, altar-stone, pillar-obelisk, column-large, debris, coffin-old, candle-multiple (graveyards, chapels, monuments). Their one material `colormap` is swapped for the gothic stone (`data/env.json` "graveyard/colormap"). Until Godot has imported them (open the editor once or run an import) the game draws simple stand-in shapes.
+The crates, barrels, apple barrel, produce crate and sacks that break are the Quaternius Fantasy Props MegaKit models already listed above (`models/env/props/`); the chests are the Twin Realms kit chests (`models/kit/dungeon/chest_*.glb`).
 
 Not used (licence): Bestiary â€“ Dungeon Monsters Kit is under the Quaternius Asset License (no redistribution of the raw files), so it is not in the repo. Farm Animals had no licence file and could not be verified.
 
@@ -137,3 +156,29 @@ Original work made for this game by `tools/kit_gen/tex_gen.py` (code-generated, 
 Original work made for this game by `tools/kit_gen/ui_gen.py` (code-generated, CC0). 69 skill icons, 48 item icons, 22 frame pieces. See `docs/kit/README.md`.
 
 - assets/audio/music/gen/*.wav (7 songs: town_hearthside, town_market_morning, explore_open_road, explore_far_hills, night_starlit, night_lantern_watch, home_by_the_fire): original, synthesised by tools/music_gen.ps1 (focus F-39). No third-party material.
+
+## A-35 weapons (`models/kit/weapons/ph_*`, `odd_*` and the grand set), added 2026-11-27
+All CC0 1.0. Licence notes and credits next to the files: `models/kit/weapons/LICENSE_A35_CC0.txt`. Downloaded files were re-oriented
+(grip at the origin, head up +Y, striking side +X; shields centred, front +Z), scaled and re-exported by `tools/blender_gothic/import_props.py`
+(Poly Haven textures scaled to 512 px JPEG; the Poly Pizza models re-skinned with the shared gothic G_* materials and baked AO).
+Used through `data/weapons.json` kitModels.byName, `data/avatar.json` kitShields and `data/weapon_finds.json`.
+| File | Source (licence) | Used as |
+|---|---|---|
+| `ph_estoc_cathedral.glb` | "Antique Estoc", Poly Haven, https://polyhaven.com/a/antique_estoc (CC0) | sword "Cathedral Estoc" |
+| `ph_katana_mist.glb` | "Antique Katana 01", Poly Haven, https://polyhaven.com/a/antique_katana_01 (CC0) | katana "Ronin Blade", "Mist-Edge Uchigatana" |
+| `ph_mace_bishop.glb` | "Ornate Medieval Mace", Poly Haven, https://polyhaven.com/a/ornate_medieval_mace (CC0) | mace "Bishop's Mace" |
+| `ph_hammer_bell.glb` | "Ornate War Hammer", Poly Haven (Ulan Cabanilla, James Ray Cock), https://polyhaven.com/a/ornate_war_hammer (CC0) | mace "Bell Hammer", warhammer "Bellkeeper's Maul" (x1.75), colossal hammer "Bellkeeper's Colossus" (x2.3) |
+| `ph_axe_woodsman.glb` | "Wooden Axe 02", Poly Haven, https://polyhaven.com/a/wooden_axe_02 (CC0) | axe "Woodsman's Axe", greataxe "Felling Axe" (x1.7), colossal axe "Woodcutter's Colossus" (x2.1) |
+| `ph_greatshield_kite.glb` | "Kite Shield", Poly Haven, https://polyhaven.com/a/kite_shield (CC0) | shields named "...Greatshield" (drawn 1.15 m) |
+| `odd_pan.glb` | "Brass Pan 01", Poly Haven, https://polyhaven.com/a/brass_pan_01 (CC0) | pan (frying pan) |
+| `odd_spade.glb` | "Rusted Spade 01", Poly Haven, https://polyhaven.com/a/rusted_spade_01 (CC0) | spade |
+| `odd_broom.glb` | "Wooden Broom", Poly Haven, https://polyhaven.com/a/wooden_broom (CC0) | broom |
+| `odd_door.glb`, `odd_door_shield.glb` | "Large Castle Door" (left leaf), Poly Haven, https://polyhaven.com/a/large_castle_door (CC0) | door (weapon), shield "Cellar Door" (drawn 1.3 m) |
+| `odd_lamppost.glb` | "Street Lamp 01", Poly Haven, https://polyhaven.com/a/street_lamp_01 (CC0) | lamppost |
+| `odd_chair.glb` | "Wooden Chair 01", Poly Haven, https://polyhaven.com/a/WoodenChair_01 (CC0) | chair |
+| `odd_cittern.glb` | "Ukulele 01", Poly Haven, https://polyhaven.com/a/Ukulele_01 (CC0) | cittern (lute) |
+| `odd_anchor.glb` | "Anchor" by Nikdane12, Poly Pizza, https://poly.pizza/m/SxdMzDMKpS (CC0) | anchor |
+| `odd_fish.glb` | "Fish" by Quaternius, Poly Pizza, https://poly.pizza/m/XWl86YFtpF (CC0) | fish |
+| `odd_pitchfork.glb` | "Pitchfork" by CreativeTrio, Poly Pizza, https://poly.pizza/m/dtLT2Nj0KF (CC0) | pitchfork |
+| `odd_torch.glb` | "Wooden Torch" by Quaternius, Poly Pizza, https://poly.pizza/m/pNsfJzhXiD (CC0) | torch |
+| `colossal_sword_moon.glb`, `colossal_slab_ember.glb`, `dune_reaver_sun.glb`, `giant_axe_storm.glb`, `starfall_maul_void.glb`, `seal_hallowed.glb`, `siege_ladder.glb` | original work for this game, `tools/blender_gothic/weapons_grand.py` (CC0) | colossal sword / axe / hammer, curved greatsword, sacred seal, ladder |

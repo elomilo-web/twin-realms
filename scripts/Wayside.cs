@@ -378,6 +378,17 @@ public static class Wayside
         if (NpcDb.AddGenerated(rec)) s.Npcs.Add(rec.Id);
     }
 
+    /// <summary>A-36 (WorldSites.cs): one generated person at a world spot, a role of data/wayside.json "roles". Returns the NPC id or "".</summary>
+    public static string AddPerson(string siteId, string roleKey, Vector3 home, Vector3 work, uint h)
+    {
+        if (Net.Dedicated || !FileAccess.FileExists(File)) return "";
+        using var doc = JsonUtil.Load(File); var r = doc.RootElement;
+        var rc = Obj(Obj(r, "roles"), roleKey); if (rc.ValueKind != JsonValueKind.Object) return "";
+        var s = new Site { Id = siteId, Land = "", Kind = roleKey };
+        Person(s, rc, Obj(r, "names"), h, new NpcSpot { Abs = true, X = home.X, Z = home.Z }, new NpcSpot { Abs = true, X = work.X, Z = work.Z });
+        return s.Npcs.Count > 0 ? s.Npcs[0] : "";
+    }
+
     // ---------------------------------------------------------------- monsters (ruins and crypts)
     static void Foes(Site s, KindCfg kc, uint seed, string[] types, int packId)
     {
@@ -406,6 +417,7 @@ public static class Wayside
         var box = BlockUse.ChestItems(key);
         int n = _itemsLo + (int)(GD.Randi() % (uint)(_itemsHi - _itemsLo + 1));
         for (int i = 0; i < n; i++) box.Add(Items.Roll(d.Level + tier, tier * _rarTier));
+        if (WeaponFinds.ForWayside(d.Level + tier, tier * _rarTier) is { } find) { box.Add(find); n++; }   // A-35: a named or odd weapon (data/weapon_finds.json)
         int gold = _goldLo + (int)(GD.Randi() % (uint)(_goldHi - _goldLo + 1)) + tier * _goldTier;
         d.Gold += gold; Sfx.Play("coin");
         Ui.Note($"The chest holds {n} items and {gold} gold", new Color(1f, .85f, .3f));

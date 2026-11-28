@@ -86,6 +86,7 @@ public class PlayerStats
     public Dictionary<string, StoryState> Story = new();
     public Dictionary<string, string> Flags = new();
     public Dictionary<string, int> Bounty = new();   // gold on the hero's head per town (Crime.cs, F-32); falls by the hour. Older saves load with none.
+    public Dictionary<string, long> Broken = new();  // A-36 (Breakables.cs): broken crates, barrels, pots and opened chests by prop id -> unix time broken (they come back after their respawn time). Older saves load with none.
     public List<string> Instruments = new(); public string Instrument = "";   // instruments owned (data/instruments.json ids) and the one taken out with the instrument key (Instruments.cs, F-40). Older saves load with none.
     public SteadSave Stead = new();   // A-24..A-26 (Stead.cs): planted crops, forge contents, ranch animals. Older saves load with none.
 

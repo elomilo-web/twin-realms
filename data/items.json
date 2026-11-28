@@ -21,7 +21,7 @@
                        3.2
                    ],
     "weaponNames":  {
-                        "katana":  [ "Uchigatana", "Katana", "Tachi", "Nodachi", "Odachi" ],
+                        "katana":  [ "Uchigatana", "Katana", "Tachi", "Nodachi", "Odachi", "Ronin Blade" ],
                         "sword":  [
                                       "Sword",
                                       "Blade",
@@ -29,7 +29,8 @@
                                       "Longsword",
                                       "Falchion",
                                       "Bastard Sword",
-                                      "Estoc"
+                                      "Estoc",
+                                      "Cathedral Estoc"
                                   ],
                         "bow":  [
                                     "Shortbow",
@@ -46,7 +47,8 @@
                                      "Scepter",
                                      "Tome",
                                      "Bone Wand",
-                                     "Rune Rod"
+                                     "Rune Rod",
+                                     "Sacred Seal"
                                  ],
                         "staff":  [
                                       "Staff",
@@ -63,7 +65,8 @@
                                            "Zweihander",
                                            "Flamberge",
                                            "Executioner",
-                                           "Great Cleaver"
+                                           "Great Cleaver",
+                                           "Curved Greatsword"
                                        ],
                         "axe":  [
                                     "Hatchet",
@@ -71,7 +74,8 @@
                                     "Bearded Axe",
                                     "War Axe",
                                     "Cleaver",
-                                    "Runed Axe"
+                                    "Runed Axe",
+                                    "Woodsman's Axe"
                                 ],
                         "mace":  [
                                      "Club",
@@ -80,7 +84,9 @@
                                      "Morningstar",
                                      "Warhammer",
                                      "Flail",
-                                     "Spiked Club"
+                                     "Spiked Club",
+                                     "Bishop's Mace",
+                                     "Bell Hammer"
                                  ],
                         "dagger":  [
                                        "Knife",
@@ -104,15 +110,30 @@
                         "rapier":  [ "Foil", "Smallsword", "Rapier", "Epee", "Tuck" ],
                         "scimitar":  [ "Cutlass", "Scimitar", "Talwar", "Kilij", "Shamshir" ],
                         "halberd":  [ "Bill", "Halberd", "Voulge", "Guisarme", "Poleaxe" ],
-                        "warhammer":  [ "Sledge", "Maul", "Great Hammer", "War Maul", "Earthbreaker" ],
+                        "warhammer":  [ "Sledge", "Maul", "Great Hammer", "War Maul", "Earthbreaker", "Bellkeeper's Maul" ],
                         "flail":  [ "Scourge", "Flail", "Chain Mace", "Ball and Chain", "Holy Water Sprinkler" ],
                         "scythe":  [ "Sickle Staff", "Scythe", "Harvester", "Crescent", "Reaper" ],
                         "claws":  [ "Knuckles", "Claws", "Tiger Claws", "Talons", "Katar" ],
-                        "greataxe":  [ "Battleaxe", "Greataxe", "Dane Axe", "Labrys", "Headsman" ],
+                        "greataxe":  [ "Battleaxe", "Greataxe", "Dane Axe", "Labrys", "Headsman", "Felling Axe" ],
                         "whip":  [ "Lash", "Whip", "Bullwhip", "Chain Whip", "Scorpion Tail" ],
                         "crossbow":  [ "Hand Crossbow", "Crossbow", "Repeater", "Arbalest", "Siege Bow" ],
                         "javelin":  [ "Dart", "Javelin", "Throwing Spear", "Pilum", "Harpoon" ],
-                        "kunai":  [ "Needles", "Throwing Knives", "Kunai", "Throwing Daggers", "Chakram" ]
+                        "kunai":  [ "Needles", "Throwing Knives", "Kunai", "Throwing Daggers", "Chakram" ],
+                        "colossal":  [ "Colossal Sword", "Greatblade", "Slab", "Giant's Zweihander", "Storm Colossus" ],
+                        "colossalaxe":  [ "Colossal Axe", "Titan Labrys", "Woodcutter's Colossus" ],
+                        "colossalhammer":  [ "Colossal Hammer", "Giant's Maul", "Bellkeeper's Colossus" ],
+                        "pan":  [ "Frying Pan", "Skillet", "Griddle" ],
+                        "broom":  [ "Broom", "Besom", "Witch's Broom" ],
+                        "ladder":  [ "Ladder", "Siege Ladder" ],
+                        "door":  [ "Door", "Cellar Door", "Gate" ],
+                        "anchor":  [ "Anchor", "Ship's Anchor" ],
+                        "lamppost":  [ "Lamp Post", "Street Lamp" ],
+                        "fish":  [ "Fish", "Tuna", "Frozen Tuna" ],
+                        "chair":  [ "Chair", "Tavern Chair", "High-Backed Chair" ],
+                        "cittern":  [ "Lute", "Cittern", "Minstrel's Lute" ],
+                        "torch":  [ "Torch", "Brand", "Pitch Torch" ],
+                        "spade":  [ "Spade", "Shovel", "Gravedigger's Spade" ],
+                        "pitchfork":  [ "Pitchfork", "Hayfork" ]
                     },
     "itemNames":  {
                       "weapon":  [

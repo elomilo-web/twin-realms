@@ -34,7 +34,9 @@ public static class Builder
         Lair(over); Stones(over); Obelisks(over); Chests(over); Npcs(over); Spawns(over);
         Tavern.Build(over);        // A-33 / A-26: the Starlight Tavern west of the square, and the town's station blocks (Tavern.cs)
         Wayside.Build(over);       // F-33: camps, farms, watchtowers, ruins, shrines, inns and crypts along the roads
+        WorldSites.Build(over);    // A-36: chapels, graveyards, carts, corpses, statues, stones, cellars, war camps, relics, message stones, vistas
         Structures.Finish(over);   // F-19: every block structure is stamped; the far meshes build and the block world may start
+        Breakables.Finish(over);   // A-36: the breakable props stream in near the hero from here
     }
 
     // ---------------------------------------------------------------- F-19 block structures (scripts/StructGen.cs)
@@ -216,6 +218,9 @@ public static class Builder
         over.AddChild(new StashChest { Position = World.OnGround(-4.6f, 14.0f), Rotation = new Vector3(0, Mathf.Pi, 0) });
         over.AddChild(new PartyChestNode { Position = World.OnGround(-2.1f, 13.9f), Rotation = new Vector3(0, Mathf.Pi, 0) });
         if (Kit.Available) KitVillageProps(over);
+        // A-36: the village's stores are breakable props (a shop's in town: smashing them where someone sees is a crime)
+        Breakables.Add("barrel", 22f, 3f); Breakables.Add("sack", -21f, -13f, .5f); Breakables.Add("sack", 20.2f, -21f, 2f);
+        Breakables.Add("barrel_apples", -12.6f, 6.2f); Breakables.Add("fruit_crate", -12.4f, 9.9f, .4f); Breakables.Add("sack", 25.2f, 4.4f, 1f);
         var st = Group(over, -9, 8);
         if (blk) { }
         else if (Kit.Available)
@@ -232,7 +237,7 @@ public static class Builder
         Box(st, new Vector3(4.4f, .15f, 3f), new Vector3(0, 2.85f, 0), Cloth); Solid(st, new Vector3(3.6f, .9f, .9f), new Vector3(0, .5f, .3f), Wood); Box(st, new Vector3(3.6f, .1f, .9f), new Vector3(0, .97f, .3f), Cloth);
         }
         var fg = Group(over, 24, 2); if (!blk) Solid(fg, new Vector3(2.4f, 1.3f, 2f), new Vector3(0, .65f, 0), Stone);
-        if (Kit.Available) { Kit.Add(fg, Kit.Str("props", "anvil"), new Vector3(2, 0, 0), Mathf.Pi / 2, 1f, true); Kit.Add(fg, Kit.Str("props", "workbench"), new Vector3(-.4f, 0, -2.1f), 0, 1f, true); Kit.Add(fg, Kit.Str("props", "barrel"), new Vector3(-2f, 0, 1f), 0, 1.1f, true); Kit.Add(fg, Kit.Str("props", "weaponStand"), new Vector3(3.6f, 0, -1.4f), -.5f, 1f, true); }
+        if (Kit.Available) { Kit.Add(fg, Kit.Str("props", "anvil"), new Vector3(2, 0, 0), Mathf.Pi / 2, 1f, true); Kit.Add(fg, Kit.Str("props", "workbench"), new Vector3(-.4f, 0, -2.1f), 0, 1f, true); Kit.Add(fg, Kit.Str("props", "weaponStand"), new Vector3(3.6f, 0, -1.4f), -.5f, 1f, true); }
         else Box(fg, new Vector3(1.1f, .6f, .6f), new Vector3(2, .8f, 0), Metal);
         if (!blk) Box(fg, new Vector3(.5f, 3f, .5f), new Vector3(-.6f, 2.4f, -.5f), Stone);
         Fire(fg, new Vector3(.2f, blk ? 1.7f : 1.45f, 0), 1.4f, 16f);
@@ -351,7 +356,7 @@ public static class Builder
         At("wagon", -26.5f, 23.5f, 1.2f);
         At("bench", 5.5f, -5.5f, .6f); At("bench", -6f, -5.2f, -.6f);
         At("table", 9.5f, 3.5f, 1.3f); At("bench", 10.6f, 3f, 1.3f, 1f);
-        At("bucket", 1.9f, 1.2f, 0, 1.2f, false); At("bag", -21f, -13f, .5f, 1f, false); At("bag", 20.2f, -21f, 2f, 1f, false);
+        At("bucket", 1.9f, 1.2f, 0, 1.2f, false);   // (the bags are breakable sacks now: Village)
         At("cauldron", 8.4f, 5.6f, 0, .9f);
     }
     static void Lamp(Node parent, float x, float z)
@@ -381,11 +386,9 @@ public static class Builder
     static void Crate(Node parent, float x, float z, float s)
     {
         float yaw = R(0, 3);   // always draw the number, so the seed sequence (and every later placement) stays the same
-        if (Kit.Available) Kit.Add(parent, Kit.Str("props", "crate"), World.OnGround(x, z, -.02f), yaw, s / .9f, true);
-        else Solid(parent, new Vector3(s, s, s), World.OnGround(x, z, s / 2), Wood, yaw);
+        Breakables.Add(s < 1f ? "crate_small" : "crate", x, z, yaw);   // A-36: a breakable prop (in town it is a shop's: Crime.Vandalism)
     }
-    static void Barrel(Node parent, float x, float z) {
-        if (Kit.Available) { Kit.Add(parent, Kit.Str("props", "barrel"), World.OnGround(x, z, -.02f), x, 1.15f, true); return; } var b = new StaticBody3D { Position = World.OnGround(x, z, .47f), CollisionLayer = 1 }; b.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = .45f, BottomRadius = .45f, Height = .95f, RadialSegments = 10 }, MaterialOverride = Wood }); b.AddChild(new CollisionShape3D { Shape = new CylinderShape3D { Radius = .45f, Height = .95f } }); parent.AddChild(b); }
+    static void Barrel(Node parent, float x, float z) => Breakables.Add("barrel", x, z, x);   // A-36
 
     // ---------------------------------------------------------------- Arena
     public static StaticBody3D? GateBody; static Node3D? _portcullis;
@@ -855,7 +858,7 @@ void fragment(){
         if (pk.Camp)
         {
             Campfire(over, x, z);
-            if (zn.Home && Kit.Available) { Kit.Add(over, Kit.Str("props", "barrel"), World.OnGround(x - 2.4f, z - 2.6f, -.02f), x, 1.1f); Kit.Add(over, Kit.Str("props", "crate"), World.OnGround(x - 1.3f, z - 3.1f, -.02f), z, 1f); }
+            if (zn.Home) { Breakables.Add("barrel", x - 2.4f, z - 2.6f, x); Breakables.Add("crate", x - 1.3f, z - 3.1f, z); Breakables.Add("sack", x + 2.2f, z - 2.4f, x + z); }   // A-36: breakable camp stores
         }
         var types = new List<string>();
         foreach (var m in pk.Members) { int n = Math.Min(m.max, m.min + (int)(rg() * (m.max - m.min + 1))); for (int i = 0; i < n; i++) types.Add(m.type); }

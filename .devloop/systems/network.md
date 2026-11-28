@@ -9,6 +9,7 @@ Purpose: Peer-to-peer multiplayer (host/join, parties, loot rules, duels), the d
 - `scripts/PlayerNet.cs` (35 lines): hero's pose packet and duel save. Key: `NetPacket()` L14, `DuelSave()` L29
 - `scripts/RemoteHero.cs` (159 lines): friend's avatar (HeroRig). Key: `Refresh()` L54, `Push()` L82, `_Process()` L88, `AnimateAvatar()` L139
 - `scripts/Accounts.cs` (201 lines): server-side accounts, token login, cloud saves, OnlineCfg. Key: `OnlineCfg.Load()` L20, `Register()` L82, `Login()` L98, `IssueToken()` L136, `LoginToken()` L152, `LoadSave()` L177
+- `scripts/NetBreak.cs` (A-37): breakable props online: R_BreakAsk / R_BreakGrant / R_BreakSet / R_BreakSync; server table in Breakables.Auth (BreakServer), TR_DATA/breakables.json. Protocol 17.
 - `scripts/UiNet.cs` (205 lines): multiplayer windows. Key: `OpenMultiplayer()` L23, `LobbyPage()` L69, `Ask()` L136, `OpenPlayerMenu()` L147, `PartyChestNode` L186
 - `scripts/UiOnline.cs` (46 lines): Play Online login screen. Key: `ShowOnline()` L10, `OnOnlineChanged()` L38
 - `scripts/Updater.cs` (475 lines): launch check, zip download/unpack/restart, launcher UI + account panel. Key: `Updater.Wanted()` L27, `Load()` L76, `ShowLauncher()` L104, `OnServerVersion()` L206, `OnZipDone()` L254, `Install()` L308, `BuildAccount()` L335

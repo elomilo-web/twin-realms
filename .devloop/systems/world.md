@@ -12,6 +12,8 @@ Purpose: Overworld terrain, sky/day-night, Light/Shadow realm shift, hand-built 
 - `scripts/Toon.cs` (114) / `Genshin.cs` (147): legacy anime look. Key: `Toon.Apply()` L69, `Genshin.From()` L83, `SetNight()` L135
 - `scripts/Ambient.cs` (115): butterflies/fireflies. Key: `_Ready()` L19, `_Process()` L80
 - `scripts/Props.cs` (199): spinners, interactable props. `scripts/Interact.cs` (12): E-use base.
+- `scripts/Breakables.cs` (A-36): breakable / lootable props (records with stable ids, streamed nodes, swing/shot/blast hits, debris, loot by type and area level, surprises, respawn table BreakServer, "/breakables", "/breaktest"). Data: data/breakables.json.
+- `scripts/WorldSites.cs` (A-36): Elden-Ring-style places off the roads in all six lands (chapels, graveyards, carts, corpses, statues, stones, watchtower ruins, cellars, war camps, pedlars, giants, relics, message stones, vistas) + breakable stores at the F-33 wayside sites; "/sites". Data: data/sites.json.
 - `assets/shaders/water_stylized.gdshader` (81), `genshin_toon.gdshader` (149), `genshin_outline.gdshader` (48)
 ## Scenes / nodes
 Built in code: Main/World (terrain chunks, sky, lights), Oakhaven under World, Flora chunk MultiMeshes.

@@ -85,6 +85,12 @@
       "traits": ["road-worn", "cheerful", "restless", "resourceful", "chatty"],
       "likes": ["campfire songs", "new roads", "boots that fit", "shared bread"],
       "dislikes": ["blisters", "wolves", "cold rain", "closed gates"],
-      "greetings": ["Room by the fire if you want it.", "Lovely spot for a camp. Shame about the ants.", "I'll be gone by morning, or the one after.", "The road's long. No sense walking it on an empty stomach."] }
+      "greetings": ["Room by the fire if you want it.", "Lovely spot for a camp. Shame about the ants.", "I'll be gone by morning, or the one after.", "The road's long. No sense walking it on an empty stomach."] },
+    "pedlar": { "id": "pedlar", "role": "pedlar", "outfit": "traveller", "color": "#6a4a6a", "schedule": "wild", "_note": "A-36 wandering merchant spots (WorldSites.cs); NpcDb.Trades: a pedlar trades",
+      "speech": ["sly", "cheerful", "warm"],
+      "traits": ["shrewd", "far-travelled", "talkative", "superstitious", "generous to regulars"],
+      "likes": ["a fair haggle", "rare trinkets", "a dry road", "news from the far lands"],
+      "dislikes": ["bandits", "tax collectors", "broken cart wheels", "haggling over copper"],
+      "greetings": ["Wares from every coast, friend. Look, don't lick.", "Ah, a customer! Or a robber. Customer, I hope.", "Everything has a price. Most of it is fair.", "I was here yesterday and I'll be gone tomorrow. Buy today."] }
   }
 }

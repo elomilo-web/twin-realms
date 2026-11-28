@@ -1,0 +1,109 @@
+{
+  "_help": "A-36 world places (scripts/WorldSites.cs), Elden Ring style things to find off the roads. counts: how many of each kind per land ('default' for lands not listed). Placement is from terrain, roads and distances only (the same on every machine and the online server; seeds from the land, kind and try number): never in towns, on roads, in water or on steep ground (margins like data/wayside.json). Each kind: name, radius (flat ground needed, metres), slope (allowed height change across it), gap (metres from other sites), foes [lo, hi] and foeLevel (levels over the area). foes: monster types per land and kind. lore: message lines per kind (and per land in landLore). wayside: breakable props laid at the F-33 roadside sites, [type, local x, local z] in the site's frame (front +Z), y = floor (crypt: the chamber floor).",
+  "margins": { "town": 34, "poi": 18, "place": 26, "road": 10, "bridge": 26, "wayside": 34 },
+  "minGap": 40,
+  "waterClear": 0.8,
+  "tries": 60,
+  "kinds": {
+    "chapel":    { "name": "Ruined Chapel",       "radius": 9,  "slope": 2.2, "gap": 120, "foes": [0, 2], "foeLevel": 1 },
+    "graveyard": { "name": "Forgotten Graveyard", "radius": 8,  "slope": 2.0, "gap": 110, "foes": [0, 1], "foeLevel": 0 },
+    "cart":      { "name": "Abandoned Cart",      "radius": 5,  "slope": 1.6, "gap": 70,  "foes": [0, 2], "foeLevel": 0 },
+    "corpse":    { "name": "Fallen Traveller",    "radius": 2,  "slope": 1.4, "gap": 50 },
+    "statue":    { "name": "Broken Monument",     "radius": 5,  "slope": 1.8, "gap": 120 },
+    "stones":    { "name": "Standing Stones",     "radius": 9,  "slope": 2.4, "gap": 180 },
+    "watchruin": { "name": "Fallen Watchtower",   "radius": 6,  "slope": 2.0, "gap": 140, "foes": [2, 3], "foeLevel": 1 },
+    "cellar":    { "name": "Hidden Cellar",       "radius": 8,  "slope": 1.8, "gap": 140, "foes": [0, 1], "foeLevel": 1 },
+    "warcamp":   { "name": "War Camp",            "radius": 9,  "slope": 2.0, "gap": 160, "foes": [3, 5], "foeLevel": 1 },
+    "pedlar":    { "name": "Pedlar's Rest",       "radius": 5,  "slope": 1.6, "gap": 200 },
+    "giant":     { "name": "Remains of a Giant",  "radius": 9,  "slope": 3.0, "gap": 220 },
+    "glint":     { "name": "Glinting Relic",      "radius": 1.5, "slope": 0.8, "gap": 60 },
+    "lorestone": { "name": "Message Stone",       "radius": 1.5, "slope": 1.2, "gap": 55 },
+    "vista":     { "name": "Vista",               "radius": 3,  "slope": 1.6, "gap": 260 }
+  },
+  "counts": {
+    "home":    { "chapel": 1, "graveyard": 1, "cart": 2, "corpse": 3, "statue": 1, "stones": 0, "watchruin": 1, "cellar": 1, "warcamp": 1, "pedlar": 1, "giant": 1, "glint": 4, "lorestone": 4, "vista": 1 },
+    "default": { "chapel": 2, "graveyard": 2, "cart": 4, "corpse": 6, "statue": 2, "stones": 1, "watchruin": 2, "cellar": 2, "warcamp": 3, "pedlar": 1, "giant": 1, "glint": 8, "lorestone": 6, "vista": 2 }
+  },
+  "foes": {
+    "home":  { "chapel": ["skeleton", "wraith"], "graveyard": ["skeleton"], "cart": ["bandit", "archer"], "watchruin": ["bandit", "archer", "bandit"], "cellar": ["giantRat", "skeleton"], "warcamp": ["goblin", "goblin", "hobgoblin", "goblin", "archer"] },
+    "frost": { "chapel": ["ghost", "skeleton"], "graveyard": ["skeleton"], "cart": ["bandit", "bandit"], "watchruin": ["archer", "bandit", "brute"], "cellar": ["giantRat", "skeleton"], "warcamp": ["bandit", "archer", "brute", "bandit", "yeti"] },
+    "sun":   { "chapel": ["skeleton", "ghost"], "graveyard": ["skeleton"], "cart": ["bandit", "archer"], "watchruin": ["archer", "bandit", "archer"], "cellar": ["giantSpider", "skeleton"], "warcamp": ["bandit", "archer", "bandit", "darkMage", "archer"] },
+    "mire":  { "chapel": ["ghost", "myconid"], "graveyard": ["skeleton"], "cart": ["goblin", "goblin"], "watchruin": ["goblin", "hobgoblin", "archer"], "cellar": ["giantRat", "myconid"], "warcamp": ["goblin", "hobgoblin", "goblin", "goblin", "darkMage"] },
+    "ember": { "chapel": ["flameSkull", "skeleton"], "graveyard": ["skeleton"], "cart": ["hobgoblin", "bandit"], "watchruin": ["hobgoblin", "archer", "orcWarrior"], "cellar": ["giantRat", "flameSkull"], "warcamp": ["orcWarrior", "hobgoblin", "archer", "orcWarrior", "brute"] },
+    "elder": { "chapel": ["ghost", "wraith"], "graveyard": ["skeleton"], "cart": ["bandit", "archer"], "watchruin": ["bandit", "archer", "bandit"], "cellar": ["giantSpider", "skeleton"], "warcamp": ["bandit", "archer", "goblin", "bandit", "darkMage"] }
+  },
+  "relicNames": ["a glinting relic", "something left behind", "a forgotten keepsake", "a gleam in the dirt", "a traveller's last treasure", "an old offering"],
+  "vistaNames": {
+    "home": ["Verdant Overlook"], "frost": ["Rimeglass Overlook", "The White Silence"], "sun": ["Sunscar Overlook", "The Burning Horizon"],
+    "mire": ["Fenwatch Rise", "The Drowned Prospect"], "ember": ["Cinder Crag", "The Ashen Lookout"], "elder": ["Old Crown Rise", "The Green Cathedral"], "default": ["A High Place"]
+  },
+  "lore": {
+    "chapel": [
+      "The bell fell long before the roof. They say it still rings on nights when no one listens.",
+      "Here the faithful asked the Light to stay. It did not answer, and in time neither did they.",
+      "Carved under the altar: WHAT IS GIVEN IN LIGHT IS TAKEN IN SHADOW.",
+      "The last priest sealed the doors from inside. The doors are gone now. The priest is not."
+    ],
+    "graveyard": [
+      "No names on these stones. Only the dates, and the dates do not agree with each other.",
+      "Rest lightly, for the ground here is thin, and the Shadow is close beneath it.",
+      "A mourner's note, weathered: I buried you deep. Why do I hear you at the gate?",
+      "Those who dig here for gold find it. Those who dig for answers find company."
+    ],
+    "statue": [
+      "A hero of a war no one remembers, holding a sword no one could lift.",
+      "The plaque is worn away but for one word: BETRAYED.",
+      "Pilgrims once left coins at its feet. Now only moss, and the coins of the moss.",
+      "They raised it to watch the road. It watches still, though the road has moved."
+    ],
+    "stones": [
+      "The stones were here before the realms were split. They remember both.",
+      "Stand in the circle at dusk and you can hear the other world breathing.",
+      "Count the stones twice. If the number changes, leave.",
+      "Old blood on old rock. Whatever was asked of these stones, it was paid for."
+    ],
+    "giant": [
+      "It fell when the sky broke. Nothing has grown taller since.",
+      "Even in death it points to the mountains, as if to warn of what came after.",
+      "A blade for a hand larger than a house. The smiths of that age are gone, and so is the hand.",
+      "The crows will not land on these bones. Neither should you."
+    ],
+    "lorestone": [
+      "Try jumping.",
+      "Beware: an ambush ahead. Or a friend. Hard to tell from here.",
+      "Visions of treasure... behind the waterfall? No. Behind you.",
+      "The Shadow realm keeps what the Light forgets. Shift, and look again.",
+      "Rest at the obelisks. The dead do not rest anywhere else.",
+      "If only I had a shield...",
+      "Praise the dawn, for night is long in these lands.",
+      "Barrels hold more than ale. Crates hold more than straw. Some boxes hold teeth.",
+      "Here lies one who opened every chest. Be wary of the hungry ones.",
+      "Liar ahead. Therefore, treasure.",
+      "The road is safer. The road has nothing worth finding.",
+      "Seek the high places. The land shows its secrets to those who climb."
+    ],
+    "vista": [
+      "From here the whole land lies open, roads like threads and towns like embers.",
+      "Wind, and distance, and the slow turning of the world. Breathe.",
+      "Somewhere out there is everything you are looking for. Somewhere."
+    ],
+    "corpse": [ "A traveller who rested here, and never rose." ]
+  },
+  "landLore": {
+    "home":  [ "Oakhaven was built on an older town. The cellars go deeper than the houses ever did.", "The Whispering Stones were singing before the first oak was planted." ],
+    "frost": [ "In Frostspire the snow keeps the dead fresh, and the dead keep the snow.", "The yeti were men once. That is the story, and the yeti do not deny it." ],
+    "sun":   [ "The Sunscar was a sea. The fish became sand. The sand remembers swimming.", "Under Atheru's tombs sleep kings who paid in water for their crowns." ],
+    "mire":  [ "Mirefen swallows roads, carts, and the people who come looking for both.", "The marsh lights are not lanterns. Do not follow them home." ],
+    "ember": [ "Emberwild burns every autumn and grows back angrier.", "Cinderhold's smiths quench their blades in the blood of the hill. The hill bleeds willingly." ],
+    "elder": [ "The Elderwood trees are older than the realms. They chose sides.", "Aurelion's founders asked the forest for leave. The forest is still deciding." ]
+  },
+  "wayside": {
+    "camp":       [["crate", 2.5, 3.5], ["barrel", -2.5, 3.5], ["sack", 5.5, -3.5], ["crate_small", 6.2, -2.6]],
+    "farm":       [["sack", 0.5, 3.5], ["sack", 0.6, 2.6], ["barrel_apples", -1.2, 5.0], ["fruit_crate", -3.5, 4.5]],
+    "watchtower": [["crate", -3.5, -3.0], ["barrel", 3.5, -3.0], ["crate_small", -3.6, -1.9]],
+    "ruin":       [["pot", -2.0, 1.0], ["urn", 1.0, 1.0], ["crate", -5.5, 4.0], ["pot", 5.5, 5.5]],
+    "shrine":     [["pot", -3.0, 0.0], ["pot", 3.0, 0.0]],
+    "inn":        [["barrel", -6.5, 4.5], ["barrel", -7.4, 4.6], ["crate", 6.5, 4.5], ["sack", 7.4, 5.0]],
+    "crypt":      [["pot", -2.5, -10.5], ["pot", -2.5, -5.5], ["urn", 4.0, -5.5], ["urn", 4.0, -9.0]]
+  }
+}

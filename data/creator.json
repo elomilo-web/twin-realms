@@ -99,8 +99,10 @@
     "eyes": ["3a2414", "6a4a22", "8a7a30", "3a6a3a", "2a6a4a", "3a6a9a", "6aa0d0", "8a8a98", "c08cff", "ffb000", "c02020"],
     "mark": ["5a1414", "8a4a44", "1a1a1e", "1e3a5a", "2a4a2a", "e8e0d0", "7a4a30", "c8a030"]
   },
-  "_hairHelp": "Hair styles are the models listed in data/avatar.json hair.male / hair.female (assets/models/hair); the label is the last word of the file name unless named here. bald: offer a 'Bald' choice.",
-  "hairNames": { "TR_Hair_Male_short.glb": "Short", "TR_Hair_Male_buzzed.glb": "Buzzed", "TR_Hair_Male_swept.glb": "Swept back", "TR_Hair_Male_long.glb": "Long", "TR_Hair_Female_long.glb": "Long", "TR_Hair_Female_swept.glb": "Swept back", "TR_Hair_Female_flowing.glb": "Flowing" },
+  "_hairHelp": "Hair styles are the models listed in data/avatar.json hair.male / hair.female (assets/models/hair); the label is the last word of the file name unless named here. bald: offer a 'Bald' choice. A-34: the MakeHuman styles replaced the old ones index for index (see avatar.json _hairHelp), so a saved choice keeps its nearest style.",
+  "hairNames": { "TR_Hair_Male_short.glb": "Short", "TR_Hair_Male_buzzed.glb": "Buzzed", "TR_Hair_Male_swept.glb": "Swept back", "TR_Hair_Male_long.glb": "Long", "TR_Hair_Female_long.glb": "Long", "TR_Hair_Female_swept.glb": "Swept back", "TR_Hair_Female_flowing.glb": "Flowing",
+    "TR_MH_short02_Male.glb": "Short", "TR_MH_short01_Male.glb": "Cropped", "TR_MH_short04_Male.glb": "Swept back", "TR_MH_shaggy_Male.glb": "Shaggy", "TR_MH_short03_Male.glb": "Side part", "TR_MH_ponytail01_Male.glb": "Ponytail", "TR_MH_braid01_Male.glb": "Braid", "TR_MH_long01_Male.glb": "Long", "TR_MH_afro01_Male.glb": "Curls", "TR_MH_twinbraids_Male.glb": "Twin braids",
+    "TR_MH_long01_Female.glb": "Long", "TR_MH_ponytail01_Female.glb": "Ponytail", "TR_MH_straightbangs_Female.glb": "Straight bangs", "TR_MH_bob01_Female.glb": "Bob", "TR_MH_bluntbob_Female.glb": "Blunt bob", "TR_MH_braid01_Female.glb": "Braid", "TR_MH_twinbraids_Female.glb": "Twin braids", "TR_MH_bob02_Female.glb": "Short bob", "TR_MH_short02_Female.glb": "Pixie", "TR_MH_curledbob_Female.glb": "Curled bob", "TR_MH_invertedbob_Female.glb": "Inverted bob", "TR_MH_shaggy_Female.glb": "Shaggy", "TR_MH_afro01_Female.glb": "Curls", "TR_MH_short03_Female.glb": "Cropped" },
   "bald": true,
 
   "_previewHelp": "The live preview: camera field of view, how close the face view is (metres from the head), how fast dragging / the right stick turn the hero and the wheel / triggers zoom, and the light colours.",

@@ -1,20 +1,20 @@
 {
- "_help": "Playable races. a = starting attribute bonus, mods = permanent bonuses (same keys as the skill tree, see docs/STATS.md), passive = the racial passive {n, d, mods} (F-35; stat stage 'race'), look = appearance. Read by scripts/Races.cs. look: skin/hair/eyes colours; height/bulk scale the whole body; head = head size (Head bone scale, BodyShape in Avatar.cs); ears = true/'pointy' | 'fox' | 'fin'; horns = true/'curl' | 'dragon' | 'oni'; tail = 'fox' | 'dragon'; wings = 'fae'; tusks, beard, glow (eyes). Attachments are fitted to the skull measured for the helmets (data/avatar.json head _help).",
+ "_help": "Playable races. a = starting attribute bonus, mods = permanent bonuses (same keys as the skill tree, see docs/STATS.md), passive = the racial passive {n, d, mods} (F-35; stat stage 'race'), look = appearance. Read by scripts/Races.cs. look: skin/hair/eyes colours; height/bulk scale the whole body; head = head size (Head bone scale, BodyShape in Avatar.cs); ears = true/'pointy' | 'fox' | 'fin' | 'fae' | 'orc' | 'demon' | 'halfling' | 'dwarf' (A-34: a kind listed in data/avatar.json earMorphs reshapes the body's own ears with MakeHuman ear targets; other kinds use the old procedural pieces; no ears key = human ears); horns = true/'curl' | 'dragon' | 'oni'; tail = 'fox' | 'dragon'; wings = 'fae'; tusks, beard, glow (eyes). Attachments are fitted to the skull measured for the helmets (data/avatar.json head _help).",
  "races": {
   "human": { "n": "Human", "d": "Adaptable. Extra skill point and a little of everything.", "a": { "str": 1, "dex": 1, "vit": 1, "mag": 1, "lck": 1 }, "mods": { "xpP": 10, "allP": 3 }, "pts": 1,
    "look": { "skin": "e0b590", "hair": "52331a", "eyes": "14181f" } },
   "elf": { "n": "Elf", "d": "Graceful and long-lived. Keen with bows and magic, light on their feet.", "a": { "dex": 3, "mag": 2, "vit": -1, "agi": 1, "wis": 1 }, "mods": { "rangedP": 8, "spellP": 5, "move": 5, "res_shadow": 10 },
    "look": { "skin": "f0d2b8", "hair": "e8dca0", "eyes": "2a6a4a", "ears": "pointy", "height": 1.04, "bulk": 0.92 } },
   "dwarf": { "n": "Dwarf", "d": "Stout and stubborn. Hard to stagger, tough against fire and poison.", "a": { "str": 2, "vit": 3, "dex": -1, "end": 2, "agi": -1 }, "mods": { "def": 6, "hpP": 8, "res_fire": 15, "res_poison": 15, "tenacity": 20 },
-   "look": { "skin": "d8a585", "hair": "8a3c1a", "eyes": "1a1410", "beard": true, "height": 0.84, "bulk": 1.14, "head": 1.06 } },
+   "look": { "skin": "d8a585", "hair": "8a3c1a", "eyes": "1a1410", "ears": "dwarf", "beard": true, "height": 0.84, "bulk": 1.14, "head": 1.06 } },
   "orc": { "n": "Orc", "d": "Brutal strength and a rage that heals.", "a": { "str": 4, "vit": 2, "mag": -2, "end": 2, "wis": -1 }, "mods": { "meleeP": 10, "regenHp": 1.2, "armorPen": 4 },
-   "look": { "skin": "6e9a50", "hair": "1a1a14", "eyes": "3a1408", "tusks": true, "height": 1.06, "bulk": 1.15 } },
+   "look": { "skin": "6e9a50", "hair": "1a1a14", "eyes": "3a1408", "ears": "orc", "tusks": true, "height": 1.06, "bulk": 1.15 } },
   "halfling": { "n": "Halfling", "d": "Small, quick and lucky. More crits and evasion.", "a": { "dex": 4, "str": -1, "lck": 3 }, "mods": { "crit": 4, "evade": 6, "move": 6 },
-   "look": { "skin": "ecc4a0", "hair": "6a4220", "eyes": "2a2010", "height": 0.76, "bulk": 0.95, "head": 1.1 } },
+   "look": { "skin": "ecc4a0", "hair": "6a4220", "eyes": "2a2010", "ears": "halfling", "height": 0.76, "bulk": 0.95, "head": 1.1 } },
   "shadowkin": { "n": "Shadowkin", "d": "Born of the Rift. Shadow damage, life drain, at home in the dark.", "a": { "mag": 2, "dex": 2 }, "mods": { "shadowP": 12, "leech": 1.5, "res_shadow": 25, "res_holy": -10 },
-   "look": { "skin": "6a5a8c", "hair": "e8e8f0", "eyes": "c08cff", "glow": true, "horns": "curl", "height": 1.02 } },
+   "look": { "skin": "6a5a8c", "hair": "e8e8f0", "eyes": "c08cff", "glow": true, "ears": "demon", "horns": "curl", "height": 1.02 } },
   "drakeling": { "n": "Drakeling", "d": "Dragon-blooded. Fire in the veins, scales for skin.", "a": { "str": 2, "vit": 2, "mag": 1 }, "mods": { "fireP": 12, "res_fire": 25, "def": 4 },
-   "look": { "skin": "a8503a", "hair": "2a1410", "eyes": "ffb000", "glow": true, "horns": "dragon", "tail": "dragon", "height": 1.08, "bulk": 1.08 } },
+   "look": { "skin": "a8503a", "hair": "2a1410", "eyes": "ffb000", "glow": true, "ears": "demon", "horns": "dragon", "tail": "dragon", "height": 1.08, "bulk": 1.08 } },
   "lumen": { "n": "Lumen", "d": "Touched by the old light. Holy power and stronger healing.", "a": { "mag": 3, "vit": 1, "wis": 3 }, "mods": { "holyP": 12, "healP": 15, "res_shadow": 15, "mpP": 6 },
    "look": { "skin": "f6e6d0", "hair": "fff4c0", "eyes": "ffe680", "glow": true, "height": 1.03 } },
   "beastkin": { "n": "Beastkin", "d": "Fox-folk of the wild woods. Quick, sly and sure-footed.", "a": { "dex": 3, "str": 1, "agi": 2 }, "mods": { "move": 5, "evade": 4, "crit": 2 },
@@ -22,7 +22,7 @@
    "look": { "skin": "f0c8a0", "hair": "d8742a", "eyes": "c89020", "ears": "fox", "tail": "fox", "height": 0.98, "bulk": 0.95, "head": 1.04 } },
   "fae": { "n": "Fae", "d": "Small winged folk of the twilight courts. Bright magic, frail bodies.", "a": { "mag": 4, "dex": 1, "vit": -1 }, "mods": { "spellP": 6, "mpP": 8, "res_holy": 10 },
    "passive": { "n": "Gossamer Wings", "d": "Wings carry every leap higher, and mana flows back faster.", "mods": { "jumpP": 40, "regenMp": 0.8 } },
-   "look": { "skin": "f4dcd8", "hair": "b8e0ff", "eyes": "60d0ff", "glow": true, "ears": "pointy", "wings": "fae", "height": 0.9, "bulk": 0.88, "head": 1.08 } },
+   "look": { "skin": "f4dcd8", "hair": "b8e0ff", "eyes": "60d0ff", "glow": true, "ears": "fae", "wings": "fae", "height": 0.9, "bulk": 0.88, "head": 1.08 } },
   "undying": { "n": "Undying", "d": "Risen from the grave with their mind intact. Hard to kill, shunned by the light.", "a": { "vit": 2, "mag": 1 }, "mods": { "res_shadow": 20, "res_poison": 20, "res_holy": -20, "healIn": -10 },
    "passive": { "n": "Deathless", "d": "Cheats death once every few minutes, and never needs to breathe.", "mods": { "undying": 1, "breathP": 400 } },
    "look": { "skin": "b4bcc0", "hair": "d0d4d8", "eyes": "80ffd0", "glow": true, "height": 1.0, "bulk": 0.9 } },
@@ -31,6 +31,6 @@
    "look": { "skin": "8ab8c0", "hair": "2a6a8a", "eyes": "40e0e0", "ears": "fin", "height": 1.02 } },
   "oni": { "n": "Oni", "d": "Horned mountain giants. Huge strength, a thick hide and a short temper.", "a": { "str": 3, "vit": 2, "dex": -1 }, "mods": { "meleeP": 6, "hpP": 6, "res_fire": 10 },
    "passive": { "n": "Oni Might", "d": "Power attacks hit far harder and throw foes back; hard to stagger.", "mods": { "powerP": 15, "knockP": 20, "tenacity": 10 } },
-   "look": { "skin": "c05a48", "hair": "1a1a20", "eyes": "ffd040", "horns": "oni", "tusks": true, "height": 1.12, "bulk": 1.12, "head": 0.96 } }
+   "look": { "skin": "c05a48", "hair": "1a1a20", "eyes": "ffd040", "ears": "demon", "horns": "oni", "tusks": true, "height": 1.12, "bulk": 1.12, "head": 0.96 } }
  }
 }

@@ -77,6 +77,7 @@ public static class BlockDrops
     /// <summary>Enemy.Die: adds this kill's blocks to the shared rewards (netKill) or gives them to the local hero.</summary>
     public static void Roll(Enemy e, bool netKill, StringBuilder mats)
     {
+        if (!Net.Dedicated) WeaponFinds.OnKill(e, netKill);   // A-35: named weapons and odd finds from this kind of monster (data/weapon_finds.json)
         if (!Active || (!netKill && Net.Dedicated)) return;   // the server itself has no pack
         var at = e.GlobalPosition;
         foreach (var (block, n) in Pick(e.Type, e.Def.Kind, e.Def.Boss, e.Def.Realm, FishDb.Biome(at.X, at.Z)))

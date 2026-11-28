@@ -205,6 +205,7 @@ public partial class ItemTip : PanelContainer
         if (it.Wings) L($"Flight: press {Inputs.KeyOf(Inputs.Jump)} in the air to fly. Hold it to climb, {Inputs.KeyOf(Inputs.Roll)} to dive. Drains stamina; 3x running speed.", 12, new Color("ffd27a"));
         if (it.Unique) L("Unique", 13, new Color("ffd27a"));
         if (Uniques.Tip(it) is { flavour: not "" } ut) { L("\"" + ut.flavour + "\"", 12, new Color("c9bfa6")); if (ut.from != "") L("Quest reward: " + ut.from, 11, UiTheme.Dim); }   // A-18: a quest unique's flavour text
+        else if (WeaponFinds.Tip(it) is { Length: > 0 } wf) L("\"" + wf + "\"", 12, new Color("c9bfa6"));   // A-35: a named or odd weapon's flavour
         if (LootTables.SetOf(it.Set) is { } set)
         {
             // set bonuses: lit when you wear enough pieces

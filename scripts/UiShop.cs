@@ -42,6 +42,7 @@ public partial class Ui
                     () => { if (d.Gold < cc) { Sfx.UiError(); Note("Not enough gold", new Color(1, .5f, .5f)); return; } d.Gold -= cc; Cubes.Give(cd.Id, 1, false); Traded(); Sfx.Play("coin"); OpenShop(tab); }, d.Gold >= cc);
             }
             for (int i = 0; i < _stock.Count; i++) { int k = i; var it = _stock[i]; ItemRow(list, it, BuyPrice(it) + "g", () => { int c = BuyPrice(it); if (d.Gold < c) { Sfx.UiError(); Note("Not enough gold", new Color(1, .5f, .5f)); return; } if (d.Inv.Count >= 28) { Note("Pack is full", new Color(1, .5f, .5f)); return; } d.Gold -= c; d.Inv.Add(it); _stock.RemoveAt(k); Traded(); Sfx.Play("coin"); OpenShop(tab); }, d.Gold >= BuyPrice(it)); }
+            CurioRows(list, tab);   // A-35: a pedlar's curios, now and then a named piece (UiWeaponFinds.cs, data/weapon_finds.json)
         }
         else
         {

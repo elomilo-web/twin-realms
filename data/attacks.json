@@ -16,6 +16,96 @@
 	"recLight": "recA", "recHeavy": "recHook"
   },
   "styles": {
+	"colossal": { "name": "Colossal Sword Forms", "start": ["heave", "reverse", "grave"], "powerAnim": "slam", "steps": {
+		"heave": { "anim": "bigSwing", "n": "Heave", "d": "A slow sweep that clears a circle.", "base": 0 },
+		"reverse": { "anim": "backhand", "n": "Reverse Heave", "d": "The heavy return.", "base": 1 },
+		"grave": { "anim": "slam", "n": "Grave Maker", "d": "An overhead fall of iron that stuns.", "base": 2, "finisher": true },
+		"rend": { "anim": "hook", "n": "Rending Arc", "d": "A cut that bleeds.", "base": 0, "dmg": 1.0, "status": { "bleed": 0.5 }, "cost": 1, "req": 4 },
+		"titan": { "anim": "chop", "n": "Titan's Fall", "d": "A huge, slow blow that breaks guards.", "base": 2, "dmg": 2.4, "arc": 40, "speed": 0.62, "stamina": 1.6, "status": { "shred": 0.6 }, "finisher": true, "cost": 2, "req": 9 } } },
+	"colossalaxe": { "name": "Colossal Axe Forms", "start": ["fell", "split", "ruin"], "powerAnim": "bigSwing", "steps": {
+		"fell": { "anim": "bigSwing", "n": "Fell", "d": "A wide felling cut.", "base": 0 },
+		"split": { "anim": "backhand", "n": "Split", "d": "The return through the trunk.", "base": 1 },
+		"ruin": { "anim": "slam", "n": "Ruin", "d": "Down through anything.", "base": 2, "finisher": true },
+		"gore": { "anim": "hook", "n": "Gore", "d": "A deep bleeding hack.", "base": 0, "dmg": 1.05, "status": { "bleed": 0.7 }, "cost": 1, "req": 4 },
+		"cleaveworld": { "anim": "combo3", "n": "World Cleaver", "d": "A full turn with the axe out at arm's length.", "base": 2, "dmg": 1.8, "arc": 180, "spin": 360, "speed": 0.8, "finisher": true, "cost": 2, "req": 9 } } },
+	"colossalhammer": { "name": "Colossal Hammer Forms", "start": ["quake", "quake2", "crater"], "powerAnim": "slam", "steps": {
+		"quake": { "anim": "slam", "n": "Quake", "d": "A blow that shakes the ground and stuns.", "base": 0 },
+		"quake2": { "anim": "backhand", "n": "Aftershock", "d": "The swing back up.", "base": 1 },
+		"crater": { "anim": "chop", "n": "Crater", "d": "Throws foes into the air.", "base": 2, "finisher": true },
+		"daze": { "anim": "hook", "n": "Daze", "d": "Stuns longer.", "base": 0, "dmg": 0.9, "stun": 1.0, "cost": 1, "req": 3 },
+		"starfall": { "anim": "slam", "n": "Starfall", "d": "A blow from on high over a wide ring.", "base": 2, "dmg": 2.3, "arc": 180, "speed": 0.65, "stamina": 1.6, "up": 10, "finisher": true, "cost": 2, "req": 9 } } },
+	"pan": { "name": "Kitchen Brawling", "start": ["bonk", "bonk2", "dinner"], "powerAnim": "slam", "steps": {
+		"bonk": { "anim": "bash", "n": "Bonk", "d": "A ringing knock on the head.", "base": 0 },
+		"bonk2": { "anim": "backhand", "n": "Backhand Bonk", "d": "And the other side.", "base": 1 },
+		"dinner": { "anim": "slam", "n": "Dinner Bell", "d": "A full swing that stuns.", "base": 2, "finisher": true },
+		"flip": { "anim": "rising", "n": "Pancake Flip", "d": "Knocks a foe off its feet.", "base": 1, "dmg": 0.9, "up": 6, "cost": 1, "req": 3 },
+		"searing": { "anim": "combo1", "n": "Hot Pan", "d": "Fresh off the fire: burns.", "base": 0, "dmg": 0.9, "status": { "burn": 0.5 }, "cost": 1, "req": 5 } } },
+	"broom": { "name": "Sweeping", "start": ["sweep", "sweep2", "dustup"], "powerAnim": "combo3", "steps": {
+		"sweep": { "anim": "bigSwing", "n": "Sweep", "d": "A wide sweep that pushes foes back.", "base": 0 },
+		"sweep2": { "anim": "backhand", "n": "Back Sweep", "d": "And back the other way.", "base": 1 },
+		"dustup": { "anim": "combo3", "n": "Dust Devil", "d": "A spinning sweep that lifts foes.", "base": 2, "finisher": true },
+		"poke": { "anim": "thrust", "n": "Bristle Poke", "d": "A quick jab to the face: weakens.", "base": 0, "dmg": 0.8, "arc": 20, "speed": 1.4, "stamina": 0.6, "status": { "weaken": 0.5 }, "cost": 1, "req": 2 },
+		"witchwind": { "anim": "combo2", "n": "Witch Wind", "d": "Chills what it sweeps.", "base": 1, "dmg": 1.0, "status": { "chill": 0.5 }, "cost": 1, "req": 5 } } },
+	"ladder": { "name": "Ladder Work", "start": ["swing", "ram", "topple"], "powerAnim": "charge", "steps": {
+		"swing": { "anim": "bigSwing", "n": "Wide Swing", "d": "Everyone near goes over.", "base": 0 },
+		"ram": { "anim": "thrust", "n": "Ram", "d": "A straight shove from very far.", "base": 1 },
+		"topple": { "anim": "combo3", "n": "Topple", "d": "A full turn that knocks a crowd flat.", "base": 2, "finisher": true },
+		"scale": { "anim": "charge", "n": "Scale the Wall", "d": "A running charge.", "base": 1, "dmg": 1.2, "lunge": 3.0, "cost": 1, "req": 4 },
+		"rungs": { "anim": "slam", "n": "Rung Crusher", "d": "Bring it down on their heads: stuns.", "base": 2, "dmg": 1.6, "stun": 1.2, "finisher": true, "cost": 2, "req": 7 } } },
+	"door": { "name": "Doorkeeping", "start": ["slam", "slam2", "barricade"], "powerAnim": "slam", "steps": {
+		"slam": { "anim": "bigSwing", "n": "Slam", "d": "A door in the face.", "base": 0 },
+		"slam2": { "anim": "backhand", "n": "Back Slam", "d": "And again on the way back.", "base": 1 },
+		"barricade": { "anim": "slam", "n": "Barricade", "d": "Flat down on a foe: a long stun.", "base": 2, "finisher": true },
+		"knock": { "anim": "bash", "n": "Knock Knock", "d": "Two quick raps.", "base": 0, "dmg": 0.7, "speed": 1.4, "stamina": 0.7, "cost": 1, "req": 3 },
+		"gatecrash": { "anim": "charge", "n": "Gatecrasher", "d": "Run them over with it.", "base": 1, "dmg": 1.4, "lunge": 3.5, "knock": 14, "cost": 2, "req": 7 } } },
+	"anchor": { "name": "Deep Water", "start": ["haul", "haul2", "drop"], "powerAnim": "slam", "steps": {
+		"haul": { "anim": "bigSwing", "n": "Haul", "d": "A slow, crushing swing.", "base": 0 },
+		"haul2": { "anim": "backhand", "n": "Heave Back", "d": "The return.", "base": 1 },
+		"drop": { "anim": "combo3", "n": "Drop Anchor", "d": "A full turn on the chain.", "base": 2, "finisher": true },
+		"undertow": { "anim": "hook", "n": "Undertow", "d": "Cold sea: chills.", "base": 0, "dmg": 1.0, "status": { "chill": 0.7 }, "cost": 1, "req": 4 },
+		"keelhaul": { "anim": "slam", "n": "Keelhaul", "d": "Straight down from overhead.", "base": 2, "dmg": 2.3, "arc": 40, "speed": 0.65, "stun": 1.5, "finisher": true, "cost": 2, "req": 8 } } },
+	"lamppost": { "name": "Street Fighting", "start": ["swat", "swat2", "lightsout"], "powerAnim": "combo3", "steps": {
+		"swat": { "anim": "bigSwing", "n": "Swat", "d": "A long, wide swing.", "base": 0 },
+		"swat2": { "anim": "backhand", "n": "Back Swat", "d": "The return.", "base": 1 },
+		"lightsout": { "anim": "slam", "n": "Lights Out", "d": "A stunning blow from above.", "base": 2, "finisher": true },
+		"oil": { "anim": "hook", "n": "Spilled Oil", "d": "The lamp breaks open: burns.", "base": 0, "dmg": 1.0, "status": { "burn": 0.7 }, "cost": 1, "req": 4 },
+		"curfew": { "anim": "combo3", "n": "Curfew", "d": "Clears the whole street.", "base": 2, "dmg": 1.7, "arc": 180, "spin": 360, "finisher": true, "cost": 2, "req": 8 } } },
+	"fish": { "name": "Fishmonger's Fury", "start": ["slap", "slap2", "flop"], "powerAnim": "bigSwing", "steps": {
+		"slap": { "anim": "slashA", "n": "Slap", "d": "A wet, cold slap.", "base": 0 },
+		"slap2": { "anim": "backhand", "n": "Other Cheek", "d": "And the other cheek.", "base": 1 },
+		"flop": { "anim": "slam", "n": "Flop", "d": "A heavy wet blow that stuns.", "base": 2, "finisher": true },
+		"brine": { "anim": "combo1", "n": "Brine", "d": "Very fast slaps.", "base": 0, "dmg": 0.7, "speed": 1.6, "stamina": 0.55, "cost": 1, "req": 2 },
+		"catch": { "anim": "bigSwing", "n": "Catch of the Day", "d": "A wide frozen sweep: chills.", "base": 2, "dmg": 1.5, "arc": 150, "status": { "chill": 0.8 }, "finisher": true, "cost": 2, "req": 6 } } },
+	"chair": { "name": "Tavern Brawling", "start": ["smash", "smash2", "pileup"], "powerAnim": "slam", "steps": {
+		"smash": { "anim": "bigSwing", "n": "Chair Shot", "d": "A wide swing that staggers.", "base": 0 },
+		"smash2": { "anim": "backhand", "n": "Back Shot", "d": "And back.", "base": 1 },
+		"pileup": { "anim": "slam", "n": "Bar Fight", "d": "Over the head: a long stun.", "base": 2, "finisher": true },
+		"legsweep": { "anim": "hook", "n": "Leg Sweep", "d": "The legs take their feet away.", "base": 0, "dmg": 0.9, "up": 5, "cost": 1, "req": 3 },
+		"lastcall": { "anim": "combo3", "n": "Last Call", "d": "A full turn through the whole tavern.", "base": 2, "dmg": 1.6, "arc": 180, "spin": 360, "finisher": true, "cost": 2, "req": 7 } } },
+	"cittern": { "name": "Minstrelsy", "start": ["strum", "strum2", "crescendo"], "powerAnim": "slam", "steps": {
+		"strum": { "anim": "slashA", "n": "Strum", "d": "A twanging blow that dazes.", "base": 0 },
+		"strum2": { "anim": "backhand", "n": "Chord", "d": "And the next chord.", "base": 1 },
+		"crescendo": { "anim": "slam", "n": "Crescendo", "d": "A finale over the head: stuns.", "base": 2, "finisher": true },
+		"dirge": { "anim": "combo1", "n": "Dirge", "d": "A mournful air: weakens.", "base": 0, "dmg": 0.85, "status": { "weaken": 0.6 }, "cost": 1, "req": 3 },
+		"encore": { "anim": "combo3", "n": "Encore", "d": "A spinning flourish for the whole crowd.", "base": 2, "dmg": 1.4, "arc": 180, "spin": 360, "finisher": true, "cost": 2, "req": 6 } } },
+	"torch": { "name": "Firebrand", "start": ["brand", "brand2", "flare"], "powerAnim": "bigSwing", "steps": {
+		"brand": { "anim": "slashA", "n": "Brand", "d": "A quick burning swipe.", "base": 0 },
+		"brand2": { "anim": "slashB", "n": "Second Brand", "d": "Back through the flames.", "base": 1 },
+		"flare": { "anim": "combo2", "n": "Flare", "d": "A wide arc of fire.", "base": 2, "finisher": true },
+		"singe": { "anim": "jab", "n": "Singe", "d": "Very fast; sets foes alight.", "base": 0, "dmg": 0.75, "speed": 1.5, "stamina": 0.6, "status": { "burn": 0.6 }, "cost": 1, "req": 2 },
+		"pyre": { "anim": "combo3", "n": "Pyre", "d": "A spinning ring of fire.", "base": 2, "dmg": 1.5, "arc": 180, "spin": 360, "status": { "burn": 0.8 }, "finisher": true, "cost": 2, "req": 6 } } },
+	"spade": { "name": "Gravedigging", "start": ["dig", "dig2", "bury"], "powerAnim": "slam", "steps": {
+		"dig": { "anim": "chop", "n": "Dig", "d": "A chopping blow with the blade.", "base": 0 },
+		"dig2": { "anim": "backhand", "n": "Flat of the Spade", "d": "A ringing flat blow.", "base": 1 },
+		"bury": { "anim": "slam", "n": "Bury", "d": "Straight down: stuns.", "base": 2, "finisher": true },
+		"dirt": { "anim": "rising", "n": "Shovelful", "d": "Dirt in the eyes: weakens.", "base": 1, "dmg": 0.6, "status": { "weaken": 0.7 }, "cost": 1, "req": 3 },
+		"sexton": { "anim": "slam", "n": "Sexton's Blow", "d": "Hits the restless dead harder.", "base": 2, "dmg": 2.0, "status": { "shred": 0.5 }, "finisher": true, "cost": 2, "req": 7 } } },
+	"pitchfork": { "name": "Peasant Revolt", "start": ["jab", "jab2", "toss"], "powerAnim": "charge", "steps": {
+		"jab": { "anim": "thrust", "n": "Jab", "d": "Three tines, three wounds.", "base": 0 },
+		"jab2": { "anim": "combo2", "n": "Second Jab", "d": "Again.", "base": 1 },
+		"toss": { "anim": "rising", "n": "Hay Toss", "d": "Up and over: throws a foe.", "base": 2, "finisher": true },
+		"skewer": { "anim": "charge", "n": "Skewer", "d": "A running thrust that bleeds.", "base": 0, "dmg": 1.2, "lunge": 3.0, "status": { "bleed": 0.6 }, "cost": 1, "req": 4 },
+		"mob": { "anim": "combo3", "n": "Angry Mob", "d": "A spinning sweep that keeps them back.", "base": 2, "dmg": 1.3, "arc": 180, "spin": 360, "finisher": true, "cost": 2, "req": 7 } } },
 	"rapier": { "name": "Fencing", "start": ["lunge", "remise", "fleche"], "powerAnim": "dashSlash", "steps": {
 		"lunge": { "anim": "thrust", "n": "Lunge", "d": "A fast straight thrust.", "base": 0 },
 		"remise": { "anim": "combo1", "n": "Remise", "d": "A second thrust on the same line.", "base": 1 },
@@ -249,9 +339,9 @@
 	"endurance": { "n": "Endurance", "d": "Attacks cost 35% less stamina.", "staminaP": -35, "cost": 1, "req": 3 },
 	"momentum": { "n": "Momentum", "d": "+12% damage for each step into the chain.", "rampP": 12, "cost": 2, "req": 4 },
 	"executioner": { "n": "Executioner", "d": "Finishers deal 40% more and stun longer.", "finisherP": 40, "stun": 0.4, "cost": 2, "req": 5 },
-	"bleeder": { "n": "Bleeder", "d": "Every hit may cause bleeding.", "status": { "bleed": 0.2 }, "types": ["sword", "katana", "greatsword", "axe", "dagger", "spear", "rapier", "scimitar", "halberd", "scythe", "claws", "greataxe", "whip", "crossbow", "javelin", "kunai"], "cost": 1, "req": 3 },
-	"concuss": { "n": "Concussion", "d": "Every hit may stun briefly.", "status": { "stun": 0.12 }, "types": ["mace", "greatsword", "axe", "warhammer", "flail", "greataxe", "halberd"], "cost": 1, "req": 4 },
-	"reach": { "n": "Long Reach", "d": "+25% range and wider arcs.", "rangeP": 25, "arcP": 20, "types": ["sword", "katana", "greatsword", "axe", "mace", "dagger", "spear", "rapier", "scimitar", "halberd", "warhammer", "flail", "scythe", "claws", "greataxe", "whip"], "cost": 1, "req": 3 },
+	"bleeder": { "n": "Bleeder", "d": "Every hit may cause bleeding.", "status": { "bleed": 0.2 }, "types": ["sword", "katana", "greatsword", "axe", "dagger", "spear", "rapier", "scimitar", "halberd", "scythe", "claws", "greataxe", "whip", "crossbow", "javelin", "kunai", "colossal", "colossalaxe", "pitchfork"], "cost": 1, "req": 3 },
+	"concuss": { "n": "Concussion", "d": "Every hit may stun briefly.", "status": { "stun": 0.12 }, "types": ["mace", "greatsword", "axe", "warhammer", "flail", "greataxe", "halberd", "colossal", "colossalaxe", "colossalhammer", "pan", "door", "anchor", "lamppost", "chair", "spade", "cittern", "fish", "ladder"], "cost": 1, "req": 4 },
+	"reach": { "n": "Long Reach", "d": "+25% range and wider arcs.", "rangeP": 25, "arcP": 20, "types": ["sword", "katana", "greatsword", "axe", "mace", "dagger", "spear", "rapier", "scimitar", "halberd", "warhammer", "flail", "scythe", "claws", "greataxe", "whip", "colossal", "colossalaxe", "colossalhammer", "pan", "broom", "ladder", "door", "anchor", "lamppost", "fish", "chair", "cittern", "torch", "spade", "pitchfork"], "cost": 1, "req": 3 },
 	"attuned": { "n": "Attuned Edge", "d": "Your weapon's element procs twice as often.", "elemP": 100, "cost": 2, "req": 6 },
 	"brutal": { "n": "Brutal Force", "d": "+50% knockback.", "knockP": 50, "cost": 1, "req": 2 }
   }

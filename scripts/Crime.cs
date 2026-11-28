@@ -148,6 +148,23 @@ public static class Crime
         if (rec.Town != "") NpcMemory.ChangeTown(rec.Town, -15);
         Game.Save();
     }
+    /// <summary>
+    /// A-36 (Breakables.cs): the hero smashed or opened a town shop's crate, barrel or chest. A crime only when an awake NPC sees it: the
+    /// bounty (data/breakables.json "crimeBounty") goes to the town the hero stands in, and the watch comes. Returns true when it was seen.
+    /// </summary>
+    public static bool Vandalism(Player p, int bounty)
+    {
+        Load(); var seen = Witnesses(p, null); if (seen.Count == 0) return false;
+        string town = TownZones.At(p.GlobalPosition.X, p.GlobalPosition.Z)?.Id ?? "";
+        foreach (var w in seen.Take(1)) NpcMemory.Crime(w.Rec.Id, seen.Skip(1).Select(x => x.Rec.Id));
+        foreach (var w in seen.Take(2)) { w.N.Say(Line(IsGuard(w.Rec) ? "spot" : "thief"), 3f); if (!IsGuard(w.Rec)) Flee(w.N, p); }
+        if (town != "")
+        {
+            AddBounty(town, bounty); Ui.Note($"Crime seen (vandalism): bounty in {NpcMemory.TownName(town)} {Bounty(town)} gold", new Color(1f, .5f, .4f)); Sfx.UiError();
+            Alert(town, p);
+        }
+        Game.Notify(); return true;
+    }
     static bool Facing(Npc n, Player p)
     {
         var to = (p.GlobalPosition - n.GlobalPosition) with { Y = 0 }; if (to.LengthSquared() < .01f) return true;

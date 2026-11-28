@@ -1,0 +1,112 @@
+{
+  "_help": "Breakable and lootable props (scripts/Breakables.cs). types: what each prop is. interact: smash (a weapon blow, a shot, a blast or the Use key breaks it), open (Use opens it: chests), dig / search / take (Use, once per hero: graves, corpses, glowing relics), read (Use shows a line, no state). respawn: seconds until a broken prop is back (offline: per hero, wall clock; online: the server's shared table, data in TR_DATA/breakables.json); -1 = taken once per hero, never shared. hits: blows before it breaks. model: an env model (data/env.json names, kit/... = assets/models/kit) fitted to height metres; when the model is missing a simple shape stands in. debris: a preset of debris below. table: loot table below. Loot is rolled for the hero who breaks it, at the area level (Game.LevelAt, Progression.OverworldLevel) or the dungeon's level.",
+  "streamRadius": 70,
+  "melee": { "_help": "A blow breaks props in front of the hero: reach metres from the hero, cone = minimum dot with the facing, from delay to delay+window seconds into each swing.", "reach": 2.7, "cone": 0.25, "delay": 0.1, "window": 0.4 },
+  "crimeBounty": 15,
+  "types": {
+    "crate":        { "name": "Crate",        "interact": "smash", "model": "props/Crate_Wooden",   "height": 0.95, "radius": 0.5,  "hits": 1, "respawn": 600,  "debris": "wood",  "table": "crate" },
+    "crate_small":  { "name": "Small Crate",  "interact": "smash", "model": "props/Crate_Wooden",   "height": 0.6,  "radius": 0.35, "hits": 1, "respawn": 600,  "debris": "wood",  "table": "crate" },
+    "barrel":       { "name": "Barrel",       "interact": "smash", "model": "props/Barrel",         "height": 1.1,  "radius": 0.45, "hits": 2, "respawn": 900,  "debris": "wood",  "table": "barrel" },
+    "barrel_apples":{ "name": "Apple Barrel", "interact": "smash", "model": "props/Barrel_Apples",  "height": 1.1,  "radius": 0.45, "hits": 2, "respawn": 900,  "debris": "wood",  "table": "food" },
+    "fruit_crate":  { "name": "Produce Crate","interact": "smash", "model": "props/FarmCrate_Apple","height": 0.7,  "radius": 0.45, "hits": 1, "respawn": 600,  "debris": "wood",  "table": "food" },
+    "sack":         { "name": "Sack",         "interact": "smash", "model": "props/Bag",            "height": 0.75, "radius": 0.35, "hits": 1, "respawn": 600,  "debris": "cloth", "table": "sack" },
+    "pot":          { "name": "Clay Pot",     "interact": "smash", "model": "kit/graveyard/urn-round",  "height": 0.75, "radius": 0.3, "hits": 1, "respawn": 900,  "debris": "clay",  "table": "pot" },
+    "urn":          { "name": "Burial Urn",   "interact": "smash", "model": "kit/graveyard/urn-square", "height": 0.85, "radius": 0.3, "hits": 1, "respawn": 1200, "debris": "stone", "table": "urn" },
+    "chest":        { "name": "Chest",        "interact": "open",  "model": "kit/dungeon/chest_wood", "height": 0.8, "radius": 0.55, "respawn": 3600, "table": "chest" },
+    "chest_rare":   { "name": "Iron Chest",   "interact": "open",  "model": "kit/dungeon/chest_rare", "height": 0.85, "radius": 0.6, "respawn": 3600, "table": "chest_rare" },
+    "relic":        { "name": "Something glints", "interact": "take",   "glow": "#ffd88a", "respawn": -1, "table": "relic" },
+    "corpse":       { "name": "Fallen traveller", "interact": "search", "respawn": -1, "table": "corpse", "glow": "#ffd88a" },
+    "grave":        { "name": "Grave",            "interact": "dig",    "model": "kit/graveyard/grave", "height": 0.35, "radius": 0.8, "respawn": -1, "table": "grave", "surprise": "grave" },
+    "altar":        { "name": "Offering on the altar", "interact": "take", "glow": "#cfe4ff", "respawn": -1, "table": "altar" },
+    "lore":         { "name": "Message stone",    "interact": "read" },
+    "vista":        { "name": "Vista",            "interact": "read" }
+  },
+  "debris": {
+    "_help": "pieces: rigid bodies thrown out (Jolt), size metres, they shrink away after life seconds (at most cap at once); burst: particles; color hex.",
+    "cap": 48,
+    "wood":  { "pieces": 7, "size": [0.08, 0.45], "life": 2.6, "color": "#6b4a2c", "burst": 10, "sound": "chop_hit", "pitch": 1.1 },
+    "clay":  { "pieces": 6, "size": [0.08, 0.22], "life": 2.2, "color": "#8a5634", "burst": 12, "sound": "blunt_hit", "pitch": 1.6 },
+    "stone": { "pieces": 6, "size": [0.08, 0.25], "life": 2.4, "color": "#8c8780", "burst": 12, "sound": "blunt_hit", "pitch": 1.3 },
+    "cloth": { "pieces": 0, "size": [0.1, 0.2],   "life": 1.5, "color": "#a08a64", "burst": 16, "sound": "wood_hit", "pitch": 0.7 }
+  },
+  "tables": {
+    "_help": "rolls [lo, hi] picks from entries by weight w; empty = chance of nothing at all. Entries: gold [lo, hi] (+ goldPerLevel x level), mat (one of the ids, n [lo, hi]; food_* are cooked dishes), pot hp|mp, gear = an item at the level with this loot bonus (rarity), gearLevel = levels added.",
+    "crate":  { "rolls": [1, 2], "empty": 0.18, "entries": [
+      { "w": 30, "gold": [2, 8], "goldPerLevel": 1.2 },
+      { "w": 22, "mat": ["timber", "ironscrap", "leatherstrip", "flax", "wool", "lockpick"], "n": [1, 3] },
+      { "w": 14, "mat": ["wheat", "potato", "carrot", "egg", "food_bread"], "n": [1, 2] },
+      { "w": 10, "pot": "hp" }, { "w": 5, "pot": "mp" },
+      { "w": 4,  "mat": ["pot_stamina", "pot_speed"], "n": [1, 1] },
+      { "w": 4,  "gear": 0.0 } ] },
+    "barrel": { "rolls": [1, 2], "empty": 0.2, "entries": [
+      { "w": 24, "gold": [3, 10], "goldPerLevel": 1.4 },
+      { "w": 20, "mat": ["berries", "redcap", "meat", "milk", "wheat"], "n": [1, 3] },
+      { "w": 10, "mat": ["food_roast_meat", "food_berry_skewer", "food_spiced_cider", "food_baked_potato"], "n": [1, 1] },
+      { "w": 12, "mat": ["ironscrap", "ironore", "timber"], "n": [1, 3] },
+      { "w": 10, "pot": "hp" }, { "w": 6, "pot": "mp" },
+      { "w": 3,  "gear": 0.1 } ] },
+    "food":   { "rolls": [1, 3], "empty": 0.05, "entries": [
+      { "w": 30, "mat": ["berries", "carrot", "potato", "wheat", "egg", "pumpkin"], "n": [1, 3] },
+      { "w": 14, "mat": ["food_bread", "food_baked_potato", "food_berry_tart", "food_veg_stew"], "n": [1, 1] },
+      { "w": 8,  "gold": [1, 5], "goldPerLevel": 0.5 } ] },
+    "sack":   { "rolls": [1, 2], "empty": 0.15, "entries": [
+      { "w": 26, "mat": ["wheat", "flax", "wool", "potato", "sunleaf"], "n": [1, 4] },
+      { "w": 20, "gold": [2, 9], "goldPerLevel": 1.0 },
+      { "w": 10, "mat": ["leatherstrip", "hide", "feather"], "n": [1, 2] },
+      { "w": 6,  "pot": "hp" },
+      { "w": 3,  "gear": 0.0 } ] },
+    "pot":    { "rolls": [1, 1], "empty": 0.3, "entries": [
+      { "w": 40, "gold": [3, 12], "goldPerLevel": 1.6 },
+      { "w": 14, "mat": ["arcanedust", "gemdust", "sunleaf", "moonpetal"], "n": [1, 2] },
+      { "w": 12, "pot": "hp" }, { "w": 8, "pot": "mp" },
+      { "w": 4,  "gear": 0.15 } ] },
+    "urn":    { "rolls": [1, 2], "empty": 0.25, "entries": [
+      { "w": 34, "gold": [5, 16], "goldPerLevel": 2.0 },
+      { "w": 16, "mat": ["arcanedust", "runeshard", "gemdust", "shadowcore", "holycore"], "n": [1, 2] },
+      { "w": 8,  "pot": "mp" },
+      { "w": 6,  "gear": 0.3 } ] },
+    "chest":  { "rolls": [2, 4], "empty": 0, "entries": [
+      { "w": 30, "gold": [10, 30], "goldPerLevel": 5 },
+      { "w": 20, "gear": 0.4 },
+      { "w": 14, "pot": "hp" }, { "w": 8, "pot": "mp" },
+      { "w": 14, "mat": ["ironbar", "runeshard", "lockpick", "gemdust", "steelbar"], "n": [1, 3] },
+      { "w": 6,  "mat": ["pot_regen", "pot_might", "pot_mind", "pot_stone"], "n": [1, 1] } ] },
+    "chest_rare": { "rolls": [3, 5], "empty": 0, "entries": [
+      { "w": 26, "gold": [25, 60], "goldPerLevel": 8 },
+      { "w": 26, "gear": 1.2, "gearLevel": 1 },
+      { "w": 10, "pot": "hp" },
+      { "w": 14, "mat": ["steelbar", "silverbar", "runeshard", "voidessence", "crystal"], "n": [1, 2] },
+      { "w": 8,  "mat": ["pot_regen", "pot_might", "pot_mind", "pot_stone", "pot_fire", "pot_frost"], "n": [1, 2] } ] },
+    "relic":  { "rolls": [1, 1], "empty": 0, "entries": [
+      { "w": 40, "gear": 1.0, "gearLevel": 1 },
+      { "w": 20, "mat": ["runeshard", "voidessence", "riftprism", "crystal", "angelFeather", "silverbar"], "n": [1, 2] },
+      { "w": 20, "gold": [20, 60], "goldPerLevel": 6 },
+      { "w": 10, "mat": ["pot_might", "pot_mind", "pot_stone", "pot_night", "pot_speed"], "n": [1, 2] } ] },
+    "corpse": { "rolls": [1, 3], "empty": 0, "entries": [
+      { "w": 30, "gold": [6, 20], "goldPerLevel": 3 },
+      { "w": 22, "gear": 0.6 },
+      { "w": 14, "pot": "hp" },
+      { "w": 12, "mat": ["lockpick", "leatherstrip", "ironscrap", "food_bread"], "n": [1, 3] },
+      { "w": 6,  "mat": ["pot_stamina", "pot_regen"], "n": [1, 1] } ] },
+    "grave":  { "rolls": [1, 2], "empty": 0.1, "entries": [
+      { "w": 30, "gold": [8, 24], "goldPerLevel": 3 },
+      { "w": 18, "gear": 0.8 },
+      { "w": 16, "mat": ["gemdust", "runeshard", "shadowcore", "bar_gold"], "n": [1, 1] } ] },
+    "altar":  { "rolls": [1, 2], "empty": 0, "entries": [
+      { "w": 40, "gear": 1.6, "gearLevel": 1 },
+      { "w": 20, "mat": ["holycore", "angelFeather", "runeshard", "riftprism"], "n": [1, 2] },
+      { "w": 20, "pot": "mp" },
+      { "w": 20, "gold": [30, 80], "goldPerLevel": 6 } ] }
+  },
+  "surprise": {
+    "_help": "A rare surprise when a prop breaks or opens: chance per prop (of the listed types, from minLevel), then a pick by weight. enemy count [lo, hi] at the area level + level. grave: digging up a grave.",
+    "chance": 0.025,
+    "minLevel": 2,
+    "types": ["crate", "barrel", "sack", "chest", "chest_rare"],
+    "picks": [
+      { "w": 3, "enemy": "giantRat", "count": [3, 5], "level": -1, "text": "Rats boil out of it!" },
+      { "w": 1, "enemy": "mimic", "count": [1, 1], "level": 1, "only": ["crate", "chest", "chest_rare"], "text": "It was never a box: a mimic bares its teeth!" }
+    ],
+    "grave": { "chance": 0.3, "picks": [ { "w": 3, "enemy": "skeleton", "count": [1, 2], "level": 0, "text": "The dead do not like to be disturbed." }, { "w": 1, "enemy": "wraith", "count": [1, 1], "level": 1, "text": "A cold shape rises from the grave." } ] }
+  }
+}

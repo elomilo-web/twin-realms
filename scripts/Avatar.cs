@@ -57,7 +57,7 @@ public partial class Avatar : Node3D
                     if (ap.GlowEyes) Tint(mi, null, ap.Eyes, 2.5f); continue;
                 }
                 if (mi.Name.ToString().Contains("brow")) { Tint(mi, null, ap.Hair.Darkened(.2f), 0, true, 0, Genshin.Kind.Hair); continue; }
-                if (RealSkin(mi, ap.Skin)) continue;   // gothic realism body (tools/blender_gothic/humans.py): textured skin
+                if (RealSkin(mi, ap.Skin, SkinTexture(_sex))) continue;   // gothic realism body (tools/blender_gothic/humans.py): textured skin (A-34: MakeHuman face skin, AvatarHead.cs)
                 Tint(mi, null, ap.Skin, 0, true, 0, Genshin.Kind.Skin);   // flat skin colour reads best under the toon shader and follows the race
             }
         // hair, picked from the list by the seed so a hero always keeps the same style
@@ -66,7 +66,7 @@ public partial class Avatar : Node3D
             int sh = 17; foreach (char ch in seed) sh = unchecked(sh * 31 + ch);   // string.GetHashCode is randomised per run in .NET: the style changed every launch
             int h = ap.HairStyle >= 0 ? ap.HairStyle : (int)((uint)sh % (uint)hl.Count);   // F-36: the style chosen in the creator; past the list = bald
             string Ext(string n) => n.EndsWith(".glb") || n.EndsWith(".gltf") ? n : n + ".gltf";   // TR_* hair is .glb
-            if (h < hl.Count) _hair.AddRange(AddPart(HairDir + Ext(hl[h]), "hair", ap.Hair, true));
+            if (h < hl.Count) _hair.AddRange(HairPiece(Ext(hl[h]), ap.Hair));   // A-34: MakeHuman hair on the Head bone (AvatarHead.cs)
             string beard = S(Cfg.GetProperty("hair"), "beard");
             if (ap.Beard && !Female && beard != "") _hair.AddRange(AddPart(HairDir + Ext(beard), "hair", ap.Hair, true));
         }
@@ -83,7 +83,7 @@ public partial class Avatar : Node3D
     /// Realistic body skin (material TR_Skin with a baked detail texture): the race colour multiplies the texture, and the
     /// skin gets subsurface scattering. False when the mesh is not such a body (the toon path then paints it flat).
     /// </summary>
-    static bool RealSkin(MeshInstance3D mi, Color skin)
+    static bool RealSkin(MeshInstance3D mi, Color skin, Texture2D? tex = null)
     {
         if (mi.Mesh == null) return false;
         bool any = false;
@@ -91,6 +91,7 @@ public partial class Avatar : Node3D
         {
             if (mi.Mesh.SurfaceGetMaterial(s) is not StandardMaterial3D b || b.AlbedoTexture == null || !(b.ResourceName ?? "").StartsWith("TR_Skin")) continue;
             var d = (StandardMaterial3D)b.Duplicate();
+            if (tex != null) d.AlbedoTexture = tex;   // A-34: data/avatar.json skinTexture (same UV map: the MakeHuman default)
             // the race colour MULTIPLIES the baked skin texture (never replaces it); no lightening, which read pale and pink
             d.AlbedoColor = new Color(skin.R, skin.G, skin.B, 1f);
             // less scatter and a rougher surface than the json values: strong SSS + low roughness read as wax
@@ -352,7 +353,7 @@ public partial class Avatar : Node3D
             }
             _masked[k] = masked;
         }
-        _bodyMi.Mesh = FaceMesh(masked);   // F-36: the creator's face sculpt and markings on top (AvatarFace.cs); the plain mesh when there are none
+        _bodyMi.Mesh = FaceMesh(EarMesh(masked));   // A-34: race ears (AvatarHead.cs), then F-36: the creator's face sculpt and markings on top (AvatarFace.cs); the plain mesh when there are none
     }
     static Vector3I Cell(Vector3 v, float r) => new(Mathf.FloorToInt(v.X / r), Mathf.FloorToInt(v.Y / r), Mathf.FloorToInt(v.Z / r));
     bool _slotHas(Node n) { foreach (var l in _slot.Values) if (l.Contains(n)) return true; return false; }
@@ -363,7 +364,7 @@ public partial class Avatar : Node3D
     {
         foreach (var n in _hair) if (IsInstanceValid(n)) { n.GetParent()?.RemoveChild(n); n.QueueFree(); }
         _hair.Clear(); if (_slot.TryGetValue("hair", out var l)) l.Clear();
-        _hair.AddRange(AddPart(HairDir + file, "hair", colour, true));
+        _hair.AddRange(HairPiece(file, colour));
     }
 
     public Node3D? Cape;
@@ -513,13 +514,17 @@ public partial class Avatar : Node3D
         string ears = ap.Ears != "" ? ap.Ears : ap.PointyEars ? "pointy" : "", horns = ap.HornKind != "" ? ap.HornKind : ap.Horns ? "curl" : "";
         var skin = RMat(ap.Skin); var bone = RMat(new Color(.9f, .85f, .72f), .45f);
         bool head = _sk.FindBone("Head") >= 0;
-        if (head && (ears != "" || ap.Tusks))
+        // A-34: a kind with a MakeHuman ear shape (data/avatar.json earMorphs) reshapes the body's own ears (EarMesh, AvatarHead.cs);
+        // the procedural pieces below stay for kinds without one (or a body without ear data)
+        bool morph = EarRecipe(ears, out _); _earKind = morph ? ears : "";
+        if (head && (ears != "" && !morph || ap.Tusks))
         {
             var h = Holder("Head", Vector3.Zero, Vector3.Zero, "race");
             var fin = RMat(ap.Skin.Lerp(new Color(.2f, .75f, .8f), .45f), .4f, .9f);
             foreach (float s in new[] { -1f, 1f })
             {
-                if (ears == "pointy")   // elf / fae: a flat blade sweeping back and up from the side of the head
+                if (morph) { }
+                else if (ears == "pointy")   // elf / fae: a flat blade sweeping back and up from the side of the head
                     Piece(h, Cone(.078f, .026f, .002f, 8), skin, new Vector3(s * .074f, .022f, -.012f), new Vector3(s * .62f, .42f, -.66f), new Vector3(s * .7f, 0, .7f), .078f, new Vector3(1, 1, .36f));
                 else if (ears == "fin")   // tidekin: a webbed fin behind the jaw
                 {
@@ -529,14 +534,14 @@ public partial class Avatar : Node3D
                 if (ap.Tusks) Piece(h, Cone(.032f, .009f, .001f, 6), bone, new Vector3(s * .024f, -.052f, .086f), new Vector3(s * .15f, 1f, .2f), Vector3.Back, .032f, Vector3.One);
             }
         }
-        if (head && (ears == "fox" || horns != ""))
+        if (head && (ears == "fox" && !morph || horns != ""))
         {
             var t = Holder("Head", Vector3.Zero, Vector3.Zero, "racetop");
             var fur = RMat(ap.Hair, .85f); var inner = RMat(ap.Hair.Lerp(new Color(1f, .9f, .85f), .65f), .9f);
             var horn = horns == "oni" ? RMat(new Color(.95f, .88f, .62f), .4f) : horns == "dragon" ? RMat(ap.Skin.Darkened(.55f), .35f) : RMat(new Color(.2f, .17f, .24f), .35f);
             foreach (float s in new[] { -1f, 1f })
             {
-                if (ears == "fox")   // beastkin: tall triangular ears standing out of the hair
+                if (ears == "fox" && !morph)   // beastkin: tall triangular ears standing out of the hair
                 {
                     Piece(t, Cone(.105f, .046f, .003f, 4), fur, new Vector3(s * .05f, .132f, -.014f), new Vector3(s * .32f, 1f, -.1f), Vector3.Back, .105f, new Vector3(1, 1, .4f));
                     Piece(t, Cone(.075f, .03f, .002f, 4), inner, new Vector3(s * .051f, .136f, -.004f), new Vector3(s * .32f, 1f, -.1f), Vector3.Back, .075f, new Vector3(1, 1, .3f));
@@ -656,6 +661,7 @@ public partial class Avatar : Node3D
         }
         foreach (var h in _hair) if (h is Node3D h3) h3.Visible = !hideHair;
         foreach (var n in SlotNodes("racetop")) if (n is Node3D r3 && IsInstanceValid(r3)) r3.Visible = !hideHair;   // fox ears and horns go under helmets and hoods
+        _earsHidden = hideHair;   // A-34: shaped ears shrink to their earMorphs "helm" share under helmets and hoods (EarMesh)
         MaskBody();
         // weapon and shield
         var w = eq("weapon"); var wcfg = Cfg.GetProperty("weapons");
@@ -770,7 +776,9 @@ public partial class Avatar : Node3D
         // gothic kit shields (assets/models/kit/weapons, avatar.json "kitShields") win over the Quaternius ones; same facing (+Z, upright)
         string kit = ""; if (Cfg.TryGetProperty("kitShields", out var km)) foreach (var p in km.EnumerateObject()) if (p.Name == "" || it.Name.Contains(p.Name)) { kit = p.Value.GetString() ?? kit; if (p.Name != "") break; }
         string kitPath = "res://assets/models/kit/weapons/" + kit + ".glb"; bool useKit = kit != "" && ResourceLoader.Exists(kitPath);
-        var inst = LoadModel(useKit ? kitPath : WeaponDir + model + ".fbx", JsonUtil.F(Cfg, "shieldSize", .62f), true); if (inst == null) return;
+        float shSize = JsonUtil.F(Cfg, "shieldSize", .62f);   // A-35: greatshields (and doors) are drawn taller (avatar.json kitShieldSize)
+        if (useKit && Cfg.TryGetProperty("kitShieldSize", out var kss)) foreach (var p in kss.EnumerateObject()) if (p.Value.ValueKind == JsonValueKind.Number && it.Name.Contains(p.Name)) { shSize = p.Value.GetSingle(); break; }
+        var inst = LoadModel(useKit ? kitPath : WeaponDir + model + ".fbx", shSize, true); if (inst == null) return;
         if (useKit) foreach (var n in inst.FindChildren("*", "MeshInstance3D", true, false)) if (n is MeshInstance3D mi) Tint(mi, null, null, vertexColor: true);
         h.AddChild(inst); GearFx.Apply(h, it, false);
     }

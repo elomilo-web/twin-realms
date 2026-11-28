@@ -60,7 +60,8 @@ public static class TreeDb
         foreach (var t in new[] { "physical", "fire", "frost", "lightning", "poison", "shadow", "holy" }) { k.Add(t + "P"); k.Add("res_" + t); }
         foreach (var s in new[] { "burn", "poison", "bleed", "chill", "freeze", "root", "shock", "judged", "weaken", "shred", "stun" }) { k.Add(s + "Chance"); k.Add(s + "P"); }
         foreach (var w in new[] { "sword", "katana", "greatsword", "axe", "mace", "dagger", "spear", "bow", "wand", "staff",
-            "rapier", "scimitar", "halberd", "warhammer", "flail", "scythe", "claws", "greataxe", "whip", "crossbow", "javelin", "kunai" }) k.Add(w + "P");   // (A-11 weapon types)
+            "rapier", "scimitar", "halberd", "warhammer", "flail", "scythe", "claws", "greataxe", "whip", "crossbow", "javelin", "kunai",
+            "colossal", "colossalaxe", "colossalhammer", "pan", "broom", "ladder", "door", "anchor", "lamppost", "fish", "chair", "cittern", "torch", "spade", "pitchfork" }) k.Add(w + "P");   // (A-11 weapon types, A-35 colossal and unexpected ones)
         foreach (var a in new[] { "wis", "agi", "lck", "end", "buffDurP", "rollCostP", "wearP" }) k.Add(a);   // A-14 attributes and their new keys
         return k;
     }

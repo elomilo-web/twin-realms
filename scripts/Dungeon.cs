@@ -405,18 +405,17 @@ public static partial class Dungeon
                         for (int k = 0; k < 3; k++) Put(new CapsuleMesh { Radius = .04f, Height = .5f, RadialSegments = 6, Rings = 1 }, bone, p + new Vector3(R() - .5f, .04f, R() - .5f), new Vector3(Mathf.Pi / 2, R() * Mathf.Tau, 0)); break;
                     case "rubble":
                         for (int k = 0; k < 4; k++) { float s = .2f + R() * .45f; Put(Gfx.Boulder(k), dirt, p + new Vector3(R() * 1.4f - .7f, s * .3f, R() * 1.4f - .7f), new Vector3(R(), R() * 6, R()), new Vector3(s, s * .7f, s)); } break;
-                    case "urn":
-                        Put(new CylinderMesh { TopRadius = .2f, BottomRadius = .17f, Height = .55f, RadialSegments = 12 }, clay, p + Vector3.Up * .28f);
-                        Put(new SphereMesh { Radius = .26f, Height = .4f, RadialSegments = 12, Rings = 5 }, clay, p + Vector3.Up * .3f);
-                        Put(new CylinderMesh { TopRadius = .14f, BottomRadius = .12f, Height = .12f, RadialSegments = 12 }, clay, p + Vector3.Up * .6f); break;
+                    case "urn":   // A-36: breakable pots (Breakables.cs), loot at the floor's level
+                        Breakables.Dungeon(Root!, p, "pot", yaw, (int)_baseLvl);
+                        Breakables.Dungeon(Root!, p + new Vector3(.55f, 0, .3f), "urn", yaw + 1f, (int)_baseLvl); break;
                     case "coffin":
                         Put(new BoxMesh { Size = new Vector3(.8f, .45f, 2f) }, wood, p + Vector3.Up * .23f, new Vector3(0, yaw, 0));
                         Put(new BoxMesh { Size = new Vector3(.9f, .08f, 2.1f) }, wood, p + Vector3.Up * .5f, new Vector3(.05f, yaw, .08f)); break;
                     case "mushroom":
                         for (int k = 0; k < 4; k++) { var q = p + new Vector3(R() - .5f, 0, R() - .5f); float s = .5f + R(); Put(new CylinderMesh { TopRadius = .03f * s, BottomRadius = .05f * s, Height = .3f * s, RadialSegments = 6 }, bone, q + Vector3.Up * .15f * s); Put(new SphereMesh { Radius = .14f * s, Height = .14f * s, RadialSegments = 8, Rings = 3, IsHemisphere = true }, shroom, q + Vector3.Up * .3f * s); } break;
                     case "crate":
-                        Put(new BoxMesh { Size = new Vector3(.9f, .9f, .9f) }, wood, p + Vector3.Up * .45f, new Vector3(0, yaw, 0));
-                        if (R() < .5f) Put(new BoxMesh { Size = new Vector3(.6f, .6f, .6f) }, wood, p + new Vector3(.2f, 1.2f, .1f), new Vector3(0, yaw + .4f, 0)); break;
+                        Breakables.Dungeon(Root!, p, "crate", yaw, (int)_baseLvl);   // A-36: breakable
+                        if (R() < .5f) Breakables.Dungeon(Root!, p + new Vector3(.8f, 0, .25f), R() < .5f ? "barrel" : "crate_small", yaw + .4f, (int)_baseLvl); break;
                     case "crystal":
                         for (int k = 0; k < 4; k++) { float s = .4f + R() * .8f; Put(new CylinderMesh { TopRadius = 0, BottomRadius = .12f * s, Height = .9f * s, RadialSegments = 5 }, crys, p + new Vector3(R() * .6f - .3f, .4f * s, R() * .6f - .3f), new Vector3(R() * .6f - .3f, R() * 6, R() * .6f - .3f)); } break;
                 }

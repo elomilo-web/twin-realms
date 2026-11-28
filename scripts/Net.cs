@@ -33,7 +33,7 @@ public class PartyInfo
 public partial class Net : Node
 {
     public static Net? I;
-    public const int DefaultPort = 24565, Protocol = 16;   // Protocol 16: chat, friends, item trading and party quest sharing (NetChat.cs, NetFriends.cs, NetTrade.cs, NetQuests.cs); 15: auction house and server-run pet trades (NetAuction.cs, PetTrade.cs); 14: pet trading (PetTrade.cs) and friends' pets (PeerInfo.Pet); 13: the block world (NetBlocks.cs); 12: online server (accounts, login step); 11: party luck, bonus stats and glow on gear; 10: titles on heroes, lair shades; 9: lair intro and Scarletta's grab; 8: host's enemy list lines friends' monsters up (World.Reconcile); 7: taunts and revives (NetAggro.cs), raid lairs; 6: attack animations in poses; 5: shared ambushes, friends' effects, numbers and statuses; older builds are told to update
+    public const int DefaultPort = 24565, Protocol = 17;   // Protocol 17: breakable props and their respawns (NetBreak.cs); 16: chat, friends, item trading and party quest sharing (NetChat.cs, NetFriends.cs, NetTrade.cs, NetQuests.cs); 15: auction house and server-run pet trades (NetAuction.cs, PetTrade.cs); 14: pet trading (PetTrade.cs) and friends' pets (PeerInfo.Pet); 13: the block world (NetBlocks.cs); 12: online server (accounts, login step); 11: party luck, bonus stats and glow on gear; 10: titles on heroes, lair shades; 9: lair intro and Scarletta's grab; 8: host's enemy list lines friends' monsters up (World.Reconcile); 7: taunts and revives (NetAggro.cs), raid lairs; 6: attack animations in poses; 5: shared ambushes, friends' effects, numbers and statuses; older builds are told to update
     public static int MaxPlayers = 8;              // friend hosting; the online server reads data/online.json
     const int Channels = 8;   // 0 reliable events, 1 poses, 2 enemy snapshots, 3 clock, 4 shots (both sides must open the same number)
     public static bool Active => I != null && I._live;
@@ -193,6 +193,7 @@ public partial class Net : Node
         var me = Player.Instance; var at = me != null && MyZone == 0 && !Dedicated ? me.GlobalPosition : World.OnGround(0, 9, .6f);
         RpcId(id, MethodName.R_Welcome, World.Realm, World.TimeOfDay, at);
         SendBlockSync(id);   // the block world's changes (NetBlocks.cs)
+        SendBreakSync(id);   // broken crates, barrels and chests (NetBreak.cs)
         foreach (var other in Players.Keys) if (other != id && other != MyId) RpcId(other, MethodName.R_Note, info.Name + " joined the world");
         if (Dedicated) GD.Print($"[SERVER] {info.Name} entered the world ({Players.Count} online)"); else { Ui.Note(info.Name + " joined your world", Ui.Gold); Sfx.Play("portal"); }
         SendRoster(); Count("joins");

@@ -113,6 +113,7 @@ public partial class Chest : Node3D, IInteractable
         {
             Loot.DropFrom(top, lvl, 1f, Bonus, GD.RandRange(10, 30) + lvl * 6, 0.5f);
             if (GD.Randf() < 0.45f) Loot.Drop(top, item: LootTables.Roll(lvl, Bonus));
+            WeaponFinds.OnChest(top, lvl, Bonus);   // A-35: now and then a named weapon or an odd one (data/weapon_finds.json)
         });
         Spellcraft.OnChest(GlobalPosition);   // chests may hold a spell card
         Fx.Burst(GlobalPosition + Vector3.Up * 0.6f, new Color(1, 0.85f, 0.3f), 14, 3f, 0.6f, 0.08f);
