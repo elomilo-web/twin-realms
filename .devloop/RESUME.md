@@ -9,7 +9,9 @@
   no dance clip or tavern music track, hoe tool, seeds in chests, snakes / scorpions / swimming animals, the two-client tests.
 - No bot / mp / capture / Godot runs unless the owner asks. New music .wav files need one editor open to import. Net protocol is 16.
 
-- 2026-11-27 later: third list A-34..A-38 in AFTER_FOCUS.txt (faces / hair, Elden Ring weapons, breakable props with online respawn,
+- 2026-11-27 later: third list A-34..A-38 all coded and pushed (not run in game). Before a release: open the editor once to import
+  the new .glb/.png files, and re-bake the clip library (godot --headless --path . -- --bake-anims). Net protocol is 17.
+- (was) third list A-34..A-38 in AFTER_FOCUS.txt (faces / hair, Elden Ring weapons, breakable props with online respawn,
   world filling, Souls-like combat agent). Owner rule: near 90% usage -> pause, commit + push, update this file, publish a release
   with the next version (tools/run.ps1 publish, $env:GODOT from .devloop/godot_path.txt).
 
