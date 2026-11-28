@@ -40,3 +40,6 @@ smoke_log.txt
 .devloop/godot_path.txt
 animetool_log.txt
 animetool_err.txt
+
+# Mixamo source animations (Adobe licence: use in the game only, never redistribute the raw files); only the baked clips.res is committed
+assets/models/anim/mixamo/
