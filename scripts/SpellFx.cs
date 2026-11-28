@@ -49,7 +49,7 @@ void fragment() {
 
     static void Load()
     {
-        if (_loaded) return; _loaded = true;
+        if (_loaded) return; _loaded = true; Effekseer.Init();   // the Effekseer layer and its "/efk" command
         _shader = new Shader { Code = ShaderCode };
         using var doc = JsonUtil.Load("res://data/spellfx.json");
         if (doc.RootElement.TryGetProperty("fx", out var fx))
@@ -147,6 +147,7 @@ void fragment() {
         string n = For(skillId, moment); if (n == "") return null;
         if (!Remote) Net.I?.Fx(Spellcraft.FxOf(skillId), moment, pos, scale, life, false);   // (friends do not know our crafted spells, only what they look like)   // multiplayer: friends nearby see our skills (Settings > Game)
         if (moment is "hit" or "ground" && Skills.Get(Spellcraft.FxOf(skillId)) is { } sd) Vfx.ElementImpact(sd.Type, pos, scale * 1.5f);   // holy / shadow / poison impact extras (no-op for other elements)
+        if (Effekseer.Skill(skillId, moment, pos, scale, life) && Effekseer.Replace) return null;   // Effekseer effect for this moment (data/effekseer.json) instead of the flipbook
         return Play(n, pos, scale, life);
     }
 
@@ -156,6 +157,7 @@ void fragment() {
         string n = For(skillId, moment); if (n == "") return null;
         // effects on our own hero follow our drawn hero on friends' screens (projectile trails are drawn by the shared projectile itself)
         if (!Remote && to is Player) Net.I?.Fx(Spellcraft.FxOf(skillId), moment, offset ?? Vector3.Zero, scale, life, true);
+        if (Effekseer.Skill(skillId, moment, to.GlobalPosition, scale, life, to, offset) && Effekseer.Replace) return null;   // Effekseer effect on the node instead of the flipbook
         return Attach(n, to, offset, scale, life);
     }
 

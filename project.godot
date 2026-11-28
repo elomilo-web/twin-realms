@@ -30,6 +30,17 @@ window/stretch/aspect="expand"
 
 project/assembly_name="TwinRealms"
 
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/effekseer/plugin.cfg")
+
+[effekseer]
+
+instance_max_count=8000
+square_max_count=32000
+draw_max_count=256
+sound_script="res://addons/effekseer/src/EffekseerSound.gd"
+
 [importer_defaults]
 
 texture={

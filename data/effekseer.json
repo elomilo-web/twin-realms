@@ -1,0 +1,38 @@
+{
+  "_help": "Effekseer effects (scripts/Effekseer.cs; plugin in addons/effekseer, effect files in assets/vfx/effekseer). enabled: master switch (also Settings-free: '/efk off'). replace: true = when an Effekseer effect plays for a spell moment, the old flipbook for that moment is skipped; false = both play. scale: multiplies every effect. effects: id -> file (under assets/vfx/effekseer/), scale, life (seconds before it is stopped and freed even if the effect loops), speed (playback rate), color (multiplies the effect: '#rrggbb'). byType: spell damage type -> moment -> effect id (moments: cast, hit, ground, after, finisher from data/spellfx.json, plus projectile = attached to a flying skill bolt). skills: skill id -> moment -> effect id, overrides byType ('' = no Effekseer effect for that moment). Effects are from the EffekseerForGodot4 demo (MIT, Copyright (c) 2020 Effekseer).",
+  "enabled": true,
+  "replace": true,
+  "scale": 0.6,
+  "effects": {
+    "fire_cast":        { "file": "spells/ef_fire01.efkefc", "scale": 0.7, "life": 2.5 },
+    "fire_hit":         { "file": "spells/ef_fire02.efkefc", "scale": 0.6, "life": 3 },
+    "fire_ground":      { "file": "spells/ef_fire03.efkefc", "scale": 0.8, "life": 4 },
+    "fire_projectile":  { "file": "spells/ef_fire01_projectile.efkefc", "scale": 0.6, "life": 6 },
+    "ice_cast":         { "file": "spells/ef_ice01.efkefc", "scale": 0.7, "life": 2.5 },
+    "ice_hit":          { "file": "spells/ef_ice02.efkefc", "scale": 0.6, "life": 3 },
+    "ice_ground":       { "file": "spells/ef_ice03.efkefc", "scale": 0.8, "life": 4 },
+    "lightning_cast":   { "file": "spells/ef_lightning01.efkefc", "scale": 0.7, "life": 2.5 },
+    "lightning_hit":    { "file": "spells/ef_lightning02.efkefc", "scale": 0.6, "life": 3 },
+    "lightning_ground": { "file": "spells/ef_lightning03.efkefc", "scale": 0.8, "life": 4 },
+    "holy":             { "file": "spells/ef_holy01.efkefc", "scale": 0.7, "life": 3 },
+    "shadow":           { "file": "spells/ef_holy01.efkefc", "scale": 0.7, "life": 3, "color": "#9a5cff" },
+    "shadow_ground":    { "file": "spells/ef_wind03.efkefc", "scale": 0.8, "life": 4, "color": "#7a4ad8" },
+    "poison":           { "file": "spells/ef_wind01.efkefc", "scale": 0.7, "life": 3, "color": "#8cff6a" },
+    "poison_hit":       { "file": "spells/ef_parts_hit02.efkefc", "scale": 0.6, "life": 2, "color": "#8cff6a" },
+    "wind_cast":        { "file": "spells/ef_wind01.efkefc", "scale": 0.7, "life": 2.5 },
+    "wind_ground":      { "file": "spells/ef_wind03.efkefc", "scale": 0.8, "life": 4 },
+    "phys_hit":         { "file": "spells/ef_parts_hit01.efkefc", "scale": 0.6, "life": 2 },
+    "laser":            { "file": "samples/Laser01.efkefc", "scale": 0.5, "life": 3 },
+    "fireworks":        { "file": "samples/Simple_Turbulence_Fireworks.efkefc", "scale": 0.5, "life": 4 }
+  },
+  "byType": {
+    "fire":      { "cast": "fire_cast",      "hit": "fire_hit",      "ground": "fire_ground",      "after": "fire_ground",      "finisher": "fire_ground",      "projectile": "fire_projectile" },
+    "frost":     { "cast": "ice_cast",       "hit": "ice_hit",       "ground": "ice_ground",       "after": "ice_ground",       "finisher": "ice_ground" },
+    "lightning": { "cast": "lightning_cast", "hit": "lightning_hit", "ground": "lightning_ground", "after": "lightning_ground", "finisher": "lightning_ground" },
+    "holy":      { "cast": "holy",           "hit": "holy",          "ground": "holy",             "after": "holy",             "finisher": "holy" },
+    "shadow":    { "cast": "shadow",         "hit": "shadow",        "ground": "shadow_ground",    "after": "shadow_ground",    "finisher": "shadow_ground" },
+    "poison":    { "cast": "poison",         "hit": "poison_hit",    "ground": "poison",           "after": "poison",           "finisher": "poison" },
+    "physical":  { "cast": "wind_cast",      "hit": "phys_hit",      "ground": "wind_ground",      "after": "wind_ground",      "finisher": "wind_ground" }
+  },
+  "skills": {}
+}

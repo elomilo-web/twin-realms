@@ -143,6 +143,7 @@ public partial class Projectile : Node3D
             foreach (var ch in GetChildren()) if (ch is MeshInstance3D or CpuParticles3D) ch.QueueFree();
             _boltTrail = null;
             SpellStyles.Projectile(this, Calc.Type, SpellStyles.PowerOf(Calc) * (Big ? 1.3f : 1f), Kind == "fire" ? 1.25f : 1f);
+            Effekseer.Skill(Calc.Def.Id, "projectile", GlobalPosition, Big ? 1.3f : 1f, Life + .5f, this);   // Effekseer bolt on top, where data/effekseer.json has one for the element
             return;
         }
         if (_boltTrail == null) return;
