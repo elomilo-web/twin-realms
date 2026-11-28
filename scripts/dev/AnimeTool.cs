@@ -32,7 +32,7 @@ public partial class AnimeTool : Node
     /// side view: bot_out/animetool/clip_&lt;name&gt;.png. For choosing clips before wiring them in.</summary>
     static string? ClipsArg => OS.GetCmdlineUserArgs().FirstOrDefault(a => a.StartsWith("--animetool-clips="));
     static bool Batching => ShotsArg != null || ClipsArg != null;
-    public static readonly string[] Actions = { "idle", "run", "sprint", "light5", "heavy", "roll", "rollmove", "jump", "jumpmove", "block", "parry", "blockhit", "hit", "hitheavy" };
+    public static readonly string[] Actions = { "idle", "run", "sprint", "light5", "light5foe", "heavy", "heavyfoe", "roll", "rollmove", "jump", "jumpmove", "block", "parry", "blockhit", "hit", "hitheavy" };
 
     /// <summary>Where the studio floats (above the village, well clear of any terrain).</summary>
     public static readonly Vector3 S = new(0, 640, 9);
@@ -88,7 +88,15 @@ void fragment(){
         for (int i = 0; i < 6 && Player.Instance == null; i++) await Frames(1);
         if (Player.Instance == null) { GD.PrintErr("[ANIMETOOL] no player"); GetTree().Quit(1); return; }
         // the hero: the warrior's sword, plus a cape so the cloth can be judged
-        Game.D.Eq["cape"] = new Item { Name = "Ember Cape", Slot = "cape" }; Game.Notify();
+        Game.D.Eq["cape"] = new Item { Name = "Ember Cape", Slot = "cape" };
+        // --animetool-weapon=greatsword[:Name]: another weapon class in the hand (default: the warrior's sword)
+        if (OS.GetCmdlineUserArgs().FirstOrDefault(a => a.StartsWith("--animetool-weapon=")) is string wa)
+        {
+            var parts = wa.Split('=', 2)[1].Split(':', 2); string wt = parts[0];
+            Game.D.Eq["weapon"] = new Item { Name = parts.Length > 1 ? parts[1] : char.ToUpper(wt[0]) + wt[1..], Slot = "weapon", Wt = wt, Dmg = 10 };
+            if (Weapons.Get(wt).Hands > 1) Game.D.Eq["shield"] = null;
+        }
+        Game.Notify();
         if (P.Rig != null) P.Rig.ProcessMode = ProcessModeEnum.Disabled;   // our camera drives the view and the rig's yaw
         foreach (var n in GetParent().GetChildren()) if (n is CanvasLayer cl && (n.Name == "Hud" || (Batching && n is Ui))) cl.Visible = false;   // no HUD; no banners over the batch pictures
         Reset();
@@ -229,6 +237,9 @@ void fragment(){
         "run" => (1.6f, async () => { Input.ActionPress(Inputs.Forward); await Secs(1.6f); Input.ActionRelease(Inputs.Forward); }),
         "sprint" => (1.6f, async () => { Input.ActionPress(Inputs.Forward); Input.ActionPress(Inputs.Sprint); await Secs(1.6f); Input.ActionRelease(Inputs.Sprint); Input.ActionRelease(Inputs.Forward); }),
         "light5" => (3.6f, async () => { for (int i = 0; i < 5; i++) { await Tap(Inputs.Attack); await Secs(.5f); } }),
+        // the same chain at a foe standing 2.6 m ahead (the step-in toward a target)
+        "light5foe" => (3.6f, async () => { var f = Foe(true); f.GlobalPosition = P.GlobalPosition + new Vector3(0, .1f, -2.6f); await Secs(.3f); for (int i = 0; i < 5; i++) { await Tap(Inputs.Attack); await Secs(.5f); } }),
+        "heavyfoe" => (2.4f, async () => { var f = Foe(true); f.GlobalPosition = P.GlobalPosition + new Vector3(0, .1f, -2.6f); await Secs(.3f); await Tap(Inputs.Heavy, .12f); }),
         "heavy" => (2.2f, async () => await Tap(Inputs.Heavy, .12f)),
         "roll" => (1.3f, async () => await Tap(Inputs.Roll)),
         "rollmove" => (1.5f, async () => { Input.ActionPress(Inputs.Forward); await Secs(.35f); await Tap(Inputs.Roll); await Secs(1f); Input.ActionRelease(Inputs.Forward); }),

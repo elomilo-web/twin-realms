@@ -796,7 +796,8 @@ public partial class Player : CharacterBody3D, IDamageable
             if (_atkT > 0 && !Ranged && _atk != null)
             {   // melee step-in on the chosen foe overrides the planted feet; otherwise the swing carries the body forward (root motion / step curve)
                 float pr = 1f - _atkT / _atkDur;
-                if (!Magnet(pr, dt, ref v) && _atkSkill == null) swingStep = SwingStep(pr, dt);   // added after _walkV is kept (below): stored in it, the step piled up every frame (a 0.4 m step became 7 m at 16 m/s)
+                var stp = SwingStep(pr, dt);   // always advanced: skipped during the step-in, the whole unused step landed in one frame at the impact (0.6 m in 1/60 s)
+                if (!Magnet(pr, dt, ref v) && _atkSkill == null) swingStep = stp;   // added after _walkV is kept (below): stored in it, the step piled up every frame (a 0.4 m step became 7 m at 16 m/s)
             }
             }
         }
