@@ -31,6 +31,12 @@ public partial class CreatureModel : Node3D
     public Vector3 Saddle => new(0, _bp.SaddleY * K, _bp.SaddleZ * K);
     public bool HasWings => _bp.Wings.Count > 0;
     public bool Flies => _bp.Flies;
+    /// <summary>The jaws' hitbox in world space (the head pivot follows the bite lunge), false for a body without a head.</summary>
+    public bool BitePoint(out Vector3 at, out float r)
+    {
+        at = GlobalPosition; r = .3f; if (_bp.Head < 0 || _n.Length <= _bp.Head) return false;
+        var g = _n[_bp.Head].GlobalTransform; at = g * _bp.Bite; r = _bp.BiteR * g.Basis.Scale.X; return true;
+    }
 
     // ------------------------------------------------------------------ blueprint
     sealed class Buf { public readonly List<Vector3> V = new(); public readonly List<Color> C = new(); public readonly List<int> I = new(); }
@@ -42,6 +48,7 @@ public partial class CreatureModel : Node3D
         public readonly List<Piv> Pivs = new(); public readonly Dictionary<(int piv, int mat), Buf> Bufs = new();
         public readonly List<(int piv, int mat, ArrayMesh mesh)> Meshes = new();
         public float Top = 1, SaddleY = 1, SaddleZ, Leg = .5f, Vis = 1;
+        public Vector3 Bite; public float BiteR = .08f;   // the jaws' hitbox: a point in the head pivot's space and its radius (model units)
         public int Body = -1, Neck = -1, Head = -1, Jaw = -1;
         public readonly List<LegRef> Legs = new(); public readonly List<int> Tail = new(), Ears = new(); public readonly List<WingRef> Wings = new();
         public bool Sprawl, Grazer, Flies, Bat; public float GrazeAng = .9f, TailSway = .22f, FlapHz = 2.5f, WingRest = 1, Glide;
@@ -493,6 +500,7 @@ public partial class CreatureModel : Node3D
         float hl = hd.X, hw = hd.Y, hh = hd.Z, sl = sn.X, sw = sn.Y, sh = sn.Z;
         int head = Pv("head", neck, hq); bp.Head = head;
         Vector3 f = new(0, Mathf.Sin(ha), -Mathf.Cos(ha)), u = new(0, Mathf.Cos(ha), Mathf.Sin(ha)), X = Vector3.Right;
+        bp.Bite = f * (hl * .5f + sl * .7f) - u * drop; bp.BiteR = Mathf.Max(hw, hh) * 1.3f;   // the bite lands at the muzzle
         Color HeadC(Vector3 q, float d)
         {
             float along = q.Dot(f); Color c = Coat3(q, d, headCol);

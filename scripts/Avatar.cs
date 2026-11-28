@@ -76,7 +76,7 @@ public partial class Avatar : Node3D
             _sk.AddChild(new BodyShape { Name = "BodyShape", Head = ap.HeadScale, HeadShape = ap.HeadShape, Shoulders = ap.Shoulders, Legs = ap.Legs });
         _ap = new AnimationPlayer { Name = "Anim" }; Body.AddChild(_ap); _ap.RootNode = new NodePath("..");
         _ap.AddAnimationLibrary("", Library(_sex, _sk));
-        HasModel = true; Play("idle"); CharRim.Apply(this); ApplyHeadLayer();
+        HasModel = true; Play("idle"); CharRim.Apply(this); ApplyHeadLayer(); AddClock();   // AvClock: the attack time warp and hit pauses (AvatarMotion.cs)
     }
 
     /// <summary>
@@ -836,14 +836,26 @@ public partial class Avatar : Node3D
             float k = tgt / JsonUtil.F(Cfg, "animPelvis", .9167f); lib = new AnimationLibrary();
             foreach (var n in baked.GetAnimationList())
             {
-                var a = (Animation)baked.GetAnimation(n).Duplicate(true);
+                var srcA = baked.GetAnimation(n); var a = (Animation)srcA.Duplicate(true);
+                foreach (var m in new[] { "rm_curve", "rm_dist" }) if (srcA.HasMeta(m) && !a.HasMeta(m)) a.SetMeta(m, srcA.GetMeta(m));
+                if (a.HasMeta("rm_dist")) a.SetMeta("rm_dist", (float)a.GetMeta("rm_dist").AsDouble() * k);
                 for (int t = 0; t < a.GetTrackCount(); t++) if (a.TrackGetType(t) == Animation.TrackType.Position3D)
                         for (int i = 0; i < a.TrackGetKeyCount(t); i++) a.TrackSetKeyValue(t, i, (Vector3)a.TrackGetKeyValue(t, i) * k);
                 lib.AddAnimation(n, a);
             }
+            // clips the game now plays that the baked file does not have yet: merged from the source libraries where they exist (the editor,
+            // a dev build). The release build has no sources: re-bake (godot --headless --path . -- --bake-anims) so it gets them.
+            var missing = WantedClips().Where(c => !lib.HasAnimation(c)).ToHashSet();
+            if (missing.Count > 0)
+            {
+                bool src = L(Cfg, "anims").Any(s => ResourceLoader.Exists(s));
+                if (src) { var extra = Merge(tgt, missing); foreach (var n in extra.GetAnimationList()) if (!lib.HasAnimation(n)) lib.AddAnimation(n, extra.GetAnimation(n)); }
+                GD.Print($"[AVATAR] {missing.Count} clips not in clips.res ({string.Join(", ", missing)}): " + (src ? "merged from the source libraries; re-bake with --bake-anims" : "no source libraries here, those actions use their fallbacks; re-bake with --bake-anims"));
+            }
         }
         else lib = Merge(tgt, null);
         AddAttackAnims(lib);
+        MeasureStrides(key, lib, target);
         GD.Print($"[AVATAR] {key}: {lib.GetAnimationList().Count} clips");
         _libs[key] = lib; return lib;
     }
@@ -863,10 +875,7 @@ public partial class Avatar : Node3D
     /// <summary>--bake-anims: merges the source libraries at the animation rig's own hip height and saves only the clips in use.</summary>
     public static void Bake()
     {
-        var used = new HashSet<string>();
-        foreach (var p in Cfg.GetProperty("clips").EnumerateObject())
-            if (p.Value.ValueKind == JsonValueKind.String) used.Add(p.Value.GetString()!); else if (p.Value.ValueKind == JsonValueKind.Array) foreach (var x in p.Value.EnumerateArray()) used.Add(x.GetString()!);
-        foreach (var (_, d) in AttackDefs()) used.Add(d.Clip);   // the clips attack animations are cut from
+        var used = WantedClips();   // data/avatar.json "clips" and the clips attack animations are cut from (AvatarMotion.cs)
         var lib = Merge(JsonUtil.F(Cfg, "animPelvis", .9167f), used);
         var err = ResourceSaver.Save(lib, Baked, ResourceSaver.SaverFlags.Compress);
         GD.Print($"[AVATAR] baked {lib.GetAnimationList().Count} clips to {Baked}: {err}");
@@ -891,6 +900,12 @@ public partial class Avatar : Node3D
                 // root-motion clips only when asked for by name (their travel is dropped with the root track, so they play in place)
                 if ((clean.EndsWith("_RM") && !(UseSources || (only != null && only.Contains(clean)))) || clean.Contains("TPose") || lib.HasAnimation(clean) || (only != null && !only.Contains(clean))) continue;
                 var a = (Animation)ap.GetAnimation(name).Duplicate(true);
+                if (clean.EndsWith("_RM"))   // root motion: keep the root's travel as a curve before its track is dropped (AvatarMotion.cs)
+                    for (int t = 0; t < a.GetTrackCount(); t++)
+                    {
+                        string path = a.TrackGetPath(t).ToString(); int colon = path.IndexOf(':');
+                        if (colon >= 0 && path[(colon + 1)..] == "root" && a.TrackGetType(t) == Animation.TrackType.Position3D) { KeepRootCurve(a, t, unit * k); break; }
+                    }
                 for (int t = a.GetTrackCount() - 1; t >= 0; t--)
                 {
                     string path = a.TrackGetPath(t).ToString(); int colon = path.IndexOf(':'); string bone = colon >= 0 ? path[(colon + 1)..] : "";
@@ -950,6 +965,7 @@ public partial class Avatar : Node3D
                     else a.PositionTrackInsertKey(nt, key, src.PositionTrackInterpolate(t, at));
                 }
             }
+            SliceRootCurve(src, a, t0, t1, d.Reverse);   // the slice of a root-motion clip keeps its travel timing
             lib.AddAnimation(AtkName(id), a);
         }
     }
@@ -957,62 +973,56 @@ public partial class Avatar : Node3D
     /// Plays an attack animation so its blow lands when the attack deals damage: the clip runs at the speed that brings its own hit moment
     /// to hitAt seconds (then keeps that pace). Returns false if there is no such animation (the caller falls back to the old clips).
     /// </summary>
-    public bool PlayAttack(string id, float hitAt, bool restart, float blend = .06f)
+    public bool PlayAttack(string id, float hitAt, bool restart, float blend = -1f, float pause = 0f)
     {
         if (_ap == null || !AttackDefs().TryGetValue(id, out var d)) return false;
         string n = AtkName(id); if (!_ap.HasAnimation(n)) return false;
-        if (n == Cur && !restart && _ap.IsPlaying()) return true;
+        if (n == Cur && !restart && (_wOn || _ap.IsPlaying())) return true;
+        if (n == Cur && !restart) return true;   // its follow-through is over: the caller moves on to the recovery (never replay it)
         float len = (float)_ap.GetAnimation(n).Length, hit = d.Reverse ? 1 - d.Hit : d.Hit;
-        float sp = Mathf.Clamp(hit * len / Mathf.Max(.05f, hitAt), .35f, 3.5f);
-        _ap.SpeedScale = 1f; _ap.Play(n, blend, sp); if (restart) _ap.Seek(0, true); Cur = n; _rev = false;
+        bool same = n == Cur;
+        _ap.SpeedScale = 1f; _ap.Play(n, blend < 0 ? Blend("toAttack", .1f) : blend, 1f); if (same) _ap.Seek(0, true); Cur = n; _rev = false;
+        // the time warp (AvatarMotion.cs): natural wind-up (held at its top when it must be slower), strike landing at hitAt, natural follow-through
+        _wOn = true; _wName = n; _wEl = 0; _wH = hit * len; _wT = Mathf.Max(.05f, hitAt); _wLen = len; _wPause = pause;
         return true;
     }
-    /// <summary>Plays a recovery (follow-through) animation stretched over this many seconds.</summary>
+    /// <summary>Plays a recovery (follow-through) animation over this many seconds, kept near its natural rate (data/avatar.json rates.rec).</summary>
     public void PlayRecovery(string id, float secs)
     {
         if (_ap == null || !AttackDefs().ContainsKey(id)) return; string n = AtkName(id); if (!_ap.HasAnimation(n) || n == Cur) return;
-        _ap.SpeedScale = 1f; _ap.Play(n, .1f, Mathf.Clamp((float)_ap.GetAnimation(n).Length / Mathf.Max(.1f, secs), .5f, 3f)); Cur = n; _rev = false;
+        var (lo, hi) = FitBand("rec");
+        _ap.SpeedScale = 1f; _ap.Play(n, Blend("toRec", .2f), Mathf.Clamp((float)_ap.GetAnimation(n).Length / Mathf.Max(.1f, secs), lo, hi)); Cur = n; _rev = false;
     }
 
     public string Cur = "";
-    /// <summary>Clip name for an action key in data/avatar.json "clips" (a list = combo steps).</summary>
+    /// <summary>Clip name for an action key in data/avatar.json "clips" (a list = combo steps). A clip this body lacks (not baked yet) falls back
+    /// along data/avatar.json "clipFallback" (Roll_RM -> Roll, Crouch_* -> none, ...).</summary>
     public static string Clip(string key, int step = 0)
     {
         if (!Cfg.GetProperty("clips").TryGetProperty(key, out var v)) return key;
         if (v.ValueKind == JsonValueKind.Array) { int n = v.GetArrayLength(); return n == 0 ? key : v[step % n].GetString() ?? key; }
         return v.GetString() ?? key;
     }
-    /// <summary>Plays an action (clip key or clip name). fit &gt; 0 stretches it to that many seconds; restart replays it.</summary>
+    string Have(string n)
+    {
+        for (int i = 0; i < 4 && _ap != null && !_ap.HasAnimation(n); i++)
+            if (Cfg.TryGetProperty("clipFallback", out var f) && f.TryGetProperty(n, out var nx) && nx.ValueKind == JsonValueKind.String) n = nx.GetString() ?? n; else break;
+        return n;
+    }
+    /// <summary>Plays an action (clip key or clip name). fit &gt; 0 stretches it to that many seconds, within its natural band (data/avatar.json
+    /// rates.fit); restart replays it. A finished one-shot asked for again holds its last pose instead of starting over.</summary>
     public void Play(string key, float blend = .18f, float fit = 0, bool restart = false, int step = 0, bool reverse = false)
     {
-        if (_ap == null) return; string n = Clip(key, step); if (!_ap.HasAnimation(n)) return;
-        _ap.SpeedScale = 1f;   // Move sets the gait scale after this; attacks and casts play at their own fitted speed
-        if (n == Cur && !restart && _ap.IsPlaying() && reverse == _rev) return;
-        float sp = fit > 0 ? (float)_ap.GetAnimation(n).Length / fit : 1f;
-        _ap.Play(n, blend, reverse ? -sp : sp, reverse); if (restart) _ap.Seek(0, true); Cur = n; _rev = reverse;
+        if (_ap == null) return; string n = Have(Clip(key, step)); if (!_ap.HasAnimation(n)) return;
+        if (n == Cur && !restart && reverse == _rev && _ap.IsPlaying()) { if (fit <= 0 && !_wOn) _ap.SpeedScale = 1f; return; }
+        if (n == Cur && !restart && reverse == _rev && _ap.GetAnimation(n).LoopMode == Animation.LoopModeEnum.None) return;   // ended: hold it (death)
+        _ap.SpeedScale = 1f;   // Move sets the gait scale after this; one-shots play at their own fitted rate
+        var (lo, hi) = FitBand(key);
+        float sp = fit > 0 ? Mathf.Clamp((float)_ap.GetAnimation(n).Length / fit, lo, hi) : 1f;
+        bool same = n == Cur; _ap.Play(n, blend, reverse ? -sp : sp, reverse); if (restart && same) _ap.Seek(reverse ? _ap.GetAnimation(n).Length : 0, true); Cur = n; _rev = reverse;
     }
     bool _rev;
-    /// <summary>A one-shot clip (attack, cast, hit) is still running.</summary>
-    public bool Busy => _ap != null && _ap.IsPlaying() && _ap.HasAnimation(Cur) && _ap.GetAnimation(Cur).LoopMode == Animation.LoopModeEnum.None;
     public float Speed { set { if (_ap != null) _ap.SpeedScale = value; } }
-
-    /// <summary>Walking / running / idle from ground speed (m/s).</summary>
-    /// <summary>Walking / running / idle from ground speed (m/s). back = moving backwards (the walk or run plays in reverse; the clips only go forward).</summary>
-    /// <summary>sprint (A-02): the mover says whether it is sprinting; null = judge by speed (gait "sprintAt"). The hero passes it, because a
-    /// jog with enough movement-speed bonus passed sprintAt and played the sprint clip without the sprint key.</summary>
-    public void Move(float speed, bool grounded, bool armed, bool shield, bool back = false, bool? sprint = null)
-    {
-        if (!grounded) { Play("fall", .2f); return; }
-        bool moving = speed > .4f;
-        if (Busy && Cur != Clip("land") && !moving) return;   // a one-shot clip runs on only while standing
-        // quick blend into motion so the feet start with the body; slower between gaits and back to idle
-        bool fromStill = Cur == Clip("idle") || Cur == Clip("idleArmed") || Cur == Clip("idleShield") || Busy;
-        string gait = (sprint ?? speed > Gait("sprintAt", 6.2f)) && speed > Gait("runAt", 2.6f) && !back ? "sprint" : speed > Gait("runAt", 2.6f) ? "run" : moving ? "walk" : "";
-        Play(gait != "" ? gait : shield ? "idleShield" : armed ? "idleArmed" : "idle", moving && fromStill ? .07f : .2f, 0, false, 0, back && moving);
-        // feet keep pace with the ground: the clip plays at (speed / the clip's own speed), within limits (data/avatar.json "gait")
-        if (_ap != null) _ap.SpeedScale = gait == "" ? 1f : Mathf.Clamp(speed / Gait(gait, 2.5f), Gait("minScale", .8f), Gait("maxScale", 2f));
-    }
-    static float Gait(string k, float d) => Cfg.TryGetProperty("gait", out var g) ? JsonUtil.F(g, k, d) : d;
 
     // ------------------------------------------------------------------ helpers for callers
     /// <summary>An item-like stand-in for NPC / enemy outfits from data/avatar.json ("armor": "Plate" ...).</summary>

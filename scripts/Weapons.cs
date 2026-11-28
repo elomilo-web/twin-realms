@@ -22,6 +22,9 @@ public struct HandPose
 public class AttackDef
 {
     public float Dur = .5f, Wind = .35f, Hit = .5f, Dmg = 1, Arc = 60, Range = 3, Knock = 2.5f, Stun, Up, Lunge, Spin, CritBonus;
+    /// <summary>Active window (fractions of the swing) in which the weapon's hitbox can strike; below 0 = around Hit (data/tuning.json game.hitbox.activeBefore / activeAfter).
+    /// Step = metres the body is carried forward through the swing (below 0 = by attack type, game.attack.step*).</summary>
+    public float Act0 = -1, Act1 = -1, Step = -1;
     public bool Finisher, Pierce;
     public HandPose[] Keys = new HandPose[0];
 }
@@ -76,8 +79,9 @@ public static class Weapons
         {
             Dur = JsonUtil.F(e, "dur", .5f), Wind = JsonUtil.F(e, "wind", .35f), Hit = JsonUtil.F(e, "hit", .5f), Dmg = JsonUtil.F(e, "dmg", 1), Arc = JsonUtil.F(e, "arc", 60), Range = JsonUtil.F(e, "range", 3),
             Knock = JsonUtil.F(e, "knock", 2.5f), Stun = JsonUtil.F(e, "stun"), Up = JsonUtil.F(e, "up"), Lunge = JsonUtil.F(e, "lunge"), Spin = JsonUtil.F(e, "spin"), CritBonus = JsonUtil.F(e, "critBonus"),
-            Finisher = e.TryGetProperty("finisher", out var f) && f.GetBoolean(), Pierce = e.TryGetProperty("pierce", out var pi) && pi.GetBoolean(),
+            Finisher = e.TryGetProperty("finisher", out var f) && f.GetBoolean(), Pierce = e.TryGetProperty("pierce", out var pi) && pi.GetBoolean(), Step = JsonUtil.F(e, "step", -1),
         };
+        if (e.TryGetProperty("active", out var av) && av.ValueKind == JsonValueKind.Array && av.GetArrayLength() >= 2) { a.Act0 = av[0].GetSingle(); a.Act1 = av[1].GetSingle(); }
         if (e.TryGetProperty("keys", out var k)) { var l = new List<HandPose>(); foreach (var x in k.EnumerateArray()) l.Add(P(x, new HandPose())); a.Keys = l.ToArray(); }
         return a;
     }
@@ -103,12 +107,16 @@ public static class Weapons
     public static float SizeReach(Item? it) { Load(); return 1f + (SizeOf(it) - 1f) * _szReach; }
     public static float SizeArc(Item? it) { Load(); return 1f + (SizeOf(it) - 1f) * _szArc; }
     public static float SizeSpeed(Item? it) { Load(); return Mathf.Clamp(1f - (SizeOf(it) - 1f) * _szSpeed, .5f, 1.5f); }
+    // every weapon drawn bigger (data/weapons.json size.grandScale, bows / wands / thrown size.grandScaleRanged) so weapons read grand and
+    // heavy; melee reach grows with it (size.grandReach) so the swing still lands where the bigger blade is
+    static float _grand = 1f, _grandRanged = 1f, _grandReach = 1f;
+    public static float Grand(string wt) { Load(); return Get(wt) is { Ranged: true } || wt is "bow" or "wand" or "crossbow" or "javelin" or "kunai" ? _grandRanged : _grand; }
     /// <summary>The swing with the item's size applied to its reach and arc (a copy; the weapon data is not touched).</summary>
     public static AttackDef Sized(AttackDef a, Item? it)
     {
-        float s = SizeOf(it); if (Mathf.Abs(s - 1f) < .005f) return a;
-        return new AttackDef { Dur = a.Dur, Wind = a.Wind, Hit = a.Hit, Dmg = a.Dmg, Arc = Mathf.Min(180, a.Arc * SizeArc(it)), Range = a.Range * SizeReach(it), Knock = a.Knock, Stun = a.Stun, Up = a.Up,
-            Lunge = a.Lunge, Spin = a.Spin, CritBonus = a.CritBonus, Finisher = a.Finisher, Pierce = a.Pierce, Keys = a.Keys };
+        float s = SizeOf(it), g = it != null && !Get(it.Wt ?? "sword").Ranged ? _grandReach : 1f; if (Mathf.Abs(s - 1f) < .005f && Mathf.Abs(g - 1f) < .005f) return a;
+        return new AttackDef { Dur = a.Dur, Wind = a.Wind, Hit = a.Hit, Dmg = a.Dmg, Arc = Mathf.Min(180, a.Arc * SizeArc(it)), Range = a.Range * SizeReach(it) * g, Knock = a.Knock, Stun = a.Stun, Up = a.Up,
+            Lunge = a.Lunge, Spin = a.Spin, CritBonus = a.CritBonus, Finisher = a.Finisher, Pierce = a.Pierce, Keys = a.Keys, Act0 = a.Act0, Act1 = a.Act1, Step = a.Step };
     }
     /// <summary>A random weapon type from the list, by each type's "drop" weight.</summary>
     public static string RollType(List<string> types)
@@ -201,6 +209,7 @@ public static class Weapons
         {
             _szMin = JsonUtil.F(sz, "min", .85f); _szMax = Mathf.Max(_szMin, JsonUtil.F(sz, "max", 1.2f));
             _szReach = JsonUtil.F(sz, "reachPer", 1f); _szArc = JsonUtil.F(sz, "arcPer", .35f); _szSpeed = JsonUtil.F(sz, "speedPer", .5f);
+            _grand = JsonUtil.F(sz, "grandScale", 1f); _grandRanged = JsonUtil.F(sz, "grandScaleRanged", 1f); _grandReach = JsonUtil.F(sz, "grandReach", 1f);
             if (sz.TryGetProperty("names", out var sn) && sn.ValueKind == JsonValueKind.Array)
                 foreach (var x in sn.EnumerateArray()) if (x.ValueKind == JsonValueKind.Array && x.GetArrayLength() >= 2) _szNames.Add((x[0].GetSingle(), x[1].GetString() ?? ""));
         }
@@ -288,7 +297,7 @@ public static class Weapons
         var accent = rar >= 3 ? gold : rar >= 1 ? M(rc.Darkened(.25f), .7f, .35f) : dark;
         if (rar >= 4) { steel.EmissionEnabled = true; steel.Emission = rc; steel.EmissionEnergyMultiplier = .08f; steel.AlbedoColor = steel.AlbedoColor.Lerp(rc, .12f); }
         Node3D? b = null, t = null;
-        float size = SizeOf(it);   // A-11: the built-in meshes grow with the item's size too (the marks with them)
+        float size = SizeOf(it) * Grand(wt);   // A-11: the built-in meshes grow with the item's size too (the marks with them); x the overall weapon scale
         Node3D Mark(float z) { var n = new Node3D { Position = new Vector3(0, 0, z * size) }; parent.AddChild(n); return n; }
         int before = parent.GetChildCount();
         switch (wt)
@@ -397,7 +406,7 @@ public static class Weapons
         if (ps?.Instantiate() is not Node3D model) { GD.PushWarning("[WEAPONS] missing kit model " + name); return null; }
         // size: the listed scale for this name, and a small stable variation per item so two swords of a kind differ
         // (A-11: an item with a rolled size uses that instead of the name jitter, so the model matches its reach)
-        float jit = it != null && Mathf.Abs(it.Size - 1f) > .005f ? SizeOf(it) : 1f + (((Hash((it?.Name ?? "") + "#size") % 1000) / 1000f) * 2f - 1f) * _jitter, sc = pick.Scale * jit;
+        float jit = it != null && Mathf.Abs(it.Size - 1f) > .005f ? SizeOf(it) : 1f + (((Hash((it?.Name ?? "") + "#size") % 1000) / 1000f) * 2f - 1f) * _jitter, sc = pick.Scale * jit * (wt == "tool" ? 1f : Grand(wt));   // x the overall weapon scale (not the pickaxe)
         model.Scale = Vector3.One * sc;
         if (wt != "bow") model.Rotation = new Vector3(-H, 0, 0);
         parent.AddChild(model);

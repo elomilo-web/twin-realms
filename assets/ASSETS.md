@@ -124,6 +124,9 @@ Animated low-poly monsters by **Quaternius** (Ultimate Monsters, Animated Enemie
 | `cactusFiend.glb` | Cactoro | https://poly.pizza/m/66CYX5UhRK |
 | `wyvern.glb` | Dragon | https://poly.pizza/m/3rUm1cN3yp |
 | `raptor.glb` | Dino | https://poly.pizza/m/wuerCFCWNR |
+| `dragon.glb` | Dragon (clips Dragon_Flying, Dragon_Attack, Dragon_Attack2, Dragon_Hit, Dragon_Death), the Vorthrax boss since 2026-11-27 | https://poly.pizza/m/VBvzjFIYws |
+| `deer.glb` | Stag (Ultimate Animated Animal Pack, 13 clips incl. Attack_Headbutt, Attack_Kick, Gallop, Walk, Idle_HitReact_Left/Right, Death), deer and shade stag since 2026-11-27 | https://poly.pizza/m/tQdzbZ1Cmw |
+| `wolf.glb` | Wolf (Ultimate Animated Animal Pack, 12 clips: Idle, Idle_2, Walk, Gallop, Gallop_Jump, Attack, Idle_HitReact_Left/Right, Death, Eating, Jump_ToIdle), replaced the older wolf on 2026-11-27 | https://poly.pizza/m/P1gU3Qkr9r |
 | `kitsune.glb` | Fox | https://poly.pizza/m/Bc97C66HKi |
 
 

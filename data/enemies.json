@@ -32,7 +32,7 @@
                     "kitsune":      { "n": "Kitsune",        "kind": "model", "model": "kitsune", "size": 3,      "h": 1.2, "r": 0.5,  "emissive": true, "tint": "ffd0a0", "ranged": "fire", "range": 18, "keep": 8, "hp": 90, "dmg": 16, "xp": 40, "spd": 6.5, "aggro": 24, "wind": 0.7, "cd": 1.9, "realm": 1, "armor": 14, "mr": 35, "dmgType": "fire", "res": { "fire": 50 }, "onHit": { "burn": 0.3 } },
                     "deer":  {
                                  "n":  "Deer",
-                                 "kind":  "quad", "model": "deer", "proc": "deer", "h": 1.5,
+                                 "kind":  "quad", "model": "deer", "h": 1.9,
                                  "look":  "deer",
                                  "flee":  true,
                                  "noLoot":  true,
@@ -122,9 +122,9 @@
                                            },
                                  "mr":  5
                              },
-                    "shadeStag":  {
+                    "shadeStag":  { "tint": "8a7ad8",
                                       "n":  "Shade Stag",
-                                      "kind":  "quad", "model": "shadeStag", "proc": "shadestag", "h": 1.8,
+                                      "kind":  "quad", "model": "deer", "h": 2.2,
                                       "look":  "deer",
                                       "flee":  true,
                                       "noLoot":  true,
@@ -158,7 +158,7 @@
                                   },
                     "wolf":  {
                                  "n":  "Wolf",
-                                 "kind":  "quad", "model": "wolf", "proc": "wolf", "h": 0.85, "sound": "roar", "pitch": 1.5,
+                                 "kind":  "quad", "model": "wolf", "h": 0.85, "sound": "roar", "pitch": 1.5,
                                  "hp":  38,
                                  "dmg":  7,
                                  "spd":  5.9,
@@ -205,6 +205,9 @@
                     "turtle":      { "n": "Turtle",       "kind": "quad", "look": "animal", "proc": "turtle",      "h": 0.32, "r": 0.4,  "flee": true, "noLoot": true, "hp": 40, "dmg": 0, "spd": 1.6, "aggro": 5, "reach": 1, "wind": 0.5, "cd": 1.5, "xp": 5, "realm": 0, "armor": 60, "mr": 20, "drops": { "scalehide": [1, 1], "meat": [1, 1] } },
                     "bandit":  {
                                    "n":  "Bandit",
+                                   "_ds":  "Dark Souls pass: poise (hits before it staggers), poiseDmg (its blow on the hero's poise), windPause (held top of the wind-up, s): game.poise / game.enemyAtk",
+                                   "poise":  22,
+                                   "windPause":  0.32,
                                    "kind":  "hum",
                                    "outfit":  "bandit",
                                    "weapon":  "sword",
@@ -373,6 +376,9 @@
                               },
                     "revenant":  {
                                      "n":  "Revenant",
+                                   "poise":  45,
+                                   "poiseDmg":  24,
+                                   "windPause":  0.4,
                                      "kind":  "hum",
                                      "outfit":  "revenant",
                                      "weapon":  "greatsword",
@@ -501,7 +507,7 @@
                               },
                     "dragon":  {
                                    "n":  "Vorthrax the Ashen",
-                                   "model":  "wyvern", "_tintOld": "6a4a40 (the wyvern model's tint; the procedural dragon has its own colours in data/creatures.json)", "proc": "dragon", "h":  4.8,
+                                   "model": "dragon", "h":  4.8,
                                    "boss":  true,
                                    "kind":  "dragon",
                                    "hp":  4200,

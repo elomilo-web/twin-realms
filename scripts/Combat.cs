@@ -24,6 +24,12 @@ public class HitInfo
     public bool Stagger;        // damage-over-time ticks use their own small numbers
     // multiplayer: a friend's hit forwarded to the host (their bonuses already applied, their penetration carried along), or a duel hit
     public bool Remote, Duel; public long Peer; public float APen, APenP, MPen, MPenP;
+    /// <summary>Poise damage of the blow (data/tuning.json game.poise); below 0 = worked out by the target from Kind / Knock.</summary>
+    public float Poise = -1;
+    /// <summary>A critical blow (riposte, backstab): breaks poise outright and always plays the heavy reaction.</summary>
+    public bool Critical;
+    /// <summary>Where the blow touched the body (hitbox contact), or null; picks the hit reaction (head height = Hit_Head).</summary>
+    public Vector3? At;
     public HitInfo With(string id, float chance, float durMul = 1, float pow = 0) { (Statuses ??= new()).Add((id, chance, durMul, pow)); return this; }
 }
 

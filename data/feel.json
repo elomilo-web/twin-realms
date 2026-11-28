@@ -64,8 +64,8 @@
              },
     "move":  {
                  "_comment":  "Hero movement. run / sprint: ground speed in m/s (the run and sprint clips play at speed / their own speed in data/avatar.json gait, so raise those together). sprintDrain: stamina per second while sprinting. sprintRegenDelay: seconds after sprinting before stamina refills. staminaRegen: stamina refilled per second.",
-                 "run":  5.6,
-                 "sprint":  8.0,
+                 "run":  4.6,
+                 "sprint":  6.6,
                  "sprintDrain":  4,
                  "sprintRegenDelay":  0.3,
                  "staminaRegen":  24

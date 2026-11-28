@@ -45,7 +45,7 @@ public partial class Enemy : ILivestock
         var c = _cm; if (c == null) return;
         var hv = PetBody ? PetVel : Velocity;
         c.Speed = new Vector2(hv.X, hv.Z).Length();
-        c.Attack = _flyAtk > 0 ? 1 - _flyAtk / .35f : _state == State.Wind ? 1 - Mathf.Clamp(_timer / Mathf.Max(.05f, Def.Wind), 0, 1) : -1;
+        c.Attack = _flyAtk > 0 ? 1 - _flyAtk / .35f : _state == State.Wind ? .5f * (1 - Mathf.Clamp(_timer / Mathf.Max(.05f, WindTotal), 0, 1)) : _state == State.Strike ? .5f + .5f * (1 - Mathf.Clamp(_timer / Mathf.Max(.05f, ActiveTime), 0, 1)) : -1;   // the bite peaks as the strike opens (its jaws are the hitbox, EnemyStrike.cs)
         c.Breath = _state == State.Breath; c.Menace = Hunting && !PetBody; c.Dead = _state == State.Dead; c.Calm = _state == State.Idle && !PetBody;
         c.Flash = _flash > 0; c.Airborne = PetBody ? PetAir : _flying;
         if (PetBody) return;
@@ -157,7 +157,7 @@ public partial class Enemy : ILivestock
                 want = pos + away * 8f; want.Y = World.GroundAt(want.X, want.Z) + alt * 1.7f; speed = Def.Spd; break;
             }
             case State.Stagger: want = pos; break;   // stunned: hangs in the air
-            case State.Chase: case State.Wind: case State.Recover:
+            case State.Chase: case State.Wind: case State.Strike: case State.Recover:
             {
                 if (!plOk || dist > Mathf.Max(Def.Aggro * 2.5f, 30f) || (pos - _home).Length() > 75f) { _state = State.Idle; DropAggro(); goto default; }
                 _state = State.Chase;

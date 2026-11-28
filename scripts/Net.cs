@@ -345,7 +345,7 @@ public partial class Net : Node
     public void SendEnemyHit(Enemy e, HitInfo h, float raw, string statuses)
     {
         var TS = Game.TS;
-        var f = new float[] { raw, h.Knock, h.Stun, h.Up, h.From.X, h.From.Y, h.From.Z, TS["armorPen"], TS["armorPenP"], TS["magicPen"], TS["magicPenP"], h.Crit ? 1 : 0 };
+        var f = new float[] { raw, h.Knock, h.Stun, h.Up, h.From.X, h.From.Y, h.From.Z, TS["armorPen"], TS["armorPenP"], TS["magicPen"], TS["magicPenP"], h.Crit ? 1 : 0, h.Poise, h.Critical ? 1 : 0 };   // (poise damage and critical blows ride at the end: older hosts ignore them)
         if (e.FromDungeon) { if (Dungeon.Shared && !Dungeon.IsOwner) RpcId(Dungeon.Owner, MethodName.R_DunHit, Dungeon.Seed, e.NetIdx, f, h.Type, statuses); return; }
         if (e.DuelPeer != 0) { RpcId(e.DuelPeer, MethodName.R_DuelHit, f, h.Type, statuses); return; }
         RpcId(1, MethodName.R_EnemyHit, e.NetIdx, f, h.Type, statuses);
@@ -360,6 +360,7 @@ public partial class Net : Node
     static HitInfo Unpack(float[] f, string type, string statuses)
     {
         var h = new HitInfo { Damage = f[0], Knock = f[1], Stun = f[2], Up = f[3], From = new Vector3(f[4], f[5], f[6]), APen = f[7], APenP = f[8], MPen = f[9], MPenP = f[10], Crit = f[11] > .5f, Type = type };
+        if (f.Length > 13) { h.Poise = f[12]; h.Critical = f[13] > .5f; }
         foreach (var s in statuses.Split(';', StringSplitOptions.RemoveEmptyEntries))
         {
             var p = s.Split(':'); if (p.Length < 4) continue;

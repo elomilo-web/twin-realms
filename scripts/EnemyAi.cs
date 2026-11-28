@@ -77,7 +77,7 @@ public partial class Enemy
 public partial class Enemy
 {
     /// <summary>Head tracking / idle variety state read by EnemyLook.</summary>
-    internal bool LookAggro => !Puppet && (_state == State.Chase || _state == State.Wind || _state == State.Recover || _state == State.Breath);
+    internal bool LookAggro => !Puppet && (_state == State.Chase || _state == State.Wind || _state == State.Strike || _state == State.Recover || _state == State.Breath);
     internal bool LookIdle => _state == State.Idle;
     internal bool LookBlocked => Dead || _state == State.Stagger || _stun > 0 || _state == State.Sleep;
     internal Node3D? LookHero => _hero != null && IsInstanceValid(_hero) ? _hero : null;

@@ -15,6 +15,10 @@ public partial class HeroPose : SkeletonModifier3D
 {
     /// <summary>Goals, set by Player every physics frame: crouch 0..1, and the swing's pitch in radians (up positive).</summary>
     public float Crouch, AimPitch;
+    /// <summary>Set by Player each physics frame: forward acceleration (m/s2, + speeding up), ground speed, the share the body outruns the clip
+    /// (Avatar.OverSpeed), the torso's counter-twist toward a locked foe (radians) and the bend toward a low melee target (radians, up +).</summary>
+    public float Accel, Speed, Over, TorsoYaw, MeleePitch;
+    float _acc, _ty, _mp; int _ua1 = -1, _ua2 = -1; Quaternion _m1 = Quaternion.Identity, _m2 = Quaternion.Identity; bool _mInit;
     public float Drop = .26f, Lean = .3f;
     float _c, _p; bool _init;
     int _pel = -1, _sp1 = -1, _sp2 = -1, _head = -1, _tl = -1, _cl = -1, _fl = -1, _tr = -1, _cr = -1, _fr = -1;
@@ -28,6 +32,7 @@ public partial class HeroPose : SkeletonModifier3D
         {
             _init = true; _pel = sk.FindBone("pelvis"); _sp1 = sk.FindBone("spine_01"); _sp2 = sk.FindBone("spine_02"); _head = sk.FindBone("Head");
             _tl = sk.FindBone("thigh_l"); _cl = sk.FindBone("calf_l"); _fl = sk.FindBone("foot_l"); _tr = sk.FindBone("thigh_r"); _cr = sk.FindBone("calf_r"); _fr = sk.FindBone("foot_r");
+            _ua1 = sk.FindBone("upperarm_l"); _ua2 = sk.FindBone("upperarm_r");
         }
         float dt = Mathf.Clamp((float)delta, .0001f, .1f);
         _c = Mathf.MoveToward(_c, Mathf.Clamp(Crouch, 0, 1), dt * 5f);
@@ -48,11 +53,49 @@ public partial class HeroPose : SkeletonModifier3D
             Turn(sk, _sp1, new Quaternion(Vector3.Right, Lean * e));
             Turn(sk, _head, new Quaternion(Vector3.Right, -Lean * .75f * e));
         }
-        if (Mathf.Abs(_p) > .003f)
+        // melee bend (toward a low foe, so the blade reaches it) rides on the same spine pitch as the build-mode aim
+        _mp = Mathf.Lerp(_mp, MeleePitch, 1f - Mathf.Exp(-10f * dt));
+        float pitch = _p + _mp;
+        if (Mathf.Abs(pitch) > .003f)
         {
-            var q = new Quaternion(Vector3.Right, -_p * .5f);
+            var q = new Quaternion(Vector3.Right, -pitch * .5f);
             Turn(sk, _sp1, q); Turn(sk, _sp2, q);
         }
+        Life(sk, dt);
+    }
+
+    /// <summary>
+    /// Life on top of the run (data/feel.json "life"): the back leans into acceleration (forward when speeding up, back when stopping) while
+    /// the head counters most of it to stay level; the torso turns toward a locked foe while the legs follow the step (lock-on strafing);
+    /// the arms swing wider when the body moves faster than the clip's top rate (the clip's own swing is amplified around its mean pose).
+    /// </summary>
+    void Life(Skeleton3D sk, float dt)
+    {
+        Feel.Load();
+        float accK = Tune.F("life.accelLean", .028f), accMax = Tune.F("life.accelLeanMax", .16f);
+        _acc = Mathf.Lerp(_acc, Mathf.Clamp(Accel * accK, -accMax, accMax), 1f - Mathf.Exp(-Tune.F("life.accelSmooth", 6f) * dt));
+        if (Mathf.Abs(_acc) > .002f)
+        {
+            Turn(sk, _sp1, new Quaternion(Vector3.Right, _acc * .6f)); Turn(sk, _sp2, new Quaternion(Vector3.Right, _acc * .4f));
+            Turn(sk, _head, new Quaternion(Vector3.Right, -_acc * Tune.F("life.headStab", .75f)));
+        }
+        _ty = Mathf.Lerp(_ty, TorsoYaw, 1f - Mathf.Exp(-10f * dt));
+        if (Mathf.Abs(_ty) > .003f)
+        {   // the hips follow the legs, the chest turns back toward the foe (spread over the spine), the head finishes the turn
+            var q = new Quaternion(Vector3.Up, _ty * .35f); Turn(sk, _sp1, q); Turn(sk, _sp2, q); Turn(sk, _head, new Quaternion(Vector3.Up, _ty * .3f));
+        }
+        float amp = Mathf.Clamp(Over, 0, 1) * Tune.F("life.armSwingExtra", .35f);
+        foreach (var (b, first) in new[] { (_ua1, true), (_ua2, false) })
+        {
+            if (b < 0) continue; var cur = sk.GetBonePoseRotation(b);
+            if (!_mInit) { _m1 = first ? cur : _m1; _m2 = first ? _m2 : cur; }
+            ref var mean = ref (first ? ref _m1 : ref _m2);
+            mean = mean.Slerp(cur, 1f - Mathf.Exp(-2f * dt)).Normalized();
+            if (amp < .01f || Speed < .5f) continue;
+            var dev = (mean.Inverse() * cur).Normalized(); float ang = dev.GetAngle(); if (ang < .001f || ang > 1.2f) continue;
+            sk.SetBonePoseRotation(b, (mean * new Quaternion(dev.GetAxis().Normalized(), ang * (1 + amp))).Normalized());
+        }
+        _mInit = true;
     }
 
     /// <summary>Pre-multiplies a skeleton-space rotation onto a bone's current global pose (its children follow).</summary>

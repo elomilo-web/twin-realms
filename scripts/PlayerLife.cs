@@ -37,9 +37,10 @@ public partial class Player
     /// <summary>A-10: the crouch itself (HeroPose over the clips: hips down, knees bent, back leaning), in while sneaking on the ground.</summary>
     void SneakPose()
     {
-        if (!Sneaking && _pose == null) return;
+        if (!Sneaking && _pose == null) { if (_av != null) _av.Crouching = false; return; }
         if (PoseLayer() is not { } pl) return;
-        pl.Crouch = Sneaking && !Dead && !Swimming && _rollT <= 0 ? 1f : 0f;
+        if (_av != null) _av.Crouching = Sneaking && !Dead && !Swimming;   // the real crouch clips (Crouch_Idle / Crouch_Fwd) when this body has them
+        pl.Crouch = Sneaking && !Dead && !Swimming && _rollT <= 0 && !(_av?.CrouchClip ?? false) ? 1f : 0f;   // the procedural crouch only without them (no leg IK over a real crouch)
         pl.Drop = LifeSkills.T("sneak.crouchDrop", .26f); pl.Lean = LifeSkills.T("sneak.crouchLean", .3f);
     }
 

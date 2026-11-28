@@ -56,6 +56,13 @@ public class EnemyDef
     public Dictionary<string, float>? Res { get; set; }
     public string DmgType { get; set; } = "physical";
     public Dictionary<string, float>? OnHit { get; set; }   // status id -> chance to apply when this enemy hits the player
+    // Dark Souls combat (Enemy.cs EnemyStrike.cs, data/tuning.json game.poise / game.enemyAtk; 0 = worked out from size and kind):
+    // poise = how much poise damage it takes before it staggers; poiseDmg = what its blow does to the hero's poise;
+    // windPause = seconds it holds the top of its wind-up (the readable telegraph); active = seconds its strike hitbox is live
+    public float Poise { get; set; }
+    public float PoiseDmg { get; set; }
+    public float WindPause { get; set; } = -1;
+    public float Active { get; set; }
 
     /// <summary>A private copy (the definitions from EnemyDb are shared by every enemy of that type).</summary>
     public EnemyDef Clone()

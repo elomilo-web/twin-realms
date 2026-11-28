@@ -75,6 +75,8 @@ public static class Attacks
     public static IEnumerable<AtkModDef> Mods { get { Load(); foreach (var k in _modOrder) yield return _mods[k]; } }
     public static AtkModDef? Mod(string id) { Load(); return _mods.GetValueOrDefault(id); }
     public static bool HasStyle(string wt) { Load(); return _styles.ContainsKey(wt); }
+    /// <summary>The animation of a critical blow (riposte, backstab): data/attacks.json "critical".anim.</summary>
+    public static string CritAnim => C.TryGetProperty("critical", out var c) && c.ValueKind == JsonValueKind.Object ? JsonUtil.S(c, "anim", "riposte") : "riposte";
 
     // ------------------------------------------------------------------ the player's build
     /// <summary>The build for a weapon class, created with the free starting chain on first use (auto-assigned on equip).</summary>
@@ -155,7 +157,9 @@ public static class Attacks
             Dmg = F("dmg", src.Dmg) * rankMul, Arc = F("arc", src.Arc), Range = F("range", src.Range), Knock = F("knock", src.Knock), Stun = F("stun", src.Stun), Up = F("up", src.Up),
             Lunge = F("lunge", src.Lunge), Spin = F("spin", src.Spin), CritBonus = F("critBonus", src.CritBonus),
             Finisher = has && raw.TryGetProperty("finisher", out var fv) ? fv.ValueKind == JsonValueKind.True : src.Finisher, Pierce = src.Pierce,
+            Act0 = src.Act0, Act1 = src.Act1, Step = F("step", src.Step),
         };
+        if (has && raw.TryGetProperty("active", out var actv) && actv.ValueKind == JsonValueKind.Array && actv.GetArrayLength() >= 2) { a.Act0 = actv[0].GetSingle(); a.Act1 = actv[1].GetSingle(); }   // the step's own active window
         r.Speed = F("speed", 1); r.Stamina = F("stamina", 1);
         r.Shots = (int)F("shots", 1); r.Spread = F("spread", 0); r.Aoe = F("aoe", 0); r.Pierce = has && raw.TryGetProperty("pierce", out var pv) && pv.ValueKind == JsonValueKind.True;
         if (has && raw.TryGetProperty("status", out var st)) foreach (var x in st.EnumerateObject()) r.Status.Add((x.Name, x.Value.GetSingle()));
@@ -179,6 +183,8 @@ public static class Attacks
         rec *= w.Ranged ? R("rangedMul", .6f) : w.Hands > 1 ? R("twoHandedMul", 1.6f) : w.Light ? R("daggerMul", .5f) : 1f;   // (A-11: light weapons: dagger, fists, claws...)
         r.Recover = rec;
         r.Rec = has && JsonUtil.S(raw, "rec") != "" ? JsonUtil.S(raw, "rec") : w.Id == "unarmed" ? "" : rc.ValueKind == JsonValueKind.Object ? JsonUtil.S(rc, w.Hands > 1 || power ? "recHeavy" : "recLight") : "";   // fists: no sword follow-through
+        if ((!has || JsonUtil.S(raw, "rec") == "") && w.Hands < 2 && !power && w.Id != "unarmed" && rc.ValueKind == JsonValueKind.Object && rc.TryGetProperty("recByAnim", out var rba) && rba.ValueKind == JsonValueKind.Object && JsonUtil.S(rba, r.Anim) != "")
+            r.Rec = JsonUtil.S(rba, r.Anim);   // the follow-through that belongs to this swing's clip (Sword_Regular_B_Rec after a return cut)
         r.Def = a; return r;
     }
     static JsonElement? _styleRaw(string wt) => C.GetProperty("styles").TryGetProperty(wt, out var s) ? s : null;

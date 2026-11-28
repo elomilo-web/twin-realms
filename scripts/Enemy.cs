@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Godot;
 
 namespace TwinRealms;
@@ -6,7 +6,7 @@ namespace TwinRealms;
 /// <summary>Data-driven enemy. Melee, ranged, summoning bosses and the dragon. Stats come from data/enemies.json.</summary>
 public partial class Enemy : CharacterBody3D, IDamageable
 {
-    enum State { Sleep, Idle, Chase, Wind, Recover, Stagger, Return, Breath, Dead, Flee }
+    enum State { Sleep, Idle, Chase, Wind, Recover, Stagger, Return, Breath, Dead, Flee, Strike }   // Strike (added last: the numbers go over the network): the blow's live hitbox (EnemyStrike.cs)
     public static Enemy? CurrentBoss;
 
     public string Type = "wolf";
@@ -389,8 +389,14 @@ public partial class Enemy : CharacterBody3D, IDamageable
         if (_mdlAp != null)
         {
             var names = new List<string>(); foreach (var x in _mdlAp.GetAnimationList()) names.Add(x.ToString());
-            string Pick(params string[] keys) { foreach (var key in keys) foreach (var nm in names) { var b = nm.Contains('|') ? nm[(nm.IndexOf('|') + 1)..] : nm; if (b.Contains(key, System.StringComparison.OrdinalIgnoreCase)) return nm; } return ""; }
-            _aIdle = Pick("Flying_Idle", "Idle"); _aMove = Pick("Run", "Gallop", "Fast_Flying", "Flying", "Walk");
+            static string Bare(string nm) => nm.Contains('|') ? nm[(nm.LastIndexOf('|') + 1)..] : nm;
+            string Pick(params string[] keys)
+            {   // an exact clip name first ("Idle" must not pick "Idle_HitReact_Left"), then the first name containing the key
+                foreach (var key in keys) foreach (var nm in names) if (Bare(nm).Equals(key, System.StringComparison.OrdinalIgnoreCase)) return nm;
+                foreach (var key in keys) foreach (var nm in names) if (Bare(nm).Contains(key, System.StringComparison.OrdinalIgnoreCase)) return nm;
+                return "";
+            }
+            _aIdle = Pick("Flying_Idle", "Idle", "Flying");   // (the dragon model has only a flying loop) _aMove = Pick("Run", "Gallop", "Fast_Flying", "Flying", "Walk");
             _aAtk = Pick("Attack", "Bite_Front", "Weapon", "Punch", "Headbutt"); _aHit = Pick("HitRecieve", "HitReact", "Hit"); _aDie = Pick("Death");
             foreach (var nm in new[] { _aIdle, _aMove }) if (nm != "" && _mdlAp.GetAnimation(nm) is { } a) a.LoopMode = Animation.LoopModeEnum.Linear;
             if (_aIdle != "") _mdlAp.Play(_aIdle, 0); _aCur = _aIdle;
@@ -405,7 +411,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
     }
     public bool HasModel => _mdl != null;
     /// <summary>Hunting a hero right now (chasing, winding up or recovering from a blow).</summary>
-    public bool Hunting => _state == State.Chase || _state == State.Wind || _state == State.Recover || _state == State.Breath;
+    public bool Hunting => _state == State.Chase || _state == State.Wind || _state == State.Recover || _state == State.Breath || _state == State.Strike;
     /// <summary>The model's clip from the AI state: attack through the wind-up (stretched to it), flinch, death, move or idle.</summary>
     void AnimateModel()
     {
@@ -416,7 +422,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         else if (_state == State.Wind && _aAtk != "")
         {
             want = _aAtk; if (_aSerial != _swingSerial) { _aSerial = _swingSerial; restart = true; }
-            speed = Mathf.Clamp((float)ap.GetAnimation(want).Length * .5f / Mathf.Max(.15f, Def.Wind), .5f, 3f);   // the bite or blow lands as the wind-up ends
+            speed = Mathf.Clamp((float)ap.GetAnimation(want).Length * .5f / Mathf.Max(.15f, WindTotal), .5f, 3f);   // the bite or blow lands as the wind-up ends
         }
         else if (_state == State.Stagger && _aHit != "") { want = _aHit; if (_aSerialHit != _hitSerial) { _aSerialHit = _hitSerial; restart = true; } }
         else
@@ -605,12 +611,8 @@ public partial class Enemy : CharacterBody3D, IDamageable
         Hp -= dmg; _flash = 0.12f; NoteDamage(h, dmg);
         if (h.Attacker is Pet byPet && AggroHero == null && GD.Randf() < PetDb.R("aggroSwitchChance", .45f)) { PetFoe = byPet; _petAggroT = PetDb.R("aggroSwitchTime", 6f); _heroT = 0; }
         // stagger (decided here, on the host/owner): a big hit or crit cancels the wind-up; bosses only every Nth qualifying hit
-        if (h.IsPlayer && Hp > 0 && !Duelist && !Scarletta && (h.Crit || dmg >= MaxHp * Tune.F("monsters.staggerFrac", .2f)) && _state != State.Sleep && _state != State.Stagger)
-        {
-            bool go = true;
-            if (Def.Boss || Def.Kind == "dragon") { _staggerCount++; go = _staggerCount % Mathf.Max(1, Mathf.RoundToInt(Tune.F("monsters.staggerBossEvery", 3))) == 0; }
-            if (go) { Stun(Tune.F("monsters.staggerTime", .4f)); _staggerLean = 1f; }
-        }
+        // poise (decided here, on the host/owner; EnemyStrike.cs): blows wear it down, a broken poise staggers it and cancels its swing
+        if (h.IsPlayer && Hp > 0 && !Duelist && !Scarletta && _state != State.Sleep) PoiseHit(h);
         if (h.IsPlayer && !h.Remote) Flag.Event($"hit {Def.N} Lv{Level} for {dmg}{(h.Crit ? " crit" : "")} {h.Type}, its hp {Mathf.Max(0, Hp):0}/{MaxHp:0}");
         if (h.IsPlayer && h.Attacker is not Pet) { var D = Game.D; var p = Player.Instance; if (p != null) { p.Hp = Mathf.Min(D.MaxHp(), p.Hp + dmg * (Game.TS["leech"] + h.Leech) / 100f * Player.HealIn); p.Mp = Mathf.Min(D.MaxMp(), p.Mp + dmg * Game.TS["mleech"] / 100f); } }
         ApplyStatuses(h, dealt);
@@ -642,7 +644,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         _flAxis = Vector3.Up.Cross(_recoilDir); if (_flAxis.LengthSquared() < .0001f) return; _flAxis = _flAxis.Normalized();
         _flAmt = Mathf.DegToRad(Mathf.Lerp(4f, 14f, Mathf.Clamp(dmg / Mathf.Max(1f, MaxHp) * 4f, 0, 1)));
         _flTwist = (GD.Randf() < .5f ? -1f : 1f) * _flAmt * .5f; _flT = .18f;
-        bool swinging = _state == State.Wind || _state == State.Breath;
+        bool swinging = _state == State.Wind || _state == State.Breath || _state == State.Strike;
         if (swinging || Hp <= 0 || _state == State.Stagger) return;
         if (_mdlAp != null && _aHit != "" && _aCur != _aAtk) { _mdlAp.Play(_aHit, .05f); _mdlAp.Seek(0, true); _aCur = _aHit; }
         else if (_av != null && !_av.Busy) _av.Play("hit", .05f);
@@ -764,12 +766,12 @@ public partial class Enemy : CharacterBody3D, IDamageable
         if (_state != State.Dead) FlinchTick(dt);
         if (_killT > 0) { _killT -= dt; if (_killT <= 0) KillFlash(false); }
         if (_flash > 0) { _flash -= dt; foreach (var m in _mats) m.AlbedoColor = Colors.White; }
-        else { var st = Status.Tint; for (int i = 0; i < _mats.Count; i++) _mats[i].AlbedoColor = (_state == State.Wind ? _baseCols[i].Lerp(new Color(1, 0.2f, 0.1f), 1f - Mathf.Clamp(_timer / Mathf.Max(0.01f, Def.Wind), 0, 1)) : _baseCols[i]).Lerp(new Color(st.R, st.G, st.B), st.A); }
+        else { var st = Status.Tint; for (int i = 0; i < _mats.Count; i++) _mats[i].AlbedoColor = (_state == State.Wind ? _baseCols[i].Lerp(new Color(1, 0.2f, 0.1f), 1f - Mathf.Clamp(_timer / Mathf.Max(0.01f, WindTotal), 0, 1)) : _baseCols[i]).Lerp(new Color(st.R, st.G, st.B), st.A); }
 
         if (_state == State.Dead)
         {
             _deadT += dt;
-            if (!Flier)
+            if (!Flier && _av == null)   // (a character model falls with its own death clip)
             {
                 // weighted fall away from the killing blow: ease-in tip to ~80 deg over .35 s, small bounce on landing, dust for big bodies
                 float fp = Mathf.Clamp(_deadT / .35f, 0, 1), ang = Mathf.DegToRad(80f) * fp * fp, bt = _deadT - .35f;
@@ -807,6 +809,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         }
         if (Puppet) { PuppetMove(dt); if (Scarletta) ScarPuppetTick(dt); _netAge += dt; if (StalePuppet) { Visible = false; CollisionLayer = 0; } else if (!Dead) CollisionLayer = 2; return; }
         AggroTick(dt);   // damage and taunt locks (EnemyAggro.cs)
+        PoiseTick(dt); if (_ripT > 0) _ripT -= dt;   // poise refills after a pause; the riposte opening closes (EnemyStrike.cs)
         if (_evadeT > 0) _evadeT -= dt;
         if (IsShade) ShadeTick(dt);
 
@@ -878,7 +881,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
                     if (dist > range * 0.9f) move = toP.Normalized() * Def.Spd;
                     else if (dist < keep) move = -toP.Normalized() * Def.Spd * 0.8f;
                     else { var side = new Vector3(-toP.Z, 0, toP.X).Normalized() * ((GetInstanceId() % 2 == 0) ? 1 : -1); move = side * Def.Spd * 0.4f; }
-                    if (dist <= range && _timer <= 0) { _state = State.Wind; _timer = Def.Wind; _swingSerial++; Telegraph(); }
+                    if (dist <= range && _timer <= 0) { _state = State.Wind; _timer = WindTotal; _swingSerial++; Telegraph(); }
                 }
                 else
                 {
@@ -886,7 +889,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
                     // (Combat.cs Melee.Reaches): no swinging at the air, it keeps closing in to the foot of the ledge and waits there
                     bool vReach = CanReachUp(pl);
                     if (dist > Def.Reach * 0.8f || (!vReach && dist > Def.R * _scale + Tune.F("melee.crowdGap", .7f))) move = toP.Normalized() * Def.Spd;
-                    if (dist <= Def.Reach + 0.2f && _timer <= 0 && vReach) { _state = State.Wind; _timer = Def.Wind; _swingSerial++; Telegraph(); }
+                    if (dist <= Def.Reach + 0.2f && _timer <= 0 && vReach) { _state = State.Wind; _timer = WindTotal; _swingSerial++; Telegraph(); }   // (A-04 stays the gate: no wind-up at a foe it cannot reach; the blow itself is the hitbox)
                 }
                 break;
             case State.Wind:
@@ -907,16 +910,20 @@ public partial class Enemy : CharacterBody3D, IDamageable
                             if (pl is Pet shotPet) shotPet.TakeHit(OnHit(new HitInfo { Damage = Damage, From = GlobalPosition, Knock = 2f, IsProjectile = true, Attacker = this }));   // shots only strike heroes: a pet takes it directly
                             Sfx.Play(Def.Ranged == "arrow" ? "swing" : "zap", 0.6f);
                         }
-                        else if (dist - 0.4f <= Def.Reach + 0.5f && CanReachUp(pl))   // A-04: in reach across the ground and in height
-                        {
+                        else
+                        {   // melee: the blow becomes a live hitbox for a moment (weapon blade, jaws or a strike sphere: EnemyStrike.cs)
                             if (Def.Slam) { Fx.Ring(GlobalPosition + Vector3.Up * 0.1f, Def.Reach + 0.8f, new Color(1, 0.5f, 0.2f)); if (pl is Player) Player.Instance?.Rig?.Shake(0.2f); }
-                            // the block world: the blow lands on the blocks in front too (monster rules: soft blocks only, never a dungeon floor; bosses capped)
                             { var ef = new Vector3(-Mathf.Sin(_yaw), 0, -Mathf.Cos(_yaw)); BlockFx.Enemy(GlobalPosition + Vector3.Up * (Def.Slam ? .2f : 1f) + ef * Def.Reach * .7f, Def.Slam ? Def.Reach : 0f, Damage, Def.Boss); }
-                            ((IDamageable)pl!).TakeHit(OnHit(new HitInfo { Damage = Damage, From = GlobalPosition, Knock = Def.Slam ? 9f : 4f, Stagger = Def.Slam, Attacker = this }));
+                            BeginStrike(); break;
                         }
                     }
                     _state = State.Recover; _timer = Def.Cd * 0.6f;
                 }
+                break;
+            case State.Strike:
+                _yaw = Mathf.LerpAngle(_yaw, yawToP, 1f - Mathf.Exp(-Tune.F("enemyAtk.strikeTurn", 2f) * dt));   // committed: it barely tracks a dodge
+                _timer -= dt; StrikeTick(pl);
+                if (_timer <= 0) { _state = State.Recover; _timer = Def.Cd * 0.6f; }
                 break;
             case State.Recover:
                 _timer -= dt; if (_timer <= 0) { _state = State.Chase; _timer = Def.Cd * 0.4f; }
@@ -1055,9 +1062,18 @@ public partial class Enemy : CharacterBody3D, IDamageable
         float hs = new Vector2(Velocity.X, Velocity.Z).Length();
         switch (_state)
         {
-            case State.Dead: _av.Play("die", .1f); return;
-            case State.Wind: _av.Play(Def.Ranged != null ? "shoot" : Def.Slam ? "powerHeavy" : "melee", .1f, Mathf.Max(.3f, Def.Wind / .6f), _av.Cur == "" || !_av.Busy && _windStart, _swing); _windStart = false; return;
-            case State.Stagger: _av.Play("hit", .05f); return;
+            case State.Dead: _av.Play("die", _deathBlend, _av.ClipLength(Avatar.Clip("die")) / Mathf.Max(.1f, _deathRate)); return;
+            case State.Wind:
+            case State.Strike:
+                if (Def.Ranged != null) { _av.Play("shoot", Avatar.Blend("toAttack", .1f), Mathf.Max(.3f, WindTotal / .6f), _av.Cur == "" || !_av.Busy && _windStart, _swing); _windStart = false; return; }
+                {   // the same sword clips as the hero, its own timing: wind-up, a held top (the telegraph), the strike as the hitbox goes live
+                    bool fresh = _avSerial != _swingSerial; _avSerial = _swingSerial; if (fresh) _swing++;
+                    if (_av.PlayAttack(Avatar.FoeAttack(Type, Def.Slam, _swing), WindTotal + Tune.F("enemyAtk.lead", .06f), fresh, -1, WindPause)) return;
+                    _av.Play(Def.Slam ? "powerHeavy" : "melee", .1f, Mathf.Max(.3f, WindTotal / .6f), fresh, _swing); return;
+                }
+            case State.Stagger: { bool fresh = _avHit != _hitSerial; _avHit = _hitSerial; _av.Play(_av.HasClip(_hitKind) ? _hitKind : "hit", Avatar.Blend("toHit", .06f), 0, fresh); return; }
+            case State.Recover when !_av.AttackDone: return;   // the follow-through plays out
+            case State.Recover when _av.Cur.StartsWith("atk_") && !_av.Cur.StartsWith("atk_rec") && Def.Ranged == null: _av.PlayRecovery(Def.Slam ? "recHook" : "recA", Mathf.Max(.3f, _timer)); return;
         }
         if (_state != State.Recover) { _windStart = true; if (_state == State.Chase && _av.Busy) return; }
         if (_av.Busy) return;
@@ -1086,7 +1102,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
     {
         if (Scarletta && !Dead) { ScarWrite(b); return; }   // her move, health bars and the Bloom ride in the state slots
         var p = GlobalPosition; b.Add(p.X); b.Add(p.Y); b.Add(p.Z); b.Add(_yaw); b.Add(Hp); b.Add((float)_state);
-        b.Add(_state == State.Wind ? Mathf.Clamp(_timer / Mathf.Max(.01f, Def.Wind), 0, 1) : 1f);
+        b.Add(_state == State.Wind ? Mathf.Clamp(_timer / Mathf.Max(.01f, WindTotal), 0, 1) : 1f);
         b.Add(MaxHp); b.Add(Level);   // scaling depends on the host's hero and the lobby, so friends take the host's numbers
         b.Add(Dmg.Mask(Status));      // statuses live on the host's copy: friends see the icons (and the tint) too
     }
@@ -1103,7 +1119,7 @@ public partial class Enemy : CharacterBody3D, IDamageable
         if (st == State.Dead) { if (!Dead) PuppetDie(); return; }
         if (Dead) { Respawn(); GlobalPosition = _netPos; }
         if (st == State.Wind && _state != State.Wind) _swingSerial++;   // a new blow: the model restarts its attack
-        _state = st; if (st == State.Wind) _timer = f[k + 6] * Def.Wind;
+        _state = st; if (st == State.Wind) _timer = f[k + 6] * WindTotal;
         if (st == State.Breath) _breathT = 1.2f;
     }
     void PuppetDie()
